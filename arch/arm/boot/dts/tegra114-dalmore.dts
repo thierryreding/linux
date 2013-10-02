@@ -28,7 +28,7 @@
 
 			hdmi-supply = <&vdd_5v0_hdmi>;
 			vdd-supply = <&vdd_hdmi_reg>;
-			pll-supply = <&palmas_smps3_reg>;
+			pll-supply = <&pll_hdmi_reg>;
 
 			nvidia,ddc-i2c-bus = <&hdmi_ddc>;
 			nvidia,hpd-gpio =
@@ -1027,7 +1027,7 @@
 						regulator-boot-on;
 					};
 
-					ldoln {
+					avdd_hdmi_reg: ldoln {
 						regulator-name = "hvdd-usb";
 						regulator-min-microvolt = <3300000>;
 						regulator-max-microvolt = <3300000>;
@@ -1234,7 +1234,7 @@
 			regulator-name = "vdd_hdmi_5v0";
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
-			vin-supply = <&tps65090_dcdc1_reg>;
+			vin-supply = <&avdd_hdmi_reg>;
 		};
 
 		vdd_cam_1v8_reg: regulator@6 {
@@ -1256,6 +1256,17 @@
 			gpio = <&gpio TEGRA_GPIO(K, 1) GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 			vin-supply = <&tps65090_dcdc1_reg>;
+		};
+
+		pll_hdmi_reg: regulator@8 {
+			compatible = "regulator-fixed";
+			reg = <8>;
+			regulator-name = "vdd_hdmi_pll";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			enable-active-high;
+			gpio = <&gpio TEGRA_GPIO(O, 1) GPIO_ACTIVE_HIGH>;
+			vin-supply = <&avdd_1v2_reg>;
 		};
 	};
 
