@@ -89,6 +89,16 @@
 			enable-active-high;
 			gpio = <&gpio TEGRA_GPIO(K, 3) GPIO_ACTIVE_HIGH>;
 		};
+
+		vdd_5v0_hdmi: regulator@107 {
+			compatible = "regulator-fixed";
+			reg = <107>;
+			regulator-name = "VDD_5V0_HDMI";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio TEGRA_GPIO(T, 0) GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+		};
 	};
 };
 
