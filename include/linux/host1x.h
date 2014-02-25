@@ -27,6 +27,7 @@ enum host1x_class {
 	HOST1X_CLASS_GR2D = 0x51,
 	HOST1X_CLASS_GR2D_SB = 0x52,
 	HOST1X_CLASS_GR3D = 0x60,
+	HOST1X_CLASS_GPU = 0x61,
 };
 
 struct host1x_client;
