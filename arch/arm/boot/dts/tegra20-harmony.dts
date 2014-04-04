@@ -709,6 +709,7 @@
 			regulator-max-microvolt = <1050000>;
 			gpio = <&pmic 2 GPIO_ACTIVE_HIGH>;
 			enable-active-high;
+			vin-supply = <&vdd_5v0_reg>;
 		};
 
 		vdd_pnl_reg: regulator@4 {
