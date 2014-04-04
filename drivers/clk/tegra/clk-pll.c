@@ -936,6 +936,12 @@ static int clk_plle_enable(struct clk_hw *hw)
 
 	clk_pll_wait_for_lock(pll);
 
+	/* enable spread-spectrum */
+	val = readl(pll->clk_base + PLLE_SS_CTRL);
+	val &= ~PLLE_SS_DISABLE;
+	val |= (0x18 << 24) | (0x01 << 16) | (0x24 << 0);
+	writel(val, pll->clk_base + PLLE_SS_CTRL);
+
 	return 0;
 }
 
