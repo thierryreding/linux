@@ -656,6 +656,8 @@ static struct tegra_clk_pll_params pll_d_params = {
 };
 
 static struct tegra_clk_pll_freq_table tegra124_pll_d2_freq_table[] = {
+	{ 12000000, 148500000, 99, 1, 8, 0 },
+	{ 12000000, 297000000, 99, 1, 4, 0 },
 	{ 12000000, 594000000, 99, 1, 2, 0 },
 	{ 13000000, 594000000, 91, 1, 2, 0 }, /* actual: 591.5 MHz */
 	{ 16800000, 594000000, 71, 1, 2, 0 }, /* actual: 596.4 MHz */
