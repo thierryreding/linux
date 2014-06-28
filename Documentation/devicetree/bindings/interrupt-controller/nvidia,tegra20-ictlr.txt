@@ -1,0 +1,45 @@
+NVIDIA Tegra Legacy Interrupt Controller
+
+The legacy interrupt controller serves as the primary interrupt controller for
+the AVP coprocessor. It also forwards interrupts to the GIC for redistribution
+to the CPUs. Interrupts can be configured as wakeup sources within this legacy
+interrupt controller.
+
+The legacy interrupt controller is divided into identical units that serve 32
+interrupts each. A different number of units are implemented in different SoC
+generations:
+
+  - Tegra20 implements four units.
+  - Tegra30, Tegra114, Tegra148, Tegra124 and Tegra132 implement five units.
+  - Tegra210 implements six units.
+
+Required properties:
+- compatible: Should be: "nvidia,tegra<chip>-ictlr". For Tegra114, Tegra148,
+  Tegra124 and Tegra132 the LIC is backwards-compatible with Tegra30, and so
+  the compatible value should include "nvidia,tegra30-ictlr".
+- reg: Physical base address and length of the controller's registers. There
+  should be one entry for each unit. See above for the number of implemented
+  units for the different SoC generations.
+- interrupt-controller: Identifies the node as an interrupt controller.
+- #interrupt-cells: Specifies the number of cells required to describe an
+  interrupt source. Since the LIC ultimately forwards interrupts to the GIC,
+  the interrupt specifier must be that of the GIC.
+- interrupt-parent: A phandle to the GIC that the LIC forwards interrupts to
+  for redistribution to the CPUs.
+
+Notes:
+- Since only SPIs are routed through the LIC, SGIs and PPIs are explicitly
+  disallowed.
+
+Example:
+
+	interrupt-controller@60004000 {
+		compatible = "nvidia,tegra20-ictlr";
+		reg = <0x60004000 0x40>, /* primary controller */
+		      <0x60004100 0x40>, /* secondary controller */
+		      <0x60004200 0x40>, /* tertiary controller */
+		      <0x60004300 0x40>; /* quaternary controller */
+		interrupt-parent = <&gic>;
+		#interrupt-cells = <3>;
+		interrupt-controller;
+	};
