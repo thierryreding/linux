@@ -48,6 +48,11 @@ void tegra_cpu_die(unsigned int cpu)
 	tegra_disable_clean_inv_dcache(TEGRA_FLUSH_CACHE_LOUIS);
 
 	/* Shut down the current CPU. */
+	if (!tegra_hotplug_shutdown) {
+		WARN(1, "hotplug not yet initialized\n");
+		return;
+	}
+
 	tegra_hotplug_shutdown();
 
 	/* Should never return here. */
