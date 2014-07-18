@@ -19,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/io.h>
 
+#include <soc/tegra/common.h>
 #include <soc/tegra/fuse.h>
 
 #include <asm/cacheflush.h>
@@ -87,8 +88,10 @@ static void __init tegra_cpu_reset_handler_enable(void)
 	}
 }
 
-void __init tegra_cpu_reset_handler_init(void)
+int __init tegra_cpu_reset_handler_init(void)
 {
+	if (!soc_is_tegra())
+		return 0;
 
 #ifdef CONFIG_SMP
 	__tegra_cpu_reset_handler_data[TEGRA_RESET_MASK_PRESENT] =
@@ -105,4 +108,6 @@ void __init tegra_cpu_reset_handler_init(void)
 #endif
 
 	tegra_cpu_reset_handler_enable();
+	return 0;
 }
+early_initcall(tegra_cpu_reset_handler_init);

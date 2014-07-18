@@ -74,7 +74,6 @@ u32 tegra_uart_config[3] = {
 static void __init tegra_init_early(void)
 {
 	of_register_trusted_foundations();
-	tegra_cpu_reset_handler_init();
 	tegra_flowctrl_init();
 }
 
