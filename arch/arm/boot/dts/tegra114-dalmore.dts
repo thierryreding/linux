@@ -39,14 +39,27 @@
 			status = "okay";
 
 			avdd-dsi-csi-supply = <&avdd_1v2_reg>;
+			nvidia,ganged-mode = <&dsib>;
 
-			panel@0 {
-				compatible = "panasonic,vvx10f004b00",
-					     "simple-panel";
+			/* DSI-LINK1 */
+			panel: panel@0 {
+				compatible = "sharp,lq101r1sx01";
 				reg = <0>;
+
+				link2 = <&panel_link2>;
 
 				power-supply = <&avdd_lcd_reg>;
 				backlight = <&backlight>;
+			};
+		};
+
+		dsib: dsi@54400000 {
+			status = "okay";
+
+			/* DSI-LINK2 */
+			panel_link2: panel@0 {
+				compatible = "sharp,lq101r1sx01";
+				reg = <0>;
 			};
 		};
 	};
