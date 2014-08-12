@@ -26,10 +26,12 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/sched_clock.h>
 #include <linux/delay.h>
+#include <linux/watchdog.h>
 
 #include <asm/mach/time.h>
 #include <asm/smp_twd.h>
@@ -55,6 +57,49 @@
 #define TIMER_PCR 0x4
 #define  TIMER_PCR_INTR_CLR (1 << 30)
 
+/*
+ * Register base of the timer that's selected for pairing with the watchdog.
+ * This driver arbitrarily uses timer 5, which is currently unused by
+ * other drivers (in particular, the Tegra clocksource driver).  If this
+ * needs to change, take care that the new timer is not used by the
+ * clocksource driver.
+ */
+#define WDT_TIMER_BASE 0x60
+#define WDT_TIMER_ID 5
+
+/* WDT registers */
+#define WDT_BASE 0x100
+
+#define WDT_CFG				0x0
+#define  WDT_CFG_PERIOD_SHIFT		4
+#define  WDT_CFG_PERIOD_MASK		0xff
+#define  WDT_CFG_INT_EN			(1 << 12)
+#define  WDT_CFG_PMC2CAR_RST_EN		(1 << 15)
+
+#define WDT_STS				0x4
+#define  WDT_STS_COUNT_SHIFT		4
+#define  WDT_STS_COUNT_MASK		0xff
+#define  WDT_STS_EXP_SHIFT		12
+#define  WDT_STS_EXP_MASK		0x3
+
+#define WDT_CMD				0x8
+#define  WDT_CMD_START_COUNTER		(1 << 0)
+#define  WDT_CMD_DISABLE_COUNTER	(1 << 1)
+
+#define WDT_UNLOCK			0xc
+#define WDT_UNLOCK_PATTERN		(0xc45a << 0)
+
+struct tegra_wdt {
+	struct watchdog_device wdd;
+	void __iomem *timer;
+	void __iomem *base;
+};
+
+static inline struct tegra_wdt *to_tegra_wdt(struct watchdog_device *wdd)
+{
+	return container_of(wdd, struct tegra_wdt, wdd);
+}
+
 struct tegra_timer {
 	void __iomem *base;
 	struct clk *clk;
@@ -62,6 +107,8 @@ struct tegra_timer {
 
 	struct clock_event_device clockevent;
 	struct delay_timer delay;
+
+	struct tegra_wdt *wdt;
 
 	u32 usec_cfg;
 };
@@ -299,15 +346,185 @@ static void __init tegra20_init_rtc(struct device_node *np)
 }
 CLOCKSOURCE_OF_DECLARE(tegra20_rtc, "nvidia,tegra20-rtc", tegra20_init_rtc);
 
+static const struct watchdog_info tegra_wdt_info = {
+	.options = WDIOF_SETTIMEOUT | WDIOF_MAGICCLOSE | WDIOF_KEEPALIVEPING,
+	.identity = "Tegra Watchdog",
+};
+
+static int tegra_wdt_start(struct watchdog_device *wdd)
+{
+	struct tegra_wdt *wdt = to_tegra_wdt(wdd);
+	u32 value;
+
+	/*
+	 * This thing has a fixed 1MHz clock.  Normally, we would set the
+	 * period to 1 second by writing 1000000ul, but the watchdog system
+	 * reset actually occurs on the 4th expiration of this counter,
+	 * so we set the period to 1/4 of this amount.
+	 */
+	value = TIMER_PTV_ENABLE | TIMER_PTV_PERIODIC | (USEC_PER_SEC / 4);
+	writel(value, wdt->timer + TIMER_PTV);
+
+	/*
+	 * Set number of periods and start counter.
+	 *
+	 * Interrupt handler is not required for user space
+	 * WDT accesses, since the caller is responsible to ping the
+	 * WDT to reset the counter before expiration, through ioctls.
+	 */
+	value = WDT_TIMER_ID | (wdd->timeout << WDT_CFG_PERIOD_SHIFT) |
+		WDT_CFG_PMC2CAR_RST_EN;
+	writel(value, wdt->base + WDT_CFG);
+
+	writel(WDT_CMD_START_COUNTER, wdt->base + WDT_CMD);
+
+	return 0;
+}
+
+static int tegra_wdt_stop(struct watchdog_device *wdd)
+{
+	struct tegra_wdt *wdt = to_tegra_wdt(wdd);
+
+	writel(WDT_UNLOCK_PATTERN, wdt->base + WDT_UNLOCK);
+	writel(WDT_CMD_DISABLE_COUNTER, wdt->base + WDT_CMD);
+	writel(0, wdt->timer + TIMER_PTV);
+
+	return 0;
+}
+
+static int tegra_wdt_ping(struct watchdog_device *wdd)
+{
+	struct tegra_wdt *wdt = to_tegra_wdt(wdd);
+
+	writel(WDT_CMD_START_COUNTER, wdt->base + WDT_CMD);
+
+	return 0;
+}
+
+static int tegra_wdt_set_timeout(struct watchdog_device *wdd,
+				 unsigned int timeout)
+{
+	wdd->timeout = timeout;
+
+	if (watchdog_active(wdd)) {
+		tegra_wdt_stop(wdd);
+		return tegra_wdt_start(wdd);
+	}
+
+	return 0;
+}
+
+static unsigned int tegra_wdt_get_timeleft(struct watchdog_device *wdd)
+{
+	struct tegra_wdt *wdt = to_tegra_wdt(wdd);
+	unsigned int count, exp;
+	u32 value;
+
+	value = readl(wdt->base + WDT_STS);
+
+	/* Current countdown (from timeout) */
+	count = (value >> WDT_STS_COUNT_SHIFT) & WDT_STS_COUNT_MASK;
+
+	/* Number of expirations (we are waiting for the 4th expiration) */
+	exp = (value >> WDT_STS_EXP_SHIFT) & WDT_STS_EXP_MASK;
+
+	/*
+	 * The entire thing is divided by 4 because we are ticking down 4 times
+	 * faster due to needing to wait for the 4th expiration.
+	 */
+	return (((3 - exp) * wdd->timeout) + count) / 4;
+}
+
+static const struct watchdog_ops tegra_wdt_ops = {
+	.owner = THIS_MODULE,
+	.start = tegra_wdt_start,
+	.stop = tegra_wdt_stop,
+	.ping = tegra_wdt_ping,
+	.set_timeout = tegra_wdt_set_timeout,
+	.get_timeleft = tegra_wdt_get_timeleft,
+};
+
+static struct tegra_wdt *tegra_wdt_probe(struct device *dev, void __iomem *base)
+{
+	struct tegra_wdt *wdt;
+	int err;
+
+	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
+	if (!wdt)
+		return ERR_PTR(-ENOMEM);
+
+	wdt->timer = base + TIMER5_BASE;
+	wdt->base = base + WDT_BASE;
+
+	wdt->wdd.info = &tegra_wdt_info;
+	wdt->wdd.ops = &tegra_wdt_ops;
+	wdt->wdd.min_timeout = 1;
+	wdt->wdd.max_timeout = 255;
+	wdt->wdd.timeout = 120;
+	wdt->wdd.parent = dev;
+
+	watchdog_set_nowayout(&wdt->wdd, WATCHDOG_NOWAYOUT);
+	watchdog_set_drvdata(&wdt->wdd, timer);
+
+	err = watchdog_register_device(&wdt->wdd);
+	if (err < 0)
+		return ERR_PTR(err);
+
+	return wdt;
+}
+
+struct tegra_timer_soc {
+	bool has_watchdog;
+};
+
+/*
+ * Tegra20 has a watchdog but it is different from the one found on Tegra30
+ * and later. Most of it is implemented in the clock and reset controller, but
+ * it relies on either timer 1 or timer 2 as source.
+ *
+ * For now don't register a watchdog device on Tegra20 until it has been. Even
+ * if it was implemented at some point in the future it would most likely be
+ * registered from the clock and reset controller driver.
+ */
+static const struct tegra_timer_soc tegra20_timer_soc = {
+	.has_watchdog = false,
+};
+
+static const struct tegra_timer_soc tegra30_timer_soc = {
+	.has_watchdog = true,
+};
+
+static const struct of_device_id tegra_timer_of_match[] = {
+	{ .compatible = "nvidia,tegra124-timer", .data = &tegra30_timer_soc },
+	{ .compatible = "nvidia,tegra114-timer", .data = &tegra30_timer_soc },
+	{ .compatible = "nvidia,tegra30-timer", .data = &tegra30_timer_soc },
+	{ .compatible = "nvidia,tegra20-timer", .data = &tegra20_timer_soc },
+	{ }
+};
+
 static int tegra_timer_probe(struct platform_device *pdev)
 {
+	const struct tegra_timer_soc *soc;
+	const struct of_device_id *match;
 	struct resource *regs;
 	void __iomem *base;
+
+	match = of_match_device(tegra_timer_of_match, &pdev->dev);
+	if (!match)
+		return -ENODEV;
+
+	soc = match->data;
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(&pdev->dev, regs);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
+
+	if (IS_ENABLED(CONFIG_TEGRA_WATCHDOG) && soc->has_watchdog) {
+		timer->wdt = tegra_wdt_probe(&pdev->dev, base);
+		if (IS_ERR(timer->wdt))
+			return PTR_ERR(timer->wdt);
+	}
 
 	platform_set_drvdata(pdev, timer);
 	timer->base = base;
@@ -320,6 +537,13 @@ static int tegra_timer_suspend(struct device *dev)
 {
 	struct tegra_timer *timer = dev_get_drvdata(dev);
 
+	if (IS_ENABLED(CONFIG_TEGRA_WATCHDOG) && timer->wdt) {
+		struct watchdog_device *wdd = &timer->wdt->wdd;
+
+		if (watchdog_active(wdd))
+			tegra_wdt_stop(wdd);
+	}
+
 	timer->usec_cfg = timer_readl(timer, TIMERUS_USEC_CFG);
 
 	return 0;
@@ -331,20 +555,19 @@ static int tegra_timer_resume(struct device *dev)
 
 	timer_writel(timer, timer->usec_cfg, TIMERUS_USEC_CFG);
 
+	if (IS_ENABLED(CONFIG_TEGRA_WATCHDOG) && timer->wdt) {
+		struct watchdog_device *wdd = &timer->wdt->wdd;
+
+		if (watchdog_active(wdd))
+			tegra_wdt_start(wdd);
+	}
+
 	return 0;
 }
 #endif
 
 static SIMPLE_DEV_PM_OPS(tegra_timer_pm_ops, tegra_timer_suspend,
 			 tegra_timer_resume);
-
-static const struct of_device_id tegra_timer_of_match[] = {
-	{ .compatible = "nvidia,tegra124-timer", },
-	{ .compatible = "nvidia,tegra114-timer", },
-	{ .compatible = "nvidia,tegra30-timer", },
-	{ .compatible = "nvidia,tegra20-timer", },
-	{ }
-};
 
 static struct platform_driver tegra_timer_driver = {
 	.driver = {
