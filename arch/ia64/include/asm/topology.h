@@ -29,9 +29,13 @@
 /*
  * Returns a bitmask of CPUs on Node 'node'.
  */
-#define cpumask_of_node(node) ((node) == -1 ?				\
-			       cpu_all_mask :				\
-			       &node_to_cpu_mask[node])
+static inline struct cpumask *cpumask_of_node(int node)
+{
+	if (node == -1)
+		return cpu_all_mask;
+
+	return &node_to_cpu_mask[node];
+}
 
 /*
  * Returns the number of the node containing Node 'nid'.
