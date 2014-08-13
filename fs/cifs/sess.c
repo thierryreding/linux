@@ -1374,12 +1374,8 @@ static int select_sec(struct cifs_ses *ses, struct sess_data *sess_data)
 		 * build) and turned on at runtime (changed from the default)
 		 * in proc/fs/cifs or via mount parm.  Unfortunately this is
 		 * needed for old Win (e.g. Win95), some obscure NAS and OS/2 */
-#ifdef CONFIG_CIFS_WEAK_PW_HASH
 		sess_data->func = sess_auth_lanman;
 		break;
-#else
-		return -EOPNOTSUPP;
-#endif
 	case NTLM:
 		sess_data->func = sess_auth_ntlm;
 		break;
@@ -1387,14 +1383,8 @@ static int select_sec(struct cifs_ses *ses, struct sess_data *sess_data)
 		sess_data->func = sess_auth_ntlmv2;
 		break;
 	case Kerberos:
-#ifdef CONFIG_CIFS_UPCALL
 		sess_data->func = sess_auth_kerberos;
 		break;
-#else
-		cifs_dbg(VFS, "Kerberos negotiated but upcall support disabled!\n");
-		return -ENOSYS;
-		break;
-#endif /* CONFIG_CIFS_UPCALL */
 	case RawNTLMSSP:
 		sess_data->func = sess_auth_rawntlmssp_negotiate;
 		break;
