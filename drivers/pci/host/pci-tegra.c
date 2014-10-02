@@ -2206,6 +2206,10 @@ static int tegra_pcie_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, pcie);
+
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_get_sync(&pdev->dev);
+
 	return 0;
 
 disable_msi:
@@ -2241,6 +2245,9 @@ static int tegra_pcie_remove(struct platform_device *pdev)
 	err = tegra_pcie_put_resources(pcie);
 	if (err < 0)
 		return err;
+
+	pm_runtime_put_sync(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
 
 	return 0;
 }
