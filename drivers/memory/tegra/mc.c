@@ -73,6 +73,37 @@ static const struct of_device_id tegra_mc_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, tegra_mc_of_match);
 
+/* XXX: provide prototype in public header */
+int tegra_mc_set_bandwidth(struct tegra_mc *mc, unsigned int id,
+			   unsigned long bandwidth)
+{
+	unsigned int i;
+
+	for (i = 0; i < mc->soc->num_clients; i++) {
+		const struct tegra_mc_client *client = &mc->soc->clients[i];
+
+		if (client->id == id) {
+			const struct tegra_mc_la *la = &client->la;
+			unsigned long long ticks;
+			u32 value;
+
+			ticks = client->fifo_size * mc->soc->atom_size *
+				(NSEC_PER_SEC / mc->tick);
+			do_div(ticks, bandwidth);
+			ticks -= 1000 / mc->tick;
+
+			value = readl(mc->regs + la->reg);
+			value &= ~(la->mask << la->shift);
+			value |= (ticks & la->mask) << la->shift;
+			writel(value, mc->regs + la->reg);
+
+			return 0;
+		}
+	}
+
+	return -EINVAL;
+}
+
 static int tegra_mc_setup_latency_allowance(struct tegra_mc *mc)
 {
 	unsigned long long tick;
