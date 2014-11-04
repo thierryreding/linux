@@ -24,7 +24,8 @@
 #ifndef __DRM_PANEL_H__
 #define __DRM_PANEL_H__
 
-#include <linux/list.h>
+#include <linux/module.h>
+#include <linux/registry.h>
 
 struct drm_connector;
 struct drm_device;
@@ -33,6 +34,7 @@ struct display_timing;
 
 /**
  * struct drm_panel_funcs - perform operations on a given panel
+ * @release: called when the final reference is dropped
  * @disable: disable panel (turn off back light, etc.)
  * @unprepare: turn off panel
  * @prepare: turn on panel and perform set up
@@ -66,6 +68,7 @@ struct display_timing;
  * the panel. This is the job of the .unprepare() function.
  */
 struct drm_panel_funcs {
+	void (*release)(struct drm_panel *panel);
 	int (*disable)(struct drm_panel *panel);
 	int (*unprepare)(struct drm_panel *panel);
 	int (*prepare)(struct drm_panel *panel);
@@ -77,20 +80,20 @@ struct drm_panel_funcs {
 
 /**
  * struct drm_panel - DRM panel object
+ * @record: registry record
  * @drm: DRM device owning the panel
  * @connector: DRM connector that the panel is attached to
  * @dev: parent device of the panel
  * @funcs: operations that can be performed on the panel
- * @list: panel entry in registry
  */
 struct drm_panel {
+	struct registry_record record;
+
 	struct drm_device *drm;
 	struct drm_connector *connector;
 	struct device *dev;
 
 	const struct drm_panel_funcs *funcs;
-
-	struct list_head list;
 };
 
 /**
@@ -185,6 +188,8 @@ static inline int drm_panel_get_modes(struct drm_panel *panel)
 }
 
 void drm_panel_init(struct drm_panel *panel);
+struct drm_panel *drm_panel_ref(struct drm_panel *panel);
+void drm_panel_unref(struct drm_panel *panel);
 
 int drm_panel_add(struct drm_panel *panel);
 void drm_panel_remove(struct drm_panel *panel);
