@@ -186,6 +186,8 @@ void tegra_output_remove(struct tegra_output *output)
 
 	if (output->ddc)
 		put_device(&output->ddc->dev);
+
+	drm_panel_unref(output->panel);
 }
 
 int tegra_output_init(struct drm_device *drm, struct tegra_output *output)
