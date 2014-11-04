@@ -363,6 +363,7 @@ static int ld9040_remove(struct spi_device *spi)
 
 	ld9040_power_off(ctx);
 	drm_panel_remove(&ctx->panel);
+	drm_panel_unref(&ctx->panel);
 
 	return 0;
 }
