@@ -379,8 +379,7 @@ static int st_rc_resume(struct device *dev)
 
 	return 0;
 }
-
-#endif
+#endif /* CONFIG_PM_SLEEP */
 
 static SIMPLE_DEV_PM_OPS(st_rc_pm_ops, st_rc_suspend, st_rc_resume);
 
