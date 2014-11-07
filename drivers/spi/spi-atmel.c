@@ -1692,6 +1692,7 @@ static int atmel_spi_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
+#ifdef CONFIG_PM_RUNTIME
 static int atmel_spi_runtime_suspend(struct device *dev)
 {
 	struct spi_master *master = dev_get_drvdata(dev);
@@ -1712,6 +1713,7 @@ static int atmel_spi_runtime_resume(struct device *dev)
 
 	return clk_prepare_enable(as->clk);
 }
+#endif
 
 #ifdef CONFIG_PM_SLEEP
 static int atmel_spi_suspend(struct device *dev)
