@@ -938,6 +938,7 @@ static int machine_constraints_voltage(struct regulator_dev *rdev,
 		int	max_uV = INT_MIN;
 		int	cmin = constraints->min_uV;
 		int	cmax = constraints->max_uV;
+		int	value;
 
 		/* it's safe to autoconfigure fixed-voltage supplies
 		   and the constraints are used by list_voltage. */
@@ -960,8 +961,6 @@ static int machine_constraints_voltage(struct regulator_dev *rdev,
 
 		/* initial: [cmin..cmax] valid, [min_uV..max_uV] not */
 		for (i = 0; i < count; i++) {
-			int	value;
-
 			value = ops->list_voltage(rdev, i);
 			if (value <= 0)
 				continue;
@@ -991,6 +990,24 @@ static int machine_constraints_voltage(struct regulator_dev *rdev,
 			rdev_dbg(rdev, "override max_uV, %d -> %d\n",
 				 constraints->max_uV, max_uV);
 			constraints->max_uV = max_uV;
+		}
+
+		/*
+		 * Now that the voltage range has been determined, make sure
+		 * that the regulator's current voltage is within that range.
+		 */
+		value = _regulator_get_voltage(rdev);
+
+		if (value < constraints->min_uV ||
+		    value > constraints->max_uV) {
+			ret = _regulator_do_set_voltage(rdev,
+							constraints->min_uV,
+							constraints->max_uV);
+			if (ret < 0) {
+				rdev_err(rdev, "failed to set voltage to within %d-%d\n",
+					 constraints->min_uV, constraints->max_uV);
+				return ret;
+			}
 		}
 	}
 
