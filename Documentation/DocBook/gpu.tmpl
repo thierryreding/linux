@@ -3141,8 +3141,706 @@ int num_ioctls;</synopsis>
 
   </chapter>
 </part>
+<part id="drmABI">
+  <title>DRM Userspace ABI</title>
+  <partintro>
+    <para>
+      This third part of the DRM Developer's Guide documents userspace
+      interfaces. DRM devices can be accessed using standard file operations
+      such as open(), close(), ioctl() or mmap(). How these translate to the
+      DRM drivers is explained in the following chapters.
+    </para>
+    <para>
+      For driver-specific userspace interfaces (buffer allocation and
+      management, command stream submission, ...) refer to the driver-specific
+      sections in <link linkend="drmDrivers" endterm="drmDrivers.title"/>.
+    </para>
+  </partintro>
+  <chapter id="drmIoctl">
+    <title>DRM IOCTLs</title>
+    <para>
+      A number of IOCTLs can be performed on a DRM device node. Many of them
+      are generic and apply to all devices, others are considered legacy and
+      should no longer be used in new userspace applications.
+    </para>
+    <sect1>
+      <title>Identification</title>
+      <sect2>
+        <title>DRM_IOCTL_VERSION - query driver name and version</title>
+        <para>
+          After opening a DRM device, userspace applications will typically
+          want to identify the driver bound to the device. They can use this
+          IOCTL to obtain information about the driver in the form of a
+          <structname>drm_version</structname> structure.
+        </para>
+!Finclude/uapi/drm/drm.h drm_version
+        <para>
+          Returns 0 on success or one of the following error codes on
+          failure:
+        </para>
+        <variablelist>
+          <varlistentry>
+            <term><constant>EFAULT</constant></term>
+            <listitem>
+              <para>
+                If data cannot be copied to any of the
+                <structfield>name</structfield>,
+                <structfield>date</structfield> or
+                <structfield>desc</structfield> fields.
+              </para>
+            </listitem>
+          </varlistentry>
+        </variablelist>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_GET_UNIQUE - get unique device name</title>
+        <para>
+          Each device has a unique name associated with it. This is useful to
+          differentiate between two devices driven by the same driver. Unique
+          names of devices can be obtained with this IOCTL and the result is
+          returned in a <structname>drm_unique</structname> structure.
+        </para>
+!Finclude/uapi/drm/drm.h drm_unique
+        <para>
+          Returns 0 on success or one of the following error codes on failure:
+        </para>
+        <variablelist>
+          <varlistentry>
+            <term><constant>EFAULT</constant></term>
+            <listitem>
+              <para>
+                If the device's unique name cannot be copied to the
+                <structfield>unique</structfield> field.
+              </para>
+            </listitem>
+          </varlistentry>
+        </variablelist>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_SET_VERSION - request interface version</title>
+        <para>
+          Request a specific interface or driver version. The values passed in
+          the <structname>drm_set_version</structname> structure are matched
+          against the DRM interface and driver versions.
+        </para>
+!Finclude/uapi/drm/drm.h drm_set_version
+        <para>
+          Returns 0 on success or one of the following error codes on failure:
+        </para>
+        <variablelist>
+          <varlistentry>
+            <term><constant>EINVAL</constant></term>
+            <listitem>
+              <para>
+                If the interface version in the kernel is incompatible with
+                that requested by the userspace application or if the driver
+                is not compatible with the version requested by the userspace
+                application.
+              </para>
+            </listitem>
+          </varlistentry>
+        </variablelist>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_GET_CAP - query device capabilities</title>
+        <para>
+          DRM drivers vary in terms of which functionality that they support.
+          Even within one driver, certain devices may not support the same
+          functionality as others. The <constant>DRM_IOCTL_GET_CAP</constant>
+          IOCTL can be used to query such capabilities at runtime.
+        </para>
+        <para>
+          The following is a list of available capabilities. Userspace
+          applications set the <structfield>capability</structfield> to one of
+          these before performing the IOCTL. The kernel returns the capability
+          value in the <structfield>value</structfield> field. Typically this
+          will be a boolean (0 or 1) value that denotes whether or not the
+          device supports the given capability. In other cases the returned
+          value is numerical and the meaning is specified below.
+        </para>
+!Finclude/uapi/drm/drm.h drm_get_cap
+        <variablelist>
+          <varlistentry>
+            <term><constant>DRM_CAP_DUMB_BUFFER</constant></term>
+            <listitem>
+              <para>
+                The device supports the creation of dumb buffers. Dumb buffers
+                are typically used for unaccelerated operations. These buffers
+                can be mapped to userspace so that software can draw into them
+                and attach them to a CRTC for scanout.
+              </para>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term><constant>DRM_CAP_VBLANK_HIGH_CRTC</constant></term>
+            <listitem>
+              <para>
+                The device is capable of waiting for VBLANK events on all
+                CRTCs.
+              </para>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term><constant>DRM_CAP_DUMB_PREFERRED_DEPTH</constant></term>
+            <listitem>
+              <para>
+                The preferred pixel bit depth of dumb buffers.
+              </para>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term><constant>DRM_CAP_DUMB_PREFER_SHADOW</constant></term>
+            <listitem>
+              <para>
+                Whether userspace should prefer shadow mode on dumb buffers.
+              </para>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term><constant>DRM_CAP_PRIME</constant></term>
+            <listitem>
+              <para>
+                The device supports DMA-BUF sharing using PRIME. The value
+                returned is a mask of the following bits:
+              </para>
+              <variablelist>
+                <varlistentry>
+                  <term><constant>DRM_PRIME_CAP_IMPORT</constant></term>
+                  <listitem>
+                    <para>
+                      The device supports importing DMA-BUF buffers using
+                      PRIME.
+                    </para>
+                  </listitem>
+                </varlistentry>
+                <varlistentry>
+                  <term><constant>DRM_PRIME_CAP_EXPORT</constant></term>
+                  <listitem>
+                    <para>
+                      The device supports exporting DMA-BUF buffers using
+                      PRIME.
+                    </para>
+                  </listitem>
+                </varlistentry>
+              </variablelist>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term><constant>DRM_CAP_TIMESTAMP_MONOTONIC</constant></term>
+            <listitem>
+              <para>
+                The timestamp associated with VBLANK events is monotonically
+                increasing (not influenced by synchronization to external
+                clocks, such as NTP or RTC, nor leap seconds).
+              </para>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term><constant>DRM_CAP_ASYNC_PAGE_FLIP</constant></term>
+            <listitem>
+              <para>
+                The device supports asynchronous (i.e. immediate, non-VBLANK
+                synchronized) page flips.
+              </para>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term><constant>DRM_CAP_CURSOR_WIDTH</constant></term>
+            <listitem>
+              <para>
+                The value returned is a valid width for the hardware cursor.
+                Hardware-agnostic userspace applications can use this to help
+                determine the proper size for the hardware cursor.
+              </para>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term><constant>DRM_CAP_CURSOR_HEIGHT</constant></term>
+            <listitem>
+              <para>
+                The value returned is a valid height for the hardware cursor.
+                Hardware-agnostic userspace applications can use this to help
+                determine the proper size for the hardware cursor.
+              </para>
+            </listitem>
+          </varlistentry>
+        </variablelist>
+        <para>
+          Returns 0 on success or one of the following error codes on failure:
+        </para>
+        <variablelist>
+          <varlistentry>
+            <term><constant>EINVAL</constant></term>
+            <listitem>
+              <para>
+                If the value in the <structfield>capability</structfield>
+                field is not supported.
+              </para>
+            </listitem>
+          </varlistentry>
+        </variablelist>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_SET_CLIENT_CAP - advertise client capabilities</title>
+        <para>
+          Semantics sometimes change as an interfaces evolves. To preserve
+          backwards compatibility and still take advantage of new features
+          userspace can use this IOCTL to advertise its own capabilities.
+        </para>
+        <para>
+          Userspace applications set <structfield>capability</structfield>
+          and <structfield>value</structfield> appropriately and pass the
+          <structname>drm_set_client_cap</structname> structure to this
+          IOCTL. Below is a list of valid capabilities.
+        </para>
+!Finclude/uapi/drm/drm.h drm_set_client_cap
+        <variablelist>
+          <varlistentry>
+            <term><constant>DRM_CLIENT_CAP_STEREO_3D</constant></term>
+            <listitem>
+              <para>
+                The device will expose stereo 3D capabilities of monitors by
+                advertising the supported 3D layouts in the flags of the
+                <structname>drm_mode_modeinfo</structname> structure.
+              </para>
+              <para>
+                Valid values are 0 (disable) or 1 (enable).
+              </para>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term><constant>DRM_CLIENT_CAP_UNIVERSAL_PLANES</constant></term>
+            <listitem>
+              <para>
+                The device will expose planes of all types (primary, overlay
+                and cursor) to userspace, in contrast with the default mode
+                where only overlay planes are exposed.
+              </para>
+              <para>
+                Valid values are 0 (disable) or 1 (enable).
+              </para>
+            </listitem>
+          </varlistentry>
+        </variablelist>
+        <para>
+          Returns 0 on success or one of the following error codes on failure:
+        </para>
+        <variablelist>
+          <varlistentry>
+            <term><constant>EINVAL</constant></term>
+            <listitem>
+              <para>
+                If the value of the <structfield>capability</structfield>
+                field is not supported or the value in the <structfield>
+                value</structfield> field is not valid for the capability.
+              </para>
+            </listitem>
+          </varlistentry>
+        </variablelist>
+      </sect2>
+    </sect1>
+    <sect1>
+      <title>Authentication</title>
+      <sect2>
+        <title>DRM_IOCTL_GET_MAGIC</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_AUTH_MAGIC</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_SET_MASTER</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_DROP_MASTER</title>
+      </sect2>
+    </sect1>
+    <sect1>
+      <title>Buffer Management</title>
+      <sect2>
+        <title>DRM_IOCTL_GEM_CLOSE - remove a GEM object</title>
+        <para>
+          Removes the handle of a GEM object and drops the handle's reference
+          to the object. If the handle was holding the last reference, the
+          GEM object is destroyed.
+        </para>
+!Finclude/uapi/drm/drm.h drm_gem_close
+        <para>
+          Returns 0 on success or one of the following error codes on failure:
+        </para>
+        <variablelist>
+          <varlistentry>
+            <term><constant>ENODEV</constant></term>
+            <listitem>
+              <para>
+                If the device doesn't support GEM objects.
+              </para>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term><constant>EINVAL</constant></term>
+            <listitem>
+              <para>
+                If no GEM object with the specified handle exists.
+              </para>
+            </listitem>
+          </varlistentry>
+        </variablelist>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_GEM_FLINK - export a GEM object by name</title>
+        <para>
+          Creates a global name for a GEM object.
+        </para>
+!Finclude/uapi/drm/drm.h drm_gem_flink
+        <para>
+          The name does not hold a reference to the object. If a reference is
+          needed, open the GEM object using the <constant>DRM_IOCTL_GEM_OPEN
+          </constant> IOCTL.
+        </para>
+        <para>
+          Returns 0 on success or one of the following error codes on failure:
+        </para>
+        <variablelist>
+          <varlistentry>
+            <term><constant>ENODEV</constant></term>
+            <listitem>
+              <para>
+                If the device doesn't support GEM objects.
+              </para>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term><constant>ENOENT</constant></term>
+            <listitem>
+              <para>
+                If no GEM object with the specified handle exists or if it is
+                in the process of being removed.
+              </para>
+            </listitem>
+          </varlistentry>
+        </variablelist>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_GEM_OPEN - open a GEM object by name</title>
+        <para>
+          Opens a GEM object by name.
+        </para>
+!Finclude/uapi/drm/drm.h drm_gem_open
+        <para>
+          Returns 0 on success or one of the following error codes on failure:
+        </para>
+        <variablelist>
+          <varlistentry>
+            <term><constant>ENODEV</constant></term>
+            <listitem>
+              <para>
+                If the device doesn't support GEM objects.
+              </para>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term><constant>ENOENT</constant></term>
+            <listitem>
+              <para>
+                If no GEM object with the specified handle exists.
+              </para>
+            </listitem>
+          </varlistentry>
+        </variablelist>
+      </sect2>
+    </sect1>
+    <sect1>
+      <title>DMA-BUF Sharing (PRIME)</title>
+      <sect2>
+        <title>DRM_IOCTL_PRIME_HANDLE_TO_FD - export a DMA-BUF buffer</title>
+        <para>
+          Exports a buffer object identified by its handle using DMA-BUF. The
+          file descriptor obtained during this process can be imported into a
+          different driver supporting DMA-BUF for zero-copy sharing of buffer
+          content.
+        </para>
+        <para>
+          The only supported flag in the <structfield>flags</structfield>
+          field is <constant>DMA_CLOEXEC</constant>.
+        </para>
+!Finclude/uapi/drm/drm.h drm_prime_handle
+        <para>
+          Returns 0 on success or one of the following error codes on failure:
+        </para>
+        <variablelist>
+          <varlistentry>
+            <term><constant>EINVAL</constant></term>
+            <listitem>
+              <para>
+                If the driver does not support buffer sharing using PRIME or
+                if the flags specified in <structfield>flags</structfield> are
+                invalid.
+              </para>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term><constant>ENOSYS</constant></term>
+            <listitem>
+              <para>
+                If the driver does not support exporting buffers using PRIME.
+              </para>
+            </listitem>
+          </varlistentry>
+        </variablelist>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_PRIME_FD_TO_HANDLE - import a DMA-BUF buffer</title>
+        <para>
+          Imports a DMA-BUF buffer identified by its file descriptor. Buffers
+          imported using this IOCTL are assigned a new handle relative to the
+          device and can be used like any natively-allocated buffer.
+        </para>
+        <para>
+          Returns 0 on success or one of the following error codes on failure:
+        </para>
+        <variablelist>
+          <varlistentry>
+            <term><constant>EINVAL</constant></term>
+            <listitem>
+              <para>
+                If the driver does not support buffer sharing using PRIME.
+              </para>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term><constant>ENOSYS</constant></term>
+            <listitem>
+              <para>
+                If the driver does not support importing buffers using PRIME.
+              </para>
+            </listitem>
+          </varlistentry>
+        </variablelist>
+      </sect2>
+    </sect1>
+    <sect1>
+      <title>Modesetting</title>
+      <sect2>
+        <title>DRM_IOCTL_MODE_GETRESOURCES</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_MODE_GETCRTC</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_MODE_SETCRTC</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_MODE_CURSOR</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_MODE_GETGAMMA</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_MODE_SETGAMMA</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_MODE_GETENCODER</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_MODE_GETCONNECTOR</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_MODE_ATTACHMODE</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_MODE_DETACHMODE</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_MODE_GETPROPERTY</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_MODE_SETPROPERTY</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_MODE_GETPROPBLOB</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_MODE_GETFB</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_MODE_ADDFB</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_MODE_RMFB</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_MODE_PAGE_FLIP</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_MODE_DIRTYFB</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_MODE_CREATE_DUMB</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_MODE_MAP_DUMB</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_MODE_DESTROY_DUMB</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_MODE_GETPLANERESOURCES</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_MODE_GETPLANE</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_MODE_SETPLANE</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_MODE_ADDFB2</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_MODE_OBJ_GETPROPERTIES</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_MODE_OBJ_SETPROPERTY</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_MODE_CURSOR2</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_WAIT_VBLANK</title>
+      </sect2>
+    </sect1>
+    <sect1>
+      <title>Legacy IOCTLs</title>
+      <sect2>
+        <title>DRM_IOCTL_SET_UNIQUE</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_IRQ_BUSID</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_GET_MAP</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_GET_CLIENT</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_GET_STATS</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_MODESET_CTL</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_BLOCK</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_UNBLOCK</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_CONTROL</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_ADD_MAP</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_ADD_BUFS</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_MARK_BUFS</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_INFO_BUFS</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_MAP_BUFS</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_FREE_BUFS</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_RM_MAP</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_SET_SAREA_CTX</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_GET_SAREA_CTX</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_ADD_CTX</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_RM_CTX</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_MOD_CTX</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_GET_CTX</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_SWITCH_CTX</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_NEW_CTX</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_RES_CTX</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_ADD_DRAW</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_RM_DRAW</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_DMA</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_LOCK</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_UNLOCK</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_FINISH</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_AGP_ACQUIRE</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_AGP_RELEASE</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_AGP_ENABLE</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_AGP_INFO</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_AGP_ALLOC</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_AGP_FREE</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_AGP_BIND</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_AGP_UNBIND</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_SG_ALLOC</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_SG_FREE</title>
+      </sect2>
+      <sect2>
+        <title>DRM_IOCTL_UPDATE_DRAW</title>
+      </sect2>
+    </sect1>
+  </chapter>
+</part>
 <part id="drmDrivers">
-  <title>DRM Drivers</title>
+  <title id="drmDrivers.title">DRM Drivers</title>
 
   <partintro>
     <para>

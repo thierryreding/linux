@@ -1,5 +1,4 @@
 /**
- * \file drm.h
  * Header for the Direct Rendering Manager
  *
  * \author Rickard E. (Rik) Faith <faith@valinux.com>
@@ -122,9 +121,24 @@ struct drm_hw_lock {
 };
 
 /**
- * DRM_IOCTL_VERSION ioctl argument type.
+ * struct drm_version - DRM_IOCTL_VERSION IOCTL argument type
+ * @version_major: major version
+ * @version_minor: minor version
+ * @version_patchlevel: patch level
+ * @name_len: length of name buffer
+ * @name: driver name
+ * @date_len: length of date buffer
+ * @date: driver date
+ * @desc_len: length of description buffer
+ * @desc: driver description
  *
- * \sa drmGetVersion().
+ * The @name, @date and @desc fields must point to buffers allocated by the
+ * userspace application. Only @name_len, @date_len or @desc_len characters
+ * will be written into these buffers, so the strings may be truncated. The
+ * kernel sets the @name_len, @date_len and @desc_len fields to the actual
+ * lengths of the strings upon return (not inccluding the terminating NUL
+ * character). Userspace can call this IOCTL with all lengths set to 0 (and
+ * buffers to NULL) to determine the exact size of the buffers to allocate.
  */
 struct drm_version {
 	int version_major;	  /**< Major version */
@@ -139,9 +153,17 @@ struct drm_version {
 };
 
 /**
- * DRM_IOCTL_GET_UNIQUE ioctl argument type.
+ * struct drm_unique - DRM_IOCTL_GET_UNIQUE IOCTL argument type
+ * @unique_len: length of unique name for driver instantiation
+ * @unique: unique name for driver instantiation
  *
- * \sa drmGetBusid() and drmSetBusId().
+ * The @unique field must point to a buffer allocated by the userspace
+ * application. If the @unique_len field is less than the actual size of the
+ * unique name of the device, the kernel will not fill the @unique field but
+ * return the actual size in @unique_len instead. Userspace applications
+ * will typically perform the IOCTL once with @unique_len and @unique set to
+ * 0 and NULL, respectively, allocate a buffer using the returned length and
+ * perform the IOCTL again with the properly sized buffer.
  */
 struct drm_unique {
 	__kernel_size_t unique_len;	  /**< Length of unique */
@@ -574,7 +596,11 @@ struct drm_scatter_gather {
 };
 
 /**
- * DRM_IOCTL_SET_VERSION ioctl argument type.
+ * struct drm_set_version - DRM_IOCTL_SET_VERSION IOCTL argument type
+ * @drm_di_major: DRM interface major version
+ * @drm_di_minor: DRM interface minor version
+ * @drm_dd_major: DRM driver major version
+ * @drm_dd_minor: DRM driver minor version
  */
 struct drm_set_version {
 	int drm_di_major;
@@ -583,14 +609,21 @@ struct drm_set_version {
 	int drm_dd_minor;
 };
 
-/** DRM_IOCTL_GEM_CLOSE ioctl argument type */
+/**
+ * struct drm_gem_close - DRM_IOCTL_GEM_CLOSE IOCTL argument type
+ * @handle: handle of object to close
+ * @pad: padding for 64-bit alignment
+ */
 struct drm_gem_close {
-	/** Handle of the object to be closed. */
 	__u32 handle;
 	__u32 pad;
 };
 
-/** DRM_IOCTL_GEM_FLINK ioctl argument type */
+/**
+ * struct drm_gem_flink - DRM_IOCTL_GEM_FLINK IOCTL argument type
+ * @handle: handle of object to export
+ * @name: returned object name
+ */
 struct drm_gem_flink {
 	/** Handle for the object being named */
 	__u32 handle;
@@ -599,15 +632,15 @@ struct drm_gem_flink {
 	__u32 name;
 };
 
-/** DRM_IOCTL_GEM_OPEN ioctl argument type */
+/**
+ * struct drm_gem_open - DRM_IOCTL_GEM_OPEN IOCTL argument type
+ * @name: name of the object being opened
+ * @handle: returned object handle
+ * @size: returned object size
+ */
 struct drm_gem_open {
-	/** Name of object being opened */
 	__u32 name;
-
-	/** Returned handle for the object */
 	__u32 handle;
-
-	/** Returned size of the object */
 	__u64 size;
 };
 
@@ -633,7 +666,11 @@ struct drm_gem_open {
 #define DRM_CAP_CURSOR_HEIGHT		0x9
 #define DRM_CAP_ADDFB2_MODIFIERS	0x10
 
-/** DRM_IOCTL_GET_CAP ioctl argument type */
+/**
+ * struct drm_get_cap - DRM_IOCTL_GET_CAP IOCTL argument type
+ * @capability: device/driver capability to query
+ * @value: return location for the value
+ */
 struct drm_get_cap {
 	__u64 capability;
 	__u64 value;
@@ -663,7 +700,11 @@ struct drm_get_cap {
  */
 #define DRM_CLIENT_CAP_ATOMIC	3
 
-/** DRM_IOCTL_SET_CLIENT_CAP ioctl argument type */
+/**
+ * struct drm_set_client_cap - DRM_IOCTL_SET_CLIENT_CAP IOCTL argument type
+ * @capability: client capability
+ * @value: capability value
+ */
 struct drm_set_client_cap {
 	__u64 capability;
 	__u64 value;
@@ -671,13 +712,25 @@ struct drm_set_client_cap {
 
 #define DRM_RDWR O_RDWR
 #define DRM_CLOEXEC O_CLOEXEC
+
+/**
+ * struct drm_prime_handle - DRM_IOCTL_PRIME_* IOCTL argument type
+ * @handle: buffer object handle
+ * @flags: export flags (only applicable for DRM_IOCTL_PRIME_HANDLE_TO_FD)
+ * @fd: DMA-BUF file descriptor
+ *
+ * For DRM_IOCTL_PRIME_HANDLE_TO_FD (export) the @handle is passed in along
+ * with a set of @flags (only DRM_CLOEXEC is currently valid). Upon return the
+ * @fd field contains a file descriptor that can be used to import the buffer
+ * into another driver.
+ *
+ * For DRM_IOCTL_PRIME_FD_TO_HANDLE (import) the file descriptor corresponding
+ * to the buffer that is to be imported is specified in @fd. Upon return the
+ * @handle field contains a device-local handle to the imported buffer object.
+ */
 struct drm_prime_handle {
 	__u32 handle;
-
-	/** Flags.. only applicable for handle->fd */
 	__u32 flags;
-
-	/** Returned dmabuf file descriptor */
 	__s32 fd;
 };
 
