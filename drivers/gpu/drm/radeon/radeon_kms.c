@@ -773,19 +773,21 @@ u32 radeon_get_vblank_counter_kms(struct drm_device *dev, unsigned int pipe)
 	 * result by 1 to give the proper appearance to caller.
 	 */
 	if (rdev->mode_info.crtcs[pipe]) {
+		struct drm_crtc *crtc = &rdev->mode_info.crtcs[pipe]->base;
+
 		/* Repeat readout if needed to provide stable result if
 		 * we cross start of vsync during the queries.
 		 */
 		do {
 			count = radeon_get_vblank_counter(rdev, pipe);
-			/* Ask radeon_get_crtc_scanoutpos to return vpos as
+			/* Ask radeon_crtc_get_scanoutpos to return vpos as
 			 * distance to start of vblank, instead of regular
 			 * vertical scanout pos.
 			 */
-			stat = radeon_get_crtc_scanoutpos(
-				dev, pipe, GET_DISTANCE_TO_VBLANKSTART,
+			stat = radeon_crtc_get_scanoutpos(
+				crtc, GET_DISTANCE_TO_VBLANKSTART,
 				&vpos, &hpos, NULL, NULL,
-				&rdev->mode_info.crtcs[pipe]->base.hwmode);
+				&crtc->hwmode);
 		} while (count != radeon_get_vblank_counter(rdev, pipe));
 
 		if (((stat & (DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_ACCURATE)) !=
@@ -896,7 +898,7 @@ int radeon_get_vblank_timestamp_kms(struct drm_device *dev, int crtc,
 		return -EINVAL;
 
 	/* Helper routine in DRM core does all the work: */
-	return drm_calc_vbltimestamp_from_scanoutpos(dev, crtc, max_error,
+	return drm_calc_vbltimestamp_from_scanoutpos(drmcrtc, max_error,
 						     vblank_time, flags,
 						     &drmcrtc->hwmode);
 }

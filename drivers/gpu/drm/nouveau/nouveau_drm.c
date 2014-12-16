@@ -950,7 +950,6 @@ driver_stub = {
 	.get_vblank_counter = drm_vblank_no_hw_counter,
 	.enable_vblank = nouveau_display_vblank_enable,
 	.disable_vblank = nouveau_display_vblank_disable,
-	.get_scanout_position = nouveau_display_scanoutpos,
 	.get_vblank_timestamp = nouveau_display_vblstamp,
 
 	.ioctls = nouveau_ioctls,

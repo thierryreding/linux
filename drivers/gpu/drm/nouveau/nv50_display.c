@@ -1429,6 +1429,7 @@ static const struct drm_crtc_funcs nv50_crtc_func = {
 	.set_config = nouveau_crtc_set_config,
 	.destroy = nv50_crtc_destroy,
 	.page_flip = nouveau_crtc_page_flip,
+	.get_scanout_position = nouveau_display_scanoutpos,
 };
 
 static int

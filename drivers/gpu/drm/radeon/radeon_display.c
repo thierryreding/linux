@@ -322,12 +322,11 @@ void radeon_crtc_handle_vblank(struct radeon_device *rdev, int crtc_id)
 	 * to complete in this vblank?
 	 */
 	if (update_pending &&
-	    (DRM_SCANOUTPOS_VALID & radeon_get_crtc_scanoutpos(rdev->ddev,
-							       crtc_id,
+	    (DRM_SCANOUTPOS_VALID & radeon_crtc_get_scanoutpos(&radeon_crtc->base,
 							       USE_REAL_VBLANKSTART,
 							       &vpos, &hpos, NULL, NULL,
-							       &rdev->mode_info.crtcs[crtc_id]->base.hwmode)) &&
-	    ((vpos >= (99 * rdev->mode_info.crtcs[crtc_id]->base.hwmode.crtc_vdisplay)/100) ||
+							       &radeon_crtc->base.hwmode)) &&
+	    ((vpos >= (99 * radeon_crtc->base.hwmode.crtc_vdisplay)/100) ||
 	     (vpos < 0 && !ASIC_IS_AVIVO(rdev)))) {
 		/* crtc didn't flip in this target vblank interval,
 		 * but flip is pending in crtc. Based on the current
@@ -448,7 +447,7 @@ static void radeon_flip_work_func(struct work_struct *__work)
 	 * our vblank counter and vblank timestamps in order to work around the
 	 * problem that the hw fires vblank interrupts before actual start of
 	 * vblank (when line buffer refilling is done for a frame). It
-	 * complements the fudging logic in radeon_get_crtc_scanoutpos() for
+	 * complements the fudging logic in radeon_crtc_get_scanoutpos() for
 	 * timestamping and radeon_get_vblank_counter_kms() for vblank counts.
 	 *
 	 * In practice this won't execute very often unless on very fast
@@ -459,7 +458,7 @@ static void radeon_flip_work_func(struct work_struct *__work)
 		 * start in hpos, and to the "fudged earlier" vblank start in
 		 * vpos.
 		 */
-		stat = radeon_get_crtc_scanoutpos(rdev->ddev, work->crtc_id,
+		stat = radeon_crtc_get_scanoutpos(crtc,
 						  GET_DISTANCE_TO_VBLANKSTART,
 						  &vpos, &hpos, NULL, NULL,
 						  &crtc->hwmode);
@@ -681,6 +680,7 @@ static const struct drm_crtc_funcs radeon_crtc_funcs = {
 	.set_config = radeon_crtc_set_config,
 	.destroy = radeon_crtc_destroy,
 	.page_flip = radeon_crtc_page_flip,
+	.get_scanout_position = radeon_crtc_get_scanoutpos,
 };
 
 static void radeon_crtc_init(struct drm_device *dev, int index)
@@ -1807,7 +1807,6 @@ bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
  * Retrieve current video scanout position of crtc on a given gpu, and
  * an optional accurate timestamp of when query happened.
  *
- * \param dev Device to query.
  * \param crtc Crtc to query.
  * \param flags Flags from caller (DRM_CALLED_FROM_VBLIRQ or 0).
  *              For driver internal use only also supports these flags:
@@ -1840,16 +1839,17 @@ bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
  * unknown small number of scanlines wrt. real scanout position.
  *
  */
-int radeon_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
-			       unsigned int flags, int *vpos, int *hpos,
-			       ktime_t *stime, ktime_t *etime,
+int radeon_crtc_get_scanoutpos(struct drm_crtc *crtc, unsigned int flags,
+			       int *vpos, int *hpos, ktime_t *stime,
+			       ktime_t *etime,
 			       const struct drm_display_mode *mode)
 {
+	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	u32 stat_crtc = 0, vbl = 0, position = 0;
 	int vbl_start, vbl_end, vtotal, ret = 0;
 	bool in_vbl = true;
 
-	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_device *rdev = crtc->dev->dev_private;
 
 	/* preempt_disable_rt() should go right here in PREEMPT_RT patchset. */
 
@@ -1858,42 +1858,42 @@ int radeon_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
 		*stime = ktime_get();
 
 	if (ASIC_IS_DCE4(rdev)) {
-		if (pipe == 0) {
+		if (radeon_crtc->crtc_id == 0) {
 			vbl = RREG32(EVERGREEN_CRTC_V_BLANK_START_END +
 				     EVERGREEN_CRTC0_REGISTER_OFFSET);
 			position = RREG32(EVERGREEN_CRTC_STATUS_POSITION +
 					  EVERGREEN_CRTC0_REGISTER_OFFSET);
 			ret |= DRM_SCANOUTPOS_VALID;
 		}
-		if (pipe == 1) {
+		if (radeon_crtc->crtc_id == 1) {
 			vbl = RREG32(EVERGREEN_CRTC_V_BLANK_START_END +
 				     EVERGREEN_CRTC1_REGISTER_OFFSET);
 			position = RREG32(EVERGREEN_CRTC_STATUS_POSITION +
 					  EVERGREEN_CRTC1_REGISTER_OFFSET);
 			ret |= DRM_SCANOUTPOS_VALID;
 		}
-		if (pipe == 2) {
+		if (radeon_crtc->crtc_id == 2) {
 			vbl = RREG32(EVERGREEN_CRTC_V_BLANK_START_END +
 				     EVERGREEN_CRTC2_REGISTER_OFFSET);
 			position = RREG32(EVERGREEN_CRTC_STATUS_POSITION +
 					  EVERGREEN_CRTC2_REGISTER_OFFSET);
 			ret |= DRM_SCANOUTPOS_VALID;
 		}
-		if (pipe == 3) {
+		if (radeon_crtc->crtc_id == 3) {
 			vbl = RREG32(EVERGREEN_CRTC_V_BLANK_START_END +
 				     EVERGREEN_CRTC3_REGISTER_OFFSET);
 			position = RREG32(EVERGREEN_CRTC_STATUS_POSITION +
 					  EVERGREEN_CRTC3_REGISTER_OFFSET);
 			ret |= DRM_SCANOUTPOS_VALID;
 		}
-		if (pipe == 4) {
+		if (radeon_crtc->crtc_id == 4) {
 			vbl = RREG32(EVERGREEN_CRTC_V_BLANK_START_END +
 				     EVERGREEN_CRTC4_REGISTER_OFFSET);
 			position = RREG32(EVERGREEN_CRTC_STATUS_POSITION +
 					  EVERGREEN_CRTC4_REGISTER_OFFSET);
 			ret |= DRM_SCANOUTPOS_VALID;
 		}
-		if (pipe == 5) {
+		if (radeon_crtc->crtc_id == 5) {
 			vbl = RREG32(EVERGREEN_CRTC_V_BLANK_START_END +
 				     EVERGREEN_CRTC5_REGISTER_OFFSET);
 			position = RREG32(EVERGREEN_CRTC_STATUS_POSITION +
@@ -1901,19 +1901,19 @@ int radeon_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
 			ret |= DRM_SCANOUTPOS_VALID;
 		}
 	} else if (ASIC_IS_AVIVO(rdev)) {
-		if (pipe == 0) {
+		if (radeon_crtc->crtc_id == 0) {
 			vbl = RREG32(AVIVO_D1CRTC_V_BLANK_START_END);
 			position = RREG32(AVIVO_D1CRTC_STATUS_POSITION);
 			ret |= DRM_SCANOUTPOS_VALID;
 		}
-		if (pipe == 1) {
+		if (radeon_crtc->crtc_id == 1) {
 			vbl = RREG32(AVIVO_D2CRTC_V_BLANK_START_END);
 			position = RREG32(AVIVO_D2CRTC_STATUS_POSITION);
 			ret |= DRM_SCANOUTPOS_VALID;
 		}
 	} else {
 		/* Pre-AVIVO: Different encoding of scanout pos and vblank interval. */
-		if (pipe == 0) {
+		if (radeon_crtc->crtc_id == 0) {
 			/* Assume vbl_end == 0, get vbl_start from
 			 * upper 16 bits.
 			 */
@@ -1927,7 +1927,7 @@ int radeon_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
 
 			ret |= DRM_SCANOUTPOS_VALID;
 		}
-		if (pipe == 1) {
+		if (radeon_crtc->crtc_id == 1) {
 			vbl = (RREG32(RADEON_CRTC2_V_TOTAL_DISP) &
 				RADEON_CRTC_V_DISP) >> RADEON_CRTC_V_DISP_SHIFT;
 			position = (RREG32(RADEON_CRTC2_VLINE_CRNT_VLINE) >> 16) & RADEON_CRTC_V_TOTAL;
@@ -1979,7 +1979,7 @@ int radeon_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
 	 * line buffer read position.
 	 */
 	if (!(flags & USE_REAL_VBLANKSTART))
-		vbl_start -= rdev->mode_info.crtcs[pipe]->lb_vblank_lead_lines;
+		vbl_start -= radeon_crtc->lb_vblank_lead_lines;
 
 	/* Test scanout position against vblank region. */
 	if ((*vpos < vbl_start) && (*vpos >= vbl_end))

@@ -1087,6 +1087,7 @@ static const struct drm_crtc_funcs nv04_crtc_funcs = {
 	.set_config = nouveau_crtc_set_config,
 	.page_flip = nouveau_crtc_page_flip,
 	.destroy = nv_crtc_destroy,
+	.get_scanout_position = nouveau_display_scanoutpos,
 };
 
 static const struct drm_crtc_helper_funcs nv04_crtc_helper_funcs = {

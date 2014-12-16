@@ -2671,6 +2671,7 @@ static const struct drm_crtc_funcs dce_v11_0_crtc_funcs = {
 	.set_config = amdgpu_crtc_set_config,
 	.destroy = dce_v11_0_crtc_destroy,
 	.page_flip = amdgpu_crtc_page_flip,
+	.get_scanout_position = amdgpu_get_crtc_scanoutpos,
 };
 
 static void dce_v11_0_crtc_dpms(struct drm_crtc *crtc, int mode)

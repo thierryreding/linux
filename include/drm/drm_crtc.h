@@ -360,6 +360,11 @@ struct drm_crtc_state {
 	struct drm_atomic_state *state;
 };
 
+/* get_scanout_position() return flags */
+#define DRM_SCANOUTPOS_VALID        (1 << 0)
+#define DRM_SCANOUTPOS_IN_VBLANK    (1 << 1)
+#define DRM_SCANOUTPOS_ACCURATE     (1 << 2)
+
 /**
  * struct drm_crtc_funcs - control CRTCs for a given device
  *
@@ -688,6 +693,45 @@ struct drm_crtc_funcs {
 				   const struct drm_crtc_state *state,
 				   struct drm_property *property,
 				   uint64_t *val);
+
+	/**
+	 * @get_scanout_position:
+	 *
+	 * Return the current scanout position. This function is called from
+	 * the vblank timestamping code. It returns the current vertical and
+	 * horizontal scanout positions of the given @crtc in the @vpos and
+	 * @hpos parameters, respectively. If the @flags parameter is set to
+	 * DRM_CALLED_FROM_VBLIRQ, the function is called from the vblank
+	 * interrupt handler and the implementation may need to adjust its
+	 * behavior accordingly.
+	 *
+	 * Optionally the @stime and @etime parameters point to the return
+	 * location of the timestamp immediately before and after the scanout
+	 * position query, respectively.
+	 *
+	 * The @mode parameter points to the currently set display mode and
+	 * can be useful for computing the scanout positions.
+	 *
+	 * Note that the vertical scanout position is positive while in the
+	 * active scanout area and negative during the vblank interval. For
+	 * the latter case, the number of scanlines until the end of vblank
+	 * is counted (e.g. -1 means "one scanline until start of active
+	 * scanout/end of vblank).
+	 *
+	 * Returns:
+	 * A bitmask, OR'ed together, of the following values:
+	 * - DRM_SCANOUTPOS_VALID: The query was successful.
+	 * - DRM_SCANOUTPOS_IN_VBLANK: The scanout position is inside the
+	 *   vblank interval.
+	 * - DRM_SCANOUTPOS_ACCURATE: Returned position is accurate. If this
+	 *   flag is absent, the returned position may be offset by a constant
+	 *   but unknown small number of scanlines wrt. the real scanout
+	 *   position.
+	 */
+	int (*get_scanout_position)(struct drm_crtc *crtc, unsigned int flags,
+				    int *vpos, int *hpos, ktime_t *stime,
+				    ktime_t *etime,
+				    const struct drm_display_mode *mode);
 };
 
 /**
@@ -2192,6 +2236,12 @@ int drm_crtc_init_with_planes(struct drm_device *dev,
 			      const char *name, ...);
 extern void drm_crtc_cleanup(struct drm_crtc *crtc);
 extern unsigned int drm_crtc_index(struct drm_crtc *crtc);
+
+extern int drm_calc_vbltimestamp_from_scanoutpos(struct drm_crtc *crtc,
+						 int *max_error,
+						 struct timeval *vblank_time,
+						 unsigned flags,
+						 const struct drm_display_mode *mode);
 
 /**
  * drm_crtc_mask - find the mask of a registered CRTC

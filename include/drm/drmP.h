@@ -402,11 +402,6 @@ struct drm_master {
 #define DRM_VBLANKTIME_SCANOUTPOS_METHOD (1 << 0)
 #define DRM_VBLANKTIME_IN_VBLANK         (1 << 1)
 
-/* get_scanout_position() return flags */
-#define DRM_SCANOUTPOS_VALID        (1 << 0)
-#define DRM_SCANOUTPOS_IN_VBLANK    (1 << 1)
-#define DRM_SCANOUTPOS_ACCURATE     (1 << 2)
-
 /**
  * DRM driver structure. This structure represent the common code for
  * a family of cards. There will one drm_device for each card present
@@ -484,42 +479,6 @@ struct drm_driver {
 	 * (return of 1), or may or may not be AGP (return of 2).
 	 */
 	int (*device_is_agp) (struct drm_device *dev);
-
-	/**
-	 * Called by vblank timestamping code.
-	 *
-	 * Return the current display scanout position from a crtc, and an
-	 * optional accurate ktime_get timestamp of when position was measured.
-	 *
-	 * \param dev  DRM device.
-	 * \param pipe Id of the crtc to query.
-	 * \param flags Flags from the caller (DRM_CALLED_FROM_VBLIRQ or 0).
-	 * \param *vpos Target location for current vertical scanout position.
-	 * \param *hpos Target location for current horizontal scanout position.
-	 * \param *stime Target location for timestamp taken immediately before
-	 *               scanout position query. Can be NULL to skip timestamp.
-	 * \param *etime Target location for timestamp taken immediately after
-	 *               scanout position query. Can be NULL to skip timestamp.
-	 * \param mode Current display timings.
-	 *
-	 * Returns vpos as a positive number while in active scanout area.
-	 * Returns vpos as a negative number inside vblank, counting the number
-	 * of scanlines to go until end of vblank, e.g., -1 means "one scanline
-	 * until start of active scanout / end of vblank."
-	 *
-	 * \return Flags, or'ed together as follows:
-	 *
-	 * DRM_SCANOUTPOS_VALID = Query successful.
-	 * DRM_SCANOUTPOS_INVBL = Inside vblank.
-	 * DRM_SCANOUTPOS_ACCURATE = Returned position is accurate. A lack of
-	 * this flag means that returned position may be offset by a constant
-	 * but unknown small number of scanlines wrt. real scanout position.
-	 *
-	 */
-	int (*get_scanout_position) (struct drm_device *dev, unsigned int pipe,
-				     unsigned int flags, int *vpos, int *hpos,
-				     ktime_t *stime, ktime_t *etime,
-				     const struct drm_display_mode *mode);
 
 	/**
 	 * Called by \c drm_get_last_vbltimestamp. Should return a precise
@@ -994,11 +953,6 @@ extern void drm_crtc_vblank_on(struct drm_crtc *crtc);
 extern void drm_vblank_cleanup(struct drm_device *dev);
 extern u32 drm_vblank_no_hw_counter(struct drm_device *dev, unsigned int pipe);
 
-extern int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
-						 unsigned int pipe, int *max_error,
-						 struct timeval *vblank_time,
-						 unsigned flags,
-						 const struct drm_display_mode *mode);
 extern void drm_calc_timestamping_constants(struct drm_crtc *crtc,
 					    const struct drm_display_mode *mode);
 
