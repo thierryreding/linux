@@ -33,8 +33,10 @@
 #include <linux/delay.h>
 #include <linux/watchdog.h>
 
+#ifndef CONFIG_ARM64
 #include <asm/mach/time.h>
 #include <asm/smp_twd.h>
+#endif
 
 #define RTC_SECONDS            0x08
 #define RTC_SHADOW_SECONDS     0x0c
@@ -106,7 +108,9 @@ struct tegra_timer {
 	int irq;
 
 	struct clock_event_device clockevent;
+#ifndef CONFIG_ARM64
 	struct delay_timer delay;
+#endif
 
 	struct tegra_wdt *wdt;
 
@@ -130,8 +134,10 @@ static struct tegra_timer *timer = &(struct tegra_timer) {
 
 static void __iomem *rtc_base;
 
+#ifndef CONFIG_ARM64
 static struct timespec64 persistent_ts;
 static u64 persistent_ms, last_persistent_ms;
+#endif
 
 static int tegra_timer_set_next_event(unsigned long cycles,
 					 struct clock_event_device *evt)
@@ -169,6 +175,7 @@ static u64 notrace tegra_read_sched_clock(void)
 	return timer_readl(timer, TIMERUS_CNTR_1US);
 }
 
+#ifndef CONFIG_ARM64
 /*
  * tegra_rtc_read - Reads the Tegra RTC registers
  * Care must be taken that this funciton is not called while the
@@ -208,6 +215,7 @@ static unsigned long tegra_delay_timer_read_counter_long(void)
 {
 	return timer_readl(timer, TIMERUS_CNTR_1US);
 }
+#endif
 
 static irqreturn_t tegra_timer_interrupt(int irq, void *dev_id)
 {
@@ -292,9 +300,11 @@ static void __init tegra20_init_timer(struct device_node *np)
 		BUG();
 	}
 
+#ifndef CONFIG_ARM64
 	timer->delay.read_current_timer = tegra_delay_timer_read_counter_long;
 	timer->delay.freq = USEC_PER_SEC;
 	register_current_timer_delay(&timer->delay);
+#endif
 
 	ret = request_irq(timer->irq, tegra_timer_interrupt,
 			  IRQF_TIMER | IRQF_TRIGGER_HIGH, "timer0", timer);
@@ -342,7 +352,9 @@ static void __init tegra20_init_rtc(struct device_node *np)
 	else
 		clk_prepare_enable(clk);
 
+#ifndef CONFIG_ARM64
 	register_persistent_clock(NULL, tegra_read_persistent_clock64);
+#endif
 }
 CLOCKSOURCE_OF_DECLARE(tegra20_rtc, "nvidia,tegra20-rtc", tegra20_init_rtc);
 
