@@ -77,8 +77,17 @@
 #define __UAPI_DEF_IPV6_MREQ		0
 #define __UAPI_DEF_IPPROTO_V6		0
 #define __UAPI_DEF_IPV6_OPTIONS		0
+/*
+ * The GNU C library 2.8 and later define the in6_pktinfo and ip6_mtuinfo
+ * structures only for __USE_GNU.
+ */
+#if __GLIBC_PREREQ(2, 8) && !defined(__USE_GNU)
+#define __UAPI_DEF_IN6_PKTINFO		1
+#define __UAPI_DEF_IP6_MTUINFO		1
+#else
 #define __UAPI_DEF_IN6_PKTINFO		0
 #define __UAPI_DEF_IP6_MTUINFO		0
+#endif
 
 #else
 
