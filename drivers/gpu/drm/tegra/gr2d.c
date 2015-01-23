@@ -7,6 +7,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/iommu.h>
 
 #include "drm.h"
 #include "gem.h"
@@ -15,6 +16,7 @@
 struct gr2d {
 	struct tegra_drm_client client;
 	struct host1x_channel *channel;
+	struct iommu_domain *domain;
 	struct clk *clk;
 
 	DECLARE_BITMAP(addr_regs, GR2D_NUM_REGS);
@@ -30,7 +32,20 @@ static int gr2d_init(struct host1x_client *client)
 	struct tegra_drm_client *drm = host1x_to_drm_client(client);
 	struct drm_device *dev = dev_get_drvdata(client->parent);
 	unsigned long flags = HOST1X_SYNCPT_HAS_BASE;
+	struct tegra_drm *tegra = dev->dev_private;
 	struct gr2d *gr2d = to_gr2d(drm);
+	int err;
+
+	if (tegra->domain) {
+		err = iommu_attach_device(tegra->domain, client->dev);
+		if (err < 0) {
+			dev_err(client->dev, "failed to attach to IOMMU: %d\n",
+				err);
+			return err;
+		}
+
+		gr2d->domain = tegra->domain;
+	}
 
 	gr2d->channel = host1x_channel_request(client->dev);
 	if (!gr2d->channel)
@@ -42,7 +57,7 @@ static int gr2d_init(struct host1x_client *client)
 		return -ENOMEM;
 	}
 
-	return tegra_drm_register_client(dev->dev_private, drm);
+	return tegra_drm_register_client(tegra, drm);
 }
 
 static int gr2d_exit(struct host1x_client *client)
@@ -58,6 +73,11 @@ static int gr2d_exit(struct host1x_client *client)
 
 	host1x_syncpt_free(client->syncpts[0]);
 	host1x_channel_free(gr2d->channel);
+
+	if (gr2d->domain) {
+		iommu_detach_device(gr2d->domain, client->dev);
+		gr2d->domain = NULL;
+	}
 
 	return 0;
 }

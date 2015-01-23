@@ -47,16 +47,27 @@ static void *tegra_bo_mmap(struct host1x_bo *bo)
 {
 	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
 
+	if (obj->pages)
+		return vmap(obj->pages, obj->num_pages, VM_MAP,
+			    pgprot_writecombine(PAGE_KERNEL));
+
 	return obj->vaddr;
 }
 
 static void tegra_bo_munmap(struct host1x_bo *bo, void *addr)
 {
+	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
+
+	if (obj->pages)
+		vunmap(addr);
 }
 
 static void *tegra_bo_kmap(struct host1x_bo *bo, unsigned int page)
 {
 	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
+
+	if (obj->pages)
+		return kmap(obj->pages[page]);
 
 	return obj->vaddr + page * PAGE_SIZE;
 }
@@ -64,6 +75,10 @@ static void *tegra_bo_kmap(struct host1x_bo *bo, unsigned int page)
 static void tegra_bo_kunmap(struct host1x_bo *bo, unsigned int page,
 			    void *addr)
 {
+	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
+
+	if (obj->pages)
+		kunmap(obj->pages[page]);
 }
 
 static struct host1x_bo *tegra_bo_get(struct host1x_bo *bo)
