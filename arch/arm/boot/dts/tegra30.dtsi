@@ -163,6 +163,9 @@
 			resets = <&tegra_car 24>,
 				 <&tegra_car 98>;
 			reset-names = "3d", "3d2";
+
+			iommus = <&mc TEGRA_SWGROUP_NV>,
+				 <&mc TEGRA_SWGROUP_NV2>;
 		};
 
 		dc@54200000 {
