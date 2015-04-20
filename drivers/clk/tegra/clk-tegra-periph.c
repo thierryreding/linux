@@ -268,7 +268,6 @@ static DEFINE_SPINLOCK(PLLP_OUTA_lock);
 static DEFINE_SPINLOCK(PLLP_OUTB_lock);
 static DEFINE_SPINLOCK(PLLP_OUTC_lock);
 static DEFINE_SPINLOCK(sor0_lock);
-static DEFINE_SPINLOCK(sor1_lock);
 
 #define MUX_I2S_SPDIF(_id)						\
 static const char *mux_pllaout0_##_id##_2x_pllp_clkm[] = { "pll_a_out0", \
@@ -586,23 +585,13 @@ static u32 mux_pllm_pllc2_c_c3_pllp_plla_pllc4_idx[] = {
 	[0] = 0, [1] = 1, [2] = 2, [3] = 3, [4] = 4, [5] = 6, [6] = 7,
 };
 
-/* SOR1 mux'es */
+/* DISP1/2 mux'es */
 static const char *mux_pllp_plld_plld2_clkm[] = {
 	"pll_p", "pll_d_out0", "pll_d2_out0", "clk_m"
 };
 static u32 mux_pllp_plld_plld2_clkm_idx[] = {
 	[0] = 0, [1] = 2, [2] = 5, [3] = 6
 };
-
-static const char *mux_plldp_sor1_src[] = {
-	"pll_dp", "clk_sor1_src"
-};
-#define mux_plldp_sor1_src_idx NULL
-
-static const char *mux_clkm_sor1_brick_sor1_src[] = {
-	"clk_m", "sor1_brick", "sor1_src", "sor1_brick"
-};
-#define mux_clkm_sor1_brick_sor1_src_idx NULL
 
 static const char *mux_pllp_pllre_clkm[] = {
 	"pll_p", "pll_re_out1", "clk_m"
@@ -777,9 +766,6 @@ static struct tegra_periph_init_data periph_clks[] = {
 	MUX8("nvdec", mux_pllc2_c_c3_pllp_plla1_clkm, CLK_SOURCE_NVDEC, 194, 0, tegra_clk_nvdec),
 	MUX8("nvjpg", mux_pllc2_c_c3_pllp_plla1_clkm, CLK_SOURCE_NVJPG, 195, 0, tegra_clk_nvjpg),
 	MUX8("ape", mux_plla_pllc4_out0_pllc_pllc4_out1_pllp_pllc4_out2_clkm, CLK_SOURCE_APE, 198, TEGRA_PERIPH_ON_APB, tegra_clk_ape),
-	MUX8_NOGATE_LOCK("sor1_src", mux_pllp_plld_plld2_clkm, CLK_SOURCE_SOR1, tegra_clk_sor1_src, &sor1_lock),
-	NODIV("sor1_brick", mux_plldp_sor1_src, CLK_SOURCE_SOR1, 14, MASK(1), 183, 0, tegra_clk_sor1_brick, &sor1_lock),
-	NODIV("sor1", mux_clkm_sor1_brick_sor1_src, CLK_SOURCE_SOR1, 15, MASK(1), 183, 0, tegra_clk_sor1, &sor1_lock),
 	MUX8("sdmmc_legacy", mux_pllp_out3_clkm_pllp_pllc4, CLK_SOURCE_SDMMC_LEGACY, 193, TEGRA_PERIPH_ON_APB | TEGRA_PERIPH_NO_RESET, tegra_clk_sdmmc_legacy),
 	MUX8("qspi", mux_pllp_pllc_pllc_out1_pllc4_out2_pllc4_out1_clkm_pllc4_out0, CLK_SOURCE_QSPI, 211, TEGRA_PERIPH_ON_APB, tegra_clk_qspi),
 	I2C("vii2c", mux_pllp_pllc_clkm, CLK_SOURCE_VI_I2C, 208, tegra_clk_vi_i2c),
@@ -799,6 +785,9 @@ struct tegra_clk_sor {
 
 	unsigned int source;
 };
+
+#define DIV71_MASK 0xffU
+#define DIV71_MUL 2
 
 static inline struct tegra_clk_sor *to_tegra_clk_sor(struct clk_hw *hw)
 {
@@ -838,6 +827,43 @@ static void tegra_clk_sor_disable(struct clk_hw *hw)
 	writel(mask, sor->base + sor->regs->enb_clr_reg);
 }
 
+static unsigned long tegra_clk_sor_recalc_rate(struct clk_hw *hw,
+					       unsigned long parent_rate)
+{
+	struct tegra_clk_sor *sor= to_tegra_clk_sor(hw);
+	unsigned int div, mul = DIV71_MUL;
+	u32 value;
+	u64 rate;
+
+	value = readl(sor->base + sor->source);
+	div = (value & DIV71_MASK) + mul;
+
+	rate = parent_rate * mul;
+	rate += div - 1;
+	do_div(rate, div);
+
+	return rate;
+}
+
+static long tegra_clk_sor_round_rate(struct clk_hw *hw, unsigned long rate,
+				     unsigned long *parent_rate)
+{
+	unsigned int mul = DIV71_MUL, div;
+	u64 divider;
+
+	if (!rate)
+		return *parent_rate;
+
+	divider = *parent_rate * mul;
+	divider += rate - 1;
+	do_div(divider, rate);
+	div = divider - mul;
+
+	div = clamp(div, 0U, DIV71_MASK);
+
+	return DIV_ROUND_UP(*parent_rate * mul, div + mul);
+}
+
 static u8 tegra_clk_sor_get_parent(struct clk_hw *hw)
 {
 	struct tegra_clk_sor *sor = to_tegra_clk_sor(hw);
@@ -875,12 +901,38 @@ static int tegra_clk_sor_set_parent(struct clk_hw *hw, u8 index)
 	return 0;
 }
 
+int tegra_clk_sor_set_rate(struct clk_hw *hw, unsigned long rate,
+			   unsigned long parent_rate)
+{
+	struct tegra_clk_sor *sor = to_tegra_clk_sor(hw);
+	unsigned int mul = DIV71_MUL;
+	u32 value;
+	u64 div;
+
+	div = parent_rate * mul;
+	div += rate - 1;
+	do_div(div, rate);
+	div -= mul;
+
+	div = clamp_t(u64, div, 0, DIV71_MASK);
+
+	value = readl(sor->base + sor->source);
+	value &= ~DIV71_MASK;
+	value |= div;
+	writel(value, sor->base + sor->source);
+
+	return 0;
+}
+
 static const struct clk_ops tegra_clk_sor_ops = {
 	.is_enabled = tegra_clk_sor_is_enabled,
 	.enable = tegra_clk_sor_enable,
 	.disable = tegra_clk_sor_disable,
+	.recalc_rate = tegra_clk_sor_recalc_rate,
+	.round_rate = tegra_clk_sor_round_rate,
 	.get_parent = tegra_clk_sor_get_parent,
 	.set_parent = tegra_clk_sor_set_parent,
+	.set_rate = tegra_clk_sor_set_rate,
 };
 
 struct clk *tegra_clk_register_sor(const char *name, void __iomem *base,
