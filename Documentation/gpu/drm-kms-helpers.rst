@@ -253,6 +253,18 @@ SCDC Helper Functions Reference
 .. kernel-doc:: drivers/gpu/drm/drm_scdc_helper.c
    :export:
 
+HDCP Helper Functions Reference
+===============================
+
+.. kernel-doc:: drivers/gpu/drm/drm_hdcp_helper.c
+   :doc: hdcp helpers
+
+.. kernel-doc:: include/drm/drm_hdcp_helper.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_hdcp_helper.c
+   :export:
+
 Rectangle Utilities Reference
 =============================
 
