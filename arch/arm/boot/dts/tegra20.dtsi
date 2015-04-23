@@ -601,6 +601,15 @@
 		reset-names = "fuse";
 	};
 
+	kfuse: kfuse@7000fc00 {
+		compatible = "nvidia,tegra20-kfuse";
+		reg = <0x7000fc00 0x400>;
+		clocks = <&tegra_car TEGRA20_CLK_KFUSE>;
+		clock-names = "kfuse";
+		resets = <&tegra_car 40>;
+		reset-names = "kfuse";
+	};
+
 	pcie-controller@80003000 {
 		compatible = "nvidia,tegra20-pcie";
 		device_type = "pci";
