@@ -687,6 +687,15 @@
 		reset-names = "fuse";
 	};
 
+	kfuse: kfuse@7000fc00 {
+		compatible = "nvidia,tegra30-kfuse", "nvidia,tegra20-kfuse";
+		reg = <0x7000fc00 0x400>;
+		clocks = <&tegra_car TEGRA30_CLK_KFUSE>;
+		clock-names = "kfuse";
+		resets = <&tegra_car 40>;
+		reset-names = "kfuse";
+	};
+
 	hda@70030000 {
 		compatible = "nvidia,tegra30-hda";
 		reg = <0x70030000 0x10000>;
