@@ -589,6 +589,15 @@
 		reset-names = "fuse";
 	};
 
+	kfuse: kfuse@0,7000fc00 {
+		compatible = "nvidia,tegra124-kfuse", "nvidia,tegra114-kfuse";
+		reg = <0x0 0x7000fc00 0x0 0x400>;
+		clocks = <&tegra_car TEGRA124_CLK_KFUSE>;
+		clock-names = "kfuse";
+		resets = <&tegra_car 40>;
+		reset-names = "kfuse";
+	};
+
 	mc: memory-controller@0,70019000 {
 		compatible = "nvidia,tegra132-mc";
 		reg = <0x0 0x70019000 0x0 0x1000>;
