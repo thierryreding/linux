@@ -306,6 +306,7 @@ static void drm_dp_link_caps_reset(struct drm_dp_link_caps *caps)
 	caps->enhanced_framing = false;
 	caps->tps3_supported = false;
 	caps->fast_training = false;
+	caps->channel_coding = false;
 }
 
 void drm_dp_link_caps_copy(struct drm_dp_link_caps *dest,
@@ -314,6 +315,7 @@ void drm_dp_link_caps_copy(struct drm_dp_link_caps *dest,
 	dest->enhanced_framing = src->enhanced_framing;
 	dest->tps3_supported = src->tps3_supported;
 	dest->fast_training = src->fast_training;
+	dest->channel_coding = src->channel_coding;
 }
 
 static void drm_dp_link_reset(struct drm_dp_link *link)
@@ -360,6 +362,7 @@ int drm_dp_link_probe(struct drm_dp_aux *aux, struct drm_dp_link *link)
 	link->caps.enhanced_framing = drm_dp_enhanced_frame_cap(values);
 	link->caps.tps3_supported = drm_dp_tps3_supported(values);
 	link->caps.fast_training = drm_dp_fast_training_cap(values);
+	link->caps.channel_coding = drm_dp_channel_coding_supported(values);
 
 	link->rate = link->max_rate;
 	link->lanes = link->max_lanes;
@@ -446,7 +449,7 @@ EXPORT_SYMBOL(drm_dp_link_power_down);
  */
 int drm_dp_link_configure(struct drm_dp_aux *aux, struct drm_dp_link *link)
 {
-	u8 values[2];
+	u8 values[2], value = 0;
 	int err;
 
 	values[0] = drm_dp_link_rate_to_bw_code(link->rate);
@@ -456,6 +459,13 @@ int drm_dp_link_configure(struct drm_dp_aux *aux, struct drm_dp_link *link)
 		values[1] |= DP_LANE_COUNT_ENHANCED_FRAME_EN;
 
 	err = drm_dp_dpcd_write(aux, DP_LINK_BW_SET, values, sizeof(values));
+	if (err < 0)
+		return err;
+
+	if (link->caps.channel_coding)
+		value = DP_SET_ANSI_8B10B;
+
+	err = drm_dp_dpcd_writeb(aux, DP_MAIN_LINK_CHANNEL_CODING_SET, value);
 	if (err < 0)
 		return err;
 
