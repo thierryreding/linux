@@ -199,11 +199,8 @@ static int drm_dp_dpcd_access(struct drm_dp_aux *aux, u8 request,
 		err = aux->transfer(aux, &msg);
 		mutex_unlock(&aux->hw_mutex);
 		if (err < 0) {
-			if (err == -EBUSY || err == -ETIMEDOUT) {
-				DRM_DEBUG_KMS("%ps.transfer() failed: %d\n",
-					      aux, err);
+			if (err == -EBUSY)
 				continue;
-			}
 
 			return err;
 		}
