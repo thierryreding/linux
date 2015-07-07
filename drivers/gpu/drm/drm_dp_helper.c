@@ -317,6 +317,7 @@ static void drm_dp_link_caps_reset(struct drm_dp_link_caps *caps)
 	caps->tps3_supported = false;
 	caps->fast_training = false;
 	caps->channel_coding = false;
+	caps->alternate_scrambler_reset = false;
 }
 
 void drm_dp_link_caps_copy(struct drm_dp_link_caps *dest,
@@ -326,6 +327,7 @@ void drm_dp_link_caps_copy(struct drm_dp_link_caps *dest,
 	dest->tps3_supported = src->tps3_supported;
 	dest->fast_training = src->fast_training;
 	dest->channel_coding = src->channel_coding;
+	dest->alternate_scrambler_reset = src->alternate_scrambler_reset;
 }
 
 static void drm_dp_link_reset(struct drm_dp_link *link)
@@ -378,6 +380,8 @@ int drm_dp_link_probe(struct drm_dp_aux *aux, struct drm_dp_link *link)
 	if (drm_dp_alternate_scrambler_reset_cap(values)) {
 		static const u8 edp_revs[] = { 0x11, 0x12, 0x13, 0x14 };
 		u8 value;
+
+		link->caps.alternate_scrambler_reset = true;
 
 		err = drm_dp_dpcd_readb(aux, DP_EDP_DPCD_REV, &value);
 		if (err < 0)
@@ -493,6 +497,13 @@ int drm_dp_link_configure(struct drm_dp_aux *aux, struct drm_dp_link *link)
 	err = drm_dp_dpcd_writeb(aux, DP_MAIN_LINK_CHANNEL_CODING_SET, value);
 	if (err < 0)
 		return err;
+
+	if (link->caps.alternate_scrambler_reset) {
+		err = drm_dp_dpcd_writeb(aux, DP_EDP_CONFIGURATION_SET,
+					 DP_ALTERNATE_SCRAMBLER_RESET_ENABLE);
+		if (err < 0)
+			return err;
+	}
 
 	return 0;
 }

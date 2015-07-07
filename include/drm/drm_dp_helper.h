@@ -829,6 +829,7 @@ struct drm_dp_link_caps {
 	bool tps3_supported;
 	bool fast_training;
 	bool channel_coding;
+	bool alternate_scrambler_reset;
 };
 
 void drm_dp_link_caps_copy(struct drm_dp_link_caps *dest,
