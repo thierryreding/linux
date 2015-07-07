@@ -25,7 +25,10 @@
 
 #include <linux/delay.h>
 #include <linux/i2c.h>
+#include <linux/time64.h>
 #include <linux/types.h>
+
+#include <drm/drm_print.h>
 
 /*
  * Unless otherwise noted, all values are from the DP 1.1a spec.  Note that
@@ -1299,6 +1302,36 @@ drm_dp_alternate_scrambler_reset_cap(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 {
 	return dpcd[DP_EDP_CONFIGURATION_CAP] &
 			DP_ALTERNATE_SCRAMBLER_RESET_CAP;
+}
+
+/**
+ * drm_dp_read_aux_interval() - read the AUX read interval from the DPCD
+ * @dpcd: receiver capacity buffer
+ *
+ * Reads the AUX read interval (in microseconds) from the DPCD. Note that the
+ * TRAINING_AUX_RD_INTERVAL stores the value in units of 4 milliseconds. If no
+ * read interval is specified and for DPCD v1.4 and later, the read interval
+ * is always 100 microseconds.
+ *
+ * Returns:
+ * The read AUX interval in microseconds.
+ */
+static inline unsigned int
+drm_dp_aux_rd_interval(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	unsigned int rd_interval = dpcd[DP_TRAINING_AUX_RD_INTERVAL] &
+					DP_TRAINING_AUX_RD_MASK;
+
+	if (rd_interval > 4)
+		DRM_DEBUG_KMS("AUX interval %u, out of range (max: 4)\n",
+			      rd_interval);
+
+	if (rd_interval > 0 && dpcd[DP_DPCD_REV] < DP_DPCD_REV_14)
+		rd_interval *= 4 * USEC_PER_MSEC;
+	else
+		rd_interval = 100;
+
+	return rd_interval;
 }
 
 /*
