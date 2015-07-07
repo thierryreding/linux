@@ -40,6 +40,7 @@ static void drm_dp_link_reset(struct drm_dp_link *link)
 	link->max_lanes = 0;
 
 	drm_dp_link_caps_reset(&link->caps);
+	link->aux_rd_interval = 0;
 	link->edp = 0;
 
 	link->rate = 0;
@@ -89,6 +90,8 @@ int drm_dp_link_probe(struct drm_dp_aux *aux, struct drm_dp_link *link)
 		else
 			link->edp = drm_dp_edp_revisions[value];
 	}
+
+	link->aux_rd_interval = drm_dp_aux_rd_interval(dpcd);
 
 	link->rate = link->max_rate;
 	link->lanes = link->max_lanes;
