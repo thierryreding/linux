@@ -8,6 +8,7 @@ tegra-drm-y := \
 	hub.o \
 	plane.o \
 	dc.o \
+	dp.o \
 	output.o \
 	rgb.o \
 	hdmi.o \
