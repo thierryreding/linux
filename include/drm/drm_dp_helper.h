@@ -714,6 +714,22 @@ drm_dp_alternate_scrambler_reset_cap(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 			DP_ALTERNATE_SCRAMBLER_RESET_CAP;
 }
 
+/**
+ * drm_dp_read_aux_interval() - read the AUX read interval from the DPCD
+ * @dpcd: receiver capacity buffer
+ *
+ * Reads the AUX read interval (in microseconds) from the DPCD. Note that the
+ * TRAINING_AUX_RD_INTERVAL stores the value in units of 4 milliseconds.
+ *
+ * Returns:
+ * The read AUX interval in microseconds.
+ */
+static inline unsigned int
+drm_dp_aux_rd_interval(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	return dpcd[DP_TRAINING_AUX_RD_INTERVAL] * 4000;
+}
+
 /*
  * DisplayPort AUX channel
  */
@@ -841,6 +857,7 @@ struct drm_dp_link {
 	unsigned int max_lanes;
 
 	struct drm_dp_link_caps caps;
+	unsigned int aux_rd_interval;
 	unsigned char edp;
 
 	unsigned int rate;

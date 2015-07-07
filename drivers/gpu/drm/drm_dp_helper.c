@@ -340,6 +340,7 @@ static void drm_dp_link_reset(struct drm_dp_link *link)
 	link->max_lanes = 0;
 
 	drm_dp_link_caps_reset(&link->caps);
+	link->aux_rd_interval = 0;
 	link->edp = 0;
 
 	link->rate = 0;
@@ -392,6 +393,9 @@ int drm_dp_link_probe(struct drm_dp_aux *aux, struct drm_dp_link *link)
 		else
 			link->edp = edp_revs[value];
 	}
+
+	/* DP_TRAINING_AUX_RD_INTERVAL is in units of 4 milliseconds */
+	link->aux_rd_interval = drm_dp_aux_rd_interval(values);
 
 	link->rate = link->max_rate;
 	link->lanes = link->max_lanes;
