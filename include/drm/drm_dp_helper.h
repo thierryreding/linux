@@ -800,6 +800,7 @@ int drm_dp_dpcd_read_link_status(struct drm_dp_aux *aux,
  */
 struct drm_dp_link_caps {
 	bool enhanced_framing;
+	bool tps3_supported;
 	bool fast_training;
 };
 
