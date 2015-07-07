@@ -1356,10 +1356,12 @@ int drm_dp_dpcd_read_link_status(struct drm_dp_aux *aux,
 /**
  * struct drm_dp_link_caps - DP link capabilities
  * @enhanced_framing: enhanced framing capability (mandatory as of DP 1.2)
+ * @tps3_supported: training pattern sequence 3 supported for equalization
  * @fast_training: AUX CH handshake not required for link training
  */
 struct drm_dp_link_caps {
 	bool enhanced_framing;
+	bool tps3_supported;
 	bool fast_training;
 };
 
