@@ -328,6 +328,7 @@ static void drm_dp_link_reset(struct drm_dp_link *link)
 	link->max_lanes = 0;
 
 	drm_dp_link_caps_reset(&link->caps);
+	link->edp = 0;
 
 	link->rate = 0;
 	link->lanes = 0;
@@ -363,6 +364,20 @@ int drm_dp_link_probe(struct drm_dp_aux *aux, struct drm_dp_link *link)
 	link->caps.tps3_supported = drm_dp_tps3_supported(values);
 	link->caps.fast_training = drm_dp_fast_training_cap(values);
 	link->caps.channel_coding = drm_dp_channel_coding_supported(values);
+
+	if (drm_dp_alternate_scrambler_reset_cap(values)) {
+		static const u8 edp_revs[] = { 0x11, 0x12, 0x13, 0x14 };
+		u8 value;
+
+		err = drm_dp_dpcd_readb(aux, DP_EDP_DPCD_REV, &value);
+		if (err < 0)
+			return err;
+
+		if (value >= ARRAY_SIZE(edp_revs))
+			DRM_ERROR("unsupported eDP version: %02x\n", value);
+		else
+			link->edp = edp_revs[value];
+	}
 
 	link->rate = link->max_rate;
 	link->lanes = link->max_lanes;
