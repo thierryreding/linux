@@ -135,7 +135,8 @@
 		};
 
 		sor@0,54540000 {
-			compatible = "nvidia,tegra124-sor";
+			compatible = "nvidia,tegra132-sor",
+				     "nvidia,tegra124-sor";
 			reg = <0x0 0x54540000 0x0 0x00040000>;
 			interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&tegra_car TEGRA124_CLK_SOR0>,
