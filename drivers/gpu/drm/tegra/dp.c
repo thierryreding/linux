@@ -2,21 +2,6 @@
 
 #include "dp.h"
 
-struct drm_dp_link_tegra {
-	struct drm_dp_link base;
-
-	const struct drm_dp_link_ops *ops;
-	struct drm_dp_aux *aux;
-
-	struct drm_dp_link_train train;
-};
-
-static inline struct drm_dp_link_tegra *
-to_drm_dp_link_tegra(struct drm_dp_link *link)
-{
-	return container_of(link, struct drm_dp_link_tegra, base);
-}
-
 int __drm_dp_link_configure(struct drm_dp_link *link)
 {
 	struct drm_dp_link_tegra *tegra = to_drm_dp_link_tegra(link);
