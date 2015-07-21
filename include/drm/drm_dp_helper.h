@@ -28,6 +28,7 @@
 #include <linux/time64.h>
 #include <linux/types.h>
 
+#include <drm/drm_crtc.h>
 #include <drm/drm_print.h>
 
 /*
@@ -1457,6 +1458,9 @@ int drm_dp_link_probe(struct drm_dp_aux *aux, struct drm_dp_link *link);
 int drm_dp_link_power_up(struct drm_dp_aux *aux, struct drm_dp_link *link);
 int drm_dp_link_power_down(struct drm_dp_aux *aux, struct drm_dp_link *link);
 int drm_dp_link_configure(struct drm_dp_aux *aux, struct drm_dp_link *link);
+int drm_dp_link_choose(struct drm_dp_link *link,
+		       const struct drm_display_mode *mode,
+		       const struct drm_display_info *info);
 int drm_dp_downstream_max_clock(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 				const u8 port_cap[4]);
 int drm_dp_downstream_max_bpc(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
