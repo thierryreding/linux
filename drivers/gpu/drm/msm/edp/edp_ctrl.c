@@ -416,7 +416,7 @@ static void edp_fill_link_cfg(struct edp_ctrl *ctrl)
 	u32 prate;
 	u32 lrate;
 	u32 bpp;
-	u8 max_lane = ctrl->dp_link.num_lanes;
+	u8 max_lane = ctrl->dp_link.max_lanes;
 	u8 lane;
 
 	prate = ctrl->pixel_rate;
@@ -426,7 +426,7 @@ static void edp_fill_link_cfg(struct edp_ctrl *ctrl)
 	 * By default, use the maximum link rate and minimum lane count,
 	 * so that we can do rate down shift during link training.
 	 */
-	ctrl->link_rate = drm_dp_link_rate_to_bw_code(ctrl->dp_link.rate);
+	ctrl->link_rate = drm_dp_link_rate_to_bw_code(ctrl->dp_link.max_rate);
 
 	prate *= bpp;
 	prate /= 8; /* in kByte */
@@ -714,7 +714,7 @@ static int edp_link_rate_down_shift(struct edp_ctrl *ctrl)
 
 	rate = ctrl->link_rate;
 	lane = ctrl->lane_cnt;
-	max_lane = ctrl->dp_link.num_lanes;
+	max_lane = ctrl->dp_link.max_lanes;
 
 	bpp = ctrl->color_depth * 3;
 	prate = ctrl->pixel_rate;
@@ -772,7 +772,7 @@ static int edp_do_link_train(struct edp_ctrl *ctrl)
 	 * Set the current link rate and lane cnt to panel. They may have been
 	 * adjusted and the values are different from them in DPCD CAP
 	 */
-	dp_link.num_lanes = ctrl->lane_cnt;
+	dp_link.lanes = ctrl->lane_cnt;
 	dp_link.rate = drm_dp_bw_code_to_link_rate(ctrl->link_rate);
 	dp_link.capabilities = ctrl->dp_link.capabilities;
 	if (drm_dp_link_configure(ctrl->drm_aux, &dp_link) < 0)

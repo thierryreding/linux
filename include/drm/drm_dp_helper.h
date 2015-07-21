@@ -793,9 +793,12 @@ int drm_dp_dpcd_read_link_status(struct drm_dp_aux *aux,
 
 struct drm_dp_link {
 	unsigned char revision;
-	unsigned int rate;
-	unsigned int num_lanes;
+	unsigned int max_rate;
+	unsigned int max_lanes;
 	unsigned long capabilities;
+
+	unsigned int rate;
+	unsigned int lanes;
 };
 
 int drm_dp_link_probe(struct drm_dp_aux *aux, struct drm_dp_link *link);
