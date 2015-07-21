@@ -3549,6 +3549,8 @@ static int tegra_sor_probe(struct platform_device *pdev)
 
 		if (!sor->aux)
 			return -EPROBE_DEFER;
+
+		sor->output.ddc = &sor->aux->ddc;
 	}
 
 	if (!sor->aux) {
