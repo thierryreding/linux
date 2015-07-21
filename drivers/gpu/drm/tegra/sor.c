@@ -3490,6 +3490,8 @@ static int tegra_sor_probe(struct platform_device *pdev)
 
 		if (!sor->aux)
 			return -EPROBE_DEFER;
+
+		sor->output.ddc = &sor->aux->ddc;
 	}
 
 	sor->kfuse = tegra_kfuse_get(&pdev->dev);
