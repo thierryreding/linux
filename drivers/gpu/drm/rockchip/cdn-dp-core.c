@@ -487,7 +487,7 @@ static int cdn_dp_disable(struct cdn_dp_device *dp)
 	cdn_dp_clk_disable(dp);
 	dp->active = false;
 	dp->link.rate = 0;
-	dp->link.num_lanes = 0;
+	dp->link.lanes = 0;
 	if (!dp->connected) {
 		kfree(dp->edid);
 		dp->edid = NULL;
@@ -579,7 +579,7 @@ static bool cdn_dp_check_link_status(struct cdn_dp_device *dp)
 	struct cdn_dp_port *port = cdn_dp_connected_port(dp);
 	u8 sink_lanes = drm_dp_max_lane_count(dp->dpcd);
 
-	if (!port || !dp->link.rate || !dp->link.num_lanes)
+	if (!port || !dp->link.rate || !dp->link.lanes)
 		return false;
 
 	if (cdn_dp_dpcd_read(dp, DP_LANE0_1_STATUS, link_status,
@@ -962,7 +962,7 @@ static void cdn_dp_pd_event_work(struct work_struct *work)
 	/* Enabled and connected with a sink, re-train if requested */
 	} else if (!cdn_dp_check_link_status(dp)) {
 		unsigned int rate = dp->link.rate;
-		unsigned int lanes = dp->link.num_lanes;
+		unsigned int lanes = dp->link.lanes;
 		struct drm_display_mode *mode = &dp->mode;
 
 		DRM_DEV_INFO(dp->dev, "Connected with sink. Re-train link\n");
@@ -975,7 +975,7 @@ static void cdn_dp_pd_event_work(struct work_struct *work)
 
 		/* If training result is changed, update the video config */
 		if (mode->clock &&
-		    (rate != dp->link.rate || lanes != dp->link.num_lanes)) {
+		    (rate != dp->link.rate || lanes != dp->link.lanes)) {
 			ret = cdn_dp_config_video(dp);
 			if (ret) {
 				dp->connected = false;

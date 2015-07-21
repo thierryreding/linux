@@ -544,7 +544,7 @@ static int cdn_dp_get_training_status(struct cdn_dp_device *dp)
 		goto err_get_training_status;
 
 	dp->link.rate = status[0];
-	dp->link.num_lanes = status[1];
+	dp->link.lanes = status[1];
 
 err_get_training_status:
 	if (ret)
@@ -569,7 +569,7 @@ int cdn_dp_train_link(struct cdn_dp_device *dp)
 	}
 
 	DRM_DEV_DEBUG_KMS(dp->dev, "rate:0x%x, lanes:%d\n", dp->link.rate,
-			  dp->link.num_lanes);
+			  dp->link.lanes);
 	return ret;
 }
 
@@ -667,14 +667,13 @@ int cdn_dp_config_video(struct cdn_dp_device *dp)
 	do {
 		tu_size_reg += 2;
 		symbol = tu_size_reg * mode->clock * bit_per_pix;
-		do_div(symbol, dp->link.num_lanes * link_rate * 8);
+		do_div(symbol, dp->link.lanes * link_rate * 8);
 		rem = do_div(symbol, 1000);
 		if (tu_size_reg > 64) {
 			ret = -EINVAL;
 			DRM_DEV_ERROR(dp->dev,
 				      "tu error, clk:%d, lanes:%d, rate:%d\n",
-				      mode->clock, dp->link.num_lanes,
-				      link_rate);
+				      mode->clock, dp->link.lanes, link_rate);
 			goto err_config_video;
 		}
 	} while ((symbol <= 1) || (tu_size_reg - symbol < 4) ||
@@ -688,7 +687,7 @@ int cdn_dp_config_video(struct cdn_dp_device *dp)
 
 	/* set the FIFO Buffer size */
 	val = div_u64(mode->clock * (symbol + 1), 1000) + link_rate;
-	val /= (dp->link.num_lanes * link_rate);
+	val /= (dp->link.lanes * link_rate);
 	val = div_u64(8 * (symbol + 1), bit_per_pix) - val;
 	val += 2;
 	ret = cdn_dp_reg_write(dp, DP_VC_TABLE(15), val);
@@ -841,7 +840,7 @@ static void cdn_dp_audio_config_i2s(struct cdn_dp_device *dp,
 	u32 val;
 
 	if (audio->channels == 2) {
-		if (dp->link.num_lanes == 1)
+		if (dp->link.lanes == 1)
 			sub_pckt_num = 2;
 		else
 			sub_pckt_num = 4;
