@@ -404,7 +404,7 @@ static u32 tc_srcctrl(struct tc_data *tc)
 		reg |= DP0_SRCCTRL_SCRMBLDIS;	/* Scrambler Disabled */
 	if (tc->link.spread)
 		reg |= DP0_SRCCTRL_SSCG;	/* Spread Spectrum Enable */
-	if (tc->link.base.num_lanes == 2)
+	if (tc->link.base.lanes == 2)
 		reg |= DP0_SRCCTRL_LANES_2;	/* Two Main Channel Lanes */
 	if (tc->link.base.rate != 162000)
 		reg |= DP0_SRCCTRL_BW27;	/* 2.7 Gbps link */
@@ -624,9 +624,9 @@ static int tc_get_display_props(struct tc_data *tc)
 		tc->link.base.rate = 270000;
 	}
 
-	if (tc->link.base.num_lanes > 2) {
+	if (tc->link.base.lanes > 2) {
 		dev_dbg(tc->dev, "Falling to 2 lanes\n");
-		tc->link.base.num_lanes = 2;
+		tc->link.base.lanes = 2;
 	}
 
 	ret = drm_dp_dpcd_readb(&tc->aux, DP_MAX_DOWNSPREAD, tmp);
@@ -648,7 +648,7 @@ static int tc_get_display_props(struct tc_data *tc)
 	dev_dbg(tc->dev, "DPCD rev: %d.%d, rate: %s, lanes: %d, framing: %s\n",
 		tc->link.base.revision >> 4, tc->link.base.revision & 0x0f,
 		(tc->link.base.rate == 162000) ? "1.62Gbps" : "2.7Gbps",
-		tc->link.base.num_lanes,
+		tc->link.base.lanes,
 		(tc->link.base.capabilities & DP_LINK_CAP_ENHANCED_FRAMING) ?
 		"enhanced" : "non-enhanced");
 	dev_dbg(tc->dev, "Downspread: %s, scrambler: %s\n",
@@ -818,7 +818,7 @@ static int tc_main_link_enable(struct tc_data *tc)
 
 	/* Setup Main Link */
 	dp_phy_ctrl = BGREN | PWR_SW_EN | PHY_A0_EN | PHY_M0_EN;
-	if (tc->link.base.num_lanes == 2)
+	if (tc->link.base.lanes == 2)
 		dp_phy_ctrl |= PHY_2LANE;
 	tc_write(DP_PHY_CTRL, dp_phy_ctrl);
 
@@ -985,7 +985,7 @@ static int tc_main_link_enable(struct tc_data *tc)
 		ret = -ENODEV;
 	}
 
-	if (tc->link.base.num_lanes == 2) {
+	if (tc->link.base.lanes == 2) {
 		value = (tmp[0] >> 4) & DP_CHANNEL_EQ_BITS;
 
 		if (value != DP_CHANNEL_EQ_BITS) {
@@ -1183,7 +1183,7 @@ static enum drm_mode_status tc_mode_valid(struct drm_bridge *bridge,
 		return MODE_CLOCK_HIGH;
 
 	req = mode->clock * bits_per_pixel / 8;
-	avail = tc->link.base.num_lanes * tc->link.base.rate;
+	avail = tc->link.base.lanes * tc->link.base.rate;
 
 	if (req > avail)
 		return MODE_BAD;
