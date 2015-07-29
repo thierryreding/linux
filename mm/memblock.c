@@ -1162,11 +1162,27 @@ static phys_addr_t __init memblock_alloc_range_nid(phys_addr_t size,
 	found = memblock_find_in_range_node(size, align, start, end, nid,
 					    flags);
 	if (found && !memblock_reserve(found, size)) {
+		phys_addr_t highmem_start;
+
 		/*
-		 * The min_count is set to 0 so that memblock allocations are
-		 * never reported as leaks.
+		 * Allocations from high memory cannot be tracked by kmemleak
+		 * because they need to be mapped into kernel virtual memory
+		 * for kmemleak to be able to inspect them.
 		 */
-		kmemleak_alloc(__va(found), size, 0, 0);
+#ifdef CONFIG_X86
+		highmem_start = __pa_nodebug(high_memory);
+#else
+		highmem_start = __pa(high_memory);
+#endif
+
+		if (found < highmem_start && found + size < highmem_start) {
+			/*
+			 * The min_count is set to 0 so that memblock
+			 * allocations are never reported as leaks.
+			 */
+			kmemleak_alloc(__va(found), size, 0, 0);
+		}
+
 		return found;
 	}
 	return 0;
