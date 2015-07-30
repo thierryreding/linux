@@ -225,6 +225,10 @@ of the following host1x client modules:
   Optional properties when driving an eDP output:
   - nvidia,dpaux: phandle to a DispayPort AUX interface
 
+  Optional properties when driving an HDMI or DisplayPort output:
+  - nvidia,kfuse: phandle to the KFUSE module that stores the HDCP keys for
+    the device
+
 - dpaux: DisplayPort AUX interface
   - compatible: For Tegra124, must contain "nvidia,tegra124-dpaux".  Otherwise,
     must contain '"nvidia,<chip>-dpaux", "nvidia,tegra124-dpaux"', where
