@@ -604,8 +604,10 @@ int tegra_io_rail_power_on(int id)
 	int err;
 
 	err = tegra_io_rail_prepare(id, &request, &status, &bit);
-	if (err < 0)
+	if (err < 0) {
+		pr_info("tegra_io_rail_prepare() failed: %d\n", err);
 		return err;
+	}
 
 	mask = 1 << bit;
 
