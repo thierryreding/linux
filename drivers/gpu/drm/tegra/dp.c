@@ -226,10 +226,10 @@ static int drm_dp_link_clock_recovery(struct drm_dp_link *link)
 			return err;
 		}
 
-		drm_dp_link_train_adjust(&tegra->train);
-
 		if (tegra->train.clock_recovered)
 			break;
+
+		drm_dp_link_train_adjust(&tegra->train);
 	}
 
 	return 0;
@@ -287,10 +287,10 @@ static int drm_dp_link_channel_equalization(struct drm_dp_link *link)
 			return err;
 		}
 
-		drm_dp_link_train_adjust(&tegra->train);
-
 		if (tegra->train.channel_equalized)
 			break;
+
+		drm_dp_link_train_adjust(&tegra->train);
 	}
 
 	return 0;
@@ -459,6 +459,8 @@ int drm_dp_link_train(struct drm_dp_link *link)
 {
 	struct drm_dp_link_tegra *tegra = to_drm_dp_link_tegra(link);
 	int err;
+
+	drm_dp_link_train_init(&tegra->train);
 
 	if (link->caps.fast_training) {
 		if (drm_dp_link_train_valid(&tegra->train)) {
