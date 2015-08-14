@@ -11,13 +11,13 @@ config DRM_IMX
 	  enable i.MX graphics support
 
 config DRM_IMX_PARALLEL_DISPLAY
-	tristate "Support for parallel displays"
+	bool "Support for parallel displays"
 	select DRM_PANEL
 	depends on DRM_IMX
 	select VIDEOMODE_HELPERS
 
 config DRM_IMX_TVE
-	tristate "Support for TV and VGA displays"
+	bool "Support for TV and VGA displays"
 	depends on DRM_IMX
 	select REGMAP_MMIO
 	help
@@ -25,7 +25,7 @@ config DRM_IMX_TVE
 	  found on i.MX53 processors.
 
 config DRM_IMX_LDB
-	tristate "Support for LVDS displays"
+	bool "Support for LVDS displays"
 	depends on DRM_IMX && MFD_SYSCON
 	select DRM_PANEL
 	help
@@ -33,14 +33,13 @@ config DRM_IMX_LDB
 	  found on i.MX53 and i.MX6 processors.
 
 config DRM_IMX_IPUV3
-	tristate
+	bool
 	depends on DRM_IMX
 	depends on IMX_IPUV3_CORE
-	default y if DRM_IMX=y
-	default m if DRM_IMX=m
+	default y
 
 config DRM_IMX_HDMI
-	tristate "Freescale i.MX DRM HDMI"
+	bool "Freescale i.MX DRM HDMI"
 	select DRM_DW_HDMI
 	depends on DRM_IMX
 	help

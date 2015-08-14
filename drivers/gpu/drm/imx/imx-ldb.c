@@ -665,7 +665,7 @@ static int imx_ldb_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver imx_ldb_driver = {
+struct platform_driver imx_ldb_driver = {
 	.probe		= imx_ldb_probe,
 	.remove		= imx_ldb_remove,
 	.driver		= {
@@ -673,8 +673,6 @@ static struct platform_driver imx_ldb_driver = {
 		.name	= DRIVER_NAME,
 	},
 };
-
-module_platform_driver(imx_ldb_driver);
 
 MODULE_DESCRIPTION("i.MX LVDS driver");
 MODULE_AUTHOR("Sascha Hauer, Pengutronix");

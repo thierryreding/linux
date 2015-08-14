@@ -54,4 +54,10 @@ int imx_drm_encoder_parse_of(struct drm_device *drm,
 void imx_drm_connector_destroy(struct drm_connector *connector);
 void imx_drm_encoder_destroy(struct drm_encoder *encoder);
 
+extern struct platform_driver ipu_drm_driver;
+extern struct platform_driver imx_ldb_driver;
+extern struct platform_driver imx_pd_driver;
+extern struct platform_driver dw_hdmi_imx_platform_driver;
+extern struct platform_driver imx_tve_driver;
+
 #endif /* _IMX_DRM_H_ */

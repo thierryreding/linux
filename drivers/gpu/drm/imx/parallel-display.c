@@ -289,7 +289,7 @@ static const struct of_device_id imx_pd_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, imx_pd_dt_ids);
 
-static struct platform_driver imx_pd_driver = {
+struct platform_driver imx_pd_driver = {
 	.probe		= imx_pd_probe,
 	.remove		= imx_pd_remove,
 	.driver		= {
@@ -297,8 +297,6 @@ static struct platform_driver imx_pd_driver = {
 		.name	= "imx-parallel-display",
 	},
 };
-
-module_platform_driver(imx_pd_driver);
 
 MODULE_DESCRIPTION("i.MX parallel display driver");
 MODULE_AUTHOR("Sascha Hauer, Pengutronix");

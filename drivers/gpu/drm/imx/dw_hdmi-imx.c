@@ -271,7 +271,7 @@ static int dw_hdmi_imx_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver dw_hdmi_imx_platform_driver = {
+struct platform_driver dw_hdmi_imx_platform_driver = {
 	.probe  = dw_hdmi_imx_probe,
 	.remove = dw_hdmi_imx_remove,
 	.driver = {
@@ -279,8 +279,6 @@ static struct platform_driver dw_hdmi_imx_platform_driver = {
 		.of_match_table = dw_hdmi_imx_dt_ids,
 	},
 };
-
-module_platform_driver(dw_hdmi_imx_platform_driver);
 
 MODULE_AUTHOR("Andy Yan <andy.yan@rock-chips.com>");
 MODULE_AUTHOR("Yakir Yang <ykk@rock-chips.com>");
