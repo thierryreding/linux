@@ -825,7 +825,7 @@ static int amdgpu_cgs_get_active_displays_info(void *cgs_device,
 				&ddev->mode_config.crtc_list, head) {
 			amdgpu_crtc = to_amdgpu_crtc(crtc);
 			if (crtc->enabled) {
-				info->active_display_mask |= (1 << amdgpu_crtc->crtc_id);
+				info->active_display_mask |= (1 << amdgpu_crtc->pipe);
 				info->display_count++;
 			}
 			if (info->mode_info != NULL &&

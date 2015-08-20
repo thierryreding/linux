@@ -181,7 +181,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			crtc = (struct drm_crtc *)minfo->crtcs[i];
 			if (crtc && crtc->base.id == info->mode_crtc.id) {
 				struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
-				ui32 = amdgpu_crtc->crtc_id;
+				ui32 = amdgpu_crtc->pipe;
 				found = 1;
 				break;
 			}

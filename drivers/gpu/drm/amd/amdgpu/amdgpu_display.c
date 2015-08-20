@@ -66,13 +66,13 @@ static void amdgpu_flip_work_func(struct work_struct *__work)
 	struct amdgpu_flip_work *work =
 		container_of(__work, struct amdgpu_flip_work, flip_work);
 	struct amdgpu_device *adev = work->adev;
-	struct amdgpu_crtc *amdgpuCrtc = adev->mode_info.crtcs[work->crtc_id];
+	struct amdgpu_crtc *amdgpuCrtc = adev->mode_info.crtcs[work->pipe];
 
 	struct drm_crtc *crtc = &amdgpuCrtc->base;
 	unsigned long flags;
 	unsigned i;
 	int vpos, hpos, stat, min_udelay;
-	struct drm_vblank_crtc *vblank = &crtc->dev->vblank[work->crtc_id];
+	struct drm_vblank_crtc *vblank = &crtc->dev->vblank[work->pipe];
 
 	if (amdgpu_flip_handle_fence(work, &work->excl))
 		return;
@@ -124,7 +124,7 @@ static void amdgpu_flip_work_func(struct work_struct *__work)
 	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 
 	/* Do the flip (mmio) */
-	adev->mode_info.funcs->page_flip(adev, work->crtc_id, work->base);
+	adev->mode_info.funcs->page_flip(adev, work->pipe, work->base);
 }
 
 /*
@@ -179,7 +179,7 @@ int amdgpu_crtc_page_flip(struct drm_crtc *crtc,
 
 	work->event = event;
 	work->adev = adev;
-	work->crtc_id = amdgpu_crtc->crtc_id;
+	work->pipe = amdgpu_crtc->pipe;
 
 	/* schedule unpin of the old buffer */
 	old_amdgpu_fb = to_amdgpu_framebuffer(crtc->primary->fb);
@@ -222,7 +222,7 @@ int amdgpu_crtc_page_flip(struct drm_crtc *crtc,
 
 	work->base = base;
 
-	r = drm_vblank_get(crtc->dev, amdgpu_crtc->crtc_id);
+	r = drm_vblank_get(crtc->dev, amdgpu_crtc->pipe);
 	if (r) {
 		DRM_ERROR("failed to get vblank before flip\n");
 		goto pflip_cleanup;
@@ -247,7 +247,7 @@ int amdgpu_crtc_page_flip(struct drm_crtc *crtc,
 	return 0;
 
 vblank_cleanup:
-	drm_vblank_put(crtc->dev, amdgpu_crtc->crtc_id);
+	drm_vblank_put(crtc->dev, amdgpu_crtc->pipe);
 
 pflip_cleanup:
 	if (unlikely(amdgpu_bo_reserve(new_rbo, false) != 0)) {
@@ -874,12 +874,12 @@ int amdgpu_get_crtc_scanoutpos(struct drm_crtc *crtc, unsigned int flags,
 	return ret;
 }
 
-int amdgpu_crtc_idx_to_irq_type(struct amdgpu_device *adev, int crtc)
+int amdgpu_crtc_idx_to_irq_type(struct amdgpu_device *adev, unsigned int pipe)
 {
-	if (crtc < 0 || crtc >= adev->mode_info.num_crtc)
+	if (pipe >= adev->mode_info.num_crtc)
 		return AMDGPU_CRTC_IRQ_NONE;
 
-	switch (crtc) {
+	switch (pipe) {
 	case 0:
 		return AMDGPU_CRTC_IRQ_VBLANK1;
 	case 1:
