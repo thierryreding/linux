@@ -399,8 +399,8 @@ static void nv17_tv_prepare(struct drm_encoder *encoder)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	const struct drm_encoder_helper_funcs *helper = encoder->helper_private;
 	struct nv17_tv_norm_params *tv_norm = get_tv_norm(encoder);
-	int head = nouveau_crtc(encoder->crtc)->index;
-	uint8_t *cr_lcd = &nv04_display(dev)->mode_reg.crtc_reg[head].CRTC[
+	unsigned int pipe = nouveau_crtc(encoder->crtc)->pipe;
+	uint8_t *cr_lcd = &nv04_display(dev)->mode_reg.crtc_reg[pipe].CRTC[
 							NV_CIO_CRE_LCD__INDEX];
 	uint32_t dacclk_off = NV_PRAMDAC_DACCLK +
 					nv04_dac_output_offset(encoder);
@@ -408,7 +408,7 @@ static void nv17_tv_prepare(struct drm_encoder *encoder)
 
 	helper->dpms(encoder, DRM_MODE_DPMS_OFF);
 
-	nv04_dfp_disable(dev, head);
+	nv04_dfp_disable(dev, pipe);
 
 	/* Unbind any FP encoders from this head if we need the FP
 	 * stuff enabled. */
@@ -421,8 +421,8 @@ static void nv17_tv_prepare(struct drm_encoder *encoder)
 			if ((dcb->type == DCB_OUTPUT_TMDS ||
 			     dcb->type == DCB_OUTPUT_LVDS) &&
 			     !enc->crtc &&
-			     nv04_dfp_get_bound_head(dev, dcb) == head) {
-				nv04_dfp_bind_head(dev, dcb, head ^ 1,
+			     nv04_dfp_get_bound_head(dev, dcb) == pipe) {
+				nv04_dfp_bind_head(dev, dcb, pipe ^ 1,
 						drm->vbios.fp.dual_link);
 			}
 		}
@@ -430,7 +430,7 @@ static void nv17_tv_prepare(struct drm_encoder *encoder)
 	}
 
 	if (tv_norm->kind == CTV_ENC_MODE)
-		*cr_lcd |= 0x1 | (head ? 0x0 : 0x8);
+		*cr_lcd |= 0x1 | (pipe ? 0x0 : 0x8);
 
 	/* Set the DACCLK register */
 	dacclk = (NVReadRAMDAC(dev, 0, dacclk_off) & ~0x30) | 0x1;
@@ -441,7 +441,7 @@ static void nv17_tv_prepare(struct drm_encoder *encoder)
 	if (tv_norm->kind == CTV_ENC_MODE) {
 		dacclk |=  0x20;
 
-		if (head)
+		if (pipe)
 			dacclk |= 0x100;
 		else
 			dacclk &= ~0x100;
@@ -460,8 +460,8 @@ static void nv17_tv_mode_set(struct drm_encoder *encoder,
 {
 	struct drm_device *dev = encoder->dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	int head = nouveau_crtc(encoder->crtc)->index;
-	struct nv04_crtc_reg *regs = &nv04_display(dev)->mode_reg.crtc_reg[head];
+	unsigned int pipe = nouveau_crtc(encoder->crtc)->pipe;
+	struct nv04_crtc_reg *regs = &nv04_display(dev)->mode_reg.crtc_reg[pipe];
 	struct nv17_tv_state *tv_regs = &to_tv_enc(encoder)->state;
 	struct nv17_tv_norm_params *tv_norm = get_tv_norm(encoder);
 	int i;
@@ -474,7 +474,7 @@ static void nv17_tv_mode_set(struct drm_encoder *encoder,
 
 	if (tv_norm->kind == TV_ENC_MODE) {
 		tv_regs->ptv_200 = 0x13111100;
-		if (head)
+		if (pipe)
 			tv_regs->ptv_200 |= 0x10;
 
 		tv_regs->ptv_20c = 0x808010;
@@ -598,9 +598,9 @@ static void nv17_tv_commit(struct drm_encoder *encoder)
 
 	helper->dpms(encoder, DRM_MODE_DPMS_ON);
 
-	NV_INFO(drm, "Output %s is running on CRTC %d using output %c\n",
+	NV_INFO(drm, "Output %s is running on CRTC %u using output %c\n",
 		nouveau_encoder_connector_get(nv_encoder)->base.name,
-		nv_crtc->index, '@' + ffs(nv_encoder->dcb->or));
+		nv_crtc->pipe, '@' + ffs(nv_encoder->dcb->or));
 }
 
 static void nv17_tv_save(struct drm_encoder *encoder)

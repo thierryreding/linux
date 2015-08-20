@@ -365,11 +365,11 @@ static void nv04_dac_prepare(struct drm_encoder *encoder)
 {
 	const struct drm_encoder_helper_funcs *helper = encoder->helper_private;
 	struct drm_device *dev = encoder->dev;
-	int head = nouveau_crtc(encoder->crtc)->index;
+	unsigned int pipe = nouveau_crtc(encoder->crtc)->pipe;
 
 	helper->dpms(encoder, DRM_MODE_DPMS_OFF);
 
-	nv04_dfp_disable(dev, head);
+	nv04_dfp_disable(dev, pipe);
 }
 
 static void nv04_dac_mode_set(struct drm_encoder *encoder,
@@ -378,7 +378,7 @@ static void nv04_dac_mode_set(struct drm_encoder *encoder,
 {
 	struct drm_device *dev = encoder->dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	int head = nouveau_crtc(encoder->crtc)->index;
+	unsigned int pipe = nouveau_crtc(encoder->crtc)->pipe;
 
 	if (nv_gf4_disp_arch(dev)) {
 		struct drm_encoder *rebind;
@@ -388,7 +388,7 @@ static void nv04_dac_mode_set(struct drm_encoder *encoder,
 		/* bit 16-19 are bits that are set on some G70 cards,
 		 * but don't seem to have much effect */
 		NVWriteRAMDAC(dev, 0, NV_PRAMDAC_DACCLK + dac_offset,
-			      head << 8 | NV_PRAMDAC_DACCLK_SEL_DACCLK);
+			      pipe << 8 | NV_PRAMDAC_DACCLK_SEL_DACCLK);
 		/* force any other vga encoders to bind to the other crtc */
 		list_for_each_entry(rebind, &dev->mode_config.encoder_list, head) {
 			if (rebind == encoder
@@ -398,7 +398,7 @@ static void nv04_dac_mode_set(struct drm_encoder *encoder,
 			dac_offset = nv04_dac_output_offset(rebind);
 			otherdac = NVReadRAMDAC(dev, 0, NV_PRAMDAC_DACCLK + dac_offset);
 			NVWriteRAMDAC(dev, 0, NV_PRAMDAC_DACCLK + dac_offset,
-				      (otherdac & ~0x0100) | (head ^ 1) << 8);
+				      (otherdac & ~0x0100) | (pipe ^ 1) << 8);
 		}
 	}
 
@@ -418,9 +418,9 @@ static void nv04_dac_commit(struct drm_encoder *encoder)
 
 	helper->dpms(encoder, DRM_MODE_DPMS_ON);
 
-	NV_DEBUG(drm, "Output %s is running on CRTC %d using output %c\n",
+	NV_DEBUG(drm, "Output %s is running on CRTC %u using output %c\n",
 		 nouveau_encoder_connector_get(nv_encoder)->base.name,
-		 nv_crtc->index, '@' + ffs(nv_encoder->dcb->or));
+		 nv_crtc->pipe, '@' + ffs(nv_encoder->dcb->or));
 }
 
 void nv04_dac_update_dacclk(struct drm_encoder *encoder, bool enable)

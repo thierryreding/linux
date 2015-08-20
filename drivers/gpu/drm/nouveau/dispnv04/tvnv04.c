@@ -86,16 +86,16 @@ static void nv04_tv_dpms(struct drm_encoder *encoder, int mode)
 	state->pllsel &= ~(PLLSEL_TV_CRTC1_MASK | PLLSEL_TV_CRTC2_MASK);
 
 	if (mode == DRM_MODE_DPMS_ON) {
-		int head = nouveau_crtc(encoder->crtc)->index;
-		crtc1A = NVReadVgaCrtc(dev, head, NV_CIO_CRE_RPC1_INDEX);
+		unsigned int pipe = nouveau_crtc(encoder->crtc)->pipe;
+		crtc1A = NVReadVgaCrtc(dev, pipe, NV_CIO_CRE_RPC1_INDEX);
 
-		state->pllsel |= head ? PLLSEL_TV_CRTC2_MASK :
+		state->pllsel |= pipe ? PLLSEL_TV_CRTC2_MASK :
 					PLLSEL_TV_CRTC1_MASK;
 
 		/* Inhibit hsync */
 		crtc1A |= 0x80;
 
-		NVWriteVgaCrtc(dev, head, NV_CIO_CRE_RPC1_INDEX, crtc1A);
+		NVWriteVgaCrtc(dev, pipe, NV_CIO_CRE_RPC1_INDEX, crtc1A);
 	}
 
 	NVWriteRAMDAC(dev, 0, NV_PRAMDAC_PLL_COEFF_SELECT, state->pllsel);
@@ -103,9 +103,9 @@ static void nv04_tv_dpms(struct drm_encoder *encoder, int mode)
 	get_slave_funcs(encoder)->dpms(encoder, mode);
 }
 
-static void nv04_tv_bind(struct drm_device *dev, int head, bool bind)
+static void nv04_tv_bind(struct drm_device *dev, unsigned int pipe, bool bind)
 {
-	struct nv04_crtc_reg *state = &nv04_display(dev)->mode_reg.crtc_reg[head];
+	struct nv04_crtc_reg *state = &nv04_display(dev)->mode_reg.crtc_reg[pipe];
 
 	state->tv_setup = 0;
 
@@ -114,28 +114,28 @@ static void nv04_tv_bind(struct drm_device *dev, int head, bool bind)
 	else
 		state->CRTC[NV_CIO_CRE_49] &= ~0x10;
 
-	NVWriteVgaCrtc(dev, head, NV_CIO_CRE_LCD__INDEX,
+	NVWriteVgaCrtc(dev, pipe, NV_CIO_CRE_LCD__INDEX,
 		       state->CRTC[NV_CIO_CRE_LCD__INDEX]);
-	NVWriteVgaCrtc(dev, head, NV_CIO_CRE_49,
+	NVWriteVgaCrtc(dev, pipe, NV_CIO_CRE_49,
 		       state->CRTC[NV_CIO_CRE_49]);
-	NVWriteRAMDAC(dev, head, NV_PRAMDAC_TV_SETUP,
+	NVWriteRAMDAC(dev, pipe, NV_PRAMDAC_TV_SETUP,
 		      state->tv_setup);
 }
 
 static void nv04_tv_prepare(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
-	int head = nouveau_crtc(encoder->crtc)->index;
+	unsigned int pipe = nouveau_crtc(encoder->crtc)->pipe;
 	const struct drm_encoder_helper_funcs *helper = encoder->helper_private;
 
 	helper->dpms(encoder, DRM_MODE_DPMS_OFF);
 
-	nv04_dfp_disable(dev, head);
+	nv04_dfp_disable(dev, pipe);
 
 	if (nv_two_heads(dev))
-		nv04_tv_bind(dev, head ^ 1, false);
+		nv04_tv_bind(dev, pipe ^ 1, false);
 
-	nv04_tv_bind(dev, head, true);
+	nv04_tv_bind(dev, pipe, true);
 }
 
 static void nv04_tv_mode_set(struct drm_encoder *encoder,
@@ -144,7 +144,7 @@ static void nv04_tv_mode_set(struct drm_encoder *encoder,
 {
 	struct drm_device *dev = encoder->dev;
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
-	struct nv04_crtc_reg *regp = &nv04_display(dev)->mode_reg.crtc_reg[nv_crtc->index];
+	struct nv04_crtc_reg *regp = &nv04_display(dev)->mode_reg.crtc_reg[nv_crtc->pipe];
 
 	regp->tv_htotal = adjusted_mode->htotal;
 	regp->tv_vtotal = adjusted_mode->vtotal;
@@ -172,9 +172,9 @@ static void nv04_tv_commit(struct drm_encoder *encoder)
 
 	helper->dpms(encoder, DRM_MODE_DPMS_ON);
 
-	NV_DEBUG(drm, "Output %s is running on CRTC %d using output %c\n",
+	NV_DEBUG(drm, "Output %s is running on CRTC %u using output %c\n",
 		 nouveau_encoder_connector_get(nv_encoder)->base.name,
-		 nv_crtc->index, '@' + ffs(nv_encoder->dcb->or));
+		 nv_crtc->pipe, '@' + ffs(nv_encoder->dcb->or));
 }
 
 static void nv04_tv_destroy(struct drm_encoder *encoder)
