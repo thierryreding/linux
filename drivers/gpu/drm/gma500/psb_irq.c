@@ -35,7 +35,7 @@
  */
 
 static inline u32
-psb_pipestat(int pipe)
+psb_pipestat(unsigned int pipe)
 {
 	if (pipe == 0)
 		return PIPEASTAT;
@@ -47,7 +47,7 @@ psb_pipestat(int pipe)
 }
 
 static inline u32
-mid_pipe_event(int pipe)
+mid_pipe_event(unsigned int pipe)
 {
 	if (pipe == 0)
 		return _PSB_PIPEA_EVENT_FLAG;
@@ -59,7 +59,7 @@ mid_pipe_event(int pipe)
 }
 
 static inline u32
-mid_pipe_vsync(int pipe)
+mid_pipe_vsync(unsigned int pipe)
 {
 	if (pipe == 0)
 		return _PSB_VSYNC_PIPEA_FLAG;
@@ -71,7 +71,7 @@ mid_pipe_vsync(int pipe)
 }
 
 static inline u32
-mid_pipeconf(int pipe)
+mid_pipeconf(unsigned int pipe)
 {
 	if (pipe == 0)
 		return PIPEACONF;
@@ -82,8 +82,8 @@ mid_pipeconf(int pipe)
 	BUG();
 }
 
-void
-psb_enable_pipestat(struct drm_psb_private *dev_priv, int pipe, u32 mask)
+void psb_enable_pipestat(struct drm_psb_private *dev_priv, unsigned int pipe,
+			 u32 mask)
 {
 	if ((dev_priv->pipestat[pipe] & mask) != mask) {
 		u32 reg = psb_pipestat(pipe);
@@ -99,8 +99,8 @@ psb_enable_pipestat(struct drm_psb_private *dev_priv, int pipe, u32 mask)
 	}
 }
 
-void
-psb_disable_pipestat(struct drm_psb_private *dev_priv, int pipe, u32 mask)
+void psb_disable_pipestat(struct drm_psb_private *dev_priv, unsigned int pipe,
+			  u32 mask)
 {
 	if ((dev_priv->pipestat[pipe] & mask) != 0) {
 		u32 reg = psb_pipestat(pipe);
@@ -115,7 +115,8 @@ psb_disable_pipestat(struct drm_psb_private *dev_priv, int pipe, u32 mask)
 	}
 }
 
-static void mid_enable_pipe_event(struct drm_psb_private *dev_priv, int pipe)
+static void mid_enable_pipe_event(struct drm_psb_private *dev_priv,
+				  unsigned int pipe)
 {
 	if (gma_power_begin(dev_priv->dev, false)) {
 		u32 pipe_event = mid_pipe_event(pipe);
@@ -126,7 +127,8 @@ static void mid_enable_pipe_event(struct drm_psb_private *dev_priv, int pipe)
 	}
 }
 
-static void mid_disable_pipe_event(struct drm_psb_private *dev_priv, int pipe)
+static void mid_disable_pipe_event(struct drm_psb_private *dev_priv,
+				   unsigned int pipe)
 {
 	if (dev_priv->pipestat[pipe] == 0) {
 		if (gma_power_begin(dev_priv->dev, false)) {
@@ -143,7 +145,7 @@ static void mid_disable_pipe_event(struct drm_psb_private *dev_priv, int pipe)
  * Display controller interrupt handler for pipe event.
  *
  */
-static void mid_pipe_event_handler(struct drm_device *dev, int pipe)
+static void mid_pipe_event_handler(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_psb_private *dev_priv =
 	    (struct drm_psb_private *) dev->dev_private;
@@ -175,7 +177,7 @@ static void mid_pipe_event_handler(struct drm_device *dev, int pipe)
 
 	if (pipe_clear)
 		dev_err(dev->dev,
-		"%s, can't clear status bits for pipe %d, its value = 0x%x.\n",
+		"%s, can't clear status bits for pipe %u, its value = 0x%x.\n",
 		__func__, pipe, PSB_RVDC32(pipe_stat_reg));
 
 	if (pipe_stat_val & PIPE_VBLANK_STATUS)
@@ -573,7 +575,7 @@ void psb_disable_vblank(struct drm_device *dev, unsigned int pipe)
 /*
  * It is used to enable TE interrupt
  */
-int mdfld_enable_te(struct drm_device *dev, int pipe)
+int mdfld_enable_te(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_psb_private *dev_priv =
 		(struct drm_psb_private *) dev->dev_private;
@@ -602,7 +604,7 @@ int mdfld_enable_te(struct drm_device *dev, int pipe)
 /*
  * It is used to disable TE interrupt
  */
-void mdfld_disable_te(struct drm_device *dev, int pipe)
+void mdfld_disable_te(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_psb_private *dev_priv =
 		(struct drm_psb_private *) dev->dev_private;
