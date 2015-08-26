@@ -34,12 +34,25 @@ struct tegra_dc_soc_info {
 
 struct tegra_plane {
 	struct drm_plane base;
+	void __iomem *regs;
 	unsigned int index;
 };
 
 static inline struct tegra_plane *to_tegra_plane(struct drm_plane *plane)
 {
 	return container_of(plane, struct tegra_plane, base);
+}
+
+static inline void tegra_plane_writel(struct tegra_plane *plane, u32 value,
+				      unsigned int offset)
+{
+	writel(value, plane->regs + (offset << 2));
+}
+
+static inline u32 tegra_plane_readl(struct tegra_plane *plane,
+				    unsigned int offset)
+{
+	return readl(plane->regs + (offset << 2));
 }
 
 struct tegra_dc_state {
@@ -238,12 +251,13 @@ static inline u32 compute_initial_dda(unsigned int in)
 	return dfixed_frac(inf);
 }
 
-static void tegra_dc_setup_window(struct tegra_dc *dc, unsigned int index,
+static void tegra_dc_setup_window(struct tegra_plane *plane,
 				  const struct tegra_dc_window *window)
 {
 	unsigned h_offset, v_offset, h_size, v_size, h_dda, v_dda, bpp;
-	unsigned long value, flags;
+	struct tegra_dc *dc = to_tegra_dc(plane->base.state->crtc);
 	bool yuv, planar;
+	u32 value;
 
 	/*
 	 * For YUV planar modes, the number of bytes per pixel takes into
@@ -255,19 +269,14 @@ static void tegra_dc_setup_window(struct tegra_dc *dc, unsigned int index,
 	else
 		bpp = planar ? 1 : 2;
 
-	spin_lock_irqsave(&dc->lock, flags);
-
-	value = WINDOW_A_SELECT << index;
-	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_WINDOW_HEADER);
-
-	tegra_dc_writel(dc, window->format, DC_WIN_COLOR_DEPTH);
-	tegra_dc_writel(dc, window->swap, DC_WIN_BYTE_SWAP);
+	tegra_plane_writel(plane, window->format, DC_WIN_COLOR_DEPTH);
+	tegra_plane_writel(plane, window->swap, DC_WIN_BYTE_SWAP);
 
 	value = V_POSITION(window->dst.y) | H_POSITION(window->dst.x);
-	tegra_dc_writel(dc, value, DC_WIN_POSITION);
+	tegra_plane_writel(plane, value, DC_WIN_POSITION);
 
 	value = V_SIZE(window->dst.h) | H_SIZE(window->dst.w);
-	tegra_dc_writel(dc, value, DC_WIN_SIZE);
+	tegra_plane_writel(plane, value, DC_WIN_SIZE);
 
 	h_offset = window->src.x * bpp;
 	v_offset = window->src.y;
@@ -275,7 +284,7 @@ static void tegra_dc_setup_window(struct tegra_dc *dc, unsigned int index,
 	v_size = window->src.h;
 
 	value = V_PRESCALED_SIZE(v_size) | H_PRESCALED_SIZE(h_size);
-	tegra_dc_writel(dc, value, DC_WIN_PRESCALED_SIZE);
+	tegra_plane_writel(plane, value, DC_WIN_PRESCALED_SIZE);
 
 	/*
 	 * For DDA computations the number of bytes per pixel for YUV planar
@@ -288,33 +297,33 @@ static void tegra_dc_setup_window(struct tegra_dc *dc, unsigned int index,
 	v_dda = compute_dda_inc(window->src.h, window->dst.h, true, bpp);
 
 	value = V_DDA_INC(v_dda) | H_DDA_INC(h_dda);
-	tegra_dc_writel(dc, value, DC_WIN_DDA_INC);
+	tegra_plane_writel(plane, value, DC_WIN_DDA_INC);
 
 	h_dda = compute_initial_dda(window->src.x);
 	v_dda = compute_initial_dda(window->src.y);
 
-	tegra_dc_writel(dc, h_dda, DC_WIN_H_INITIAL_DDA);
-	tegra_dc_writel(dc, v_dda, DC_WIN_V_INITIAL_DDA);
+	tegra_plane_writel(plane, h_dda, DC_WIN_H_INITIAL_DDA);
+	tegra_plane_writel(plane, v_dda, DC_WIN_V_INITIAL_DDA);
 
-	tegra_dc_writel(dc, 0, DC_WIN_UV_BUF_STRIDE);
-	tegra_dc_writel(dc, 0, DC_WIN_BUF_STRIDE);
+	tegra_plane_writel(plane, 0, DC_WIN_UV_BUF_STRIDE);
+	tegra_plane_writel(plane, 0, DC_WIN_BUF_STRIDE);
 
-	tegra_dc_writel(dc, window->base[0], DC_WINBUF_START_ADDR);
+	tegra_plane_writel(plane, window->base[0], DC_WINBUF_START_ADDR);
 
 	if (yuv && planar) {
-		tegra_dc_writel(dc, window->base[1], DC_WINBUF_START_ADDR_U);
-		tegra_dc_writel(dc, window->base[2], DC_WINBUF_START_ADDR_V);
+		tegra_plane_writel(plane, window->base[1], DC_WINBUF_START_ADDR_U);
+		tegra_plane_writel(plane, window->base[2], DC_WINBUF_START_ADDR_V);
 		value = window->stride[1] << 16 | window->stride[0];
-		tegra_dc_writel(dc, value, DC_WIN_LINE_STRIDE);
+		tegra_plane_writel(plane, value, DC_WIN_LINE_STRIDE);
 	} else {
-		tegra_dc_writel(dc, window->stride[0], DC_WIN_LINE_STRIDE);
+		tegra_plane_writel(plane, window->stride[0], DC_WIN_LINE_STRIDE);
 	}
 
 	if (window->bottom_up)
 		v_offset += window->src.h - 1;
 
-	tegra_dc_writel(dc, h_offset, DC_WINBUF_ADDR_H_OFFSET);
-	tegra_dc_writel(dc, v_offset, DC_WINBUF_ADDR_V_OFFSET);
+	tegra_plane_writel(plane, h_offset, DC_WINBUF_ADDR_H_OFFSET);
+	tegra_plane_writel(plane, v_offset, DC_WINBUF_ADDR_V_OFFSET);
 
 	if (dc->soc->supports_block_linear) {
 		unsigned long height = window->tiling.value;
@@ -334,7 +343,7 @@ static void tegra_dc_setup_window(struct tegra_dc *dc, unsigned int index,
 			break;
 		}
 
-		tegra_dc_writel(dc, value, DC_WINBUF_SURFACE_KIND);
+		tegra_plane_writel(plane, value, DC_WINBUF_SURFACE_KIND);
 	} else {
 		switch (window->tiling.mode) {
 		case TEGRA_BO_TILING_MODE_PITCH:
@@ -355,21 +364,21 @@ static void tegra_dc_setup_window(struct tegra_dc *dc, unsigned int index,
 			break;
 		}
 
-		tegra_dc_writel(dc, value, DC_WIN_BUFFER_ADDR_MODE);
+		tegra_plane_writel(plane, value, DC_WIN_BUFFER_ADDR_MODE);
 	}
 
 	value = WIN_ENABLE;
 
 	if (yuv) {
 		/* setup default colorspace conversion coefficients */
-		tegra_dc_writel(dc, 0x00f0, DC_WIN_CSC_YOF);
-		tegra_dc_writel(dc, 0x012a, DC_WIN_CSC_KYRGB);
-		tegra_dc_writel(dc, 0x0000, DC_WIN_CSC_KUR);
-		tegra_dc_writel(dc, 0x0198, DC_WIN_CSC_KVR);
-		tegra_dc_writel(dc, 0x039b, DC_WIN_CSC_KUG);
-		tegra_dc_writel(dc, 0x032f, DC_WIN_CSC_KVG);
-		tegra_dc_writel(dc, 0x0204, DC_WIN_CSC_KUB);
-		tegra_dc_writel(dc, 0x0000, DC_WIN_CSC_KVB);
+		tegra_plane_writel(plane, 0x00f0, DC_WIN_CSC_YOF);
+		tegra_plane_writel(plane, 0x012a, DC_WIN_CSC_KYRGB);
+		tegra_plane_writel(plane, 0x0000, DC_WIN_CSC_KUR);
+		tegra_plane_writel(plane, 0x0198, DC_WIN_CSC_KVR);
+		tegra_plane_writel(plane, 0x039b, DC_WIN_CSC_KUG);
+		tegra_plane_writel(plane, 0x032f, DC_WIN_CSC_KVG);
+		tegra_plane_writel(plane, 0x0204, DC_WIN_CSC_KUB);
+		tegra_plane_writel(plane, 0x0000, DC_WIN_CSC_KVB);
 
 		value |= CSC_ENABLE;
 	} else if (window->bits_per_pixel < 24) {
@@ -379,36 +388,34 @@ static void tegra_dc_setup_window(struct tegra_dc *dc, unsigned int index,
 	if (window->bottom_up)
 		value |= V_DIRECTION;
 
-	tegra_dc_writel(dc, value, DC_WIN_WIN_OPTIONS);
+	tegra_plane_writel(plane, value, DC_WIN_WIN_OPTIONS);
 
 	/*
 	 * Disable blending and assume Window A is the bottom-most window,
 	 * Window C is the top-most window and Window B is in the middle.
 	 */
-	tegra_dc_writel(dc, 0xffff00, DC_WIN_BLEND_NOKEY);
-	tegra_dc_writel(dc, 0xffff00, DC_WIN_BLEND_1WIN);
+	tegra_plane_writel(plane, 0xffff00, DC_WIN_BLEND_NOKEY);
+	tegra_plane_writel(plane, 0xffff00, DC_WIN_BLEND_1WIN);
 
-	switch (index) {
+	switch (plane->index) {
 	case 0:
-		tegra_dc_writel(dc, 0x000000, DC_WIN_BLEND_2WIN_X);
-		tegra_dc_writel(dc, 0x000000, DC_WIN_BLEND_2WIN_Y);
-		tegra_dc_writel(dc, 0x000000, DC_WIN_BLEND_3WIN_XY);
+		tegra_plane_writel(plane, 0x000000, DC_WIN_BLEND_2WIN_X);
+		tegra_plane_writel(plane, 0x000000, DC_WIN_BLEND_2WIN_Y);
+		tegra_plane_writel(plane, 0x000000, DC_WIN_BLEND_3WIN_XY);
 		break;
 
 	case 1:
-		tegra_dc_writel(dc, 0xffff00, DC_WIN_BLEND_2WIN_X);
-		tegra_dc_writel(dc, 0x000000, DC_WIN_BLEND_2WIN_Y);
-		tegra_dc_writel(dc, 0x000000, DC_WIN_BLEND_3WIN_XY);
+		tegra_plane_writel(plane, 0xffff00, DC_WIN_BLEND_2WIN_X);
+		tegra_plane_writel(plane, 0x000000, DC_WIN_BLEND_2WIN_Y);
+		tegra_plane_writel(plane, 0x000000, DC_WIN_BLEND_3WIN_XY);
 		break;
 
 	case 2:
-		tegra_dc_writel(dc, 0xffff00, DC_WIN_BLEND_2WIN_X);
-		tegra_dc_writel(dc, 0xffff00, DC_WIN_BLEND_2WIN_Y);
-		tegra_dc_writel(dc, 0xffff00, DC_WIN_BLEND_3WIN_XY);
+		tegra_plane_writel(plane, 0xffff00, DC_WIN_BLEND_2WIN_X);
+		tegra_plane_writel(plane, 0xffff00, DC_WIN_BLEND_2WIN_Y);
+		tegra_plane_writel(plane, 0xffff00, DC_WIN_BLEND_3WIN_XY);
 		break;
 	}
-
-	spin_unlock_irqrestore(&dc->lock, flags);
 }
 
 static void tegra_plane_destroy(struct drm_plane *plane)
@@ -560,7 +567,6 @@ static void tegra_plane_atomic_update(struct drm_plane *plane,
 				      struct drm_plane_state *old_state)
 {
 	struct tegra_plane_state *state = to_tegra_plane_state(plane->state);
-	struct tegra_dc *dc = to_tegra_dc(plane->state->crtc);
 	struct drm_framebuffer *fb = plane->state->fb;
 	struct tegra_plane *p = to_tegra_plane(plane);
 	struct tegra_dc_window window;
@@ -594,33 +600,22 @@ static void tegra_plane_atomic_update(struct drm_plane *plane,
 		window.stride[i] = fb->pitches[i];
 	}
 
-	tegra_dc_setup_window(dc, p->index, &window);
+	tegra_dc_setup_window(p, &window);
 }
 
 static void tegra_plane_atomic_disable(struct drm_plane *plane,
 				       struct drm_plane_state *old_state)
 {
 	struct tegra_plane *p = to_tegra_plane(plane);
-	struct tegra_dc *dc;
-	unsigned long flags;
 	u32 value;
 
 	/* rien ne va plus */
 	if (!old_state || !old_state->crtc)
 		return;
 
-	dc = to_tegra_dc(old_state->crtc);
-
-	spin_lock_irqsave(&dc->lock, flags);
-
-	value = WINDOW_A_SELECT << p->index;
-	tegra_dc_writel(dc, value, DC_CMD_DISPLAY_WINDOW_HEADER);
-
-	value = tegra_dc_readl(dc, DC_WIN_WIN_OPTIONS);
+	value = tegra_plane_readl(p, DC_WIN_WIN_OPTIONS);
 	value &= ~WIN_ENABLE;
-	tegra_dc_writel(dc, value, DC_WIN_WIN_OPTIONS);
-
-	spin_unlock_irqrestore(&dc->lock, flags);
+	tegra_plane_writel(p, value, DC_WIN_WIN_OPTIONS);
 }
 
 static const struct drm_plane_helper_funcs tegra_primary_plane_helper_funcs = {
@@ -647,6 +642,7 @@ static struct drm_plane *tegra_dc_primary_plane_create(struct drm_device *drm,
 	 * the same as drm_crtc_index() after registration.
 	 */
 	unsigned long possible_crtcs = 1 << drm->mode_config.num_crtc;
+	unsigned int offset = 0xa00 << 2;
 	struct tegra_plane *plane;
 	unsigned int num_formats;
 	const u32 *formats;
@@ -655,6 +651,9 @@ static struct drm_plane *tegra_dc_primary_plane_create(struct drm_device *drm,
 	plane = kzalloc(sizeof(*plane), GFP_KERNEL);
 	if (!plane)
 		return ERR_PTR(-ENOMEM);
+
+	plane->regs = dc->regs + offset;
+	plane->index = 0;
 
 	num_formats = ARRAY_SIZE(tegra_primary_plane_formats);
 	formats = tegra_primary_plane_formats;
@@ -877,6 +876,7 @@ static struct drm_plane *tegra_dc_overlay_plane_create(struct drm_device *drm,
 						       struct tegra_dc *dc,
 						       unsigned int index)
 {
+	unsigned int offset = (0xa00 + index * 0x200) << 2;
 	struct tegra_plane *plane;
 	unsigned int num_formats;
 	const u32 *formats;
@@ -886,6 +886,7 @@ static struct drm_plane *tegra_dc_overlay_plane_create(struct drm_device *drm,
 	if (!plane)
 		return ERR_PTR(-ENOMEM);
 
+	plane->regs = dc->regs + offset;
 	plane->index = index;
 
 	num_formats = ARRAY_SIZE(tegra_overlay_plane_formats);
@@ -958,6 +959,7 @@ static void tegra_dc_finish_page_flip(struct tegra_dc *dc)
 {
 	struct drm_device *drm = dc->base.dev;
 	struct drm_crtc *crtc = &dc->base;
+	struct tegra_plane *plane;
 	unsigned long flags, base;
 	struct tegra_bo *bo;
 
@@ -969,13 +971,13 @@ static void tegra_dc_finish_page_flip(struct tegra_dc *dc)
 	}
 
 	bo = tegra_fb_get_plane(crtc->primary->fb, 0);
+	plane = to_tegra_plane(crtc->primary);
 
 	spin_lock(&dc->lock);
 
 	/* check if new start address has been latched */
-	tegra_dc_writel(dc, WINDOW_A_SELECT, DC_CMD_DISPLAY_WINDOW_HEADER);
 	tegra_dc_writel(dc, READ_MUX, DC_CMD_STATE_ACCESS);
-	base = tegra_dc_readl(dc, DC_WINBUF_START_ADDR);
+	base = tegra_plane_readl(plane, DC_WINBUF_START_ADDR);
 	tegra_dc_writel(dc, 0, DC_CMD_STATE_ACCESS);
 
 	spin_unlock(&dc->lock);
@@ -1381,6 +1383,8 @@ static int tegra_dc_show_regs(struct seq_file *s, void *data)
 {
 	struct drm_info_node *node = s->private;
 	struct tegra_dc *dc = node->info_ent->data;
+	struct drm_device *drm = node->minor->dev;
+	struct drm_plane *plane;
 	int err = 0;
 
 	drm_modeset_lock_crtc(&dc->base, NULL);
@@ -1390,224 +1394,241 @@ static int tegra_dc_show_regs(struct seq_file *s, void *data)
 		goto unlock;
 	}
 
-#define DUMP_REG(name)						\
+#define DUMP_DC_REG(dc, name)					\
 	seq_printf(s, "%-40s %#05x %08x\n", #name, name,	\
 		   tegra_dc_readl(dc, name))
 
-	DUMP_REG(DC_CMD_GENERAL_INCR_SYNCPT);
-	DUMP_REG(DC_CMD_GENERAL_INCR_SYNCPT_CNTRL);
-	DUMP_REG(DC_CMD_GENERAL_INCR_SYNCPT_ERROR);
-	DUMP_REG(DC_CMD_WIN_A_INCR_SYNCPT);
-	DUMP_REG(DC_CMD_WIN_A_INCR_SYNCPT_CNTRL);
-	DUMP_REG(DC_CMD_WIN_A_INCR_SYNCPT_ERROR);
-	DUMP_REG(DC_CMD_WIN_B_INCR_SYNCPT);
-	DUMP_REG(DC_CMD_WIN_B_INCR_SYNCPT_CNTRL);
-	DUMP_REG(DC_CMD_WIN_B_INCR_SYNCPT_ERROR);
-	DUMP_REG(DC_CMD_WIN_C_INCR_SYNCPT);
-	DUMP_REG(DC_CMD_WIN_C_INCR_SYNCPT_CNTRL);
-	DUMP_REG(DC_CMD_WIN_C_INCR_SYNCPT_ERROR);
-	DUMP_REG(DC_CMD_CONT_SYNCPT_VSYNC);
-	DUMP_REG(DC_CMD_DISPLAY_COMMAND_OPTION0);
-	DUMP_REG(DC_CMD_DISPLAY_COMMAND);
-	DUMP_REG(DC_CMD_SIGNAL_RAISE);
-	DUMP_REG(DC_CMD_DISPLAY_POWER_CONTROL);
-	DUMP_REG(DC_CMD_INT_STATUS);
-	DUMP_REG(DC_CMD_INT_MASK);
-	DUMP_REG(DC_CMD_INT_ENABLE);
-	DUMP_REG(DC_CMD_INT_TYPE);
-	DUMP_REG(DC_CMD_INT_POLARITY);
-	DUMP_REG(DC_CMD_SIGNAL_RAISE1);
-	DUMP_REG(DC_CMD_SIGNAL_RAISE2);
-	DUMP_REG(DC_CMD_SIGNAL_RAISE3);
-	DUMP_REG(DC_CMD_STATE_ACCESS);
-	DUMP_REG(DC_CMD_STATE_CONTROL);
-	DUMP_REG(DC_CMD_DISPLAY_WINDOW_HEADER);
-	DUMP_REG(DC_CMD_REG_ACT_CONTROL);
-	DUMP_REG(DC_COM_CRC_CONTROL);
-	DUMP_REG(DC_COM_CRC_CHECKSUM);
-	DUMP_REG(DC_COM_PIN_OUTPUT_ENABLE(0));
-	DUMP_REG(DC_COM_PIN_OUTPUT_ENABLE(1));
-	DUMP_REG(DC_COM_PIN_OUTPUT_ENABLE(2));
-	DUMP_REG(DC_COM_PIN_OUTPUT_ENABLE(3));
-	DUMP_REG(DC_COM_PIN_OUTPUT_POLARITY(0));
-	DUMP_REG(DC_COM_PIN_OUTPUT_POLARITY(1));
-	DUMP_REG(DC_COM_PIN_OUTPUT_POLARITY(2));
-	DUMP_REG(DC_COM_PIN_OUTPUT_POLARITY(3));
-	DUMP_REG(DC_COM_PIN_OUTPUT_DATA(0));
-	DUMP_REG(DC_COM_PIN_OUTPUT_DATA(1));
-	DUMP_REG(DC_COM_PIN_OUTPUT_DATA(2));
-	DUMP_REG(DC_COM_PIN_OUTPUT_DATA(3));
-	DUMP_REG(DC_COM_PIN_INPUT_ENABLE(0));
-	DUMP_REG(DC_COM_PIN_INPUT_ENABLE(1));
-	DUMP_REG(DC_COM_PIN_INPUT_ENABLE(2));
-	DUMP_REG(DC_COM_PIN_INPUT_ENABLE(3));
-	DUMP_REG(DC_COM_PIN_INPUT_DATA(0));
-	DUMP_REG(DC_COM_PIN_INPUT_DATA(1));
-	DUMP_REG(DC_COM_PIN_OUTPUT_SELECT(0));
-	DUMP_REG(DC_COM_PIN_OUTPUT_SELECT(1));
-	DUMP_REG(DC_COM_PIN_OUTPUT_SELECT(2));
-	DUMP_REG(DC_COM_PIN_OUTPUT_SELECT(3));
-	DUMP_REG(DC_COM_PIN_OUTPUT_SELECT(4));
-	DUMP_REG(DC_COM_PIN_OUTPUT_SELECT(5));
-	DUMP_REG(DC_COM_PIN_OUTPUT_SELECT(6));
-	DUMP_REG(DC_COM_PIN_MISC_CONTROL);
-	DUMP_REG(DC_COM_PIN_PM0_CONTROL);
-	DUMP_REG(DC_COM_PIN_PM0_DUTY_CYCLE);
-	DUMP_REG(DC_COM_PIN_PM1_CONTROL);
-	DUMP_REG(DC_COM_PIN_PM1_DUTY_CYCLE);
-	DUMP_REG(DC_COM_SPI_CONTROL);
-	DUMP_REG(DC_COM_SPI_START_BYTE);
-	DUMP_REG(DC_COM_HSPI_WRITE_DATA_AB);
-	DUMP_REG(DC_COM_HSPI_WRITE_DATA_CD);
-	DUMP_REG(DC_COM_HSPI_CS_DC);
-	DUMP_REG(DC_COM_SCRATCH_REGISTER_A);
-	DUMP_REG(DC_COM_SCRATCH_REGISTER_B);
-	DUMP_REG(DC_COM_GPIO_CTRL);
-	DUMP_REG(DC_COM_GPIO_DEBOUNCE_COUNTER);
-	DUMP_REG(DC_COM_CRC_CHECKSUM_LATCHED);
-	DUMP_REG(DC_DISP_DISP_SIGNAL_OPTIONS0);
-	DUMP_REG(DC_DISP_DISP_SIGNAL_OPTIONS1);
-	DUMP_REG(DC_DISP_DISP_WIN_OPTIONS);
-	DUMP_REG(DC_DISP_DISP_MEM_HIGH_PRIORITY);
-	DUMP_REG(DC_DISP_DISP_MEM_HIGH_PRIORITY_TIMER);
-	DUMP_REG(DC_DISP_DISP_TIMING_OPTIONS);
-	DUMP_REG(DC_DISP_REF_TO_SYNC);
-	DUMP_REG(DC_DISP_SYNC_WIDTH);
-	DUMP_REG(DC_DISP_BACK_PORCH);
-	DUMP_REG(DC_DISP_ACTIVE);
-	DUMP_REG(DC_DISP_FRONT_PORCH);
-	DUMP_REG(DC_DISP_H_PULSE0_CONTROL);
-	DUMP_REG(DC_DISP_H_PULSE0_POSITION_A);
-	DUMP_REG(DC_DISP_H_PULSE0_POSITION_B);
-	DUMP_REG(DC_DISP_H_PULSE0_POSITION_C);
-	DUMP_REG(DC_DISP_H_PULSE0_POSITION_D);
-	DUMP_REG(DC_DISP_H_PULSE1_CONTROL);
-	DUMP_REG(DC_DISP_H_PULSE1_POSITION_A);
-	DUMP_REG(DC_DISP_H_PULSE1_POSITION_B);
-	DUMP_REG(DC_DISP_H_PULSE1_POSITION_C);
-	DUMP_REG(DC_DISP_H_PULSE1_POSITION_D);
-	DUMP_REG(DC_DISP_H_PULSE2_CONTROL);
-	DUMP_REG(DC_DISP_H_PULSE2_POSITION_A);
-	DUMP_REG(DC_DISP_H_PULSE2_POSITION_B);
-	DUMP_REG(DC_DISP_H_PULSE2_POSITION_C);
-	DUMP_REG(DC_DISP_H_PULSE2_POSITION_D);
-	DUMP_REG(DC_DISP_V_PULSE0_CONTROL);
-	DUMP_REG(DC_DISP_V_PULSE0_POSITION_A);
-	DUMP_REG(DC_DISP_V_PULSE0_POSITION_B);
-	DUMP_REG(DC_DISP_V_PULSE0_POSITION_C);
-	DUMP_REG(DC_DISP_V_PULSE1_CONTROL);
-	DUMP_REG(DC_DISP_V_PULSE1_POSITION_A);
-	DUMP_REG(DC_DISP_V_PULSE1_POSITION_B);
-	DUMP_REG(DC_DISP_V_PULSE1_POSITION_C);
-	DUMP_REG(DC_DISP_V_PULSE2_CONTROL);
-	DUMP_REG(DC_DISP_V_PULSE2_POSITION_A);
-	DUMP_REG(DC_DISP_V_PULSE3_CONTROL);
-	DUMP_REG(DC_DISP_V_PULSE3_POSITION_A);
-	DUMP_REG(DC_DISP_M0_CONTROL);
-	DUMP_REG(DC_DISP_M1_CONTROL);
-	DUMP_REG(DC_DISP_DI_CONTROL);
-	DUMP_REG(DC_DISP_PP_CONTROL);
-	DUMP_REG(DC_DISP_PP_SELECT_A);
-	DUMP_REG(DC_DISP_PP_SELECT_B);
-	DUMP_REG(DC_DISP_PP_SELECT_C);
-	DUMP_REG(DC_DISP_PP_SELECT_D);
-	DUMP_REG(DC_DISP_DISP_CLOCK_CONTROL);
-	DUMP_REG(DC_DISP_DISP_INTERFACE_CONTROL);
-	DUMP_REG(DC_DISP_DISP_COLOR_CONTROL);
-	DUMP_REG(DC_DISP_SHIFT_CLOCK_OPTIONS);
-	DUMP_REG(DC_DISP_DATA_ENABLE_OPTIONS);
-	DUMP_REG(DC_DISP_SERIAL_INTERFACE_OPTIONS);
-	DUMP_REG(DC_DISP_LCD_SPI_OPTIONS);
-	DUMP_REG(DC_DISP_BORDER_COLOR);
-	DUMP_REG(DC_DISP_COLOR_KEY0_LOWER);
-	DUMP_REG(DC_DISP_COLOR_KEY0_UPPER);
-	DUMP_REG(DC_DISP_COLOR_KEY1_LOWER);
-	DUMP_REG(DC_DISP_COLOR_KEY1_UPPER);
-	DUMP_REG(DC_DISP_CURSOR_FOREGROUND);
-	DUMP_REG(DC_DISP_CURSOR_BACKGROUND);
-	DUMP_REG(DC_DISP_CURSOR_START_ADDR);
-	DUMP_REG(DC_DISP_CURSOR_START_ADDR_NS);
-	DUMP_REG(DC_DISP_CURSOR_POSITION);
-	DUMP_REG(DC_DISP_CURSOR_POSITION_NS);
-	DUMP_REG(DC_DISP_INIT_SEQ_CONTROL);
-	DUMP_REG(DC_DISP_SPI_INIT_SEQ_DATA_A);
-	DUMP_REG(DC_DISP_SPI_INIT_SEQ_DATA_B);
-	DUMP_REG(DC_DISP_SPI_INIT_SEQ_DATA_C);
-	DUMP_REG(DC_DISP_SPI_INIT_SEQ_DATA_D);
-	DUMP_REG(DC_DISP_DC_MCCIF_FIFOCTRL);
-	DUMP_REG(DC_DISP_MCCIF_DISPLAY0A_HYST);
-	DUMP_REG(DC_DISP_MCCIF_DISPLAY0B_HYST);
-	DUMP_REG(DC_DISP_MCCIF_DISPLAY1A_HYST);
-	DUMP_REG(DC_DISP_MCCIF_DISPLAY1B_HYST);
-	DUMP_REG(DC_DISP_DAC_CRT_CTRL);
-	DUMP_REG(DC_DISP_DISP_MISC_CONTROL);
-	DUMP_REG(DC_DISP_SD_CONTROL);
-	DUMP_REG(DC_DISP_SD_CSC_COEFF);
-	DUMP_REG(DC_DISP_SD_LUT(0));
-	DUMP_REG(DC_DISP_SD_LUT(1));
-	DUMP_REG(DC_DISP_SD_LUT(2));
-	DUMP_REG(DC_DISP_SD_LUT(3));
-	DUMP_REG(DC_DISP_SD_LUT(4));
-	DUMP_REG(DC_DISP_SD_LUT(5));
-	DUMP_REG(DC_DISP_SD_LUT(6));
-	DUMP_REG(DC_DISP_SD_LUT(7));
-	DUMP_REG(DC_DISP_SD_LUT(8));
-	DUMP_REG(DC_DISP_SD_FLICKER_CONTROL);
-	DUMP_REG(DC_DISP_DC_PIXEL_COUNT);
-	DUMP_REG(DC_DISP_SD_HISTOGRAM(0));
-	DUMP_REG(DC_DISP_SD_HISTOGRAM(1));
-	DUMP_REG(DC_DISP_SD_HISTOGRAM(2));
-	DUMP_REG(DC_DISP_SD_HISTOGRAM(3));
-	DUMP_REG(DC_DISP_SD_HISTOGRAM(4));
-	DUMP_REG(DC_DISP_SD_HISTOGRAM(5));
-	DUMP_REG(DC_DISP_SD_HISTOGRAM(6));
-	DUMP_REG(DC_DISP_SD_HISTOGRAM(7));
-	DUMP_REG(DC_DISP_SD_BL_TF(0));
-	DUMP_REG(DC_DISP_SD_BL_TF(1));
-	DUMP_REG(DC_DISP_SD_BL_TF(2));
-	DUMP_REG(DC_DISP_SD_BL_TF(3));
-	DUMP_REG(DC_DISP_SD_BL_CONTROL);
-	DUMP_REG(DC_DISP_SD_HW_K_VALUES);
-	DUMP_REG(DC_DISP_SD_MAN_K_VALUES);
-	DUMP_REG(DC_DISP_CURSOR_START_ADDR_HI);
-	DUMP_REG(DC_DISP_BLEND_CURSOR_CONTROL);
-	DUMP_REG(DC_WIN_WIN_OPTIONS);
-	DUMP_REG(DC_WIN_BYTE_SWAP);
-	DUMP_REG(DC_WIN_BUFFER_CONTROL);
-	DUMP_REG(DC_WIN_COLOR_DEPTH);
-	DUMP_REG(DC_WIN_POSITION);
-	DUMP_REG(DC_WIN_SIZE);
-	DUMP_REG(DC_WIN_PRESCALED_SIZE);
-	DUMP_REG(DC_WIN_H_INITIAL_DDA);
-	DUMP_REG(DC_WIN_V_INITIAL_DDA);
-	DUMP_REG(DC_WIN_DDA_INC);
-	DUMP_REG(DC_WIN_LINE_STRIDE);
-	DUMP_REG(DC_WIN_BUF_STRIDE);
-	DUMP_REG(DC_WIN_UV_BUF_STRIDE);
-	DUMP_REG(DC_WIN_BUFFER_ADDR_MODE);
-	DUMP_REG(DC_WIN_DV_CONTROL);
-	DUMP_REG(DC_WIN_BLEND_NOKEY);
-	DUMP_REG(DC_WIN_BLEND_1WIN);
-	DUMP_REG(DC_WIN_BLEND_2WIN_X);
-	DUMP_REG(DC_WIN_BLEND_2WIN_Y);
-	DUMP_REG(DC_WIN_BLEND_3WIN_XY);
-	DUMP_REG(DC_WIN_HP_FETCH_CONTROL);
-	DUMP_REG(DC_WINBUF_START_ADDR);
-	DUMP_REG(DC_WINBUF_START_ADDR_NS);
-	DUMP_REG(DC_WINBUF_START_ADDR_U);
-	DUMP_REG(DC_WINBUF_START_ADDR_U_NS);
-	DUMP_REG(DC_WINBUF_START_ADDR_V);
-	DUMP_REG(DC_WINBUF_START_ADDR_V_NS);
-	DUMP_REG(DC_WINBUF_ADDR_H_OFFSET);
-	DUMP_REG(DC_WINBUF_ADDR_H_OFFSET_NS);
-	DUMP_REG(DC_WINBUF_ADDR_V_OFFSET);
-	DUMP_REG(DC_WINBUF_ADDR_V_OFFSET_NS);
-	DUMP_REG(DC_WINBUF_UFLOW_STATUS);
-	DUMP_REG(DC_WINBUF_AD_UFLOW_STATUS);
-	DUMP_REG(DC_WINBUF_BD_UFLOW_STATUS);
-	DUMP_REG(DC_WINBUF_CD_UFLOW_STATUS);
+#define DUMP_PLANE_REG(plane, name)				\
+	seq_printf(s, "%-40s %#05x %08x\n", #name, name,	\
+		   tegra_plane_readl(plane, name))
 
-#undef DUMP_REG
+	DUMP_DC_REG(dc, DC_CMD_GENERAL_INCR_SYNCPT);
+	DUMP_DC_REG(dc, DC_CMD_GENERAL_INCR_SYNCPT_CNTRL);
+	DUMP_DC_REG(dc, DC_CMD_GENERAL_INCR_SYNCPT_ERROR);
+	DUMP_DC_REG(dc, DC_CMD_WIN_A_INCR_SYNCPT);
+	DUMP_DC_REG(dc, DC_CMD_WIN_A_INCR_SYNCPT_CNTRL);
+	DUMP_DC_REG(dc, DC_CMD_WIN_A_INCR_SYNCPT_ERROR);
+	DUMP_DC_REG(dc, DC_CMD_WIN_B_INCR_SYNCPT);
+	DUMP_DC_REG(dc, DC_CMD_WIN_B_INCR_SYNCPT_CNTRL);
+	DUMP_DC_REG(dc, DC_CMD_WIN_B_INCR_SYNCPT_ERROR);
+	DUMP_DC_REG(dc, DC_CMD_WIN_C_INCR_SYNCPT);
+	DUMP_DC_REG(dc, DC_CMD_WIN_C_INCR_SYNCPT_CNTRL);
+	DUMP_DC_REG(dc, DC_CMD_WIN_C_INCR_SYNCPT_ERROR);
+	DUMP_DC_REG(dc, DC_CMD_CONT_SYNCPT_VSYNC);
+	DUMP_DC_REG(dc, DC_CMD_DISPLAY_COMMAND_OPTION0);
+	DUMP_DC_REG(dc, DC_CMD_DISPLAY_COMMAND);
+	DUMP_DC_REG(dc, DC_CMD_SIGNAL_RAISE);
+	DUMP_DC_REG(dc, DC_CMD_DISPLAY_POWER_CONTROL);
+	DUMP_DC_REG(dc, DC_CMD_INT_STATUS);
+	DUMP_DC_REG(dc, DC_CMD_INT_MASK);
+	DUMP_DC_REG(dc, DC_CMD_INT_ENABLE);
+	DUMP_DC_REG(dc, DC_CMD_INT_TYPE);
+	DUMP_DC_REG(dc, DC_CMD_INT_POLARITY);
+	DUMP_DC_REG(dc, DC_CMD_SIGNAL_RAISE1);
+	DUMP_DC_REG(dc, DC_CMD_SIGNAL_RAISE2);
+	DUMP_DC_REG(dc, DC_CMD_SIGNAL_RAISE3);
+	DUMP_DC_REG(dc, DC_CMD_STATE_ACCESS);
+	DUMP_DC_REG(dc, DC_CMD_STATE_CONTROL);
+	DUMP_DC_REG(dc, DC_CMD_DISPLAY_WINDOW_HEADER);
+	DUMP_DC_REG(dc, DC_CMD_REG_ACT_CONTROL);
+	DUMP_DC_REG(dc, DC_COM_CRC_CONTROL);
+	DUMP_DC_REG(dc, DC_COM_CRC_CHECKSUM);
+	DUMP_DC_REG(dc, DC_COM_PIN_OUTPUT_ENABLE(0));
+	DUMP_DC_REG(dc, DC_COM_PIN_OUTPUT_ENABLE(1));
+	DUMP_DC_REG(dc, DC_COM_PIN_OUTPUT_ENABLE(2));
+	DUMP_DC_REG(dc, DC_COM_PIN_OUTPUT_ENABLE(3));
+	DUMP_DC_REG(dc, DC_COM_PIN_OUTPUT_POLARITY(0));
+	DUMP_DC_REG(dc, DC_COM_PIN_OUTPUT_POLARITY(1));
+	DUMP_DC_REG(dc, DC_COM_PIN_OUTPUT_POLARITY(2));
+	DUMP_DC_REG(dc, DC_COM_PIN_OUTPUT_POLARITY(3));
+	DUMP_DC_REG(dc, DC_COM_PIN_OUTPUT_DATA(0));
+	DUMP_DC_REG(dc, DC_COM_PIN_OUTPUT_DATA(1));
+	DUMP_DC_REG(dc, DC_COM_PIN_OUTPUT_DATA(2));
+	DUMP_DC_REG(dc, DC_COM_PIN_OUTPUT_DATA(3));
+	DUMP_DC_REG(dc, DC_COM_PIN_INPUT_ENABLE(0));
+	DUMP_DC_REG(dc, DC_COM_PIN_INPUT_ENABLE(1));
+	DUMP_DC_REG(dc, DC_COM_PIN_INPUT_ENABLE(2));
+	DUMP_DC_REG(dc, DC_COM_PIN_INPUT_ENABLE(3));
+	DUMP_DC_REG(dc, DC_COM_PIN_INPUT_DATA(0));
+	DUMP_DC_REG(dc, DC_COM_PIN_INPUT_DATA(1));
+	DUMP_DC_REG(dc, DC_COM_PIN_OUTPUT_SELECT(0));
+	DUMP_DC_REG(dc, DC_COM_PIN_OUTPUT_SELECT(1));
+	DUMP_DC_REG(dc, DC_COM_PIN_OUTPUT_SELECT(2));
+	DUMP_DC_REG(dc, DC_COM_PIN_OUTPUT_SELECT(3));
+	DUMP_DC_REG(dc, DC_COM_PIN_OUTPUT_SELECT(4));
+	DUMP_DC_REG(dc, DC_COM_PIN_OUTPUT_SELECT(5));
+	DUMP_DC_REG(dc, DC_COM_PIN_OUTPUT_SELECT(6));
+	DUMP_DC_REG(dc, DC_COM_PIN_MISC_CONTROL);
+	DUMP_DC_REG(dc, DC_COM_PIN_PM0_CONTROL);
+	DUMP_DC_REG(dc, DC_COM_PIN_PM0_DUTY_CYCLE);
+	DUMP_DC_REG(dc, DC_COM_PIN_PM1_CONTROL);
+	DUMP_DC_REG(dc, DC_COM_PIN_PM1_DUTY_CYCLE);
+	DUMP_DC_REG(dc, DC_COM_SPI_CONTROL);
+	DUMP_DC_REG(dc, DC_COM_SPI_START_BYTE);
+	DUMP_DC_REG(dc, DC_COM_HSPI_WRITE_DATA_AB);
+	DUMP_DC_REG(dc, DC_COM_HSPI_WRITE_DATA_CD);
+	DUMP_DC_REG(dc, DC_COM_HSPI_CS_DC);
+	DUMP_DC_REG(dc, DC_COM_SCRATCH_REGISTER_A);
+	DUMP_DC_REG(dc, DC_COM_SCRATCH_REGISTER_B);
+	DUMP_DC_REG(dc, DC_COM_GPIO_CTRL);
+	DUMP_DC_REG(dc, DC_COM_GPIO_DEBOUNCE_COUNTER);
+	DUMP_DC_REG(dc, DC_COM_CRC_CHECKSUM_LATCHED);
+	DUMP_DC_REG(dc, DC_DISP_DISP_SIGNAL_OPTIONS0);
+	DUMP_DC_REG(dc, DC_DISP_DISP_SIGNAL_OPTIONS1);
+	DUMP_DC_REG(dc, DC_DISP_DISP_WIN_OPTIONS);
+	DUMP_DC_REG(dc, DC_DISP_DISP_MEM_HIGH_PRIORITY);
+	DUMP_DC_REG(dc, DC_DISP_DISP_MEM_HIGH_PRIORITY_TIMER);
+	DUMP_DC_REG(dc, DC_DISP_DISP_TIMING_OPTIONS);
+	DUMP_DC_REG(dc, DC_DISP_REF_TO_SYNC);
+	DUMP_DC_REG(dc, DC_DISP_SYNC_WIDTH);
+	DUMP_DC_REG(dc, DC_DISP_BACK_PORCH);
+	DUMP_DC_REG(dc, DC_DISP_ACTIVE);
+	DUMP_DC_REG(dc, DC_DISP_FRONT_PORCH);
+	DUMP_DC_REG(dc, DC_DISP_H_PULSE0_CONTROL);
+	DUMP_DC_REG(dc, DC_DISP_H_PULSE0_POSITION_A);
+	DUMP_DC_REG(dc, DC_DISP_H_PULSE0_POSITION_B);
+	DUMP_DC_REG(dc, DC_DISP_H_PULSE0_POSITION_C);
+	DUMP_DC_REG(dc, DC_DISP_H_PULSE0_POSITION_D);
+	DUMP_DC_REG(dc, DC_DISP_H_PULSE1_CONTROL);
+	DUMP_DC_REG(dc, DC_DISP_H_PULSE1_POSITION_A);
+	DUMP_DC_REG(dc, DC_DISP_H_PULSE1_POSITION_B);
+	DUMP_DC_REG(dc, DC_DISP_H_PULSE1_POSITION_C);
+	DUMP_DC_REG(dc, DC_DISP_H_PULSE1_POSITION_D);
+	DUMP_DC_REG(dc, DC_DISP_H_PULSE2_CONTROL);
+	DUMP_DC_REG(dc, DC_DISP_H_PULSE2_POSITION_A);
+	DUMP_DC_REG(dc, DC_DISP_H_PULSE2_POSITION_B);
+	DUMP_DC_REG(dc, DC_DISP_H_PULSE2_POSITION_C);
+	DUMP_DC_REG(dc, DC_DISP_H_PULSE2_POSITION_D);
+	DUMP_DC_REG(dc, DC_DISP_V_PULSE0_CONTROL);
+	DUMP_DC_REG(dc, DC_DISP_V_PULSE0_POSITION_A);
+	DUMP_DC_REG(dc, DC_DISP_V_PULSE0_POSITION_B);
+	DUMP_DC_REG(dc, DC_DISP_V_PULSE0_POSITION_C);
+	DUMP_DC_REG(dc, DC_DISP_V_PULSE1_CONTROL);
+	DUMP_DC_REG(dc, DC_DISP_V_PULSE1_POSITION_A);
+	DUMP_DC_REG(dc, DC_DISP_V_PULSE1_POSITION_B);
+	DUMP_DC_REG(dc, DC_DISP_V_PULSE1_POSITION_C);
+	DUMP_DC_REG(dc, DC_DISP_V_PULSE2_CONTROL);
+	DUMP_DC_REG(dc, DC_DISP_V_PULSE2_POSITION_A);
+	DUMP_DC_REG(dc, DC_DISP_V_PULSE3_CONTROL);
+	DUMP_DC_REG(dc, DC_DISP_V_PULSE3_POSITION_A);
+	DUMP_DC_REG(dc, DC_DISP_M0_CONTROL);
+	DUMP_DC_REG(dc, DC_DISP_M1_CONTROL);
+	DUMP_DC_REG(dc, DC_DISP_DI_CONTROL);
+	DUMP_DC_REG(dc, DC_DISP_PP_CONTROL);
+	DUMP_DC_REG(dc, DC_DISP_PP_SELECT_A);
+	DUMP_DC_REG(dc, DC_DISP_PP_SELECT_B);
+	DUMP_DC_REG(dc, DC_DISP_PP_SELECT_C);
+	DUMP_DC_REG(dc, DC_DISP_PP_SELECT_D);
+	DUMP_DC_REG(dc, DC_DISP_DISP_CLOCK_CONTROL);
+	DUMP_DC_REG(dc, DC_DISP_DISP_INTERFACE_CONTROL);
+	DUMP_DC_REG(dc, DC_DISP_DISP_COLOR_CONTROL);
+	DUMP_DC_REG(dc, DC_DISP_SHIFT_CLOCK_OPTIONS);
+	DUMP_DC_REG(dc, DC_DISP_DATA_ENABLE_OPTIONS);
+	DUMP_DC_REG(dc, DC_DISP_SERIAL_INTERFACE_OPTIONS);
+	DUMP_DC_REG(dc, DC_DISP_LCD_SPI_OPTIONS);
+	DUMP_DC_REG(dc, DC_DISP_BORDER_COLOR);
+	DUMP_DC_REG(dc, DC_DISP_COLOR_KEY0_LOWER);
+	DUMP_DC_REG(dc, DC_DISP_COLOR_KEY0_UPPER);
+	DUMP_DC_REG(dc, DC_DISP_COLOR_KEY1_LOWER);
+	DUMP_DC_REG(dc, DC_DISP_COLOR_KEY1_UPPER);
+	DUMP_DC_REG(dc, DC_DISP_CURSOR_FOREGROUND);
+	DUMP_DC_REG(dc, DC_DISP_CURSOR_BACKGROUND);
+	DUMP_DC_REG(dc, DC_DISP_CURSOR_START_ADDR);
+	DUMP_DC_REG(dc, DC_DISP_CURSOR_START_ADDR_NS);
+	DUMP_DC_REG(dc, DC_DISP_CURSOR_POSITION);
+	DUMP_DC_REG(dc, DC_DISP_CURSOR_POSITION_NS);
+	DUMP_DC_REG(dc, DC_DISP_INIT_SEQ_CONTROL);
+	DUMP_DC_REG(dc, DC_DISP_SPI_INIT_SEQ_DATA_A);
+	DUMP_DC_REG(dc, DC_DISP_SPI_INIT_SEQ_DATA_B);
+	DUMP_DC_REG(dc, DC_DISP_SPI_INIT_SEQ_DATA_C);
+	DUMP_DC_REG(dc, DC_DISP_SPI_INIT_SEQ_DATA_D);
+	DUMP_DC_REG(dc, DC_DISP_DC_MCCIF_FIFOCTRL);
+	DUMP_DC_REG(dc, DC_DISP_MCCIF_DISPLAY0A_HYST);
+	DUMP_DC_REG(dc, DC_DISP_MCCIF_DISPLAY0B_HYST);
+	DUMP_DC_REG(dc, DC_DISP_MCCIF_DISPLAY1A_HYST);
+	DUMP_DC_REG(dc, DC_DISP_MCCIF_DISPLAY1B_HYST);
+	DUMP_DC_REG(dc, DC_DISP_DAC_CRT_CTRL);
+	DUMP_DC_REG(dc, DC_DISP_DISP_MISC_CONTROL);
+	DUMP_DC_REG(dc, DC_DISP_SD_CONTROL);
+	DUMP_DC_REG(dc, DC_DISP_SD_CSC_COEFF);
+	DUMP_DC_REG(dc, DC_DISP_SD_LUT(0));
+	DUMP_DC_REG(dc, DC_DISP_SD_LUT(1));
+	DUMP_DC_REG(dc, DC_DISP_SD_LUT(2));
+	DUMP_DC_REG(dc, DC_DISP_SD_LUT(3));
+	DUMP_DC_REG(dc, DC_DISP_SD_LUT(4));
+	DUMP_DC_REG(dc, DC_DISP_SD_LUT(5));
+	DUMP_DC_REG(dc, DC_DISP_SD_LUT(6));
+	DUMP_DC_REG(dc, DC_DISP_SD_LUT(7));
+	DUMP_DC_REG(dc, DC_DISP_SD_LUT(8));
+	DUMP_DC_REG(dc, DC_DISP_SD_FLICKER_CONTROL);
+	DUMP_DC_REG(dc, DC_DISP_DC_PIXEL_COUNT);
+	DUMP_DC_REG(dc, DC_DISP_SD_HISTOGRAM(0));
+	DUMP_DC_REG(dc, DC_DISP_SD_HISTOGRAM(1));
+	DUMP_DC_REG(dc, DC_DISP_SD_HISTOGRAM(2));
+	DUMP_DC_REG(dc, DC_DISP_SD_HISTOGRAM(3));
+	DUMP_DC_REG(dc, DC_DISP_SD_HISTOGRAM(4));
+	DUMP_DC_REG(dc, DC_DISP_SD_HISTOGRAM(5));
+	DUMP_DC_REG(dc, DC_DISP_SD_HISTOGRAM(6));
+	DUMP_DC_REG(dc, DC_DISP_SD_HISTOGRAM(7));
+	DUMP_DC_REG(dc, DC_DISP_SD_BL_TF(0));
+	DUMP_DC_REG(dc, DC_DISP_SD_BL_TF(1));
+	DUMP_DC_REG(dc, DC_DISP_SD_BL_TF(2));
+	DUMP_DC_REG(dc, DC_DISP_SD_BL_TF(3));
+	DUMP_DC_REG(dc, DC_DISP_SD_BL_CONTROL);
+	DUMP_DC_REG(dc, DC_DISP_SD_HW_K_VALUES);
+	DUMP_DC_REG(dc, DC_DISP_SD_MAN_K_VALUES);
+	DUMP_DC_REG(dc, DC_DISP_CURSOR_START_ADDR_HI);
+	DUMP_DC_REG(dc, DC_DISP_BLEND_CURSOR_CONTROL);
+
+	drm_for_each_plane(plane, drm) {
+		struct tegra_plane *p = to_tegra_plane(plane);
+
+		/* only consider planes attached to this CRTC */
+		if (!plane->state || plane->state->crtc != &dc->base)
+			continue;
+
+		/* the hardware cursor has a non-standard set of registers */
+		if (plane->type == DRM_PLANE_TYPE_CURSOR)
+			continue;
+
+		seq_printf(s, "plane %u:\n", p->index);
+
+		DUMP_PLANE_REG(p, DC_WIN_WIN_OPTIONS);
+		DUMP_PLANE_REG(p, DC_WIN_BYTE_SWAP);
+		DUMP_PLANE_REG(p, DC_WIN_BUFFER_CONTROL);
+		DUMP_PLANE_REG(p, DC_WIN_COLOR_DEPTH);
+		DUMP_PLANE_REG(p, DC_WIN_POSITION);
+		DUMP_PLANE_REG(p, DC_WIN_SIZE);
+		DUMP_PLANE_REG(p, DC_WIN_PRESCALED_SIZE);
+		DUMP_PLANE_REG(p, DC_WIN_H_INITIAL_DDA);
+		DUMP_PLANE_REG(p, DC_WIN_V_INITIAL_DDA);
+		DUMP_PLANE_REG(p, DC_WIN_DDA_INC);
+		DUMP_PLANE_REG(p, DC_WIN_LINE_STRIDE);
+		DUMP_PLANE_REG(p, DC_WIN_BUF_STRIDE);
+		DUMP_PLANE_REG(p, DC_WIN_UV_BUF_STRIDE);
+		DUMP_PLANE_REG(p, DC_WIN_BUFFER_ADDR_MODE);
+		DUMP_PLANE_REG(p, DC_WIN_DV_CONTROL);
+		DUMP_PLANE_REG(p, DC_WIN_BLEND_NOKEY);
+		DUMP_PLANE_REG(p, DC_WIN_BLEND_1WIN);
+		DUMP_PLANE_REG(p, DC_WIN_BLEND_2WIN_X);
+		DUMP_PLANE_REG(p, DC_WIN_BLEND_2WIN_Y);
+		DUMP_PLANE_REG(p, DC_WIN_BLEND_3WIN_XY);
+		DUMP_PLANE_REG(p, DC_WIN_HP_FETCH_CONTROL);
+		DUMP_PLANE_REG(p, DC_WINBUF_START_ADDR);
+		DUMP_PLANE_REG(p, DC_WINBUF_START_ADDR_NS);
+		DUMP_PLANE_REG(p, DC_WINBUF_START_ADDR_U);
+		DUMP_PLANE_REG(p, DC_WINBUF_START_ADDR_U_NS);
+		DUMP_PLANE_REG(p, DC_WINBUF_START_ADDR_V);
+		DUMP_PLANE_REG(p, DC_WINBUF_START_ADDR_V_NS);
+		DUMP_PLANE_REG(p, DC_WINBUF_ADDR_H_OFFSET);
+		DUMP_PLANE_REG(p, DC_WINBUF_ADDR_H_OFFSET_NS);
+		DUMP_PLANE_REG(p, DC_WINBUF_ADDR_V_OFFSET);
+		DUMP_PLANE_REG(p, DC_WINBUF_ADDR_V_OFFSET_NS);
+		DUMP_PLANE_REG(p, DC_WINBUF_UFLOW_STATUS);
+	}
+
+#undef DUMP_PLANE_REG
+#undef DUMP_DC_REG
 
 unlock:
 	drm_modeset_unlock_crtc(&dc->base);

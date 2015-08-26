@@ -347,36 +347,36 @@
 #define CURSOR_SRC_BLEND_MASK			(3 << 8)
 #define CURSOR_ALPHA				0xff
 
-#define DC_WIN_CSC_YOF				0x611
-#define DC_WIN_CSC_KYRGB			0x612
-#define DC_WIN_CSC_KUR				0x613
-#define DC_WIN_CSC_KVR				0x614
-#define DC_WIN_CSC_KUG				0x615
-#define DC_WIN_CSC_KVG				0x616
-#define DC_WIN_CSC_KUB				0x617
-#define DC_WIN_CSC_KVB				0x618
+#define DC_WIN_CSC_YOF				0x111
+#define DC_WIN_CSC_KYRGB			0x112
+#define DC_WIN_CSC_KUR				0x113
+#define DC_WIN_CSC_KVR				0x114
+#define DC_WIN_CSC_KUG				0x115
+#define DC_WIN_CSC_KVG				0x116
+#define DC_WIN_CSC_KUB				0x117
+#define DC_WIN_CSC_KVB				0x118
 
-#define DC_WIN_WIN_OPTIONS			0x700
+#define DC_WIN_WIN_OPTIONS			0x180
 #define H_DIRECTION  (1 <<  0)
 #define V_DIRECTION  (1 <<  2)
 #define COLOR_EXPAND (1 <<  6)
 #define CSC_ENABLE   (1 << 18)
 #define WIN_ENABLE   (1 << 30)
 
-#define DC_WIN_BYTE_SWAP			0x701
+#define DC_WIN_BYTE_SWAP			0x181
 #define BYTE_SWAP_NOSWAP  (0 << 0)
 #define BYTE_SWAP_SWAP2   (1 << 0)
 #define BYTE_SWAP_SWAP4   (2 << 0)
 #define BYTE_SWAP_SWAP4HW (3 << 0)
 
-#define DC_WIN_BUFFER_CONTROL			0x702
+#define DC_WIN_BUFFER_CONTROL			0x182
 #define BUFFER_CONTROL_HOST  (0 << 0)
 #define BUFFER_CONTROL_VI    (1 << 0)
 #define BUFFER_CONTROL_EPP   (2 << 0)
 #define BUFFER_CONTROL_MPEGE (3 << 0)
 #define BUFFER_CONTROL_SB2D  (4 << 0)
 
-#define DC_WIN_COLOR_DEPTH			0x703
+#define DC_WIN_COLOR_DEPTH			0x183
 #define WIN_COLOR_DEPTH_P1              0
 #define WIN_COLOR_DEPTH_P2              1
 #define WIN_COLOR_DEPTH_P4              2
@@ -400,63 +400,59 @@
 #define WIN_COLOR_DEPTH_YCbCr422RA     24
 #define WIN_COLOR_DEPTH_YUV422RA       25
 
-#define DC_WIN_POSITION				0x704
+#define DC_WIN_POSITION				0x184
 #define H_POSITION(x) (((x) & 0x1fff) <<  0)
 #define V_POSITION(x) (((x) & 0x1fff) << 16)
 
-#define DC_WIN_SIZE				0x705
+#define DC_WIN_SIZE				0x185
 #define H_SIZE(x) (((x) & 0x1fff) <<  0)
 #define V_SIZE(x) (((x) & 0x1fff) << 16)
 
-#define DC_WIN_PRESCALED_SIZE			0x706
+#define DC_WIN_PRESCALED_SIZE			0x186
 #define H_PRESCALED_SIZE(x) (((x) & 0x7fff) <<  0)
 #define V_PRESCALED_SIZE(x) (((x) & 0x1fff) << 16)
 
-#define DC_WIN_H_INITIAL_DDA			0x707
-#define DC_WIN_V_INITIAL_DDA			0x708
-#define DC_WIN_DDA_INC				0x709
+#define DC_WIN_H_INITIAL_DDA			0x187
+#define DC_WIN_V_INITIAL_DDA			0x188
+#define DC_WIN_DDA_INC				0x189
 #define H_DDA_INC(x) (((x) & 0xffff) <<  0)
 #define V_DDA_INC(x) (((x) & 0xffff) << 16)
 
-#define DC_WIN_LINE_STRIDE			0x70a
-#define DC_WIN_BUF_STRIDE			0x70b
-#define DC_WIN_UV_BUF_STRIDE			0x70c
-#define DC_WIN_BUFFER_ADDR_MODE			0x70d
+#define DC_WIN_LINE_STRIDE			0x18a
+#define DC_WIN_BUF_STRIDE			0x18b
+#define DC_WIN_UV_BUF_STRIDE			0x18c
+#define DC_WIN_BUFFER_ADDR_MODE			0x18d
 #define DC_WIN_BUFFER_ADDR_MODE_LINEAR		(0 <<  0)
 #define DC_WIN_BUFFER_ADDR_MODE_TILE		(1 <<  0)
 #define DC_WIN_BUFFER_ADDR_MODE_LINEAR_UV	(0 << 16)
 #define DC_WIN_BUFFER_ADDR_MODE_TILE_UV		(1 << 16)
-#define DC_WIN_DV_CONTROL			0x70e
+#define DC_WIN_DV_CONTROL			0x18e
 
-#define DC_WIN_BLEND_NOKEY			0x70f
-#define DC_WIN_BLEND_1WIN			0x710
-#define DC_WIN_BLEND_2WIN_X			0x711
-#define DC_WIN_BLEND_2WIN_Y			0x712
-#define DC_WIN_BLEND_3WIN_XY			0x713
+#define DC_WIN_BLEND_NOKEY			0x18f
+#define DC_WIN_BLEND_1WIN			0x190
+#define DC_WIN_BLEND_2WIN_X			0x191
+#define DC_WIN_BLEND_2WIN_Y			0x192
+#define DC_WIN_BLEND_3WIN_XY			0x193
 
-#define DC_WIN_HP_FETCH_CONTROL			0x714
+#define DC_WIN_HP_FETCH_CONTROL			0x194
 
-#define DC_WINBUF_START_ADDR			0x800
-#define DC_WINBUF_START_ADDR_NS			0x801
-#define DC_WINBUF_START_ADDR_U			0x802
-#define DC_WINBUF_START_ADDR_U_NS		0x803
-#define DC_WINBUF_START_ADDR_V			0x804
-#define DC_WINBUF_START_ADDR_V_NS		0x805
+#define DC_WINBUF_START_ADDR			0x1c0
+#define DC_WINBUF_START_ADDR_NS			0x1c1
+#define DC_WINBUF_START_ADDR_U			0x1c2
+#define DC_WINBUF_START_ADDR_U_NS		0x1c3
+#define DC_WINBUF_START_ADDR_V			0x1c4
+#define DC_WINBUF_START_ADDR_V_NS		0x1c5
 
-#define DC_WINBUF_ADDR_H_OFFSET			0x806
-#define DC_WINBUF_ADDR_H_OFFSET_NS		0x807
-#define DC_WINBUF_ADDR_V_OFFSET			0x808
-#define DC_WINBUF_ADDR_V_OFFSET_NS		0x809
+#define DC_WINBUF_ADDR_H_OFFSET			0x1c6
+#define DC_WINBUF_ADDR_H_OFFSET_NS		0x1c7
+#define DC_WINBUF_ADDR_V_OFFSET			0x1c8
+#define DC_WINBUF_ADDR_V_OFFSET_NS		0x1c9
 
-#define DC_WINBUF_UFLOW_STATUS			0x80a
-#define DC_WINBUF_SURFACE_KIND			0x80b
+#define DC_WINBUF_UFLOW_STATUS			0x1ca
+#define DC_WINBUF_SURFACE_KIND			0x1cb
 #define DC_WINBUF_SURFACE_KIND_PITCH	(0 << 0)
 #define DC_WINBUF_SURFACE_KIND_TILED	(1 << 0)
 #define DC_WINBUF_SURFACE_KIND_BLOCK	(2 << 0)
 #define DC_WINBUF_SURFACE_KIND_BLOCK_HEIGHT(x) (((x) & 0x7) << 4)
-
-#define DC_WINBUF_AD_UFLOW_STATUS		0xbca
-#define DC_WINBUF_BD_UFLOW_STATUS		0xdca
-#define DC_WINBUF_CD_UFLOW_STATUS		0xfca
 
 #endif /* TEGRA_DC_H */
