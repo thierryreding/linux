@@ -336,10 +336,14 @@ EXPORT_SYMBOL(hdmi_vendor_infoframe_init);
  * error code on failure.
  */
 ssize_t hdmi_vendor_infoframe_pack(struct hdmi_vendor_infoframe *frame,
-				   void *buffer, size_t size)
+				 void *buffer, size_t size)
 {
 	u8 *ptr = buffer;
 	size_t length;
+
+	/* empty info frame */
+	if (frame->vic == 0 && frame->s3d_struct == HDMI_3D_STRUCTURE_INVALID)
+		return -EINVAL;
 
 	/* only one of those can be supplied */
 	if (frame->vic != 0 && frame->s3d_struct != HDMI_3D_STRUCTURE_INVALID)
@@ -348,10 +352,8 @@ ssize_t hdmi_vendor_infoframe_pack(struct hdmi_vendor_infoframe *frame,
 	/* for side by side (half) we also need to provide 3D_Ext_Data */
 	if (frame->s3d_struct >= HDMI_3D_STRUCTURE_SIDE_BY_SIDE_HALF)
 		frame->length = 6;
-	else if (frame->vic != 0)
-		frame->length = 5;
 	else
-		frame->length = 6;
+		frame->length = 5;
 
 	length = HDMI_INFOFRAME_HEADER_SIZE + frame->length;
 
@@ -373,15 +375,11 @@ ssize_t hdmi_vendor_infoframe_pack(struct hdmi_vendor_infoframe *frame,
 	if (frame->vic) {
 		ptr[7] = 0x1 << 5;	/* video format */
 		ptr[8] = frame->vic;
-	} else if (frame->s3d_struct != HDMI_3D_STRUCTURE_INVALID) {
+	} else {
 		ptr[7] = 0x2 << 5;	/* video format */
 		ptr[8] = (frame->s3d_struct & 0xf) << 4;
 		if (frame->s3d_struct >= HDMI_3D_STRUCTURE_SIDE_BY_SIDE_HALF)
 			ptr[9] = (frame->s3d_ext_data & 0xf) << 4;
-	} else {
-		ptr[7] = 0;
-		ptr[8] = 0;
-		ptr[9] = 0;
 	}
 
 	hdmi_infoframe_set_checksum(buffer, length);
