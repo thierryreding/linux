@@ -72,6 +72,10 @@ config DRM_HDCP
 	bool
 	depends on DRM_KMS_HELPER
 
+config DRM_SCDC
+	bool
+	depends on DRM_KMS_HELPER
+
 config DRM_LOAD_EDID_FIRMWARE
 	bool "Allow to specify an EDID data set instead of probing for it"
 	depends on DRM_KMS_HELPER
