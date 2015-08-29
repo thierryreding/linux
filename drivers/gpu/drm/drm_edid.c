@@ -3160,6 +3160,21 @@ static bool cea_db_is_hdmi_vsdb(const u8 *db)
 	return hdmi_id == HDMI_IEEE_OUI;
 }
 
+static bool cea_db_is_hf_vsdb(const u8 *db)
+{
+	unsigned int oui;
+
+	if (cea_db_tag(db) != VENDOR_BLOCK)
+		return false;
+
+	if (cea_db_payload_len(db) < 7)
+		return false;
+
+	oui = db[3] << 16 | db[2] << 8 | db[1];
+
+	return oui == HDMI_FORUM_IEEE_OUI;
+}
+
 #define for_each_cea_db(cea, i, start, end) \
 	for ((i) = (start); (i) < (end) && (i) + cea_db_payload_len(&(cea)[(i)]) < (end); (i) += cea_db_payload_len(&(cea)[(i)]) + 1)
 
@@ -3596,6 +3611,40 @@ bool drm_detect_hdmi_monitor(struct edid *edid)
 	return false;
 }
 EXPORT_SYMBOL(drm_detect_hdmi_monitor);
+
+/**
+ * drm_detect_hdmi_scdc - detect whether an HDMI sink supports SCDC
+ * @edid: sink EDID information
+ *
+ * Parse the CEA extension according to CEA-861-B to find an HF-VSDB as
+ * defined in HDMI 2.0, section 10.3.2 "HDMI Forum Vendor Specific Data
+ * Block" and checks if the SCDC_Present bit (bit 7 of byte 6) is set.
+ *
+ * Returns:
+ * True if the sink supports SCDC, false otherwise.
+ */
+bool drm_detect_hdmi_scdc(struct edid *edid)
+{
+	unsigned int start, end, i;
+	const u8 *cea;
+
+	cea = drm_find_cea_extension(edid);
+	if (!cea)
+		return false;
+
+	if (cea_db_offsets(cea, &start, &end))
+		return false;
+
+	for_each_cea_db(cea, i, start, end) {
+		if (cea_db_is_hf_vsdb(&cea[i])) {
+			if (cea[i + 6] & 0x80)
+				return true;
+		}
+	}
+
+	return false;
+}
+EXPORT_SYMBOL(drm_detect_hdmi_scdc);
 
 /**
  * drm_detect_monitor_audio - check monitor audio capability
