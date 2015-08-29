@@ -4745,6 +4745,55 @@ int drm_mode_connector_update_edid_property(struct drm_connector *connector,
 }
 EXPORT_SYMBOL(drm_mode_connector_update_edid_property);
 
+/**
+ * drm_mode_connector_get_edid - retrieve EDID associated with a connector
+ * @connector: DRM connector
+ * @size: return location for the EDID size
+ *
+ * Retrieve the EDID associated with a given connector. This function takes a
+ * reference on the EDID blob property to make sure it doesn't go away, so it
+ * should be balanced with a call to drm_mode_connector_put_edid().
+ *
+ * If the size parameter is non-NULL, the size of the EDID data will be saved
+ * at the location that it points to.
+ *
+ * Returns:
+ * A pointer to a struct edid that points to the EDID associated with the
+ * given connector, or NULL if no EDID is available for the connector.
+ */
+struct edid *drm_mode_connector_get_edid(struct drm_connector *connector,
+					 size_t *size)
+{
+	struct edid *edid = NULL;
+
+	mutex_lock(&connector->dev->mode_config.blob_lock);
+
+	if (connector->edid_blob_ptr) {
+		drm_property_reference_blob(connector->edid_blob_ptr);
+		edid = (struct edid *)connector->edid_blob_ptr->data;
+
+		if (size)
+			*size = connector->edid_blob_ptr->length;
+	}
+
+	mutex_unlock(&connector->dev->mode_config.blob_lock);
+	return edid;
+}
+EXPORT_SYMBOL(drm_mode_connector_get_edid);
+
+/**
+ * drm_mode_connector_put_edid - drops the reference to a connector's EDID
+ * @connector: DRM connector
+ *
+ * Drops the reference taken on the connector's EDID blob property by a call
+ * to drm_mode_connector_get_edid().
+ */
+void drm_mode_connector_put_edid(struct drm_connector *connector)
+{
+	drm_property_unreference_blob(connector->edid_blob_ptr);
+}
+EXPORT_SYMBOL(drm_mode_connector_put_edid);
+
 /* Some properties could refer to dynamic refcnt'd objects, or things that
  * need special locking to handle lifetime issues (ie. to ensure the prop
  * value doesn't become invalid part way through the property update due to

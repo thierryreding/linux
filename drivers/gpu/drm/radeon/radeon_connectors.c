@@ -303,15 +303,22 @@ static struct drm_encoder *radeon_find_encoder(struct drm_connector *connector, 
 struct edid *radeon_connector_edid(struct drm_connector *connector)
 {
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
-	struct drm_property_blob *edid_blob = connector->edid_blob_ptr;
+	struct edid *blob;
+	size_t size;
 
-	if (radeon_connector->edid) {
+	if (radeon_connector->edid)
 		return radeon_connector->edid;
-	} else if (edid_blob) {
-		struct edid *edid = kmemdup(edid_blob->data, edid_blob->length, GFP_KERNEL);
+
+	blob = drm_mode_connector_get_edid(connector, &size);
+	if (blob) {
+		struct edid *edid = kmemdup(blob, size, GFP_KERNEL);
+
 		if (edid)
 			radeon_connector->edid = edid;
+
+		drm_mode_connector_put_edid(connector);
 	}
+
 	return radeon_connector->edid;
 }
 

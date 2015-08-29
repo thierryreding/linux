@@ -2383,6 +2383,9 @@ extern int drm_mode_connector_set_path_property(struct drm_connector *connector,
 int drm_mode_connector_set_tile_property(struct drm_connector *connector);
 extern int drm_mode_connector_update_edid_property(struct drm_connector *connector,
 						   const struct edid *edid);
+struct edid *drm_mode_connector_get_edid(struct drm_connector *connector,
+					 size_t *size);
+void drm_mode_connector_put_edid(struct drm_connector *connector);
 
 extern int drm_display_info_set_bus_formats(struct drm_display_info *info,
 					    const u32 *formats,

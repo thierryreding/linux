@@ -307,10 +307,15 @@ static ssize_t connector_write(struct file *file, const char __user *ubuf,
 static int edid_show(struct seq_file *m, void *data)
 {
 	struct drm_connector *connector = m->private;
-	struct drm_property_blob *edid = connector->edid_blob_ptr;
+	struct edid *edid;
+	size_t size;
+
+	edid = drm_mode_connector_get_edid(connector, &size);
 
 	if (connector->override_edid && edid)
-		seq_write(m, edid->data, edid->length);
+		seq_write(m, edid, size);
+
+	drm_mode_connector_put_edid(connector);
 
 	return 0;
 }

@@ -270,15 +270,22 @@ amdgpu_connector_find_encoder(struct drm_connector *connector,
 struct edid *amdgpu_connector_edid(struct drm_connector *connector)
 {
 	struct amdgpu_connector *amdgpu_connector = to_amdgpu_connector(connector);
-	struct drm_property_blob *edid_blob = connector->edid_blob_ptr;
+	struct edid *blob;
+	size_t size;
 
-	if (amdgpu_connector->edid) {
+	if (amdgpu_connector->edid)
 		return amdgpu_connector->edid;
-	} else if (edid_blob) {
-		struct edid *edid = kmemdup(edid_blob->data, edid_blob->length, GFP_KERNEL);
+
+	blob = drm_mode_connector_get_edid(connector, &size);
+	if (blob) {
+		struct edid *edid = kmemdup(blob, size, GFP_KERNEL);
+
 		if (edid)
 			amdgpu_connector->edid = edid;
+
+		drm_mode_connector_put_edid(connector);
 	}
+
 	return amdgpu_connector->edid;
 }
 

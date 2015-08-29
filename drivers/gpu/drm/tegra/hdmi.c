@@ -877,13 +877,13 @@ static void tegra_hdmi_setup_tmds(struct tegra_hdmi *hdmi,
 static bool tegra_output_is_hdmi(struct tegra_output *output)
 {
 	struct edid *edid;
+	bool result;
 
-	if (!output->connector.edid_blob_ptr)
-		return false;
+	edid = drm_mode_connector_get_edid(&output->connector, NULL);
+	result = edid ? drm_detect_hdmi_monitor(edid) : false;
+	drm_mode_connector_put_edid(&output->connector);
 
-	edid = (struct edid *)output->connector.edid_blob_ptr->data;
-
-	return drm_detect_hdmi_monitor(edid);
+	return result;
 }
 
 static enum drm_connector_status
