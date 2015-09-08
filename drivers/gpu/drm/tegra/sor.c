@@ -163,6 +163,18 @@ struct tegra_sor {
 	struct drm_hdcp hdcp;
 };
 
+struct tegra_sor_state {
+	struct drm_connector_state base;
+
+	unsigned int bpc;
+};
+
+static inline struct tegra_sor_state *
+to_sor_state(struct drm_connector_state *state)
+{
+	return container_of(state, struct tegra_sor_state, base);
+}
+
 struct tegra_sor_config {
 	u32 bits_per_pixel;
 
@@ -870,7 +882,7 @@ static void tegra_sor_apply_config(struct tegra_sor *sor,
 
 static void tegra_sor_mode_set(struct tegra_sor *sor,
 			       const struct drm_display_mode *mode,
-			       const struct drm_display_info *info)
+			       struct tegra_sor_state *state)
 {
 	struct tegra_dc *dc = to_tegra_dc(sor->output.encoder.crtc);
 	unsigned int vbe, vse, hbe, hse, vbs, hbs;
@@ -896,7 +908,19 @@ static void tegra_sor_mode_set(struct tegra_sor *sor,
 	if (mode->flags & DRM_MODE_FLAG_NVSYNC)
 		value |= SOR_STATE_ASY_VSYNCPOL;
 
-	switch (info->bpc) {
+	switch (state->bpc) {
+	case 16:
+		value |= SOR_STATE_ASY_PIXELDEPTH_BPP_48_444;
+		break;
+
+	case 12:
+		value |= SOR_STATE_ASY_PIXELDEPTH_BPP_36_444;
+		break;
+
+	case 10:
+		value |= SOR_STATE_ASY_PIXELDEPTH_BPP_30_444;
+		break;
+
 	case 8:
 		value |= SOR_STATE_ASY_PIXELDEPTH_BPP_24_444;
 		break;
@@ -906,7 +930,7 @@ static void tegra_sor_mode_set(struct tegra_sor *sor,
 		break;
 
 	default:
-		BUG();
+		value |= SOR_STATE_ASY_PIXELDEPTH_BPP_24_444;
 		break;
 	}
 
@@ -1300,6 +1324,18 @@ static void tegra_sor_debugfs_exit(struct tegra_sor *sor)
 	sor->debugfs = NULL;
 }
 
+static void tegra_sor_connector_reset(struct drm_connector *connector)
+{
+	struct drm_connector_state *old_state = connector->state;
+	struct tegra_sor_state *state;
+
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (state) {
+		__drm_atomic_helper_connector_reset(connector, &state->base);
+		kfree(old_state);
+	}
+}
+
 static enum drm_connector_status
 tegra_sor_connector_detect(struct drm_connector *connector, bool force)
 {
@@ -1312,13 +1348,26 @@ tegra_sor_connector_detect(struct drm_connector *connector, bool force)
 	return tegra_output_connector_detect(connector, force);
 }
 
+static struct drm_connector_state *
+tegra_sor_connector_duplicate_state(struct drm_connector *connector)
+{
+	struct tegra_sor_state *state = to_sor_state(connector->state);
+	struct tegra_sor_state *copy;
+
+	copy = kmemdup(state, sizeof(*state), GFP_KERNEL);
+	if (!copy)
+		return NULL;
+
+	return &copy->base;
+}
+
 static const struct drm_connector_funcs tegra_sor_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
-	.reset = drm_atomic_helper_connector_reset,
+	.reset = tegra_sor_connector_reset,
 	.detect = tegra_sor_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = tegra_output_connector_destroy,
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_duplicate_state = tegra_sor_connector_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
@@ -1678,12 +1727,14 @@ static void tegra_sor_edp_enable(struct drm_encoder *encoder)
 	struct tegra_dc *dc = to_tegra_dc(encoder->crtc);
 	struct tegra_sor *sor = to_sor(output);
 	struct tegra_sor_config config;
+	struct tegra_sor_state *state;
 	struct drm_display_mode *mode;
 	struct drm_display_info *info;
 	unsigned int i;
 	u32 value;
 	int err;
 
+	state = to_sor_state(output->connector.state);
 	mode = &encoder->crtc->state->adjusted_mode;
 	info = &output->connector.display_info;
 
@@ -1809,7 +1860,7 @@ static void tegra_sor_edp_enable(struct drm_encoder *encoder)
 
 	/* compute configuration */
 	memset(&config, 0, sizeof(config));
-	config.bits_per_pixel = info->bpc * 3;
+	config.bits_per_pixel = state->bpc * 3;
 
 	err = tegra_sor_compute_config(sor, mode, &config, &sor->link.base);
 	if (err < 0) {
@@ -1818,7 +1869,7 @@ static void tegra_sor_edp_enable(struct drm_encoder *encoder)
 	}
 
 	tegra_sor_apply_config(sor, &config);
-	tegra_sor_mode_set(sor, mode, info);
+	tegra_sor_mode_set(sor, mode, state);
 
 	/* PWM setup */
 	err = tegra_sor_setup_pwm(sor, 250);
@@ -1863,16 +1914,32 @@ tegra_sor_encoder_atomic_check(struct drm_encoder *encoder,
 			       struct drm_connector_state *conn_state)
 {
 	struct tegra_output *output = encoder_to_output(encoder);
+	struct tegra_sor_state *state = to_sor_state(conn_state);
 	struct tegra_dc *dc = to_tegra_dc(conn_state->crtc);
 	unsigned long pclk = crtc_state->mode.clock * 1000;
 	struct tegra_sor *sor = to_sor(output);
+	struct drm_display_info *info;
 	int err;
+
+	info = &output->connector.display_info;
 
 	err = tegra_dc_state_setup_clock(dc, crtc_state, sor->clk_parent,
 					 pclk, 0);
 	if (err < 0) {
 		dev_err(output->dev, "failed to setup CRTC state: %d\n", err);
 		return err;
+	}
+
+	switch (info->bpc) {
+	case 8:
+	case 6:
+		state->bpc = info->bpc;
+		break;
+
+	default:
+		DRM_DEBUG_KMS("%u bits-per-color not supported\n", info->bpc);
+		state->bpc = 8;
+		break;
 	}
 
 	return 0;
@@ -2051,14 +2118,14 @@ static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 	struct tegra_dc *dc = to_tegra_dc(encoder->crtc);
 	struct tegra_sor_hdmi_settings *settings;
 	struct tegra_sor *sor = to_sor(output);
+	struct tegra_sor_state *state;
 	struct drm_display_mode *mode;
-	struct drm_display_info *info;
 	unsigned int div, i;
 	u32 value;
 	int err;
 
+	state = to_sor_state(output->connector.state);
 	mode = &encoder->crtc->state->adjusted_mode;
-	info = &output->connector.display_info;
 
 	pm_runtime_get_sync(sor->dev);
 
@@ -2282,7 +2349,7 @@ static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 	value &= ~DITHER_CONTROL_MASK;
 	value &= ~BASE_COLOR_SIZE_MASK;
 
-	switch (info->bpc) {
+	switch (state->bpc) {
 	case 6:
 		value |= BASE_COLOR_SIZE_666;
 		break;
@@ -2292,7 +2359,8 @@ static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 		break;
 
 	default:
-		WARN(1, "%u bits-per-color not supported\n", info->bpc);
+		WARN(1, "%u bits-per-color not supported\n", state->bpc);
+		value |= BASE_COLOR_SIZE_888;
 		break;
 	}
 
@@ -2314,7 +2382,7 @@ static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 	value |= SOR_HEAD_STATE_COLORSPACE_RGB;
 	tegra_sor_writel(sor, value, SOR_HEAD_STATE0(dc->pipe));
 
-	tegra_sor_mode_set(sor, mode, info);
+	tegra_sor_mode_set(sor, mode, state);
 
 	tegra_sor_update(sor);
 
@@ -2406,12 +2474,14 @@ static void tegra_sor_dp_enable(struct drm_encoder *encoder)
 	struct tegra_dc *dc = to_tegra_dc(encoder->crtc);
 	struct tegra_sor *sor = to_sor(output);
 	struct tegra_sor_config config;
+	struct tegra_sor_state *state;
 	struct drm_display_mode *mode;
 	struct drm_display_info *info;
 	unsigned int i;
 	u32 value;
 	int err;
 
+	state = to_sor_state(output->connector.state);
 	mode = &encoder->crtc->state->adjusted_mode;
 	info = &output->connector.display_info;
 
@@ -2536,7 +2606,7 @@ static void tegra_sor_dp_enable(struct drm_encoder *encoder)
 
 	/* compute configuration */
 	memset(&config, 0, sizeof(config));
-	config.bits_per_pixel = info->bpc * 3;
+	config.bits_per_pixel = state->bpc * 3;
 
 	err = tegra_sor_compute_config(sor, mode, &config, &sor->link.base);
 	if (err < 0) {
@@ -2545,7 +2615,7 @@ static void tegra_sor_dp_enable(struct drm_encoder *encoder)
 	}
 
 	tegra_sor_apply_config(sor, &config);
-	tegra_sor_mode_set(sor, mode, info);
+	tegra_sor_mode_set(sor, mode, state);
 	tegra_sor_update(sor);
 
 	err = tegra_sor_power_up(sor, 250);
