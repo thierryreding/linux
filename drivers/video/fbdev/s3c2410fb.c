@@ -1117,20 +1117,19 @@ static struct platform_driver s3c2412fb_driver = {
 	},
 };
 
+static struct platform_driver * const drivers[] = {
+	&s3c2410fb_driver,
+	&s3c2412fb_driver,
+};
+
 int __init s3c2410fb_init(void)
 {
-	int ret = platform_driver_register(&s3c2410fb_driver);
-
-	if (ret == 0)
-		ret = platform_driver_register(&s3c2412fb_driver);
-
-	return ret;
+	return platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 }
 
 static void __exit s3c2410fb_cleanup(void)
 {
-	platform_driver_unregister(&s3c2410fb_driver);
-	platform_driver_unregister(&s3c2412fb_driver);
+	platform_unregister_drivers(drivers, ARRAY_SIZE(drivers));
 }
 
 module_init(s3c2410fb_init);
