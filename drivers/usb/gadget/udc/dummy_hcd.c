@@ -2692,6 +2692,11 @@ static struct platform_driver dummy_hcd_driver = {
 	},
 };
 
+static struct platform_driver * const drivers[] = {
+	&dummy_hcd_driver,
+	&dummy_udc_driver,
+};
+
 /*-------------------------------------------------------------------------*/
 #define MAX_NUM_UDC	2
 static struct platform_device *the_udc_pdev[MAX_NUM_UDC];
@@ -2749,12 +2754,9 @@ static int __init init(void)
 			goto err_add_pdata;
 	}
 
-	retval = platform_driver_register(&dummy_hcd_driver);
+	retval = platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 	if (retval < 0)
 		goto err_add_pdata;
-	retval = platform_driver_register(&dummy_udc_driver);
-	if (retval < 0)
-		goto err_register_udc_driver;
 
 	for (i = 0; i < mod_data.num; i++) {
 		retval = platform_device_add(the_hcd_pdev[i]);
@@ -2806,9 +2808,7 @@ err_add_udc:
 	for (i = 0; i < mod_data.num; i++)
 		platform_device_del(the_hcd_pdev[i]);
 err_add_hcd:
-	platform_driver_unregister(&dummy_udc_driver);
-err_register_udc_driver:
-	platform_driver_unregister(&dummy_hcd_driver);
+	platform_unregister_drivers(drivers, ARRAY_SIZE(drivers));
 err_add_pdata:
 	for (i = 0; i < mod_data.num; i++)
 		kfree(dum[i]);
@@ -2834,7 +2834,6 @@ static void __exit cleanup(void)
 		platform_device_unregister(the_hcd_pdev[i]);
 		kfree(dum);
 	}
-	platform_driver_unregister(&dummy_udc_driver);
-	platform_driver_unregister(&dummy_hcd_driver);
+	platform_unregister_drivers(drivers, ARRAY_SIZE(drivers));
 }
 module_exit(cleanup);
