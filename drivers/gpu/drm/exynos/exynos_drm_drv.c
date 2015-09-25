@@ -653,54 +653,28 @@ static int exynos_drm_register_devices(void)
 	return 0;
 }
 
-static void exynos_drm_unregister_drivers(struct platform_driver * const *drv,
-					  int count)
-{
-	while (--count >= 0)
-		platform_driver_unregister(drv[count]);
-}
-
-static int exynos_drm_register_drivers(struct platform_driver * const *drv,
-				       int count)
-{
-	int i, ret;
-
-	for (i = 0; i < count; ++i) {
-		ret = platform_driver_register(drv[i]);
-		if (!ret)
-			continue;
-
-		while (--i >= 0)
-			platform_driver_unregister(drv[i]);
-
-		return ret;
-	}
-
-	return 0;
-}
-
 static inline int exynos_drm_register_kms_drivers(void)
 {
-	return exynos_drm_register_drivers(exynos_drm_kms_drivers,
-					ARRAY_SIZE(exynos_drm_kms_drivers));
+	return platform_register_drivers(exynos_drm_kms_drivers,
+					 ARRAY_SIZE(exynos_drm_kms_drivers));
 }
 
 static inline int exynos_drm_register_non_kms_drivers(void)
 {
-	return exynos_drm_register_drivers(exynos_drm_non_kms_drivers,
-					ARRAY_SIZE(exynos_drm_non_kms_drivers));
+	return platform_register_drivers(exynos_drm_non_kms_drivers,
+					 ARRAY_SIZE(exynos_drm_non_kms_drivers));
 }
 
 static inline void exynos_drm_unregister_kms_drivers(void)
 {
-	exynos_drm_unregister_drivers(exynos_drm_kms_drivers,
-					ARRAY_SIZE(exynos_drm_kms_drivers));
+	platform_unregister_drivers(exynos_drm_kms_drivers,
+				    ARRAY_SIZE(exynos_drm_kms_drivers));
 }
 
 static inline void exynos_drm_unregister_non_kms_drivers(void)
 {
-	exynos_drm_unregister_drivers(exynos_drm_non_kms_drivers,
-					ARRAY_SIZE(exynos_drm_non_kms_drivers));
+	platform_unregister_drivers(exynos_drm_non_kms_drivers,
+				    ARRAY_SIZE(exynos_drm_non_kms_drivers));
 }
 
 static int exynos_drm_init(void)
