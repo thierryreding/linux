@@ -331,26 +331,22 @@ static struct platform_driver armada_drm_platform_driver = {
 	.id_table = armada_drm_platform_ids,
 };
 
+static struct platform_driver * const drivers[] = {
+	&armada_lcd_platform_driver,
+	&armada_drm_platform_driver,
+};
+
 static int __init armada_drm_init(void)
 {
-	int ret;
-
 	armada_drm_driver.num_ioctls = ARRAY_SIZE(armada_ioctls);
 
-	ret = platform_driver_register(&armada_lcd_platform_driver);
-	if (ret)
-		return ret;
-	ret = platform_driver_register(&armada_drm_platform_driver);
-	if (ret)
-		platform_driver_unregister(&armada_lcd_platform_driver);
-	return ret;
+	return platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 }
 module_init(armada_drm_init);
 
 static void __exit armada_drm_exit(void)
 {
-	platform_driver_unregister(&armada_drm_platform_driver);
-	platform_driver_unregister(&armada_lcd_platform_driver);
+	platform_unregister_drivers(drivers, ARRAY_SIZE(drivers));
 }
 module_exit(armada_drm_exit);
 
