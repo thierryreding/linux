@@ -15,6 +15,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 #include <linux/reset.h>
+#include <linux/seq_buf.h>
 
 #include <soc/tegra/kfuse.h>
 #include <soc/tegra/pmc.h>
@@ -23,6 +24,7 @@
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_hdcp_helper.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_scdc_helper.h>
 
 #include "dc.h"
 #include "dp.h"
@@ -161,6 +163,8 @@ struct tegra_sor {
 
 	struct tegra_kfuse *kfuse;
 	struct drm_hdcp hdcp;
+
+	struct delayed_work scdc;
 };
 
 struct tegra_sor_state {
@@ -1413,6 +1417,139 @@ static const struct drm_encoder_funcs tegra_sor_encoder_funcs = {
 	.destroy = tegra_output_encoder_destroy,
 };
 
+static void tegra_sor_hdmi_scdc_work(struct work_struct *work)
+{
+	struct tegra_sor *sor = container_of(work, struct tegra_sor, scdc.work);
+	struct i2c_adapter *ddc = sor->output.ddc;
+	u8 value;
+	int err;
+
+	err = drm_scdc_readb(ddc, SCDC_UPDATE_0, &value);
+	if (err < 0) {
+		dev_err(sor->dev, "failed to read SCDC: %d\n", err);
+		goto schedule;
+	}
+
+	if (value & SCDC_STATUS_UPDATE) {
+		struct seq_buf s;
+		char buffer[34];
+
+		/* clear status update */
+		err = drm_scdc_writeb(ddc, SCDC_UPDATE_0, value);
+		if (err < 0) {
+			dev_err(sor->dev, "failed to clear update flags: %d\n",
+				err);
+			goto schedule;
+		}
+
+		err = drm_scdc_readb(ddc, SCDC_STATUS_FLAGS_0, &value);
+		if (err < 0) {
+			dev_err(sor->dev, "failed to read status flags: %d\n",
+				err);
+			goto schedule;
+		}
+
+		if (value) {
+			seq_buf_init(&s, buffer, sizeof(buffer));
+
+			if (value & SCDC_CLOCK_DETECT)
+				seq_buf_printf(&s, "clock detected");
+
+			if (value & SCDC_CH_LOCK_MASK) {
+				seq_buf_printf(&s, ", lock:");
+
+				if (value & SCDC_CH0_LOCK)
+					seq_buf_printf(&s, " ch0");
+
+				if (value & SCDC_CH1_LOCK)
+					seq_buf_printf(&s, " ch1");
+
+				if (value & SCDC_CH2_LOCK)
+					seq_buf_printf(&s, " ch2");
+			}
+
+			seq_buf_putc(&s, '\0');
+
+			DRM_DEBUG_KMS("SCDC: %s\n", buffer);
+		}
+	}
+
+schedule:
+	schedule_delayed_work(&sor->scdc, msecs_to_jiffies(250));
+}
+
+static int tegra_sor_hdmi_scdc(struct tegra_sor *sor)
+{
+	struct drm_connector *connector = &sor->output.connector;
+	struct drm_encoder *encoder = &sor->output.encoder;
+	const struct drm_display_mode *mode;
+	struct edid *edid;
+	int err = 0;
+
+	mode = &encoder->crtc->state->adjusted_mode;
+
+	/* SCDC is only needed for higher frequency modes */
+	if (mode->clock < 340000)
+		return 0;
+
+	edid = drm_mode_connector_get_edid(connector, NULL);
+
+	if (drm_detect_hdmi_scdc(edid)) {
+		struct i2c_adapter *ddc = sor->output.ddc;
+		u32 value;
+		u8 scdc;
+
+		err = drm_scdc_readb(ddc, SCDC_SINK_VERSION, &scdc);
+		if (err < 0) {
+			dev_err(sor->dev,
+				"failed to read SCDC sink version: %d\n",
+				err);
+			goto out;
+		}
+
+		DRM_DEBUG_KMS("SCDC supported (version %u)\n", scdc);
+		scdc = 0x1;
+
+		err = drm_scdc_writeb(ddc, SCDC_SOURCE_VERSION, scdc);
+		if (err < 0) {
+			dev_err(sor->dev,
+				"failed to write SCDC source version: %d\n",
+				err);
+			goto out;
+		}
+
+		err = drm_scdc_readb(ddc, SCDC_TMDS_CONFIG, &scdc);
+		if (err < 0) {
+			dev_err(sor->dev,
+				"failed to read SCDC TMDS configuration: %d\n",
+				err);
+			goto out;
+		}
+
+		scdc |= SCDC_TMDS_BIT_CLOCK_RATIO_BY_40 |
+			SCDC_SCRAMBLING_ENABLE;
+
+		err = drm_scdc_writeb(ddc, SCDC_TMDS_CONFIG, scdc);
+		if (err < 0) {
+			dev_err(sor->dev,
+				"failed to write SCDC TMDS configuration: %d\n",
+				err);
+			goto out;
+		}
+
+		value = tegra_sor_readl(sor, SOR_HDMI2_CTRL);
+		value |= SOR_HDMI2_CTRL_CLOCK_MODE_DIV_BY_4;
+		value |= SOR_HDMI2_CTRL_SCRAMBLE;
+		tegra_sor_writel(sor, value, SOR_HDMI2_CTRL);
+
+		schedule_delayed_work(&sor->scdc, msecs_to_jiffies(250));
+	}
+
+out:
+	drm_mode_connector_put_edid(connector);
+	return err;
+}
+
 static int tegra_sor_hdmi_hdcp(struct tegra_sor *sor)
 {
 	unsigned long weight;
@@ -2081,6 +2218,8 @@ static void tegra_sor_hdmi_disable(struct drm_encoder *encoder)
 	u32 value;
 	int err;
 
+	cancel_delayed_work_sync(&sor->scdc);
+
 	err = tegra_sor_detach(sor);
 	if (err < 0)
 		dev_err(sor->dev, "failed to detach SOR: %d\n", err);
@@ -2203,16 +2342,27 @@ static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 	value &= ~SOR_CLK_CNTRL_DP_LINK_SPEED_MASK;
 	value &= ~SOR_CLK_CNTRL_DP_CLK_SEL_MASK;
 
-	if (mode->clock < 340000)
+	if (mode->clock < 340000) {
+		DRM_DEBUG_KMS("setting 2.7 GHz link speed\n");
 		value |= SOR_CLK_CNTRL_DP_LINK_SPEED_G2_70;
-	else
+	} else {
+		DRM_DEBUG_KMS("setting 5.4 GHz link speed\n");
 		value |= SOR_CLK_CNTRL_DP_LINK_SPEED_G5_40;
+	}
 
 	value |= SOR_CLK_CNTRL_DP_CLK_SEL_SINGLE_PCLK;
 	tegra_sor_writel(sor, value, SOR_CLK_CNTRL);
 
+	usleep_range(200, 400);
+
+	value = tegra_sor_readl(sor, SOR_DP_LINKCTL0);
+	value &= ~SOR_DP_LINKCTL_LANE_COUNT_MASK;
+	value |= SOR_DP_LINKCTL_LANE_COUNT(4);
+	tegra_sor_writel(sor, value, SOR_DP_LINKCTL0);
+
 	value = tegra_sor_readl(sor, SOR_DP_SPARE0);
 	value |= SOR_DP_SPARE_DISP_VIDEO_PREAMBLE;
+	value |= SOR_DP_SPARE_MACRO_SOR_CLK;
 	value &= ~SOR_DP_SPARE_PANEL_INTERNAL;
 	value |= SOR_DP_SPARE_SEQ_ENABLE;
 	tegra_sor_writel(sor, value, SOR_DP_SPARE0);
@@ -2242,6 +2392,12 @@ static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 	err = tegra_sor_set_parent_clock(sor, sor->clk_parent);
 	if (err < 0)
 		dev_err(sor->dev, "failed to set parent clock: %d\n", err);
+
+	if (mode->clock >= 340000) {
+		unsigned long rate = clk_get_rate(sor->clk_parent);
+
+		clk_set_rate(sor->clk, rate / 2);
+	}
 
 	value = SOR_INPUT_CONTROL_HDMI_SRC_SELECT(dc->pipe);
 
@@ -2307,6 +2463,11 @@ static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 	tegra_sor_writel(sor, value, SOR_PLL0);
 
 	tegra_sor_dp_term_calibrate(sor);
+
+	value = tegra_sor_readl(sor, SOR_PLL1);
+	value &= ~SOR_PLL1_TMDS_TERMADJ_MASK;
+	value |= SOR_PLL1_TMDS_TERMADJ(settings->termadj);
+	tegra_sor_writel(sor, value, SOR_PLL1);
 
 	value = tegra_sor_readl(sor, SOR_PLL1);
 	value &= ~SOR_PLL1_LOADADJ_MASK;
@@ -2400,6 +2561,9 @@ static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 	err = tegra_sor_wakeup(sor);
 	if (err < 0)
 		dev_err(sor->dev, "failed to wakeup SOR: %d\n", err);
+
+	if (sor->output.ddc)
+		tegra_sor_hdmi_scdc(sor);
 
 	if (sor->kfuse)
 		tegra_sor_hdmi_hdcp(sor);
@@ -2836,6 +3000,8 @@ static int tegra_sor_hdmi_probe(struct tegra_sor *sor)
 		dev_err(sor->dev, "failed to enable HDMI supply: %d\n", err);
 		return err;
 	}
+
+	INIT_DELAYED_WORK(&sor->scdc, tegra_sor_hdmi_scdc_work);
 
 	return 0;
 }
