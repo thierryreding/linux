@@ -7,6 +7,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/debugfs.h>
 #include <linux/gpio.h>
 #include <linux/io.h>
@@ -138,6 +139,7 @@ struct tegra_sor {
 
 	struct reset_control *rst;
 	struct clk *clk_parent;
+	struct clk *clk_brick;
 	struct clk *clk_safe;
 	struct clk *clk_dp;
 	struct clk *clk;
@@ -223,6 +225,191 @@ static int tegra_sor_set_pinmux(struct tegra_sor *sor, const char *name)
 		return PTR_ERR(state);
 
 	return pinctrl_select_state(sor->pinctrl, state);
+}
+
+struct tegra_clk_sor_brick {
+	struct clk_hw hw;
+	struct tegra_sor *sor;
+};
+
+static inline struct tegra_clk_sor_brick *to_brick(struct clk_hw *hw)
+{
+	return container_of(hw, struct tegra_clk_sor_brick, hw);
+}
+
+static const char * const sor1_brick_parents[] = {
+	"pll_d2_out0", "pll_dp"
+};
+
+static int tegra_clk_sor1_brick_is_enabled(struct clk_hw *hw)
+{
+	int err = 0;
+	pr_debug("> %s(hw=%p)\n", __func__, hw);
+	pr_debug("< %s() = %d\n", __func__, err);
+	return err;
+}
+
+static int tegra_clk_sor1_brick_enable(struct clk_hw *hw)
+{
+	int err = 0;
+	pr_debug("> %s(hw=%p)\n", __func__, hw);
+	pr_debug("< %s() = %d\n", __func__, err);
+	return err;
+}
+
+static void tegra_clk_sor1_brick_disable(struct clk_hw *hw)
+{
+	pr_debug("> %s(hw=%p)\n", __func__, hw);
+	pr_debug("< %s()\n", __func__);
+}
+
+static unsigned long tegra_clk_sor1_brick_recalc_rate(struct clk_hw *hw,
+						      unsigned long parent_rate)
+{
+	struct tegra_clk_sor_brick *brick = to_brick(hw);
+	struct tegra_sor *sor = brick->sor;
+	unsigned long ret = parent_rate;
+	//u64 rate = parent_rate * 10;
+	u32 value;
+
+	pr_debug("> %s(hw=%p, parent_rate=%lu)\n", __func__, hw, parent_rate);
+
+	value = tegra_sor_readl(sor, SOR_CLK_CNTRL);
+
+	switch (value & SOR_CLK_CNTRL_DP_CLK_SEL_MASK) {
+	case SOR_CLK_CNTRL_DP_CLK_SEL_SINGLE_PCLK:
+	case SOR_CLK_CNTRL_DP_CLK_SEL_DIFF_PCLK:
+		/*
+		value &= SOR_CLK_CNTRL_DP_LINK_SPEED_MASK;
+		do_div(rate, value >> SOR_CLK_CNTRL_DP_LINK_SPEED_SHIFT);
+		ret = rate;
+		*/
+		ret = parent_rate;
+		break;
+
+	case SOR_CLK_CNTRL_DP_CLK_SEL_SINGLE_DPCLK:
+	case SOR_CLK_CNTRL_DP_CLK_SEL_DIFF_DPCLK:
+		ret = parent_rate;
+		break;
+	}
+
+	pr_debug("< %s() = %lu\n", __func__, ret);
+	return ret;
+}
+
+static long tegra_clk_sor1_brick_round_rate(struct clk_hw *hw,
+					    unsigned long rate,
+					    unsigned long *parent_rate)
+{
+	long err = *parent_rate;
+	pr_debug("> %s(hw=%p, rate=%lu, parent_rate=%p)\n", __func__, hw,
+		 rate, parent_rate);
+	pr_debug("< %s() = %ld\n", __func__, err);
+	return err;
+}
+
+static u8 tegra_clk_sor1_brick_get_parent(struct clk_hw *hw)
+{
+	struct tegra_clk_sor_brick *brick = to_brick(hw);
+	struct tegra_sor *sor = brick->sor;
+	u8 err = -EINVAL;
+	u32 value;
+
+	pr_debug("> %s(hw=%p)\n", __func__, hw);
+
+	value = tegra_sor_readl(sor, SOR_CLK_CNTRL);
+
+	switch (value & SOR_CLK_CNTRL_DP_CLK_SEL_MASK) {
+	case SOR_CLK_CNTRL_DP_CLK_SEL_SINGLE_PCLK:
+	case SOR_CLK_CNTRL_DP_CLK_SEL_DIFF_PCLK:
+		err = 0;
+		break;
+
+	case SOR_CLK_CNTRL_DP_CLK_SEL_SINGLE_DPCLK:
+	case SOR_CLK_CNTRL_DP_CLK_SEL_DIFF_DPCLK:
+		err = 1;
+		break;
+	}
+
+	pr_debug("< %s() = %u\n", __func__, err);
+	return err;
+}
+
+static int tegra_clk_sor1_brick_set_parent(struct clk_hw *hw, u8 index)
+{
+	struct tegra_clk_sor_brick *brick = to_brick(hw);
+	struct tegra_sor *sor = brick->sor;
+	int err = 0;
+	u32 value;
+
+	pr_debug("> %s(hw=%p, index=%u)\n", __func__, hw, index);
+
+	value = tegra_sor_readl(sor, SOR_CLK_CNTRL);
+	value &= ~SOR_CLK_CNTRL_DP_CLK_SEL_MASK;
+
+	switch (index) {
+	case 0:
+		value |= SOR_CLK_CNTRL_DP_CLK_SEL_SINGLE_PCLK;
+		break;
+
+	case 1:
+		value |= SOR_CLK_CNTRL_DP_CLK_SEL_SINGLE_DPCLK;
+		break;
+	}
+
+	tegra_sor_writel(sor, value, SOR_CLK_CNTRL);
+
+	pr_debug("< %s() = %d\n", __func__, err);
+	return err;
+}
+
+static int tegra_clk_sor1_brick_set_rate(struct clk_hw *hw, unsigned long rate,
+					 unsigned long parent_rate)
+{
+	int err = 0;
+	pr_debug("> %s(hw=%p, rate=%lu, parent_rate=%lu)\n", __func__, hw,
+		 rate, parent_rate);
+	pr_debug("< %s() = %d\n", __func__, err);
+	return err;
+}
+
+static const struct clk_ops tegra_clk_sor1_brick_ops = {
+	.is_enabled = tegra_clk_sor1_brick_is_enabled,
+	.enable = tegra_clk_sor1_brick_enable,
+	.disable = tegra_clk_sor1_brick_disable,
+	.recalc_rate = tegra_clk_sor1_brick_recalc_rate,
+	.round_rate = tegra_clk_sor1_brick_round_rate,
+	.get_parent = tegra_clk_sor1_brick_get_parent,
+	.set_parent = tegra_clk_sor1_brick_set_parent,
+	.set_rate = tegra_clk_sor1_brick_set_rate,
+};
+
+static struct clk *tegra_clk_sor1_brick_register(const char *name,
+						 struct tegra_sor *sor)
+{
+	struct tegra_clk_sor_brick *brick;
+	struct clk_init_data init;
+	struct clk *clk;
+
+	brick = devm_kzalloc(sor->dev, sizeof(*brick), GFP_KERNEL);
+	if (!brick)
+		return ERR_PTR(-ENOMEM);
+
+	brick->sor = sor;
+
+	init.name = name;
+	init.flags = 0;
+	init.parent_names = sor1_brick_parents;
+	init.num_parents = ARRAY_SIZE(sor1_brick_parents);
+	init.ops = &tegra_clk_sor1_brick_ops;
+
+	brick->hw.init = &init;
+
+	clk = devm_clk_register(sor->dev, &brick->hw);
+	if (IS_ERR(clk))
+		kfree(brick);
+
+	return clk;
 }
 
 static int tegra_sor_set_parent_clock(struct tegra_sor *sor, struct clk *parent)
@@ -1964,7 +2151,7 @@ static void tegra_sor_edp_enable(struct drm_encoder *encoder)
 	tegra_sor_writel(sor, value, SOR_XBAR_CTRL);
 
 	/* switch to DP parent clock */
-	err = tegra_sor_set_parent_clock(sor, sor->clk_dp);
+	err = tegra_sor_set_parent_clock(sor, sor->clk_brick);
 	if (err < 0)
 		dev_err(sor->dev, "failed to set parent clock: %d\n", err);
 
@@ -2735,7 +2922,7 @@ static void tegra_sor_dp_enable(struct drm_encoder *encoder)
 	tegra_sor_writel(sor, value, SOR_XBAR_CTRL);
 
 	/* switch to DP parent clock */
-	err = tegra_sor_set_parent_clock(sor, sor->clk_dp);
+	err = tegra_sor_set_parent_clock(sor, sor->clk_brick);
 	if (err < 0) {
 		dev_err(sor->dev, "failed to set parent clock: %d\n", err);
 		goto disable;
@@ -3421,6 +3608,18 @@ static int tegra_sor_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, sor);
 	pm_runtime_enable(&pdev->dev);
+
+	pm_runtime_get_sync(&pdev->dev);
+
+	sor->clk_brick = tegra_clk_sor1_brick_register("sor1_brick", sor);
+	if (IS_ERR(sor->clk_brick)) {
+		err = PTR_ERR(sor->clk_brick);
+		dev_err(&pdev->dev, "failed to register SOR brick clock: %d\n",
+			err);
+		goto hdcp;
+	}
+
+	pm_runtime_put(&pdev->dev);
 
 	INIT_LIST_HEAD(&sor->client.list);
 	sor->client.ops = &sor_client_ops;

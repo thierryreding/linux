@@ -63,6 +63,7 @@
 #define SOR_DP_DEBUG_MVID 0x12
 
 #define SOR_CLK_CNTRL 0x13
+#define  SOR_CLK_CNTRL_DP_LINK_SPEED_SHIFT	2
 #define  SOR_CLK_CNTRL_DP_LINK_SPEED_MASK	(0x1f << 2)
 #define  SOR_CLK_CNTRL_DP_LINK_SPEED(x)		(((x) & 0x1f) << 2)
 #define  SOR_CLK_CNTRL_DP_LINK_SPEED_G1_62	(0x06 << 2)
