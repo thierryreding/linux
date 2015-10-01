@@ -145,6 +145,11 @@ static ssize_t bl_power_store(struct device *dev, struct device_attribute *attr,
 	if (bd->ops) {
 		pr_debug("set power to %lu\n", power);
 		if (bd->props.power != power) {
+			if (power == FB_BLANK_UNBLANK)
+				bd->props.state &= ~BL_CORE_FBBLANK;
+			else
+				bd->props.state |= BL_CORE_FBBLANK;
+
 			bd->props.power = power;
 			backlight_update_status(bd);
 		}
