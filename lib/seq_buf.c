@@ -12,9 +12,12 @@
  * seq_buf_init() more than once to reset the seq_buf to start
  * from scratch.
  */
-#include <linux/uaccess.h>
+
+#include <linux/export.h>
+#include <linux/kernel.h>
 #include <linux/seq_file.h>
 #include <linux/seq_buf.h>
+#include <linux/uaccess.h>
 
 /**
  * seq_buf_can_fit - can the new data fit in the current buffer?
@@ -42,6 +45,7 @@ int seq_buf_print_seq(struct seq_file *m, struct seq_buf *s)
 
 	return seq_write(m, s->buffer, len);
 }
+EXPORT_SYMBOL_GPL(seq_buf_print_seq);
 
 /**
  * seq_buf_vprintf - sequence printing of information.
@@ -69,6 +73,7 @@ int seq_buf_vprintf(struct seq_buf *s, const char *fmt, va_list args)
 	seq_buf_set_overflow(s);
 	return -1;
 }
+EXPORT_SYMBOL_GPL(seq_buf_vprintf);
 
 /**
  * seq_buf_printf - sequence printing of information
@@ -90,6 +95,7 @@ int seq_buf_printf(struct seq_buf *s, const char *fmt, ...)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(seq_buf_printf);
 
 #ifdef CONFIG_BINARY_PRINTF
 /**
@@ -126,6 +132,7 @@ int seq_buf_bprintf(struct seq_buf *s, const char *fmt, const u32 *binary)
 	seq_buf_set_overflow(s);
 	return -1;
 }
+EXPORT_SYMBOL_GPL(seq_buf_bprintf);
 #endif /* CONFIG_BINARY_PRINTF */
 
 /**
@@ -151,6 +158,7 @@ int seq_buf_puts(struct seq_buf *s, const char *str)
 	seq_buf_set_overflow(s);
 	return -1;
 }
+EXPORT_SYMBOL_GPL(seq_buf_puts);
 
 /**
  * seq_buf_putc - sequence printing of simple character
@@ -172,6 +180,7 @@ int seq_buf_putc(struct seq_buf *s, unsigned char c)
 	seq_buf_set_overflow(s);
 	return -1;
 }
+EXPORT_SYMBOL_GPL(seq_buf_putc);
 
 /**
  * seq_buf_putmem - write raw data into the sequenc buffer
@@ -197,6 +206,7 @@ int seq_buf_putmem(struct seq_buf *s, const void *mem, unsigned int len)
 	seq_buf_set_overflow(s);
 	return -1;
 }
+EXPORT_SYMBOL_GPL(seq_buf_putmem);
 
 #define MAX_MEMHEX_BYTES	8U
 #define HEX_CHARS		(MAX_MEMHEX_BYTES*2 + 1)
@@ -246,6 +256,7 @@ int seq_buf_putmem_hex(struct seq_buf *s, const void *mem,
 	}
 	return 0;
 }
+EXPORT_SYMBOL_GPL(seq_buf_putmem_hex);
 
 /**
  * seq_buf_path - copy a path into the sequence buffer
@@ -277,6 +288,7 @@ int seq_buf_path(struct seq_buf *s, const struct path *path, const char *esc)
 
 	return res;
 }
+EXPORT_SYMBOL_GPL(seq_buf_path);
 
 /**
  * seq_buf_to_user - copy the squence buffer to user space
@@ -323,3 +335,4 @@ int seq_buf_to_user(struct seq_buf *s, char __user *ubuf, int cnt)
 	s->readpos += cnt;
 	return cnt;
 }
+EXPORT_SYMBOL_GPL(seq_buf_to_user);
