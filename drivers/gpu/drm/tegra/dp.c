@@ -455,14 +455,16 @@ out:
  *
  * Returns: 0 on success or a negative error code on failure.
  */
-int drm_dp_link_train(struct drm_dp_link *link)
+int drm_dp_link_train(struct drm_dp_link *lnk)
 {
-	struct drm_dp_link_tegra *tegra = to_drm_dp_link_tegra(link);
+	struct drm_dp_link_tegra *link = to_drm_dp_link_tegra(lnk);
 	int err;
 
-	if (link->caps.fast_training) {
-		if (drm_dp_link_train_valid(&tegra->train)) {
-			err = drm_dp_link_train_fast(link);
+	drm_dp_link_train_init(&link->train);
+
+	if (link->base.caps.fast_training) {
+		if (drm_dp_link_train_valid(&link->train)) {
+			err = drm_dp_link_train_fast(&link->base);
 			if (err < 0)
 				DRM_ERROR("fast link training failed: %d\n",
 					  err);
@@ -475,7 +477,7 @@ int drm_dp_link_train(struct drm_dp_link *link)
 		DRM_DEBUG_KMS("fast link training not supported\n");
 	}
 
-	err = drm_dp_link_train_full(link);
+	err = drm_dp_link_train_full(&link->base);
 	if (err < 0)
 		DRM_ERROR("full link training failed: %d\n", err);
 
