@@ -2463,7 +2463,16 @@ static const struct tegra_clk_parent tegra_clk_sor1_mux[] = {
 	{ "sor1_brick",  0x0000c000, 0xa0004000 },
 	{ "pll_p_out0",  0xe000c000, 0x00008000 },
 	{ "pll_d_out0",  0xe000c000, 0x40008000 },
+#if 0
 	{ "pll_d2_out0", 0xe000c000, 0xa0008000 },
+#else
+	/*
+	 * XXX This is a workaround to make HDMI 2.0 work. Technically the
+	 * sor1_brick clock should be used to get this mux value, but that
+	 * will cause a hard hang when setting the mode.
+	 */
+	{ "pll_d2_out0", 0xe000c000, 0xa0004000 },
+#endif
 	{ "clk_m",       0xe000c000, 0xc0008000 },
 };
 
