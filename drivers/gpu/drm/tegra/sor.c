@@ -92,13 +92,13 @@ static const struct tegra_sor_hdmi_settings tegra210_sor_hdmi_defaults[] = {
 	}, {
 		.frequency = 600000000,
 		.vcocap = 0x3,
-		.ichpmp = 0x1,
+		.ichpmp = 0xa,
 		.loadadj = 0x3,
-		.termadj = 0x9,
+		.termadj = 0xb,
 		.tx_pu = 0x66,
-		.bg_vref = 0x8,
-		.drive_current = { 0x33, 0x3f, 0x3f, 0x3f },
-		.preemphasis = { 0x00, 0x00, 0x00, 0x00 },
+		.bg_vref = 0xe,
+		.drive_current = { 0x35, 0x3e, 0x3e, 0x3e },
+		.preemphasis = { 0x02, 0x3f, 0x3f, 0x3f },
 	},
 };
 
@@ -205,14 +205,17 @@ static inline struct tegra_sor *to_sor(struct tegra_output *output)
 	return container_of(output, struct tegra_sor, output);
 }
 
-static inline u32 tegra_sor_readl(struct tegra_sor *sor, unsigned long offset)
+static inline u32 tegra_sor_readl(struct tegra_sor *sor, unsigned int offset)
 {
-	return readl(sor->regs + (offset << 2));
+	u32 value = readl(sor->regs + (offset << 2));
+	dev_dbg(sor->dev, "%08x > %08x\n", offset, value);
+	return value;
 }
 
 static inline void tegra_sor_writel(struct tegra_sor *sor, u32 value,
-				    unsigned long offset)
+				    unsigned int offset)
 {
+	dev_dbg(sor->dev, "%08x < %08x\n", offset, value);
 	writel(value, sor->regs + (offset << 2));
 }
 
@@ -1158,6 +1161,11 @@ static void tegra_sor_mode_set(struct tegra_sor *sor,
 
 	/* XXX interlacing support */
 	tegra_sor_writel(sor, 0x001, SOR_HEAD_STATE5(dc->pipe));
+
+	tegra_sor_writel(sor, 0x0001c800, 0x1b);
+	tegra_sor_writel(sor, 0x00000400, 0x32);
+	tegra_sor_writel(sor, 0x80000400, 0x33);
+	(void)tegra_sor_readl(sor, 0x33);
 }
 
 static int tegra_sor_detach(struct tegra_sor *sor)
@@ -2551,7 +2559,8 @@ static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 	value |= SOR_DP_SPARE_DISP_VIDEO_PREAMBLE;
 	value |= SOR_DP_SPARE_MACRO_SOR_CLK;
 	value &= ~SOR_DP_SPARE_PANEL_INTERNAL;
-	value |= SOR_DP_SPARE_SEQ_ENABLE;
+	//value |= SOR_DP_SPARE_SEQ_ENABLE;
+	value &= ~SOR_DP_SPARE_SEQ_ENABLE;
 	tegra_sor_writel(sor, value, SOR_DP_SPARE0);
 
 	value = SOR_SEQ_CTL_PU_PC(0) | SOR_SEQ_CTL_PU_PC_ALT(0) |
@@ -2589,8 +2598,12 @@ static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 	value = SOR_INPUT_CONTROL_HDMI_SRC_SELECT(dc->pipe);
 
 	/* XXX is this the proper check? */
-	if (mode->clock < 75000)
+	/*
+	if (mode->hdisplay == 640 && mode->vdisplay == 480)
+		value &= ~SOR_INPUT_CONTROL_ARM_VIDEO_RANGE_LIMITED;
+	else
 		value |= SOR_INPUT_CONTROL_ARM_VIDEO_RANGE_LIMITED;
+	*/
 
 	tegra_sor_writel(sor, value, SOR_INPUT_CONTROL);
 
@@ -2752,7 +2765,7 @@ static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 	if (sor->output.ddc)
 		tegra_sor_hdmi_scdc(sor);
 
-	if (sor->kfuse)
+	if (0 && sor->kfuse)
 		tegra_sor_hdmi_hdcp(sor);
 
 	return;
