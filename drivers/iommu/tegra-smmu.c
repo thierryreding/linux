@@ -171,6 +171,8 @@ static inline void smmu_flush_ptc(struct tegra_smmu *smmu, dma_addr_t dma,
 
 	offset &= ~(smmu->mc->soc->atom_size - 1);
 
+	mutex_lock(&smmu->lock);
+
 	if (smmu->mc->soc->num_address_bits > 32) {
 #ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
 		value = (dma >> 32) & SMMU_PTC_FLUSH_HI_MASK;
@@ -182,6 +184,8 @@ static inline void smmu_flush_ptc(struct tegra_smmu *smmu, dma_addr_t dma,
 
 	value = (dma + offset) | SMMU_PTC_FLUSH_TYPE_ADR;
 	smmu_writel(smmu, value, SMMU_PTC_FLUSH);
+
+	mutex_unlock(&smmu->lock);
 }
 
 static inline void smmu_flush_tlb(struct tegra_smmu *smmu)
