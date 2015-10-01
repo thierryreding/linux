@@ -2384,6 +2384,45 @@ tegra_sor_hdmi_setup_avi_infoframe(struct tegra_sor *sor,
 	return 0;
 }
 
+static int tegra_sor_hdmi_setup_audio_infoframe(struct tegra_sor *sor)
+{
+	u8 buffer[HDMI_INFOFRAME_SIZE(AUDIO)];
+	struct hdmi_audio_infoframe frame;
+	u32 value;
+	int err;
+
+	/* disable audio infoframe */
+	value = tegra_sor_readl(sor, SOR_HDMI_AUDIO_INFOFRAME_CTRL);
+	value &= ~INFOFRAME_CTRL_SINGLE;
+	value &= ~INFOFRAME_CTRL_OTHER;
+	value &= ~INFOFRAME_CTRL_ENABLE;
+	tegra_sor_writel(sor, value, SOR_HDMI_AUDIO_INFOFRAME_CTRL);
+
+	err = hdmi_audio_infoframe_init(&frame);
+	if (err < 0) {
+		dev_err(sor->dev, "failed to setup audio infoframe: %d\n", err);
+		return err;
+	}
+
+	frame.channels = 2;
+
+	err = hdmi_audio_infoframe_pack(&frame, buffer, sizeof(buffer));
+	if (err < 0) {
+		dev_err(sor->dev, "failed to pack audio infoframe: %d\n", err);
+		return err;
+	}
+
+	tegra_sor_hdmi_write_infopack(sor, buffer, err);
+
+	/* enable audio infoframe */
+	value = tegra_sor_readl(sor, SOR_HDMI_AUDIO_INFOFRAME_CTRL);
+	value |= INFOFRAME_CTRL_CHECKSUM_ENABLE;
+	value |= INFOFRAME_CTRL_ENABLE;
+	tegra_sor_writel(sor, value, SOR_HDMI_AUDIO_INFOFRAME_CTRL);
+
+	return 0;
+}
+
 static void tegra_sor_hdmi_disable_audio_infoframe(struct tegra_sor *sor)
 {
 	u32 value;
@@ -2391,6 +2430,44 @@ static void tegra_sor_hdmi_disable_audio_infoframe(struct tegra_sor *sor)
 	value = tegra_sor_readl(sor, SOR_HDMI_AUDIO_INFOFRAME_CTRL);
 	value &= ~INFOFRAME_CTRL_ENABLE;
 	tegra_sor_writel(sor, value, SOR_HDMI_AUDIO_INFOFRAME_CTRL);
+}
+
+static int tegra_sor_hdmi_setup_vendor_infoframe(struct tegra_sor *sor)
+{
+	u8 buffer[HDMI_INFOFRAME_HEADER_SIZE + 6];
+	struct hdmi_vendor_infoframe frame;
+	u32 value;
+	int err;
+
+	/* disable vendor infoframe */
+	value = tegra_sor_readl(sor, SOR_HDMI_VSI_INFOFRAME_CTRL);
+	value &= ~INFOFRAME_CTRL_VIDEO_FMT_HW_CONTROL;
+	value &= ~INFOFRAME_CTRL_SINGLE;
+	value &= ~INFOFRAME_CTRL_OTHER;
+	value &= ~INFOFRAME_CTRL_ENABLE;
+	tegra_sor_writel(sor, value, SOR_HDMI_VSI_INFOFRAME_CTRL);
+
+	err = hdmi_vendor_infoframe_init(&frame);
+	if (err < 0) {
+		dev_err(sor->dev, "failed to setup vendor infoframe: %d\n", err);
+		return err;
+	}
+
+	err = hdmi_vendor_infoframe_pack(&frame, buffer, sizeof(buffer));
+	if (err < 0) {
+		dev_err(sor->dev, "failed to pack vendor infoframe: %d\n", err);
+		return err;
+	}
+
+	tegra_sor_hdmi_write_infopack(sor, buffer, err);
+
+	/* enable vendor infoframe */
+	value = tegra_sor_readl(sor, SOR_HDMI_VSI_INFOFRAME_CTRL);
+	value |= INFOFRAME_CTRL_CHECKSUM_ENABLE;
+	value |= INFOFRAME_CTRL_ENABLE;
+	tegra_sor_writel(sor, value, SOR_HDMI_VSI_INFOFRAME_CTRL);
+
+	return 0;
 }
 
 static struct tegra_sor_hdmi_settings *
@@ -2634,7 +2711,17 @@ static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 		dev_err(sor->dev, "failed to setup AVI infoframe: %d\n", err);
 
 	/* XXX HDMI audio support not implemented yet */
-	tegra_sor_hdmi_disable_audio_infoframe(sor);
+	if (0) {
+		err = tegra_sor_hdmi_setup_audio_infoframe(sor);
+		if (err < 0)
+			dev_err(sor->dev, "failed to setup audio infoframe: %d\n", err);
+	} else {
+		tegra_sor_hdmi_disable_audio_infoframe(sor);
+	}
+
+	err = tegra_sor_hdmi_setup_vendor_infoframe(sor);
+	if (err < 0)
+		dev_err(sor->dev, "failed to setup vendor infoframe: %d\n", err);
 
 	/* use single TMDS protocol */
 	value = tegra_sor_readl(sor, SOR_STATE1);

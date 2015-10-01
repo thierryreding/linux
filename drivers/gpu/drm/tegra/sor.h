@@ -380,6 +380,10 @@
 #define  SOR_HDMI_CTRL_AUDIO_LAYOUT (1 << 10)
 #define  SOR_HDMI_CTRL_REKEY(x) (((x) & 0x7f) << 0)
 
+#define SOR_HDMI_GCP_CTRL 0xc3
+#define SOR_HDMI_GCP_STATUS 0xc4
+#define SOR_HDMI_GCP_SUBPACK 0xc5
+
 #define SOR_REFCLK 0xe6
 #define  SOR_REFCLK_DIV_INT(x) ((((x) >> 2) & 0xff) << 8)
 #define  SOR_REFCLK_DIV_FRAC(x) (((x) & 0x3) << 6)
@@ -406,6 +410,7 @@
 #define SOR_KEY_SKEY_INDEX 0xf3
 
 #define SOR_HDMI_VSI_INFOFRAME_CTRL 0x123
+#define  INFOFRAME_CTRL_VIDEO_FMT_HW_CONTROL (1 << 16)
 #define SOR_HDMI_VSI_INFOFRAME_STATUS 0x124
 #define SOR_HDMI_VSI_INFOFRAME_HEADER 0x125
 
