@@ -12,6 +12,9 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/of_gpio.h>
+#include <linux/pinctrl/machine.h>
+#include <linux/pinctrl/pinctrl.h>
+#include <linux/pinctrl/pinmux.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 #include <linux/regulator/consumer.h>
@@ -44,6 +47,9 @@ struct tegra_dpaux {
 	struct completion complete;
 	struct work_struct work;
 	struct list_head list;
+
+	struct pinctrl_dev *pinctrl;
+	struct pinctrl_desc desc;
 };
 
 static inline struct tegra_dpaux *to_dpaux(struct drm_dp_aux *aux)
@@ -267,6 +273,161 @@ static irqreturn_t tegra_dpaux_irq(int irq, void *data)
 	return ret;
 }
 
+static const struct pinctrl_pin_desc tegra_dpaux_pins[] = {
+	PINCTRL_PIN(0, "pad"),
+};
+
+static const char * const tegra_dpaux_groups[] = {
+	"pad",
+};
+
+enum tegra_dpaux_mode {
+	TEGRA_DPAUX_MODE_I2C,
+	TEGRA_DPAUX_MODE_AUX,
+	TEGRA_DPAUX_MODE_OFF,
+};
+
+static const char * const tegra_dpaux_modes[] = {
+	"i2c",
+	"aux",
+	"off",
+};
+
+static int tegra_dpaux_get_groups_count(struct pinctrl_dev *pinctrl)
+{
+	return ARRAY_SIZE(tegra_dpaux_groups);
+}
+
+static const char *tegra_dpaux_get_group_name(struct pinctrl_dev *pinctrl,
+					      unsigned int group)
+{
+	return tegra_dpaux_groups[group];
+}
+
+static int tegra_dpaux_get_group_pins(struct pinctrl_dev *pinctrl,
+				      unsigned int group,
+				      const unsigned int **pins,
+				      unsigned int *num_pins)
+{
+	*pins = &tegra_dpaux_pins[group].number;
+	*num_pins = 1;
+
+	return 0;
+}
+
+static int tegra_dpaux_dt_node_to_map(struct pinctrl_dev *pinctrl,
+				      struct device_node *parent,
+				      struct pinctrl_map **maps,
+				      unsigned int *num_maps)
+{
+	const char *group = tegra_dpaux_groups[0], *function;
+	struct pinctrl_map *map;
+	int err = 0;
+
+	map = kzalloc(sizeof(*map), GFP_KERNEL);
+	if (!map)
+		return -ENOMEM;
+
+	err = of_property_read_string(parent, "nvidia,function", &function);
+	if (err < 0)
+		goto free;
+
+	map->type = PIN_MAP_TYPE_MUX_GROUP;
+	map->data.mux.function = function;
+	map->data.mux.group = group;
+
+	*num_maps = 1;
+	*maps = map;
+
+	return 0;
+
+free:
+	kfree(map);
+	return err;
+}
+
+static void tegra_dpaux_dt_free_map(struct pinctrl_dev *pinctrl,
+				    struct pinctrl_map *maps,
+				    unsigned int num_maps)
+{
+	kfree(maps);
+}
+
+static const struct pinctrl_ops tegra_dpaux_pinctrl_ops = {
+	.get_groups_count = tegra_dpaux_get_groups_count,
+	.get_group_name = tegra_dpaux_get_group_name,
+	.get_group_pins = tegra_dpaux_get_group_pins,
+	.dt_node_to_map = tegra_dpaux_dt_node_to_map,
+	.dt_free_map = tegra_dpaux_dt_free_map,
+};
+
+static int tegra_dpaux_get_functions_count(struct pinctrl_dev *pinctrl)
+{
+	return ARRAY_SIZE(tegra_dpaux_modes);
+}
+
+static const char *tegra_dpaux_get_function_name(struct pinctrl_dev *pinctrl,
+						 unsigned int function)
+{
+	return tegra_dpaux_modes[function];
+}
+
+static int tegra_dpaux_get_function_groups(struct pinctrl_dev *pinctrl,
+					   unsigned int function,
+					   const char *const **groups,
+					   unsigned * const num_groups)
+{
+	*num_groups = ARRAY_SIZE(tegra_dpaux_groups);
+	*groups = tegra_dpaux_groups;
+
+	return 0;
+}
+
+static int tegra_dpaux_set_mux(struct pinctrl_dev *pinctrl,
+			       unsigned int function,
+			       unsigned int group)
+{
+	struct tegra_dpaux *dpaux = pinctrl_dev_get_drvdata(pinctrl);
+	u32 value;
+
+	if (function == TEGRA_DPAUX_MODE_I2C) {
+		value = tegra_dpaux_readl(dpaux, DPAUX_HYBRID_PADCTL);
+		value = DPAUX_HYBRID_PADCTL_I2C_SDA_INPUT_RCV |
+			DPAUX_HYBRID_PADCTL_I2C_SCL_INPUT_RCV |
+			DPAUX_HYBRID_PADCTL_MODE_I2C;
+		tegra_dpaux_writel(dpaux, value, DPAUX_HYBRID_PADCTL);
+	}
+
+	if (function == TEGRA_DPAUX_MODE_AUX) {
+		value = tegra_dpaux_readl(dpaux, DPAUX_HYBRID_PADCTL);
+		value = DPAUX_HYBRID_PADCTL_AUX_CMH(2) |
+			DPAUX_HYBRID_PADCTL_AUX_DRVZ(4) |
+			DPAUX_HYBRID_PADCTL_AUX_DRVI(0x18) |
+			DPAUX_HYBRID_PADCTL_AUX_INPUT_RCV |
+			DPAUX_HYBRID_PADCTL_MODE_AUX;
+		tegra_dpaux_writel(dpaux, value, DPAUX_HYBRID_PADCTL);
+	}
+
+	if (function == TEGRA_DPAUX_MODE_OFF) {
+		value = tegra_dpaux_readl(dpaux, DPAUX_HYBRID_SPARE);
+		value |= DPAUX_HYBRID_SPARE_PAD_POWER_DOWN;
+		tegra_dpaux_writel(dpaux, value, DPAUX_HYBRID_SPARE);
+	} else {
+		value = tegra_dpaux_readl(dpaux, DPAUX_HYBRID_SPARE);
+		value &= ~DPAUX_HYBRID_SPARE_PAD_POWER_DOWN;
+		tegra_dpaux_writel(dpaux, value, DPAUX_HYBRID_SPARE);
+	}
+
+	return 0;
+}
+
+static const struct pinmux_ops tegra_dpaux_pinmux_ops = {
+	.get_functions_count = tegra_dpaux_get_functions_count,
+	.get_function_name = tegra_dpaux_get_function_name,
+	.get_function_groups = tegra_dpaux_get_function_groups,
+	.set_mux = tegra_dpaux_set_mux,
+};
+
 static int tegra_dpaux_probe(struct platform_device *pdev)
 {
 	struct tegra_dpaux *dpaux;
@@ -355,30 +516,31 @@ static int tegra_dpaux_probe(struct platform_device *pdev)
 
 	disable_irq(dpaux->irq);
 
+	/* setup pin controller */
+	dpaux->desc.name = dev_name(&pdev->dev);
+	dpaux->desc.npins = ARRAY_SIZE(tegra_dpaux_pins);
+	dpaux->desc.pins = tegra_dpaux_pins;
+	dpaux->desc.pctlops = &tegra_dpaux_pinctrl_ops;
+	dpaux->desc.pmxops = &tegra_dpaux_pinmux_ops;
+	dpaux->desc.owner = THIS_MODULE;
+
+	dpaux->pinctrl = pinctrl_register(&dpaux->desc, &pdev->dev, dpaux);
+	if (IS_ERR(dpaux->pinctrl)) {
+		err = PTR_ERR(dpaux->pinctrl);
+		dev_err(&pdev->dev, "failed to register pin controller: %d\n",
+			err);
+		return err;
+	}
+
+	/* setup DisplayPort AUX controller */
 	dpaux->aux.transfer = tegra_dpaux_transfer;
 	dpaux->aux.dev = &pdev->dev;
 
 	err = drm_dp_aux_register(&dpaux->aux);
-	if (err < 0)
+	if (err < 0) {
+		pinctrl_unregister(dpaux->pinctrl);
 		return err;
-
-	/*
-	 * Assume that by default the DPAUX/I2C pads will be used for HDMI,
-	 * so power them up and configure them in I2C mode.
-	 *
-	 * The DPAUX code paths reconfigure the pads in AUX mode, but there
-	 * is no possibility to perform the I2C mode configuration in the
-	 * HDMI path.
-	 */
-	value = tegra_dpaux_readl(dpaux, DPAUX_HYBRID_SPARE);
-	value &= ~DPAUX_HYBRID_SPARE_PAD_POWER_DOWN;
-	tegra_dpaux_writel(dpaux, value, DPAUX_HYBRID_SPARE);
-
-	value = tegra_dpaux_readl(dpaux, DPAUX_HYBRID_PADCTL);
-	value = DPAUX_HYBRID_PADCTL_I2C_SDA_INPUT_RCV |
-		DPAUX_HYBRID_PADCTL_I2C_SCL_INPUT_RCV |
-		DPAUX_HYBRID_PADCTL_MODE_I2C;
-	tegra_dpaux_writel(dpaux, value, DPAUX_HYBRID_PADCTL);
+	}
 
 	/* enable and clear all interrupts */
 	value = DPAUX_INTR_AUX_DONE | DPAUX_INTR_IRQ_EVENT |
@@ -406,6 +568,7 @@ static int tegra_dpaux_remove(struct platform_device *pdev)
 	tegra_dpaux_writel(dpaux, value, DPAUX_HYBRID_SPARE);
 
 	drm_dp_aux_unregister(&dpaux->aux);
+	pinctrl_unregister(dpaux->pinctrl);
 
 	mutex_lock(&dpaux_lock);
 	list_del(&dpaux->list);
@@ -523,37 +686,6 @@ enum drm_connector_status drm_dp_aux_detect(struct drm_dp_aux *aux)
 		return connector_status_connected;
 
 	return connector_status_disconnected;
-}
-
-int drm_dp_aux_enable(struct drm_dp_aux *aux)
-{
-	struct tegra_dpaux *dpaux = to_dpaux(aux);
-	u32 value;
-
-	value = DPAUX_HYBRID_PADCTL_AUX_CMH(2) |
-		DPAUX_HYBRID_PADCTL_AUX_DRVZ(4) |
-		DPAUX_HYBRID_PADCTL_AUX_DRVI(0x18) |
-		DPAUX_HYBRID_PADCTL_AUX_INPUT_RCV |
-		DPAUX_HYBRID_PADCTL_MODE_AUX;
-	tegra_dpaux_writel(dpaux, value, DPAUX_HYBRID_PADCTL);
-
-	value = tegra_dpaux_readl(dpaux, DPAUX_HYBRID_SPARE);
-	value &= ~DPAUX_HYBRID_SPARE_PAD_POWER_DOWN;
-	tegra_dpaux_writel(dpaux, value, DPAUX_HYBRID_SPARE);
-
-	return 0;
-}
-
-int drm_dp_aux_disable(struct drm_dp_aux *aux)
-{
-	struct tegra_dpaux *dpaux = to_dpaux(aux);
-	u32 value;
-
-	value = tegra_dpaux_readl(dpaux, DPAUX_HYBRID_SPARE);
-	value |= DPAUX_HYBRID_SPARE_PAD_POWER_DOWN;
-	tegra_dpaux_writel(dpaux, value, DPAUX_HYBRID_SPARE);
-
-	return 0;
 }
 
 int drm_dp_aux_prepare(struct drm_dp_aux *aux, u8 encoding)
