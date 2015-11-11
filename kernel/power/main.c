@@ -635,8 +635,6 @@ static int __init pm_init(void)
 	int error = pm_start_workqueue();
 	if (error)
 		return error;
-	hibernate_image_size_init();
-	hibernate_reserved_size_init();
 	power_kobj = kobject_create_and_add("power", NULL);
 	if (!power_kobj)
 		return -ENOMEM;
@@ -648,3 +646,13 @@ static int __init pm_init(void)
 }
 
 core_initcall(pm_init);
+
+static int __init hibernate_init(void)
+{
+	hibernate_image_size_init();
+	hibernate_reserved_size_init();
+
+	return 0;
+}
+
+late_initcall_sync(hibernate_init);
