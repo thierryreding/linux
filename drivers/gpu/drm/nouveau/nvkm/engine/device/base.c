@@ -2279,7 +2279,7 @@ nvkm_device_del(struct nvkm_device **pdevice)
 		mutex_lock(&nv_devices_mutex);
 		device->disable_mask = 0;
 
-		if (nvkm_need_secure_boot(device))
+		if (device->chip && nvkm_need_secure_boot(device))
 			nvkm_secure_boot_fini(device);
 
 		for (i = NVKM_SUBDEV_NR - 1; i >= 0; i--) {
