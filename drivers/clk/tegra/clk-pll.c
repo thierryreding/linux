@@ -2045,7 +2045,7 @@ struct clk *tegra_clk_register_pllre(const char *name, const char *parent_name,
 	if (val & PLL_BASE_ENABLE)
 		WARN_ON(readl_relaxed(clk_base + pll_params->iddq_reg) &
 				BIT(pll_params->iddq_bit_idx));
-	else {
+	else if (val == 0) {
 		int m;
 
 		m = _pll_fixed_mdiv(pll_params, parent_rate);
@@ -2536,6 +2536,17 @@ static int clk_pllu_tegra210_enable(struct clk_hw *hw)
 
 	value &= ~UTMIPLL_HW_PWRDN_CFG0_IDDQ_OVERRIDE;
 	writel_relaxed(value, pll->clk_base + UTMIPLL_HW_PWRDN_CFG0);
+
+	/* XXX */
+	#define PLLU_OUTA 0x0c4
+	value = readl_relaxed(pll->clk_base + PLLU_OUTA);
+	value |= (1 << 18) | (1 << 2);
+	writel_relaxed(value, pll->clk_base + PLLU_OUTA);
+
+	#define PLLU_BASE 0x0c0
+	value = readl_relaxed(pll->clk_base + PLLU_BASE);
+	value |= (1 << 23);
+	writel_relaxed(value, pll->clk_base + PLLU_BASE);
 
 	/* Program UTMIP PLL stable and active counts */
 	value = readl_relaxed(pll->clk_base + UTMIP_PLL_CFG2);
