@@ -94,7 +94,7 @@ struct gk20a_instmem {
 	struct nvkm_instmem base;
 
 	/* protects vaddr_* and gk20a_instobj::vaddr* */
-	spinlock_t lock;
+	struct mutex lock;
 
 	/* CPU mappings LRU */
 	unsigned int vaddr_use;
@@ -184,11 +184,10 @@ gk20a_instobj_acquire_iommu(struct nvkm_memory *memory)
 	struct gk20a_instmem *imem = node->base.imem;
 	struct nvkm_ltc *ltc = imem->base.subdev.device->ltc;
 	const u64 size = nvkm_memory_size(memory);
-	unsigned long flags;
 
 	nvkm_ltc_flush(ltc);
 
-	spin_lock_irqsave(&imem->lock, flags);
+	mutex_lock(&imem->lock);
 
 	if (node->base.vaddr) {
 		if (!node->use_cpt) {
@@ -216,7 +215,7 @@ gk20a_instobj_acquire_iommu(struct nvkm_memory *memory)
 
 out:
 	node->use_cpt++;
-	spin_unlock_irqrestore(&imem->lock, flags);
+	mutex_unlock(&imem->lock);
 
 	return node->base.vaddr;
 }
@@ -237,9 +236,8 @@ gk20a_instobj_release_iommu(struct nvkm_memory *memory)
 	struct gk20a_instobj_iommu *node = gk20a_instobj_iommu(memory);
 	struct gk20a_instmem *imem = node->base.imem;
 	struct nvkm_ltc *ltc = imem->base.subdev.device->ltc;
-	unsigned long flags;
 
-	spin_lock_irqsave(&imem->lock, flags);
+	mutex_lock(&imem->lock);
 
 	/* we should at least have one user to release... */
 	if (WARN_ON(node->use_cpt == 0))
@@ -250,7 +248,7 @@ gk20a_instobj_release_iommu(struct nvkm_memory *memory)
 		list_add_tail(&node->vaddr_node, &imem->vaddr_lru);
 
 out:
-	spin_unlock_irqrestore(&imem->lock, flags);
+	mutex_unlock(&imem->lock);
 
 	wmb();
 	nvkm_ltc_invalidate(ltc);
@@ -578,7 +576,7 @@ gk20a_instmem_new(struct nvkm_device *device, int index,
 	if (!(imem = kzalloc(sizeof(*imem), GFP_KERNEL)))
 		return -ENOMEM;
 	nvkm_instmem_ctor(&gk20a_instmem, device, index, &imem->base);
-	spin_lock_init(&imem->lock);
+	mutex_init(&imem->lock);
 	*pimem = &imem->base;
 
 	/* do not allow more than 1MB of CPU-mapped instmem */
