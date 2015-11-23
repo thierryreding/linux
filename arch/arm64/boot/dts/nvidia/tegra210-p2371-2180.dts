@@ -25,6 +25,11 @@
 		};
 	};
 
+	gpu@0,57000000 {
+		vdd-supply = <&vdd_gpu>;
+		status = "okay";
+	};
+
 	i2c@0,7000c400 {
 		backlight: backlight@2c {
 			compatible = "ti,lp8557";
@@ -49,6 +54,23 @@
 				rom-addr = /bits/ 8 <0x13>;
 				rom-val = /bits/ 8 <0x01>;
 			};
+		};
+	};
+
+	regulators {
+		vdd_gpu: regulator@100 {
+			compatible = "regulator-pwm";
+			reg = <100>;
+			pwms = <&pwm 1 4880>;
+			regulator-name = "VDD_GPU";
+			regulator-min-microvolt = <710000>;
+			regulator-max-microvolt = <1320000>;
+			regulator-init-microvolt = <1000000>;
+			regulator-n-voltages = <62>;
+			regulator-enable-ramp-delay = <1000>;
+			enable-gpio = <&pmic 6 GPIO_ACTIVE_HIGH>;
+			voltage-time-sel = <80>;
+			regulator-always-on;
 		};
 	};
 };
