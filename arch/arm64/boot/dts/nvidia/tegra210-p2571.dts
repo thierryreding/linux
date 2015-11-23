@@ -1299,4 +1299,111 @@
 			};
 		};
 	};
+
+	/* microSD */
+	sdhci@0,700b0000 {
+		status = "okay";
+		cd-gpios = <&gpio TEGRA_GPIO(Z, 1) GPIO_ACTIVE_LOW>;
+		bus-width = <4>;
+		no-1-8-v;
+
+		vqmmc-supply = <&vddio_sdmmc>;
+		vmmc-supply = <&vdd_3v3_sd>;
+	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		vdd_sys_mux: regulator@0 {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "VDD_SYS_MUX";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		vdd_5v0_sys: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "VDD_5V0_SYS";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&pmic 1 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			vin-supply = <&vdd_sys_mux>;
+		};
+
+		vdd_3v3_sys: regulator@2 {
+			compatible = "regulator-fixed";
+			reg = <2>;
+			regulator-name = "VDD_3V3_SYS";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&pmic 3 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			vin-supply = <&vdd_sys_mux>;
+		};
+
+		vdd_3v3_sd: regulator@3 {
+			compatible = "regulator-fixed";
+			reg = <3>;
+			regulator-name = "VDD_3V3_SD";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&gpio TEGRA_GPIO(Z, 4) GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			vin-supply = <&vdd_3v3_sys>;
+		};
+
+		vdd_dsi_csi: regulator@4 {
+			compatible = "regulator-fixed";
+			reg = <4>;
+			regulator-name = "AVDD_DSI_CSI_1V2";
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1200000>;
+			gpio = <&pmic 7 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			vin-supply = <&vdd_sys_1v2>;
+		};
+
+		vdd_3v3_bl: regulator@5 {
+			compatible = "regulator-fixed";
+			reg = <5>;
+			regulator-name = "VDD_3V3_BL";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			gpio = <&gpio TEGRA_GPIO(V, 1) GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+		};
+
+		vdd_5v0_io: regulator@6 {
+			compatible = "regulator-fixed";
+			reg = <6>;
+			regulator-name = "VDD_5V0_IO_SYS";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		vdd_3v0_disp: regulator@7 {
+			compatible = "regulator-fixed";
+			reg = <7>;
+			regulator-name = "VDD_DISP_3V0_LDO";
+			regulator-min-microvolt = <3000000>;
+			regulator-max-microvolt = <3000000>;
+			regulator-always-on;
+			gpio = <&gpio TEGRA_GPIO(I, 3) GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			vin-supply = <&vdd_3v3_sys>;
+		};
+	};
 };
