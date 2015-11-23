@@ -6,4 +6,22 @@
 / {
 	model = "NVIDIA Tegra210 P2371 (P2530/P2595) reference design";
 	compatible = "nvidia,p2371-0000", "nvidia,tegra210";
+
+	host1x@0,50000000 {
+		dsi@0,54300000 {
+			status = "okay";
+
+			avdd-dsi-csi-supply = <&vdd_dsi_csi>;
+
+			panel@0 {
+				compatible = "auo,b080uan01";
+				reg = <0>;
+
+				enable-gpios = <&gpio TEGRA_GPIO(V, 2)
+						GPIO_ACTIVE_HIGH>;
+				power-supply = <&vdd_5v0_io>;
+				backlight = <&backlight>;
+			};
+		};
+	};
 };
