@@ -93,8 +93,8 @@ config SUN5I_HSTIMER
 
 config TEGRA_TIMER
 	bool "Tegra timer driver" if COMPILE_TEST
+	depends on ARM || ARM64
 	select CLKSRC_MMIO
-	depends on ARM
 	help
 	  Enables support for the Tegra driver.
 
