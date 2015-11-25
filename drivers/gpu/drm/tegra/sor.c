@@ -2852,7 +2852,7 @@ static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 	if (sor->output.ddc)
 		tegra_sor_hdmi_scdc(sor);
 
-	if (0 && sor->kfuse)
+	if (sor->kfuse)
 		tegra_sor_hdmi_hdcp(sor);
 
 	return;

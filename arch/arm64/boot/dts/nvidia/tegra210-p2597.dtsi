@@ -36,6 +36,7 @@
 			nvidia,ddc-i2c-bus = <&hdmi_ddc>;
 			nvidia,hpd-gpio = <&gpio TEGRA_GPIO(CC, 1)
 					   GPIO_ACTIVE_LOW>;
+			nvidia,kfuse = <&kfuse>;
 		};
 	};
 

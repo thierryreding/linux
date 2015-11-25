@@ -79,12 +79,11 @@
 					pins = "gpio5", "gpio6", "gpio7";
 					function = "gpio";
 					drive-push-pull = <1>;
-					;
 				};
+			};
 
-				max77620_gpio_default: gpio_default {
-					gpio-output-high = <2>;
-				};
+			max77620_gpio_default: gpio_default {
+				gpio-output-high = <2>;
 			};
 
 			watchdog {
@@ -134,7 +133,7 @@
 					regulator-boot-on;
 					maxim,fps-source = <1>;
 					regulator-init-mode = <2>;
-				;
+				};
 
 				max77620_sd1: sd1 {
 					regulator-name = "VDD_DDR_1V1_PMIC";

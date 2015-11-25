@@ -99,6 +99,18 @@
 			resets = <&tegra_car 207>;
 			reset-names = "dpaux";
 			status = "disabled";
+
+			state_dpaux1_i2c: pinmux_i2c {
+				nvidia,function = "i2c";
+			};
+
+			state_dpaux1_aux: pinmux_aux {
+				nvidia,function = "aux";
+			};
+
+			state_dpaux1_off: pinmux_off {
+				nvidia,function = "off";
+			};
 		};
 
 		vi@0,54080000 {
@@ -233,6 +245,11 @@
 			resets = <&tegra_car 183>;
 			reset-names = "sor";
 			status = "disabled";
+
+			pinctrl-names = "i2c", "aux", "off";
+			pinctrl-0 = <&state_dpaux1_i2c>;
+			pinctrl-1 = <&state_dpaux1_aux>;
+			pinctrl-2 = <&state_dpaux1_off>;
 		};
 
 		dpaux: dpaux@0,545c0000 {
