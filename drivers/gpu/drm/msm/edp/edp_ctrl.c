@@ -452,7 +452,7 @@ static void edp_config_ctrl(struct edp_ctrl *ctrl)
 
 	data = EDP_CONFIGURATION_CTRL_LANES(ctrl->lane_cnt - 1);
 
-	if (ctrl->dp_link.capabilities & DP_LINK_CAP_ENHANCED_FRAMING)
+	if (ctrl->dp_link.caps.enhanced_framing)
 		data |= EDP_CONFIGURATION_CTRL_ENHANCED_FRAMING;
 
 	depth = EDP_6BIT;
@@ -774,7 +774,7 @@ static int edp_do_link_train(struct edp_ctrl *ctrl)
 	 */
 	dp_link.lanes = ctrl->lane_cnt;
 	dp_link.rate = drm_dp_bw_code_to_link_rate(ctrl->link_rate);
-	dp_link.capabilities = ctrl->dp_link.capabilities;
+	drm_dp_link_caps_copy(&dp_link.caps, &ctrl->dp_link.caps);
 	if (drm_dp_link_configure(ctrl->drm_aux, &dp_link) < 0)
 		return EDP_TRAIN_FAIL;
 
