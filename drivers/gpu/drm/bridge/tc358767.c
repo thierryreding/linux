@@ -649,8 +649,8 @@ static int tc_get_display_props(struct tc_data *tc)
 		tc->link.base.revision >> 4, tc->link.base.revision & 0x0f,
 		(tc->link.base.rate == 162000) ? "1.62Gbps" : "2.7Gbps",
 		tc->link.base.lanes,
-		(tc->link.base.capabilities & DP_LINK_CAP_ENHANCED_FRAMING) ?
-		"enhanced" : "non-enhanced");
+		tc->link.base.caps.enhanced_framing ? "enhanced" :
+			"non-enhanced");
 	dev_dbg(tc->dev, "Downspread: %s, scrambler: %s\n",
 		tc->link.spread ? "0.5%" : "0.0%",
 		tc->link.scrambler_dis ? "disabled" : "enabled");
@@ -916,7 +916,7 @@ static int tc_main_link_enable(struct tc_data *tc)
 
 	/* Enable DP0 to start Link Training */
 	tc_write(DP0CTL,
-		 ((tc->link.base.capabilities & DP_LINK_CAP_ENHANCED_FRAMING) ? EF_EN : 0) |
+		 (tc->link.base.caps.enhanced_framing ? EF_EN : 0) |
 		 DP_EN);
 
 	/* wait */
@@ -1058,7 +1058,7 @@ static int tc_stream_enable(struct tc_data *tc)
 		return ret;
 
 	value = VID_MN_GEN | DP_EN;
-	if (tc->link.base.capabilities & DP_LINK_CAP_ENHANCED_FRAMING)
+	if (tc->link.base.caps.enhanced_framing)
 		value |= EF_EN;
 	tc_write(DP0CTL, value);
 	/*
