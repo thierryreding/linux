@@ -635,8 +635,8 @@ static int tc_get_display_props(struct tc_data *tc)
 		tc->link.base.revision >> 4, tc->link.base.revision & 0x0f,
 		(tc->link.base.rate == 162000) ? "1.62Gbps" : "2.7Gbps",
 		tc->link.base.lanes,
-		(tc->link.base.capabilities & DP_LINK_CAP_ENHANCED_FRAMING) ?
-		"enhanced" : "non-enhanced");
+		(tc->link.base.caps.enhanced_framing) ? "enhanced" :
+		"non-enhanced");
 	dev_dbg(tc->dev, "ANSI 8B/10B: %d\n", tc->link.coding8b10b);
 	dev_dbg(tc->dev, "Display ASSR: %d, TC358767 ASSR: %d\n",
 		tc->link.assr, tc->assr);
@@ -1015,7 +1015,7 @@ static int tc_main_link_stream(struct tc_data *tc, int state)
 
 	if (state) {
 		value = VID_MN_GEN | DP_EN;
-		if (tc->link.base.capabilities & DP_LINK_CAP_ENHANCED_FRAMING)
+		if (tc->link.base.caps.enhanced_framing)
 			value |= EF_EN;
 		tc_write(DP0CTL, value);
 		/*
