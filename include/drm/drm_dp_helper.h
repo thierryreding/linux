@@ -1135,6 +1135,13 @@ drm_dp_enhanced_frame_cap(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 }
 
 static inline bool
+drm_dp_fast_training_cap(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	return dpcd[DP_DPCD_REV] >= 0x11 &&
+		(dpcd[DP_MAX_DOWNSPREAD] & DP_NO_AUX_HANDSHAKE_LINK_TRAINING);
+}
+
+static inline bool
 drm_dp_tps3_supported(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 {
 	return dpcd[DP_DPCD_REV] >= 0x12 &&
@@ -1349,9 +1356,11 @@ int drm_dp_dpcd_read_link_status(struct drm_dp_aux *aux,
 /**
  * struct drm_dp_link_caps - DP link capabilities
  * @enhanced_framing: enhanced framing capability (mandatory as of DP 1.2)
+ * @fast_training: AUX CH handshake not required for link training
  */
 struct drm_dp_link_caps {
 	bool enhanced_framing;
+	bool fast_training;
 };
 
 void drm_dp_link_caps_copy(struct drm_dp_link_caps *dest,
