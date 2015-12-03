@@ -270,6 +270,22 @@ ssize_t drm_dp_dpcd_write(struct drm_dp_aux *aux, unsigned int offset,
 EXPORT_SYMBOL(drm_dp_dpcd_write);
 
 /**
+ * drm_dp_dpcd_read_link_caps() - read DPCD link capabilities
+ * @aux: DisplayPort AUX channel
+ * @caps: buffer to store the link capabilities in
+ *
+ * Returns:
+ * The number of bytes transferred on success or a negative error code on
+ * failure.
+ */
+int drm_dp_dpcd_read_link_caps(struct drm_dp_aux *aux,
+			       u8 caps[DP_RECEIVER_CAP_SIZE])
+{
+	return drm_dp_dpcd_read(aux, DP_DPCD_REV, caps, DP_RECEIVER_CAP_SIZE);
+}
+EXPORT_SYMBOL(drm_dp_dpcd_read_link_caps);
+
+/**
  * drm_dp_dpcd_read_link_status() - read DPCD link status (bytes 0x202-0x207)
  * @aux: DisplayPort AUX channel
  * @status: buffer to store the link status in (must be at least 6 bytes)
@@ -324,21 +340,20 @@ static void drm_dp_link_reset(struct drm_dp_link *link)
  */
 int drm_dp_link_probe(struct drm_dp_aux *aux, struct drm_dp_link *link)
 {
-	u8 values[3];
+	u8 values[DP_RECEIVER_CAP_SIZE];
 	int err;
 
 	drm_dp_link_reset(link);
 
-	err = drm_dp_dpcd_read(aux, DP_DPCD_REV, values, sizeof(values));
+	err = drm_dp_dpcd_read_link_caps(aux, values);
 	if (err < 0)
 		return err;
 
-	link->revision = values[0];
-	link->max_rate = drm_dp_bw_code_to_link_rate(values[1]);
-	link->max_lanes = values[2] & DP_MAX_LANE_COUNT_MASK;
+	link->revision = values[DP_DPCD_REV];
+	link->max_rate = drm_dp_max_link_rate(values);
+	link->max_lanes = drm_dp_max_lane_count(values);
 
-	if (values[2] & DP_ENHANCED_FRAME_CAP)
-		link->caps.enhanced_framing = true;
+	link->caps.enhanced_framing = drm_dp_enhanced_frame_cap(values);
 
 	link->rate = link->max_rate;
 	link->lanes = link->max_lanes;
