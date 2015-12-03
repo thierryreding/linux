@@ -681,6 +681,13 @@ drm_dp_tps3_supported(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 		dpcd[DP_MAX_LANE_COUNT] & DP_TPS3_SUPPORTED;
 }
 
+static inline bool
+drm_dp_fast_training_cap(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	return dpcd[DP_DPCD_REV] >= 0x11 &&
+		(dpcd[DP_MAX_DOWNSPREAD] & DP_NO_AUX_HANDSHAKE_LINK_TRAINING);
+}
+
 /*
  * DisplayPort AUX channel
  */
@@ -793,6 +800,7 @@ int drm_dp_dpcd_read_link_status(struct drm_dp_aux *aux,
  */
 struct drm_dp_link_caps {
 	bool enhanced_framing;
+	bool fast_training;
 };
 
 void drm_dp_link_caps_copy(struct drm_dp_link_caps *dest,
