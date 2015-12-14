@@ -126,19 +126,29 @@ u8 drm_dp_get_adjust_request_post_cursor(const u8 link_status[DP_LINK_STATUS_SIZ
 }
 EXPORT_SYMBOL(drm_dp_get_adjust_request_post_cursor);
 
-void drm_dp_link_train_clock_recovery_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE]) {
-	if (dpcd[DP_TRAINING_AUX_RD_INTERVAL] == 0)
-		udelay(100);
+void drm_dp_link_train_clock_recovery_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	unsigned int min;
+
+	if (dpcd[DP_TRAINING_AUX_RD_INTERVAL] != 0)
+		min = dpcd[DP_TRAINING_AUX_RD_INTERVAL] * 4000;
 	else
-		mdelay(dpcd[DP_TRAINING_AUX_RD_INTERVAL] * 4);
+		min = 100;
+
+	usleep_range(min, min * 2);
 }
 EXPORT_SYMBOL(drm_dp_link_train_clock_recovery_delay);
 
-void drm_dp_link_train_channel_eq_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE]) {
-	if (dpcd[DP_TRAINING_AUX_RD_INTERVAL] == 0)
-		udelay(400);
+void drm_dp_link_train_channel_eq_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	unsigned int min;
+
+	if (dpcd[DP_TRAINING_AUX_RD_INTERVAL] != 0)
+		min = dpcd[DP_TRAINING_AUX_RD_INTERVAL] * 4000;
 	else
-		mdelay(dpcd[DP_TRAINING_AUX_RD_INTERVAL] * 4);
+		min = 400;
+
+	usleep_range(min, min * 2);
 }
 EXPORT_SYMBOL(drm_dp_link_train_channel_eq_delay);
 
