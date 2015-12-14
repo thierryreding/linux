@@ -1677,9 +1677,6 @@ static void clk_plle_tegra114_disable(struct clk_hw *hw)
 	if (pll->lock)
 		spin_unlock_irqrestore(pll->lock, flags);
 }
-#else
-#define _calc_dynamic_ramp_rate NULL
-#endif
 
 static int clk_pllu_tegra114_enable(struct clk_hw *hw)
 {
@@ -1780,6 +1777,7 @@ out:
 
 	return err;
 }
+#endif
 
 static struct tegra_clk_pll *_tegra_init_pll(void __iomem *clk_base,
 		void __iomem *pmc, struct tegra_clk_pll_params *pll_params,
