@@ -1,0 +1,45 @@
+/dts-v1/;
+
+#include <dt-bindings/input/input.h>
+#include "tegra124.dtsi"
+
+/ {
+	model = "NVIDIA SHIELD Tablet";
+	compatible = "nvidia,st8", "nvidia,tegra124";
+
+	aliases {
+		rtc0 = "/i2c@0,7000d000/pmic@40";
+		rtc1 = "/rtc@0,7000e000";
+	};
+
+	chosen {
+		bootargs = "console=tty1 gpt fbcon=rotate:2 earlyprintk clk_ignore_unused";
+	};
+
+	memory {
+		reg = <0x0 0x80000000 0x0 0x2d000000>,
+		      <0x0 0xae000000 0x0 0x30000000>;
+	};
+
+	clocks {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		clk32k_in: clock@0 {
+			compatible = "fixed-clock";
+			reg = <0>;
+			#clock-cells = <0>;
+			clock-frequency = <32768>;
+		};
+	};
+
+	framebuffer {
+		compatible = "simple-framebuffer";
+		reg = <0x0 0xad012000 0x0 (1216 * 1920 * 4)>;
+		width = <1200>;
+		height = <1920>;
+		stride = <(1216 * 4)>;
+		format = "a8b8g8r8";
+	};
+};
