@@ -51,6 +51,7 @@
 static struct platform_device *ipc_devs[MAX_IPCDEVS];
 static struct spi_board_info *spi_devs[MAX_SCU_SPI];
 static struct i2c_board_info *i2c_devs[MAX_SCU_I2C];
+static struct i2c_client *i2c_clients[MAX_SCU_I2C];
 static struct sfi_gpio_table_entry *gpio_table;
 static struct sfi_timer_table_entry sfi_mtimer_array[SFI_MTMR_MAX_NUM];
 static int ipc_next_dev;
@@ -277,9 +278,27 @@ static void __init intel_scu_i2c_device_register(int bus,
 }
 
 /* Called by IPC driver */
-void intel_scu_devices_create(void)
+int intel_scu_devices_create(void)
 {
 	int i;
+
+	for (i = 0; i < i2c_next_dev; i++) {
+		struct i2c_adapter *adapter;
+		struct i2c_client *client;
+
+		adapter = i2c_get_adapter(i2c_bus[i]);
+		if (!adapter) {
+			while (i-- >= 0)
+				i2c_unregister_device(i2c_clients[i]);
+
+			return -EPROBE_DEFER;
+		}
+
+		i2c_clients[i] = i2c_new_device(adapter, i2c_devs[i]);
+		if (!i2c_clients[i])
+			pr_err("can't create i2c device %s\n",
+			       i2c_devs[i]->type);
+	}
 
 	for (i = 0; i < ipc_next_dev; i++)
 		platform_device_add(ipc_devs[i]);
@@ -287,20 +306,8 @@ void intel_scu_devices_create(void)
 	for (i = 0; i < spi_next_dev; i++)
 		spi_register_board_info(spi_devs[i], 1);
 
-	for (i = 0; i < i2c_next_dev; i++) {
-		struct i2c_adapter *adapter;
-		struct i2c_client *client;
-
-		adapter = i2c_get_adapter(i2c_bus[i]);
-		if (adapter) {
-			client = i2c_new_device(adapter, i2c_devs[i]);
-			if (!client)
-				pr_err("can't create i2c device %s\n",
-					i2c_devs[i]->type);
-		} else
-			i2c_register_board_info(i2c_bus[i], i2c_devs[i], 1);
-	}
 	intel_scu_notifier_post(SCU_AVAILABLE, NULL);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(intel_scu_devices_create);
 

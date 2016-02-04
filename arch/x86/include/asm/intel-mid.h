@@ -136,7 +136,7 @@ extern enum intel_mid_timer_options intel_mid_timer_options;
 #define SFI_MTMR_MAX_NUM 8
 #define SFI_MRTC_MAX	8
 
-extern void intel_scu_devices_create(void);
+extern int intel_scu_devices_create(void);
 extern void intel_scu_devices_destroy(void);
 
 /* VRTC timer */
