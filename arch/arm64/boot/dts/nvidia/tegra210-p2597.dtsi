@@ -1352,28 +1352,26 @@
 		status = "okay";
 	};
 
-	usb@0,70098000 {
+	usb@0,70090000 {
+		phys = <&{/padctl@0,7009f000/pads/usb2/usb2-0}>,
+		       <&{/padctl@0,7009f000/pads/usb2/usb2-1}>,
+		       <&{/padctl@0,7009f000/pads/usb2/usb2-2}>,
+		       <&{/padctl@0,7009f000/pads/usb2/usb2-3}>,
+		       <&{/padctl@0,7009f000/pads/pcie/pcie-6}>,
+		       <&{/padctl@0,7009f000/pads/pcie/pcie-5}>;
+		phy-names = "usb2-0", "usb2-1", "usb2-2", "usb2-3", "usb3-0",
+			    "usb3-1";
+
+		dvddio-pex-supply = <&vdd_pex_1v05>;
+		hvddio-pex-supply = <&vdd_1v8>;
+		avdd-usb-supply = <&vdd_3v3_sys>;
+		/* XXX what are these? */
+		avdd-pll-utmip-supply = <&vdd_1v8>;
+		avdd-pll-uerefe-supply = <&vdd_pex_1v05>;
+		dvdd-usb-ss-pll-supply = <&vdd_pex_1v05>;
+		hvdd-usb-ss-pll-e-supply = <&vdd_1v8>;
+
 		status = "okay";
-
-		usb-host@0,70090000 {
-			phys = <&{/padctl@0,7009f000/pads/utmi/utmi-0}>,
-			       <&{/padctl@0,7009f000/pads/utmi/utmi-1}>,
-			       <&{/padctl@0,7009f000/pads/utmi/utmi-2}>,
-			       <&{/padctl@0,7009f000/pads/utmi/utmi-3}>,
-			       <&{/padctl@0,7009f000/pads/pcie/pcie-6}>,
-			       <&{/padctl@0,7009f000/pads/pcie/pcie-5}>;
-			phy-names = "utmi-0", "utmi-1", "utmi-2",
-				    "utmi-3", "usb3-0", "usb3-1";
-
-			dvddio-pex-supply = <&vdd_pex_1v05>;
-			hvddio-pex-supply = <&vdd_1v8>;
-			avdd-usb-supply = <&vdd_3v3_sys>;
-			/* XXX what are these? */
-			avdd-pll-utmip-supply = <&vdd_1v8>;
-			avdd-pll-uerefe-supply = <&vdd_pex_1v05>;
-			dvdd-usb-ss-pll-supply = <&vdd_pex_1v05>;
-			hvdd-usb-ss-pll-e-supply = <&vdd_1v8>;
-		};
 	};
 
 	padctl@0,7009f000 {
