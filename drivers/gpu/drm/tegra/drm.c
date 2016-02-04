@@ -23,6 +23,9 @@
 #define DRIVER_MINOR 0
 #define DRIVER_PATCHLEVEL 0
 
+unsigned int drm_tegra_debug = 0;
+module_param_named(debug, drm_tegra_debug, int, 0600);
+
 struct tegra_drm_file {
 	struct list_head contexts;
 };

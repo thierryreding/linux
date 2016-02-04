@@ -208,14 +208,19 @@ static inline struct tegra_sor *to_sor(struct tegra_output *output)
 static inline u32 tegra_sor_readl(struct tegra_sor *sor, unsigned int offset)
 {
 	u32 value = readl(sor->regs + (offset << 2));
-	dev_dbg(sor->dev, "%08x > %08x\n", offset, value);
+
+	if (drm_tegra_debug & DRM_TEGRA_DEBUG_REGISTER)
+		dev_dbg(sor->dev, "%08x > %08x\n", offset, value);
+
 	return value;
 }
 
 static inline void tegra_sor_writel(struct tegra_sor *sor, u32 value,
 				    unsigned int offset)
 {
-	dev_dbg(sor->dev, "%08x < %08x\n", offset, value);
+	if (drm_tegra_debug & DRM_TEGRA_DEBUG_REGISTER)
+		dev_dbg(sor->dev, "%08x < %08x\n", offset, value);
+
 	writel(value, sor->regs + (offset << 2));
 }
 

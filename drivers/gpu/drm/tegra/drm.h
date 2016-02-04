@@ -281,4 +281,8 @@ extern struct platform_driver tegra_sor_driver;
 extern struct platform_driver tegra_gr2d_driver;
 extern struct platform_driver tegra_gr3d_driver;
 
+#define DRM_TEGRA_DEBUG_REGISTER (1 << 0)
+
+extern unsigned int drm_tegra_debug;
+
 #endif /* HOST1X_DRM_H */
