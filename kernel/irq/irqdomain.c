@@ -64,6 +64,7 @@ EXPORT_SYMBOL_GPL(irq_domain_alloc_fwnode);
 
 /**
  * irq_domain_free_fwnode - Free a non-OF-backed fwnode_handle
+ * @fwnode: firmware node to free
  *
  * Free a fwnode_handle allocated with irq_domain_alloc_fwnode.
  */
@@ -82,7 +83,7 @@ EXPORT_SYMBOL_GPL(irq_domain_free_fwnode);
 
 /**
  * __irq_domain_add() - Allocate a new irq_domain data structure
- * @of_node: optional device-tree node of the interrupt controller
+ * @fwnode: optional firmware node of the interrupt controller
  * @size: Size of linear map; 0 for radix mapping only
  * @hwirq_max: Maximum number of interrupts supported by controller
  * @direct_max: Maximum value of direct maps; Use ~0 for no limit; 0 for no
@@ -776,9 +777,17 @@ __initcall(irq_debugfs_init);
 
 /**
  * irq_domain_xlate_onecell() - Generic xlate for direct one cell bindings
+ * @d: IRQ domain
+ * @ctrlr: device tree node of the interrupt controller
+ * @intspec: interrupt specifier
+ * @intsize: size of interrupt specifier
+ * @out_hwirq: return location for the hardware interrupt number
+ * @out_type: return location for the interrupt type
  *
  * Device Tree IRQ specifier translation function which works with one cell
  * bindings where the cell value maps directly to the hwirq number.
+ *
+ * Returns: 0 on success or a negative error code on failure.
  */
 int irq_domain_xlate_onecell(struct irq_domain *d, struct device_node *ctrlr,
 			     const u32 *intspec, unsigned int intsize,
@@ -794,10 +803,18 @@ EXPORT_SYMBOL_GPL(irq_domain_xlate_onecell);
 
 /**
  * irq_domain_xlate_twocell() - Generic xlate for direct two cell bindings
+ * @d: IRQ domain
+ * @ctrlr: device tree node of the interrupt controller
+ * @intspec: interrupt specifier
+ * @intsize: size of interrupt specifier
+ * @out_hwirq: return location for the hardware interrupt number
+ * @out_type: return location for the interrupt type
  *
  * Device Tree IRQ specifier translation function which works with two cell
  * bindings where the cell values map directly to the hwirq number
  * and linux irq flags.
+ *
+ * Returns: 0 on success or a negative error code on failure.
  */
 int irq_domain_xlate_twocell(struct irq_domain *d, struct device_node *ctrlr,
 			const u32 *intspec, unsigned int intsize,
@@ -813,6 +830,12 @@ EXPORT_SYMBOL_GPL(irq_domain_xlate_twocell);
 
 /**
  * irq_domain_xlate_onetwocell() - Generic xlate for one or two cell bindings
+ * @d: IRQ domain
+ * @ctrlr: device tree node of the interrupt controller
+ * @intspec: interrupt specifier
+ * @intsize: size of interrupt specifier
+ * @out_hwirq: return location for the hardware interrupt number
+ * @out_type: return location for the interrupt type
  *
  * Device Tree IRQ specifier translation function which works with either one
  * or two cell bindings where the cell values map directly to the hwirq number
@@ -821,6 +844,8 @@ EXPORT_SYMBOL_GPL(irq_domain_xlate_twocell);
  * Note: don't use this function unless your interrupt controller explicitly
  * supports both one and two cell bindings.  For the majority of controllers
  * the _onecell() or _twocell() variants above should be used.
+ *
+ * Returns: 0 on success or a negative error code on failure.
  */
 int irq_domain_xlate_onetwocell(struct irq_domain *d,
 				struct device_node *ctrlr,
@@ -1254,6 +1279,7 @@ void irq_domain_free_irqs(unsigned int virq, unsigned int nr_irqs)
 
 /**
  * irq_domain_alloc_irqs_parent - Allocate interrupts from parent domain
+ * @domain:	IRQ domain
  * @irq_base:	Base IRQ number
  * @nr_irqs:	Number of IRQs to allocate
  * @arg:	Allocation data (arch/domain specific)
@@ -1278,6 +1304,7 @@ int irq_domain_alloc_irqs_parent(struct irq_domain *domain,
 
 /**
  * irq_domain_free_irqs_parent - Free interrupts from parent domain
+ * @domain:	IRQ domain
  * @irq_base:	Base IRQ number
  * @nr_irqs:	Number of IRQs to free
  *
