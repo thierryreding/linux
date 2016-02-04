@@ -304,6 +304,13 @@
 
 	pmc@0,7000e400 {
 		nvidia,invert-interrupt;
+
+		i2c-thermtrip {
+			nvidia,i2c-controller-id = <4>;
+			nvidia,bus-addr = <0x3c>;
+			nvidia,reg-addr = <0x41>;
+			nvidia,reg-data = <0x02>;
+		};
 	};
 
 	/* eMMC */
