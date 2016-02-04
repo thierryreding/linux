@@ -1378,25 +1378,25 @@
 		status = "okay";
 
 		pads {
-			utmi {
+			usb2 {
 				status = "okay";
 
-				utmi-0 {
+				usb2-0 {
 					nvidia,function = "xusb";
 					status = "okay";
 				};
 
-				utmi-1 {
+				usb2-1 {
 					nvidia,function = "xusb";
 					status = "okay";
 				};
 
-				utmi-2 {
+				usb2-2 {
 					nvidia,function = "xusb";
 					status = "okay";
 				};
 
-				utmi-3 {
+				usb2-3 {
 					nvidia,function = "xusb";
 					status = "okay";
 				};
@@ -1452,38 +1452,36 @@
 		};
 
 		ports {
-			utmi-0 {
+			usb2-0 {
 				status = "okay";
 				mode = "otg";
 			};
 
-			utmi-1 {
+			usb2-1 {
 				status = "okay";
 				vbus-supply = <&vdd_5v0_rtl>;
 				mode = "host";
 			};
 
-			utmi-2 {
+			usb2-2 {
 				status = "okay";
 				vbus-supply = <&vdd_usb_vbus>;
 				mode = "host";
 			};
 
-			utmi-3 {
+			usb2-3 {
 				status = "okay";
 				mode = "host";
 			};
 
 			usb3-0 {
+				nvidia,usb2-companion = <1>;
 				status = "okay";
-				nvidia,lanes = "pcie-6";
-				nvidia,port = <1>;
 			};
 
 			usb3-1 {
+				nvidia,usb2-companion = <2>;
 				status = "okay";
-				nvidia,lanes = "pcie-5";
-				nvidia,port = <2>;
 			};
 		};
 	};
