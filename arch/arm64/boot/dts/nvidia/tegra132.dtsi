@@ -649,14 +649,110 @@
 		resets = <&tegra_car 142>;
 		reset-names = "padctl";
 
-		#phy-cells = <1>;
+		pads {
+			usb2 {
+				status = "disabled";
 
-		phys {
-			pcie-0 {
+				usb2-0 {
+					status = "disabled";
+					#phy-cells = <0>;
+				};
+
+				usb2-1 {
+					status = "disabled";
+					#phy-cells = <0>;
+				};
+
+				usb2-2 {
+					status = "disabled";
+					#phy-cells = <0>;
+				};
+			};
+
+			ulpi {
+				status = "disabled";
+
+				ulpi-0 {
+					status = "disabled";
+					#phy-cells = <0>;
+				};
+			};
+
+			hsic {
+				status = "disabled";
+
+				hsic-0 {
+					status = "disabled";
+					#phy-cells = <0>;
+				};
+
+				hsic-1 {
+					status = "disabled";
+					#phy-cells = <0>;
+				};
+			};
+
+			pcie {
+				status = "disabled";
+
+				pcie-0 {
+					status = "disabled";
+					#phy-cells = <0>;
+				};
+
+				pcie-1 {
+					status = "disabled";
+					#phy-cells = <0>;
+				};
+
+				pcie-2 {
+					status = "disabled";
+					#phy-cells = <0>;
+				};
+
+				pcie-3 {
+					status = "disabled";
+					#phy-cells = <0>;
+				};
+
+				pcie-4 {
+					status = "disabled";
+					#phy-cells = <0>;
+				};
+			};
+
+			sata {
+				status = "disabled";
+
+				sata-0 {
+					status = "disabled";
+					#phy-cells = <0>;
+				};
+			};
+		};
+
+		ports {
+			usb2-0 {
 				status = "disabled";
 			};
 
-			sata-0 {
+			usb2-1 {
+				status = "disabled";
+			};
+
+			usb2-2 {
+				status = "disabled";
+			};
+
+			ulpi-0 {
+				status = "disabled";
+			};
+
+			hsic-0 {
+				status = "disabled";
+			};
+
+			hsic-1 {
 				status = "disabled";
 			};
 
@@ -665,18 +761,6 @@
 			};
 
 			usb3-1 {
-				status = "disabled";
-			};
-
-			utmi-0 {
-				status = "disabled";
-			};
-
-			utmi-1 {
-				status = "disabled";
-			};
-
-			utmi-2 {
 				status = "disabled";
 			};
 		};
