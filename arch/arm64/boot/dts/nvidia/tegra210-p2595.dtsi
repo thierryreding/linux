@@ -1327,10 +1327,36 @@
 	};
 
 	padctl@0,7009f000 {
-		status = "disabled";
+		status = "okay";
 
 		pads {
+			usb2 {
+				status = "okay";
+
+				usb2-0 {
+					nvidia,function = "xusb";
+					status = "okay";
+				};
+
+				usb2-1 {
+					nvidia,function = "xusb";
+					status = "okay";
+				};
+
+				usb2-2 {
+					nvidia,function = "xusb";
+					status = "okay";
+				};
+
+				usb2-3 {
+					nvidia,function = "xusb";
+					status = "okay";
+				};
+			};
+
 			pcie {
+				status = "okay";
+
 				pcie-0 {
 					nvidia,function = "pcie-x1";
 					status = "okay";
@@ -1368,32 +1394,46 @@
 			};
 
 			sata {
+				status = "okay";
+
 				sata-0 {
 					nvidia,function = "sata";
 					status = "okay";
 				};
 			};
+		};
 
-			utmi {
-				utmi-0 {
-					nvidia,function = "xusb";
-					status = "okay";
-				};
+		ports {
+			usb2-0 {
+				status = "okay";
+				mode = "otg";
+			};
 
-				utmi-1 {
-					nvidia,function = "xusb";
-					status = "okay";
-				};
+			usb2-1 {
+				status = "okay";
+				vbus-supply = <&vdd_5v0_rtl>;
+				mode = "host";
+			};
 
-				utmi-2 {
-					nvidia,function = "xusb";
-					status = "okay";
-				};
+			usb2-2 {
+				status = "okay";
+				vbus-supply = <&vdd_usb_vbus>;
+				mode = "host";
+			};
 
-				utmi-3 {
-					nvidia,function = "xusb";
-					status = "okay";
-				};
+			usb2-3 {
+				status = "okay";
+				mode = "host";
+			};
+
+			usb3-0 {
+				nvidia,usb2-companion = <1>;
+				status = "okay";
+			};
+
+			usb3-1 {
+				nvidia,usb2-companion = <2>;
+				status = "okay";
 			};
 		};
 	};
@@ -1524,6 +1564,28 @@
 			gpio = <&gpio TEGRA_GPIO(CC, 7) GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 			vin-supply = <&vdd_5v0_sys>;
+		};
+
+		vdd_5v0_rtl: regulator@9 {
+			compatible = "regulator-fixed";
+			reg = <9>;
+			regulator-name = "RTL_V5";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio TEGRA_GPIO(D, 4) GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			vin-supply = <&vdd_5v0_io>;
+		};
+
+		vdd_usb_vbus: regulator@10 {
+			compatible = "regulator-fixed";
+			reg = <10>;
+			regulator-name = "USB_VBUS_J38";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio TEGRA_GPIO(CC, 5) GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			vin-supply = <&vdd_5v0_io>;
 		};
 	};
 };
