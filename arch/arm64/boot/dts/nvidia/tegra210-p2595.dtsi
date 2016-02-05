@@ -1307,4 +1307,76 @@
 			};
 		};
 	};
+
+	padctl@0,7009f000 {
+		status = "disabled";
+
+		pads {
+			pcie {
+				pcie-0 {
+					nvidia,function = "pcie-x1";
+					status = "okay";
+				};
+
+				pcie-1 {
+					nvidia,function = "pcie-x4";
+					status = "okay";
+				};
+
+				pcie-2 {
+					nvidia,function = "pcie-x4";
+					status = "okay";
+				};
+
+				pcie-3 {
+					nvidia,function = "pcie-x4";
+					status = "okay";
+				};
+
+				pcie-4 {
+					nvidia,function = "pcie-x4";
+					status = "okay";
+				};
+
+				pcie-5 {
+					nvidia,function = "usb3-ss";
+					status = "okay";
+				};
+
+				pcie-6 {
+					nvidia,function = "usb3-ss";
+					status = "okay";
+				};
+			};
+
+			sata {
+				sata-0 {
+					nvidia,function = "sata";
+					status = "okay";
+				};
+			};
+
+			utmi {
+				utmi-0 {
+					nvidia,function = "xusb";
+					status = "okay";
+				};
+
+				utmi-1 {
+					nvidia,function = "xusb";
+					status = "okay";
+				};
+
+				utmi-2 {
+					nvidia,function = "xusb";
+					status = "okay";
+				};
+
+				utmi-3 {
+					nvidia,function = "xusb";
+					status = "okay";
+				};
+			};
+		};
+	};
 };
