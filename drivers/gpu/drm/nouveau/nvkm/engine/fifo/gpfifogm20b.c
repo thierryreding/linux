@@ -34,7 +34,7 @@ gm20b_fifo_gpfifo_fini(struct nvkm_fifo_chan *base)
 	if (!list_empty(&chan->head)) {
 		list_del_init(&chan->head);
 		nvkm_mask(device, 0x800004 + coff, 0x00000800, 0x00000800);
-		gk104_fifo_runlist_update(fifo, chan->engine);
+		gk104_fifo_runlist_commit(fifo, chan->engine);
 	}
 
 	gk104_fifo_gpfifo_kick(chan);

@@ -302,19 +302,18 @@ gk20a_instobj_dtor_iommu(struct nvkm_memory *memory)
 	struct gk20a_instmem *imem = node->base.imem;
 	struct device *dev = imem->base.subdev.device->dev;
 	struct nvkm_mm_node *r;
-	unsigned long flags;
 	int i;
 
 	if (unlikely(list_empty(&node->base.mem.regions)))
 		goto out;
 
-	spin_lock_irqsave(&imem->lock, flags);
+	mutex_lock(&imem->lock);
 
 	/* vaddr has already been recycled */
 	if (node->base.vaddr)
 		gk20a_instobj_iommu_recycle_vaddr(node);
 
-	spin_unlock_irqrestore(&imem->lock, flags);
+	mutex_unlock(&imem->lock);
 
 	r = list_first_entry(&node->base.mem.regions, struct nvkm_mm_node,
 			     rl_entry);

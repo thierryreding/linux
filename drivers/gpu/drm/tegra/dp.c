@@ -336,7 +336,7 @@ retry:
 		      link->lanes, (link->lanes > 1) ? "s" : "",
 		      link->rate / 100);
 
-	err = drm_dp_link_configure(tegra->aux, link);
+	err = __drm_dp_link_configure(link);
 	if (err < 0) {
 		DRM_ERROR("failed to configure DP link: %d\n", err);
 		return err;
@@ -393,7 +393,7 @@ static int drm_dp_link_train_fast(struct drm_dp_link *link)
 		      link->lanes, (link->lanes > 1) ? "s" : "",
 		      link->rate / 100);
 
-	err = drm_dp_link_configure(tegra->aux, link);
+	err = __drm_dp_link_configure(link);
 	if (err < 0) {
 		DRM_ERROR("failed to configure DP link: %d\n", err);
 		return err;

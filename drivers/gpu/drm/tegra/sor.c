@@ -648,6 +648,12 @@ static int tegra_sor_dp_link_apply_training(struct drm_dp_link *lnk)
 		pattern = pattern << 8 | value;
 	}
 
+	/*
+	dev_dbg(sor->dev, "SOR_LANE_DRIVE_CURRENT0: %08x\n", voltage_swing);
+	dev_dbg(sor->dev, "SOR_LANE_PREEMPHASIS0:   %08x\n", pre_emphasis);
+	dev_dbg(sor->dev, "SOR_LANE_POSTCURSOR0:    %08x\n", post_cursor);
+	*/
+
 	tegra_sor_writel(sor, voltage_swing, SOR_LANE_DRIVE_CURRENT0);
 	tegra_sor_writel(sor, pre_emphasis, SOR_LANE_PREEMPHASIS0);
 
@@ -2164,7 +2170,7 @@ static void tegra_sor_edp_enable(struct drm_encoder *encoder)
 	tegra_sor_writel(sor, value, SOR_XBAR_CTRL);
 
 	/* switch to DP parent clock */
-	err = tegra_sor_set_parent_clock(sor, sor->clk_brick);
+	err = tegra_sor_set_parent_clock(sor, sor->clk_dp);
 	if (err < 0)
 		dev_err(sor->dev, "failed to set parent clock: %d\n", err);
 
@@ -3533,6 +3539,30 @@ static const struct tegra_sor_soc tegra210_sor = {
 	.tx_pu = tegra124_sor_tx_pu,
 };
 
+static const u8 tegra210_sor1_pre_emphasis[4][4][4] = {
+	{
+		{ 0x00, 0x08, 0x12, 0x24 },
+		{ 0x01, 0x0e, 0x1d, },
+		{ 0x01, 0x13, },
+		{ 0x00, },
+	}, {
+		{ 0x00, 0x08, 0x12, 0x24 },
+		{ 0x00, 0x0e, 0x1d, },
+		{ 0x00, 0x13, },
+		{ 0x00, }
+	}, {
+		{ 0x00, 0x08, 0x12, 0x24 },
+		{ 0x00, 0x0e, 0x1d, },
+		{ 0x00, 0x13, },
+		{ 0x00, },
+	}, {
+		{ 0x00, 0x08, 0x12, 0x24 },
+		{ 0x00, 0x0e, 0x1d, },
+		{ 0x00, 0x13, },
+		{ 0x00, },
+	},
+};
+
 static const struct tegra_sor_soc tegra210_sor1 = {
 	.supports_edp = false,
 	.supports_lvds = false,
@@ -3543,6 +3573,9 @@ static const struct tegra_sor_soc tegra210_sor1 = {
 	.xbar_cfg = tegra210_sor_xbar_cfg,
 	.lane_map = tegra210_sor_lane_map,
 	.voltage_swing = tegra124_sor_voltage_swing,
+	/*
+	.pre_emphasis = tegra210_sor1_pre_emphasis,
+	*/
 	.pre_emphasis = tegra124_sor_pre_emphasis,
 	.post_cursor = tegra124_sor_post_cursor,
 	.tx_pu = tegra124_sor_tx_pu,

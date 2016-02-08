@@ -2268,7 +2268,7 @@ static const char *tegra_clk_sor1_parents[] = {
 
 static const struct tegra_clk_parent tegra_clk_sor1_mux[] = {
 	{ "sor_safe",    0x0000c000, 0x00000000 },
-	{ "sor1_brick",  0x0000c000, 0xa0004000 },
+	{ "sor1_brick",  0x0000c000, 0x00004000 },
 	{ "pll_p_out0",  0xe000c000, 0x00008000 },
 	{ "pll_d_out0",  0xe000c000, 0x40008000 },
 #if 0

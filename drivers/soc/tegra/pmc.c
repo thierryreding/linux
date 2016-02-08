@@ -146,7 +146,11 @@ struct tegra_pmc {
 	struct device *dev;
 	void __iomem *base;
 	struct clk *clk;
-	struct dentry *debugfs;
+
+	struct {
+		struct dentry *powergate;
+		struct dentry *dpd;
+	} debugfs;
 
 	const struct tegra_pmc_soc *soc;
 
@@ -538,16 +542,26 @@ static const struct file_operations dpd_fops = {
 
 static int tegra_powergate_debugfs_init(void)
 {
-	pmc->debugfs = debugfs_create_file("powergate", S_IRUGO, NULL, NULL,
-					   &powergate_fops);
-	if (!pmc->debugfs)
+	pmc->debugfs.powergate = debugfs_create_file("powergate", S_IRUGO,
+						     NULL, NULL,
+						     &powergate_fops);
+	if (!pmc->debugfs.powergate)
 		return -ENOMEM;
 
-	d = debugfs_create_file("dpd", S_IRUGO, NULL, NULL, &dpd_fops);
-	if (!d)
+	pmc->debugfs.dpd = debugfs_create_file("dpd", S_IRUGO, NULL, NULL,
+					       &dpd_fops);
+	if (!pmc->debugfs.dpd) {
+		debugfs_remove(pmc->debugfs.powergate);
 		return -ENOMEM;
+	}
 
 	return 0;
+}
+
+static void tegra_powergate_debugfs_exit(void)
+{
+	debugfs_remove(pmc->debugfs.dpd);
+	debugfs_remove(pmc->debugfs.powergate);
 }
 
 static int tegra_io_rail_prepare(int id, unsigned long *request,
@@ -927,7 +941,7 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 	if (IS_ERR(pmc->clk)) {
 		err = PTR_ERR(pmc->clk);
 		dev_err(&pdev->dev, "failed to get pclk: %d\n", err);
-		return err;
+		goto error;
 	}
 
 	pmc->dev = &pdev->dev;
@@ -939,18 +953,24 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 	if (IS_ENABLED(CONFIG_DEBUG_FS)) {
 		err = tegra_powergate_debugfs_init();
 		if (err < 0)
-			return err;
+			goto error;
 	}
 
 	err = register_restart_handler(&tegra_pmc_restart_handler);
 	if (err) {
-		debugfs_remove(pmc->debugfs);
+		tegra_powergate_debugfs_exit();
 		dev_err(&pdev->dev, "unable to register restart handler, %d\n",
 			err);
-		return err;
+		goto error;
 	}
 
+	iounmap(base);
+
 	return 0;
+
+error:
+	pmc->base = base;
+	return err;
 }
 
 #if defined(CONFIG_PM_SLEEP) && defined(CONFIG_ARM)

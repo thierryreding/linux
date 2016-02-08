@@ -128,11 +128,13 @@ EXPORT_SYMBOL(drm_dp_get_adjust_request_post_cursor);
 
 void drm_dp_link_train_clock_recovery_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 {
-	unsigned int min;
+	unsigned int min = drm_dp_aux_rd_interval(dpcd);
 
-	if (dpcd[DP_TRAINING_AUX_RD_INTERVAL] != 0)
-		min = dpcd[DP_TRAINING_AUX_RD_INTERVAL] * 4000;
-	else
+	/*
+	 * The DP specification mandates a delay of 100 us during clock
+	 * recovery if the sink doesn't report an AUX read interval.
+	 */
+	if (min == 0)
 		min = 100;
 
 	usleep_range(min, min * 2);
@@ -141,11 +143,13 @@ EXPORT_SYMBOL(drm_dp_link_train_clock_recovery_delay);
 
 void drm_dp_link_train_channel_eq_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 {
-	unsigned int min;
+	unsigned int min = drm_dp_aux_rd_interval(dpcd);
 
-	if (dpcd[DP_TRAINING_AUX_RD_INTERVAL] != 0)
-		min = dpcd[DP_TRAINING_AUX_RD_INTERVAL] * 4000;
-	else
+	/*
+	 * The DP specification mandates a delay of 400 us during clock
+	 * recovery if the sink doesn't report an AUX read interval.
+	 */
+	if (min == 0)
 		min = 400;
 
 	usleep_range(min, min * 2);
@@ -214,7 +218,6 @@ static int drm_dp_dpcd_access(struct drm_dp_aux *aux, u8 request,
 	 * sufficient, bump to 32 which makes Dell 4k monitors happier.
 	 */
 	for (retry = 0; retry < 32; retry++) {
-
 		mutex_lock(&aux->hw_mutex);
 		err = aux->transfer(aux, &msg);
 		mutex_unlock(&aux->hw_mutex);
@@ -225,11 +228,11 @@ static int drm_dp_dpcd_access(struct drm_dp_aux *aux, u8 request,
 			return err;
 		}
 
-
 		switch (msg.reply & DP_AUX_NATIVE_REPLY_MASK) {
 		case DP_AUX_NATIVE_REPLY_ACK:
 			if (err < size)
 				return -EPROTO;
+
 			return err;
 
 		case DP_AUX_NATIVE_REPLY_NACK:
