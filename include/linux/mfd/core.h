@@ -18,11 +18,11 @@
 
 #define MFD_ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
-#define MFD_CELL_ALL(_name, _res, _pdata, _id, _compat, _match)		\
+#define MFD_CELL_ALL(_name, _res, _num, _pdata, _id, _compat, _match)	\
 	{								\
 		.name = (_name),					\
 		.resources = (_res),					\
-		.num_resources = MFD_ARRAY_SIZE((_res)),		\
+		.num_resources = (_num),				\
 		.platform_data = (_pdata),				\
 		.pdata_size = MFD_ARRAY_SIZE((_pdata)), 		\
 		.of_compatible = (_compat),				\
@@ -31,16 +31,19 @@
 	}
 
 #define OF_MFD_CELL(_name, _res, _pdata, _id, _compat)			\
-		MFD_CELL_ALL(_name, _res, _pdata, _id, _compat, NULL)	\
+		MFD_CELL_ALL(_name, _res, MFD_ARRAY_SIZE(_res), _pdata,	\
+			     _id, _compat, NULL)			\
 
 #define ACPI_MFD_CELL(_name, _res, _pdata, _id, _match)			\
-		MFD_CELL_ALL(_name, _res, _pdata, _id, NULL, _match)	\
+		MFD_CELL_ALL(_name, _res, MFD_ARRAY_SIZE(_res), _pdata,	\
+			     _id, NULL, _match)				\
 
 #define MFD_CELL_BASIC(_name, _res, _pdata, _id)			\
-		MFD_CELL_ALL(_name, _res, _pdata, _id, NULL, NULL)	\
+		MFD_CELL_ALL(_name, _res, MFD_ARRAY_SIZE(_res), _pdata,	\
+			     _id, NULL, NULL)				\
 
 #define MFD_CELL_NAME(_name)						\
-		MFD_CELL_ALL(_name, NULL, NULL, 0, NULL, NULL)		\
+		MFD_CELL_ALL(_name, NULL, 0, NULL, 0, NULL, NULL)	\
 
 struct irq_domain;
 struct property_set;
