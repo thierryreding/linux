@@ -1042,5 +1042,7 @@ const struct tegra_mc_soc tegra132_mc_soc = {
 	.atom_size = 32,
 	.client_id_mask = 0x7f,
 	.smmu = &tegra132_smmu_soc,
+	.emem_regs = tegra124_mc_emem_regs,
+	.num_emem_regs = ARRAY_SIZE(tegra124_mc_emem_regs),
 };
 #endif /* CONFIG_ARCH_TEGRA_132_SOC */
