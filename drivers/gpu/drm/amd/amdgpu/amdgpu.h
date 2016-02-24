@@ -706,7 +706,7 @@ struct amdgpu_flip_work {
 	struct work_struct		flip_work;
 	struct work_struct		unpin_work;
 	struct amdgpu_device		*adev;
-	int				crtc_id;
+	unsigned int			pipe;
 	uint64_t			base;
 	struct drm_pending_vblank_event *event;
 	struct amdgpu_bo		*old_rbo;

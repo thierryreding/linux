@@ -544,8 +544,8 @@ void nv17_ctv_update_rescaler(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
 	struct nv17_tv_encoder *tv_enc = to_tv_enc(encoder);
-	int head = nouveau_crtc(encoder->crtc)->index;
-	struct nv04_crtc_reg *regs = &nv04_display(dev)->mode_reg.crtc_reg[head];
+	unsigned int pipe = nouveau_crtc(encoder->crtc)->pipe;
+	struct nv04_crtc_reg *regs = &nv04_display(dev)->mode_reg.crtc_reg[pipe];
 	struct drm_display_mode *crtc_mode = &encoder->crtc->mode;
 	struct drm_display_mode *output_mode =
 		&get_tv_norm(encoder)->ctv_enc_mode.mode;
@@ -580,13 +580,13 @@ void nv17_ctv_update_rescaler(struct drm_encoder *encoder)
 		NV_PRAMDAC_FP_DEBUG_1_XSCALE_TESTMODE_ENABLE |
 		XLATE(hratio, 0, NV_PRAMDAC_FP_DEBUG_1_XSCALE_VALUE);
 
-	NVWriteRAMDAC(dev, head, NV_PRAMDAC_FP_HVALID_START,
+	NVWriteRAMDAC(dev, pipe, NV_PRAMDAC_FP_HVALID_START,
 		      regs->fp_horiz_regs[FP_VALID_START]);
-	NVWriteRAMDAC(dev, head, NV_PRAMDAC_FP_HVALID_END,
+	NVWriteRAMDAC(dev, pipe, NV_PRAMDAC_FP_HVALID_END,
 		      regs->fp_horiz_regs[FP_VALID_END]);
-	NVWriteRAMDAC(dev, head, NV_PRAMDAC_FP_VVALID_START,
+	NVWriteRAMDAC(dev, pipe, NV_PRAMDAC_FP_VVALID_START,
 		      regs->fp_vert_regs[FP_VALID_START]);
-	NVWriteRAMDAC(dev, head, NV_PRAMDAC_FP_VVALID_END,
+	NVWriteRAMDAC(dev, pipe, NV_PRAMDAC_FP_VVALID_END,
 		      regs->fp_vert_regs[FP_VALID_END]);
-	NVWriteRAMDAC(dev, head, NV_PRAMDAC_FP_DEBUG_1, regs->fp_debug_1);
+	NVWriteRAMDAC(dev, pipe, NV_PRAMDAC_FP_DEBUG_1, regs->fp_debug_1);
 }

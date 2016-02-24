@@ -181,7 +181,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			crtc = (struct drm_crtc *)minfo->crtcs[i];
 			if (crtc && crtc->base.id == info->mode_crtc.id) {
 				struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
-				ui32 = amdgpu_crtc->crtc_id;
+				ui32 = amdgpu_crtc->pipe;
 				found = 1;
 				break;
 			}
@@ -627,6 +627,8 @@ u32 amdgpu_get_vblank_counter_kms(struct drm_device *dev, unsigned int pipe)
 	 * result by 1 to give the proper appearance to caller.
 	 */
 	if (adev->mode_info.crtcs[pipe]) {
+		struct drm_crtc *crtc = &adev->mode_info.crtcs[pipe]->base;
+
 		/* Repeat readout if needed to provide stable result if
 		 * we cross start of vsync during the queries.
 		 */
@@ -637,9 +639,9 @@ u32 amdgpu_get_vblank_counter_kms(struct drm_device *dev, unsigned int pipe)
 			 * vertical scanout pos.
 			 */
 			stat = amdgpu_get_crtc_scanoutpos(
-				dev, pipe, GET_DISTANCE_TO_VBLANKSTART,
+				crtc, GET_DISTANCE_TO_VBLANKSTART,
 				&vpos, &hpos, NULL, NULL,
-				&adev->mode_info.crtcs[pipe]->base.hwmode);
+				&crtc->hwmode);
 		} while (count != amdgpu_display_vblank_get_counter(adev, pipe));
 
 		if (((stat & (DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_ACCURATE)) !=
@@ -734,7 +736,7 @@ int amdgpu_get_vblank_timestamp_kms(struct drm_device *dev, unsigned int pipe,
 	}
 
 	/* Helper routine in DRM core does all the work: */
-	return drm_calc_vbltimestamp_from_scanoutpos(dev, pipe, max_error,
+	return drm_calc_vbltimestamp_from_scanoutpos(crtc, max_error,
 						     vblank_time, flags,
 						     &crtc->hwmode);
 }

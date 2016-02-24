@@ -614,6 +614,64 @@ static int mdp5_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	return 0;
 }
 
+static int mdp5_get_scanoutpos(struct drm_crtc *crtc, unsigned int flags,
+			       int *vpos, int *hpos, ktime_t *stime,
+			       ktime_t *etime,
+			       const struct drm_display_mode *mode)
+{
+	struct drm_encoder *encoder;
+	int line, vsw, vbp, vactive_start, vactive_end, vfp_end;
+	unsigned int pipe = drm_crtc_index(crtc);
+	int ret = 0;
+
+	encoder = mdp5_get_encoder_from_crtc(crtc);
+	if (!encoder) {
+		DRM_ERROR("no encoder found for crtc %u\n", pipe);
+		return 0;
+	}
+
+	ret |= DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_ACCURATE;
+
+	vsw = mode->crtc_vsync_end - mode->crtc_vsync_start;
+	vbp = mode->crtc_vtotal - mode->crtc_vsync_end;
+
+	/*
+	 * the line counter is 1 at the start of the VSYNC pulse and VTOTAL at
+	 * the end of VFP. Translate the porch values relative to the line
+	 * counter positions.
+	 */
+
+	vactive_start = vsw + vbp + 1;
+
+	vactive_end = vactive_start + mode->crtc_vdisplay;
+
+	/* last scan line before VSYNC */
+	vfp_end = mode->crtc_vtotal;
+
+	if (stime)
+		*stime = ktime_get();
+
+	line = mdp5_encoder_get_linecount(encoder);
+
+	if (line < vactive_start) {
+		line -= vactive_start;
+		ret |= DRM_SCANOUTPOS_IN_VBLANK;
+	} else if (line > vactive_end) {
+		line = line - vfp_end - vactive_start;
+		ret |= DRM_SCANOUTPOS_IN_VBLANK;
+	} else {
+		line -= vactive_start;
+	}
+
+	*vpos = line;
+	*hpos = 0;
+
+	if (etime)
+		*etime = ktime_get();
+
+	return ret;
+}
+
 static const struct drm_crtc_funcs mdp5_crtc_funcs = {
 	.set_config = drm_atomic_helper_set_config,
 	.destroy = mdp5_crtc_destroy,
@@ -624,6 +682,7 @@ static const struct drm_crtc_funcs mdp5_crtc_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
 	.cursor_set = mdp5_crtc_cursor_set,
 	.cursor_move = mdp5_crtc_cursor_move,
+	.get_scanout_position = mdp5_get_scanoutpos,
 };
 
 static const struct drm_crtc_helper_funcs mdp5_crtc_helper_funcs = {

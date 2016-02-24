@@ -47,7 +47,7 @@ nouveau_display_vblank_handler(struct nvif_notify *notify)
 {
 	struct nouveau_crtc *nv_crtc =
 		container_of(notify, typeof(*nv_crtc), vblank);
-	drm_handle_vblank(nv_crtc->base.dev, nv_crtc->index);
+	drm_handle_vblank(nv_crtc->base.dev, nv_crtc->pipe);
 	return NVIF_NOTIFY_KEEP;
 }
 
@@ -57,7 +57,7 @@ nouveau_display_vblank_enable(struct drm_device *dev, unsigned int pipe)
 	struct drm_crtc *crtc;
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-		if (nv_crtc->index == pipe) {
+		if (nv_crtc->pipe == pipe) {
 			nvif_notify_get(&nv_crtc->vblank);
 			return 0;
 		}
@@ -71,7 +71,7 @@ nouveau_display_vblank_disable(struct drm_device *dev, unsigned int pipe)
 	struct drm_crtc *crtc;
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-		if (nv_crtc->index == pipe) {
+		if (nv_crtc->pipe == pipe) {
 			nvif_notify_put(&nv_crtc->vblank);
 			return;
 		}
@@ -93,15 +93,16 @@ calc(int blanks, int blanke, int total, int line)
 }
 
 int
-nouveau_display_scanoutpos_head(struct drm_crtc *crtc, int *vpos, int *hpos,
-				ktime_t *stime, ktime_t *etime)
+nouveau_display_scanoutpos(struct drm_crtc *crtc, unsigned int flags,
+			   int *vpos, int *hpos, ktime_t *stime,
+			   ktime_t *etime, const struct drm_display_mode *mode)
 {
 	struct {
 		struct nv04_disp_mthd_v0 base;
 		struct nv04_disp_scanoutpos_v0 scan;
 	} args = {
 		.base.method = NV04_DISP_SCANOUTPOS,
-		.base.head = nouveau_crtc(crtc)->index,
+		.base.head = nouveau_crtc(crtc)->pipe,
 	};
 	struct nouveau_display *disp = nouveau_display(crtc->dev);
 	struct drm_vblank_crtc *vblank = &crtc->dev->vblank[drm_crtc_index(crtc)];
@@ -133,34 +134,15 @@ nouveau_display_scanoutpos_head(struct drm_crtc *crtc, int *vpos, int *hpos,
 }
 
 int
-nouveau_display_scanoutpos(struct drm_device *dev, unsigned int pipe,
-			   unsigned int flags, int *vpos, int *hpos,
-			   ktime_t *stime, ktime_t *etime,
-			   const struct drm_display_mode *mode)
-{
-	struct drm_crtc *crtc;
-
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if (nouveau_crtc(crtc)->index == pipe) {
-			return nouveau_display_scanoutpos_head(crtc, vpos, hpos,
-							       stime, etime);
-		}
-	}
-
-	return 0;
-}
-
-int
 nouveau_display_vblstamp(struct drm_device *dev, unsigned int pipe,
 			 int *max_error, struct timeval *time, unsigned flags)
 {
 	struct drm_crtc *crtc;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if (nouveau_crtc(crtc)->index == pipe) {
-			return drm_calc_vbltimestamp_from_scanoutpos(dev,
-					pipe, max_error, time, flags,
-					&crtc->hwmode);
+		if (nouveau_crtc(crtc)->pipe == pipe) {
+			return drm_calc_vbltimestamp_from_scanoutpos(crtc,
+					max_error, time, flags, &crtc->hwmode);
 		}
 	}
 
@@ -193,7 +175,7 @@ nouveau_display_vblank_init(struct drm_device *dev)
 				       nouveau_display_vblank_handler, false,
 				       NV04_DISP_NTFY_VBLANK,
 				       &(struct nvif_notify_head_req_v0) {
-					.head = nv_crtc->index,
+					.head = nv_crtc->pipe,
 				       },
 				       sizeof(struct nvif_notify_head_req_v0),
 				       sizeof(struct nvif_notify_head_rep_v0),
@@ -760,12 +742,12 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 
 	/* Initialize a page flip struct */
 	*s = (struct nouveau_page_flip_state)
-		{ { }, event, nouveau_crtc(crtc)->index,
+		{ { }, event, nouveau_crtc(crtc)->pipe,
 		  fb->bits_per_pixel, fb->pitches[0], crtc->x, crtc->y,
 		  new_bo->bo.offset };
 
 	/* Keep vblanks on during flip, for the target crtc of this flip */
-	drm_vblank_get(dev, nouveau_crtc(crtc)->index);
+	drm_vblank_get(dev, nouveau_crtc(crtc)->pipe);
 
 	/* Emit a page flip */
 	if (drm->device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
@@ -774,7 +756,7 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 			goto fail_unreserve;
 	} else {
 		struct nv04_display *dispnv04 = nv04_display(dev);
-		int head = nouveau_crtc(crtc)->index;
+		unsigned int pipe = nouveau_crtc(crtc)->pipe;
 
 		if (swap_interval) {
 			ret = RING_SPACE(chan, 8);
@@ -784,14 +766,14 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 			BEGIN_NV04(chan, NvSubImageBlit, 0x012c, 1);
 			OUT_RING  (chan, 0);
 			BEGIN_NV04(chan, NvSubImageBlit, 0x0134, 1);
-			OUT_RING  (chan, head);
+			OUT_RING  (chan, pipe);
 			BEGIN_NV04(chan, NvSubImageBlit, 0x0100, 1);
 			OUT_RING  (chan, 0);
 			BEGIN_NV04(chan, NvSubImageBlit, 0x0130, 1);
 			OUT_RING  (chan, 0);
 		}
 
-		nouveau_bo_ref(new_bo, &dispnv04->image[head]);
+		nouveau_bo_ref(new_bo, &dispnv04->image[pipe]);
 	}
 
 	ret = nouveau_page_flip_emit(chan, old_bo, new_bo, s, &fence);
@@ -810,7 +792,7 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	return 0;
 
 fail_unreserve:
-	drm_vblank_put(dev, nouveau_crtc(crtc)->index);
+	drm_vblank_put(dev, nouveau_crtc(crtc)->pipe);
 	ttm_bo_unreserve(&old_bo->bo);
 fail_unpin:
 	mutex_unlock(&cli->mutex);

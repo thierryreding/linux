@@ -96,7 +96,7 @@ int nv04_display_init(struct drm_device *);
 void nv04_display_fini(struct drm_device *);
 
 /* nv04_crtc.c */
-int nv04_crtc_create(struct drm_device *, int index);
+int nv04_crtc_create(struct drm_device *, unsigned int pipe);
 
 /* nv04_dac.c */
 int nv04_dac_create(struct drm_connector *, struct dcb_output *);
@@ -109,8 +109,8 @@ bool nv04_dac_in_use(struct drm_encoder *encoder);
 int nv04_dfp_create(struct drm_connector *, struct dcb_output *);
 int nv04_dfp_get_bound_head(struct drm_device *dev, struct dcb_output *dcbent);
 void nv04_dfp_bind_head(struct drm_device *dev, struct dcb_output *dcbent,
-			       int head, bool dl);
-void nv04_dfp_disable(struct drm_device *dev, int head);
+			unsigned int pipe, bool dl);
+void nv04_dfp_disable(struct drm_device *dev, unsigned int pipe);
 void nv04_dfp_update_fp_control(struct drm_encoder *encoder, int mode);
 
 /* nv04_tv.c */
@@ -167,7 +167,7 @@ nv_match_device(struct drm_device *dev, unsigned device,
 
 static inline void
 nouveau_bios_run_init_table(struct drm_device *dev, u16 table,
-			    struct dcb_output *outp, int crtc)
+			    struct dcb_output *outp, unsigned int pipe)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvkm_bios *bios = nvxx_bios(&drm->device);
@@ -176,7 +176,7 @@ nouveau_bios_run_init_table(struct drm_device *dev, u16 table,
 		.bios = bios,
 		.offset = table,
 		.outp = outp,
-		.crtc = crtc,
+		.crtc = pipe,
 		.execute = 1,
 	};
 

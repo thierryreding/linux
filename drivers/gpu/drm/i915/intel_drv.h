@@ -990,6 +990,10 @@ static inline bool intel_irqs_enabled(struct drm_i915_private *dev_priv)
 	return dev_priv->pm.irqs_enabled;
 }
 
+int i915_get_crtc_scanoutpos(struct drm_crtc *crtc, unsigned int flags,
+			     int *vpos, int *hpos, ktime_t *stime,
+			     ktime_t *etime,
+			     const struct drm_display_mode *mode);
 int intel_get_crtc_scanline(struct intel_crtc *crtc);
 void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv,
 				     unsigned int pipe_mask);

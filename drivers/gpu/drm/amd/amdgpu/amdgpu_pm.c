@@ -1147,7 +1147,7 @@ void amdgpu_pm_compute_clocks(struct amdgpu_device *adev)
 					    &ddev->mode_config.crtc_list, head) {
 				amdgpu_crtc = to_amdgpu_crtc(crtc);
 				if (crtc->enabled) {
-					adev->pm.dpm.new_active_crtcs |= (1 << amdgpu_crtc->crtc_id);
+					adev->pm.dpm.new_active_crtcs |= (1 << amdgpu_crtc->pipe);
 					adev->pm.dpm.new_active_crtc_count++;
 				}
 			}

@@ -48,7 +48,7 @@ void amdgpu_atombios_crtc_overscan_setup(struct drm_crtc *crtc,
 
 	memset(&args, 0, sizeof(args));
 
-	args.ucCRTC = amdgpu_crtc->crtc_id;
+	args.ucCRTC = amdgpu_crtc->pipe;
 
 	switch (amdgpu_crtc->rmx_type) {
 	case RMX_CENTER:
@@ -90,7 +90,7 @@ void amdgpu_atombios_crtc_scaler_setup(struct drm_crtc *crtc)
 
 	memset(&args, 0, sizeof(args));
 
-	args.ucScaler = amdgpu_crtc->crtc_id;
+	args.ucScaler = amdgpu_crtc->pipe;
 
 	switch (amdgpu_crtc->rmx_type) {
 	case RMX_FULL:
@@ -120,7 +120,7 @@ void amdgpu_atombios_crtc_lock(struct drm_crtc *crtc, int lock)
 
 	memset(&args, 0, sizeof(args));
 
-	args.ucCRTC = amdgpu_crtc->crtc_id;
+	args.ucCRTC = amdgpu_crtc->pipe;
 	args.ucEnable = lock;
 
 	amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args);
@@ -136,7 +136,7 @@ void amdgpu_atombios_crtc_enable(struct drm_crtc *crtc, int state)
 
 	memset(&args, 0, sizeof(args));
 
-	args.ucCRTC = amdgpu_crtc->crtc_id;
+	args.ucCRTC = amdgpu_crtc->pipe;
 	args.ucEnable = state;
 
 	amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args);
@@ -152,7 +152,7 @@ void amdgpu_atombios_crtc_blank(struct drm_crtc *crtc, int state)
 
 	memset(&args, 0, sizeof(args));
 
-	args.ucCRTC = amdgpu_crtc->crtc_id;
+	args.ucCRTC = amdgpu_crtc->pipe;
 	args.ucBlanking = state;
 
 	amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args);
@@ -168,7 +168,7 @@ void amdgpu_atombios_crtc_powergate(struct drm_crtc *crtc, int state)
 
 	memset(&args, 0, sizeof(args));
 
-	args.ucDispPipeId = amdgpu_crtc->crtc_id;
+	args.ucDispPipeId = amdgpu_crtc->pipe;
 	args.ucEnable = state;
 
 	amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args);
@@ -226,7 +226,7 @@ void amdgpu_atombios_crtc_set_dtd_timing(struct drm_crtc *crtc,
 		misc |= ATOM_DOUBLE_CLOCK_MODE;
 
 	args.susModeMiscInfo.usAccess = cpu_to_le16(misc);
-	args.ucCRTC = amdgpu_crtc->crtc_id;
+	args.ucCRTC = amdgpu_crtc->pipe;
 
 	amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args);
 }
@@ -240,7 +240,7 @@ union atom_enable_ss {
 static void amdgpu_atombios_crtc_program_ss(struct amdgpu_device *adev,
 				     int enable,
 				     int pll_id,
-				     int crtc_id,
+				     unsigned int pipe,
 				     struct amdgpu_atom_ss *ss)
 {
 	unsigned i;
@@ -261,7 +261,7 @@ static void amdgpu_atombios_crtc_program_ss(struct amdgpu_device *adev,
 		for (i = 0; i < adev->mode_info.num_crtc; i++) {
 			if (adev->mode_info.crtcs[i] &&
 			    adev->mode_info.crtcs[i]->enabled &&
-			    i != crtc_id &&
+			    i != pipe &&
 			    pll_id == adev->mode_info.crtcs[i]->pll_id) {
 				/* one other crtc is using this pll don't turn
 				 * off spread spectrum as it might turn off
@@ -776,9 +776,9 @@ void amdgpu_atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode
 			    &fb_div, &frac_fb_div, &ref_div, &post_div);
 
 	amdgpu_atombios_crtc_program_ss(adev, ATOM_DISABLE, amdgpu_crtc->pll_id,
-				 amdgpu_crtc->crtc_id, &amdgpu_crtc->ss);
+				 amdgpu_crtc->pipe, &amdgpu_crtc->ss);
 
-	amdgpu_atombios_crtc_program_pll(crtc, amdgpu_crtc->crtc_id, amdgpu_crtc->pll_id,
+	amdgpu_atombios_crtc_program_pll(crtc, amdgpu_crtc->pipe, amdgpu_crtc->pll_id,
 				  encoder_mode, amdgpu_encoder->encoder_id, clock,
 				  ref_div, fb_div, frac_fb_div, post_div,
 				  amdgpu_crtc->bpc, amdgpu_crtc->ss_enabled, &amdgpu_crtc->ss);
@@ -801,7 +801,7 @@ void amdgpu_atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode
 		amdgpu_crtc->ss.step = step_size;
 
 		amdgpu_atombios_crtc_program_ss(adev, ATOM_ENABLE, amdgpu_crtc->pll_id,
-					 amdgpu_crtc->crtc_id, &amdgpu_crtc->ss);
+					 amdgpu_crtc->pipe, &amdgpu_crtc->ss);
 	}
 }
 

@@ -788,14 +788,15 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 	return (position + crtc->scanline_offset) % vtotal;
 }
 
-static int i915_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
-				    unsigned int flags, int *vpos, int *hpos,
-				    ktime_t *stime, ktime_t *etime,
-				    const struct drm_display_mode *mode)
+int i915_get_crtc_scanoutpos(struct drm_crtc *crtc, unsigned int flags,
+			     int *vpos, int *hpos, ktime_t *stime,
+			     ktime_t *etime,
+			     const struct drm_display_mode *mode)
 {
+	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	enum pipe pipe = intel_crtc->pipe;
 	int position;
 	int vbl_start, vbl_end, hsync_start, htotal, vtotal;
 	bool in_vbl = true;
@@ -950,7 +951,7 @@ static int i915_get_vblank_timestamp(struct drm_device *dev, unsigned int pipe,
 	}
 
 	/* Helper routine in DRM core does all the work: */
-	return drm_calc_vbltimestamp_from_scanoutpos(dev, pipe, max_error,
+	return drm_calc_vbltimestamp_from_scanoutpos(crtc, max_error,
 						     vblank_time, flags,
 						     &crtc->hwmode);
 }
@@ -4589,7 +4590,6 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 		dev->vblank_disable_immediate = true;
 
 	dev->driver->get_vblank_timestamp = i915_get_vblank_timestamp;
-	dev->driver->get_scanout_position = i915_get_crtc_scanoutpos;
 
 	if (IS_CHERRYVIEW(dev_priv)) {
 		dev->driver->irq_handler = cherryview_irq_handler;

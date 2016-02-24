@@ -32,7 +32,7 @@
 struct nouveau_crtc {
 	struct drm_crtc base;
 
-	int index;
+	unsigned int pipe;
 	struct nvif_notify vblank;
 
 	uint32_t dpms_saved_fp_control;

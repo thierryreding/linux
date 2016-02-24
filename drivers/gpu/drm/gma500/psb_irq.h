@@ -42,6 +42,6 @@ int  psb_enable_vblank(struct drm_device *dev, unsigned int pipe);
 void psb_disable_vblank(struct drm_device *dev, unsigned int pipe);
 u32  psb_get_vblank_counter(struct drm_device *dev, unsigned int pipe);
 
-int mdfld_enable_te(struct drm_device *dev, int pipe);
-void mdfld_disable_te(struct drm_device *dev, int pipe);
+int mdfld_enable_te(struct drm_device *dev, unsigned int pipe);
+void mdfld_disable_te(struct drm_device *dev, unsigned int pipe);
 #endif /* _PSB_IRQ_H_ */

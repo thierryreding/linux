@@ -266,9 +266,10 @@ struct amdgpu_display_funcs {
 	/* display watermarks */
 	void (*bandwidth_update)(struct amdgpu_device *adev);
 	/* get frame count */
-	u32 (*vblank_get_counter)(struct amdgpu_device *adev, int crtc);
+	u32 (*vblank_get_counter)(struct amdgpu_device *adev,
+				  unsigned int pipe);
 	/* wait for vblank */
-	void (*vblank_wait)(struct amdgpu_device *adev, int crtc);
+	void (*vblank_wait)(struct amdgpu_device *adev, unsigned int pipe);
 	/* is dce hung */
 	bool (*is_display_hung)(struct amdgpu_device *adev);
 	/* set backlight level */
@@ -282,9 +283,10 @@ struct amdgpu_display_funcs {
 				 enum amdgpu_hpd_id hpd);
 	u32 (*hpd_get_gpio_reg)(struct amdgpu_device *adev);
 	/* pageflipping */
-	void (*page_flip)(struct amdgpu_device *adev,
-			 int crtc_id, u64 crtc_base);
-	int (*page_flip_get_scanoutpos)(struct amdgpu_device *adev, int crtc,
+	void (*page_flip)(struct amdgpu_device *adev, unsigned int pipe,
+			  u64 crtc_base);
+	int (*page_flip_get_scanoutpos)(struct amdgpu_device *adev,
+					unsigned int pipe,
 					u32 *vbl, u32 *position);
 	/* display topology setup */
 	void (*add_encoder)(struct amdgpu_device *adev,
@@ -367,7 +369,7 @@ struct amdgpu_atom_ss {
 
 struct amdgpu_crtc {
 	struct drm_crtc base;
-	int crtc_id;
+	unsigned int pipe;
 	u16 lut_r[256], lut_g[256], lut_b[256];
 	bool enabled;
 	bool can_tile;
@@ -549,9 +551,9 @@ bool amdgpu_ddc_probe(struct amdgpu_connector *amdgpu_connector, bool use_aux);
 
 void amdgpu_encoder_set_active_device(struct drm_encoder *encoder);
 
-int amdgpu_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
-			       unsigned int flags, int *vpos, int *hpos,
-			       ktime_t *stime, ktime_t *etime,
+int amdgpu_get_crtc_scanoutpos(struct drm_crtc *crtc, unsigned int flags,
+			       int *vpos, int *hpos, ktime_t *stime,
+			       ktime_t *etime,
 			       const struct drm_display_mode *mode);
 
 int amdgpu_framebuffer_init(struct drm_device *dev,
@@ -568,7 +570,7 @@ bool amdgpu_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
 					struct drm_display_mode *adjusted_mode);
 void amdgpu_panel_mode_fixup(struct drm_encoder *encoder,
 			     struct drm_display_mode *adjusted_mode);
-int amdgpu_crtc_idx_to_irq_type(struct amdgpu_device *adev, int crtc);
+int amdgpu_crtc_idx_to_irq_type(struct amdgpu_device *adev, unsigned int pipe);
 
 /* fbdev layer */
 int amdgpu_fbdev_init(struct amdgpu_device *adev);

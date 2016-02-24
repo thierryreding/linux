@@ -104,8 +104,8 @@ nv10_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct nouveau_bo *cur = nv_plane->cur;
 	bool flip = nv_plane->flip;
-	int soff = NV_PCRTC0_SIZE * nv_crtc->index;
-	int soff2 = NV_PCRTC0_SIZE * !nv_crtc->index;
+	int soff = NV_PCRTC0_SIZE * nv_crtc->pipe;
+	int soff2 = NV_PCRTC0_SIZE * !nv_crtc->pipe;
 	int format, ret;
 
 	/* Source parameters given in 16.16 fixed point, ignore fractional. */

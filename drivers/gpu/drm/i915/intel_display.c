@@ -13627,6 +13627,7 @@ static const struct drm_crtc_funcs intel_crtc_funcs = {
 	.page_flip = intel_crtc_page_flip,
 	.atomic_duplicate_state = intel_crtc_duplicate_state,
 	.atomic_destroy_state = intel_crtc_destroy_state,
+	.get_scanout_position = i915_get_crtc_scanoutpos,
 };
 
 static bool ibx_pch_dpll_get_hw_state(struct drm_i915_private *dev_priv,

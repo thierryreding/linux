@@ -196,12 +196,6 @@ static int qxl_pm_restore(struct device *dev)
 	return qxl_drm_resume(drm_dev, false);
 }
 
-static u32 qxl_noop_get_vblank_counter(struct drm_device *dev,
-				       unsigned int pipe)
-{
-	return 0;
-}
-
 static int qxl_noop_enable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	return 0;
@@ -232,7 +226,7 @@ static struct drm_driver qxl_driver = {
 			   DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED,
 	.load = qxl_driver_load,
 	.unload = qxl_driver_unload,
-	.get_vblank_counter = qxl_noop_get_vblank_counter,
+	.get_vblank_counter = drm_vblank_count,
 	.enable_vblank = qxl_noop_enable_vblank,
 	.disable_vblank = qxl_noop_disable_vblank,
 
