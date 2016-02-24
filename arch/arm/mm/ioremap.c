@@ -469,6 +469,12 @@ int pci_ioremap_io(unsigned int offset, phys_addr_t phys_addr)
 				  __pgprot(get_mem_type(pci_ioremap_mem_type)->prot_pte));
 }
 EXPORT_SYMBOL_GPL(pci_ioremap_io);
+
+void pci_iounmap_io(unsigned int offset)
+{
+	unmap_kernel_range(PCI_IO_VIRT_BASE + offset, SZ_64K);
+}
+EXPORT_SYMBOL_GPL(pci_iounmap_io);
 #endif
 
 /*
