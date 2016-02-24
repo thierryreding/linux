@@ -19,26 +19,34 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-#include "gk104.h"
-#include "changk104.h"
 
-static const struct nvkm_fifo_func
-gm20b_fifo = {
-	.dtor = gk104_fifo_dtor,
-	.oneinit = gk104_fifo_oneinit,
-	.init = gk104_fifo_init,
-	.fini = gk104_fifo_fini,
-	.intr = gk104_fifo_intr,
-	.uevent_init = gk104_fifo_uevent_init,
-	.uevent_fini = gk104_fifo_uevent_fini,
-	.chan = {
-		&gm20b_fifo_gpfifo_oclass,
-		NULL
-	},
-};
+#ifndef __NVKM_SECURE_BOOT_H__
+#define __NVKM_SECURE_BOOT_H__
 
-int
-gm20b_fifo_new(struct nvkm_device *device, int index, struct nvkm_fifo **pfifo)
+#include <core/device.h>
+
+#define LSF_FALCON_ID_PMU	0
+#define LSF_FALCON_ID_RESERVED	1
+#define LSF_FALCON_ID_FECS	2
+#define LSF_FALCON_ID_GPCCS	3
+#define LSF_FALCON_ID_END	4
+#define LSF_FALCON_ID_INVALID   0xffffffff
+
+int nvkm_secure_boot_init(struct nvkm_device *);
+void nvkm_secure_boot_fini(struct nvkm_device *);
+
+int nvkm_secure_boot(struct nvkm_device *);
+
+static inline bool
+nvkm_is_secure(struct nvkm_device *device, unsigned long falcon_id)
 {
-	return gk104_fifo_new_(&gm20b_fifo, device, index, 512, pfifo);
+	return device->chip->secure_boot.managed_falcons & BIT(falcon_id);
 }
+
+static inline bool
+nvkm_need_secure_boot(struct nvkm_device *device)
+{
+	return device->chip->secure_boot.managed_falcons != 0;
+}
+
+#endif
