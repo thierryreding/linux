@@ -1037,6 +1037,7 @@ static int s6e8aa0_remove(struct mipi_dsi_device *dsi)
 
 	mipi_dsi_detach(dsi);
 	drm_panel_remove(&ctx->panel);
+	drm_panel_unref(&ctx->panel);
 
 	return 0;
 }

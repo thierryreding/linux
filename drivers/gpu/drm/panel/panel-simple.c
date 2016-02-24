@@ -363,6 +363,8 @@ static int panel_simple_remove(struct device *dev)
 	if (panel->backlight)
 		put_device(&panel->backlight->dev);
 
+	drm_panel_unref(&panel->base);
+
 	return 0;
 }
 

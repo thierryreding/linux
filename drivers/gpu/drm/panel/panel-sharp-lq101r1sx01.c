@@ -369,6 +369,9 @@ static void sharp_panel_del(struct sharp_panel *sharp)
 
 	if (sharp->link2)
 		put_device(&sharp->link2->dev);
+
+	if (sharp->base.dev)
+		drm_panel_unref(&sharp->base);
 }
 
 static int sharp_panel_probe(struct mipi_dsi_device *dsi)
