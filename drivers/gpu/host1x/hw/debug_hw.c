@@ -40,8 +40,11 @@ enum {
 
 static unsigned int show_channel_command(struct output *o, u32 val)
 {
+	unsigned int ret = 0;
 	unsigned mask;
 	unsigned subop;
+
+	o->flags |= HOST1X_OUTPUT_CONT;
 
 	switch (val >> 28) {
 	case HOST1X_OPCODE_SETCLASS:
@@ -50,43 +53,47 @@ static unsigned int show_channel_command(struct output *o, u32 val)
 			host1x_debug_output(o, "SETCL(class=%03x, offset=%03x, mask=%02x, [",
 					    val >> 6 & 0x3ff,
 					    val >> 16 & 0xfff, mask);
-			return hweight8(mask);
+			ret = hweight8(mask);
 		} else {
 			host1x_debug_output(o, "SETCL(class=%03x)\n",
 					    val >> 6 & 0x3ff);
-			return 0;
 		}
+		break;
 
 	case HOST1X_OPCODE_INCR:
 		host1x_debug_output(o, "INCR(offset=%03x, [",
 				    val >> 16 & 0xfff);
-		return val & 0xffff;
+		ret = val & 0xffff;
+		break;
 
 	case HOST1X_OPCODE_NONINCR:
 		host1x_debug_output(o, "NONINCR(offset=%03x, [",
 				    val >> 16 & 0xfff);
-		return val & 0xffff;
+		ret = val & 0xffff;
+		break;
 
 	case HOST1X_OPCODE_MASK:
 		mask = val & 0xffff;
 		host1x_debug_output(o, "MASK(offset=%03x, mask=%03x, [",
 				    val >> 16 & 0xfff, mask);
-		return hweight16(mask);
+		ret = hweight16(mask);
+		break;
 
 	case HOST1X_OPCODE_IMM:
 		host1x_debug_output(o, "IMM(offset=%03x, data=%03x)\n",
 				    val >> 16 & 0xfff, val & 0xffff);
-		return 0;
+		break;
 
 	case HOST1X_OPCODE_RESTART:
 		host1x_debug_output(o, "RESTART(offset=%08x)\n", val << 4);
-		return 0;
+		break;
 
 	case HOST1X_OPCODE_GATHER:
 		host1x_debug_output(o, "GATHER(offset=%03x, insert=%d, type=%d, count=%04x, addr=[",
 				    val >> 16 & 0xfff, val >> 15 & 0x1,
 				    val >> 14 & 0x1, val & 0x3fff);
-		return 1;
+		ret = 1;
+		break;
 
 	case HOST1X_OPCODE_EXTEND:
 		subop = val >> 24 & 0xf;
@@ -98,11 +105,16 @@ static unsigned int show_channel_command(struct output *o, u32 val)
 					    val & 0xff);
 		else
 			host1x_debug_output(o, "EXTEND_UNKNOWN(%08x)\n", val);
-		return 0;
+
+		break;
 
 	default:
-		return 0;
+		break;
 	}
+
+	o->flags &= ~HOST1X_OUTPUT_CONT;
+
+	return ret;
 }
 
 static void show_gather(struct output *o, phys_addr_t phys_addr,
@@ -128,7 +140,7 @@ static void show_gather(struct output *o, phys_addr_t phys_addr,
 		u32 val = *(map_addr + offset / 4 + i);
 
 		if (!data_count) {
-			host1x_debug_output(o, "%08x: %08x:", addr, val);
+			host1x_debug_output(o, "%08x: %08x - ", addr, val);
 			data_count = show_channel_command(o, val);
 		} else {
 			host1x_debug_output(o, "%08x%s", val,

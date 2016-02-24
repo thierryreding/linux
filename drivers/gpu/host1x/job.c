@@ -506,12 +506,16 @@ static inline int copy_gathers(struct host1x_job *job, struct device *dev)
 
 int host1x_job_pin(struct host1x_job *job, struct device *dev)
 {
-	int err;
-	unsigned int i, j;
 	struct host1x *host = dev_get_drvdata(dev->parent);
-	DECLARE_BITMAP(waitchk_mask, host1x_syncpt_nb_pts(host));
+	unsigned int num = host1x_syncpt_nb_pts(host);
+	unsigned long *waitchk_mask;
+	unsigned int i, j;
+	int err;
 
-	bitmap_zero(waitchk_mask, host1x_syncpt_nb_pts(host));
+	waitchk_mask = kcalloc(sizeof(*waitchk_mask), num, GFP_KERNEL);
+	if (!waitchk_mask)
+		return -ENOMEM;
+
 	for (i = 0; i < job->num_waitchk; i++) {
 		u32 syncpt_id = job->waitchk[i].syncpt_id;
 		if (syncpt_id < host1x_syncpt_nb_pts(host))
@@ -521,6 +525,8 @@ int host1x_job_pin(struct host1x_job *job, struct device *dev)
 	/* get current syncpt values for waitchk */
 	for_each_set_bit(i, waitchk_mask, host1x_syncpt_nb_pts(host))
 		host1x_syncpt_load(host->syncpt + i);
+
+	kfree(waitchk_mask);
 
 	/* pin memory */
 	err = pin_job(job);

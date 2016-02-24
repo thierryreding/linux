@@ -23,20 +23,28 @@
 
 struct host1x;
 
+#define HOST1X_OUTPUT_CONT (1 << 0)
+
 struct output {
-	void (*fn)(void *ctx, const char *str, size_t len);
+	void (*fn)(struct output *output, const char *str, size_t len);
+	unsigned long flags;
 	void *ctx;
 	char buf[256];
 };
 
-static inline void write_to_seqfile(void *ctx, const char *str, size_t len)
+static inline void write_to_seqfile(struct output *output, const char *str, size_t len)
 {
-	seq_write((struct seq_file *)ctx, str, len);
+	struct seq_file *s = output->ctx;
+
+	seq_write(s, str, len);
 }
 
-static inline void write_to_printk(void *ctx, const char *str, size_t len)
+static inline void write_to_printk(struct output *output, const char *str, size_t len)
 {
-	pr_info("%s", str);
+	if (output->flags & HOST1X_OUTPUT_CONT)
+		pr_cont("%s", str);
+	else
+		pr_info("%s", str);
 }
 
 void __printf(2, 3) host1x_debug_output(struct output *o, const char *fmt, ...);
