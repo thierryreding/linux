@@ -1040,11 +1040,11 @@ static inline int of_changeset_update_property(struct of_changeset *ocs,
 #else /* CONFIG_OF_DYNAMIC */
 static inline int of_reconfig_notifier_register(struct notifier_block *nb)
 {
-	return -EINVAL;
+	return 0;
 }
 static inline int of_reconfig_notifier_unregister(struct notifier_block *nb)
 {
-	return -EINVAL;
+	return 0;
 }
 static inline int of_reconfig_notify(unsigned long action,
 				     struct of_reconfig_data *arg)

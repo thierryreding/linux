@@ -373,7 +373,7 @@ static int ux500_resume(struct device *dev)
 
 	return 0;
 }
-#endif
+#endif /* CONFIG_PM_SLEEP */
 
 static SIMPLE_DEV_PM_OPS(ux500_pm_ops, ux500_suspend, ux500_resume);
 

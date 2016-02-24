@@ -15,6 +15,7 @@
 
 #include <linux/device.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/eventfd.h>
 #include <linux/msi.h>
 #include <linux/pci.h>
