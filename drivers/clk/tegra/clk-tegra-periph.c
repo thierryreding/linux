@@ -268,7 +268,6 @@ static DEFINE_SPINLOCK(PLLP_OUTA_lock);
 static DEFINE_SPINLOCK(PLLP_OUTB_lock);
 static DEFINE_SPINLOCK(PLLP_OUTC_lock);
 static DEFINE_SPINLOCK(sor0_lock);
-static DEFINE_SPINLOCK(sor1_lock);
 
 #define MUX_I2S_SPDIF(_id)						\
 static const char *mux_pllaout0_##_id##_2x_pllp_clkm[] = { "pll_a_out0", \
@@ -586,23 +585,13 @@ static u32 mux_pllm_pllc2_c_c3_pllp_plla_pllc4_idx[] = {
 	[0] = 0, [1] = 1, [2] = 2, [3] = 3, [4] = 4, [5] = 6, [6] = 7,
 };
 
-/* SOR1 mux'es */
+/* DISP1/2 mux'es */
 static const char *mux_pllp_plld_plld2_clkm[] = {
 	"pll_p", "pll_d_out0", "pll_d2_out0", "clk_m"
 };
 static u32 mux_pllp_plld_plld2_clkm_idx[] = {
 	[0] = 0, [1] = 2, [2] = 5, [3] = 6
 };
-
-static const char *mux_plldp_sor1_src[] = {
-	"pll_dp", "clk_sor1_src"
-};
-#define mux_plldp_sor1_src_idx NULL
-
-static const char *mux_clkm_sor1_brick_sor1_src[] = {
-	"clk_m", "sor1_brick", "sor1_src", "sor1_brick"
-};
-#define mux_clkm_sor1_brick_sor1_src_idx NULL
 
 static const char *mux_pllp_pllre_clkm[] = {
 	"pll_p", "pll_re_out1", "clk_m"
@@ -777,9 +766,6 @@ static struct tegra_periph_init_data periph_clks[] = {
 	MUX8("nvdec", mux_pllc2_c_c3_pllp_plla1_clkm, CLK_SOURCE_NVDEC, 194, 0, tegra_clk_nvdec),
 	MUX8("nvjpg", mux_pllc2_c_c3_pllp_plla1_clkm, CLK_SOURCE_NVJPG, 195, 0, tegra_clk_nvjpg),
 	MUX8("ape", mux_plla_pllc4_out0_pllc_pllc4_out1_pllp_pllc4_out2_clkm, CLK_SOURCE_APE, 198, TEGRA_PERIPH_ON_APB, tegra_clk_ape),
-	MUX8_NOGATE_LOCK("sor1_src", mux_pllp_plld_plld2_clkm, CLK_SOURCE_SOR1, tegra_clk_sor1_src, &sor1_lock),
-	NODIV("sor1_brick", mux_plldp_sor1_src, CLK_SOURCE_SOR1, 14, MASK(1), 183, 0, tegra_clk_sor1_brick, &sor1_lock),
-	NODIV("sor1", mux_clkm_sor1_brick_sor1_src, CLK_SOURCE_SOR1, 15, MASK(1), 183, 0, tegra_clk_sor1, &sor1_lock),
 	MUX8("sdmmc_legacy", mux_pllp_out3_clkm_pllp_pllc4, CLK_SOURCE_SDMMC_LEGACY, 193, TEGRA_PERIPH_ON_APB | TEGRA_PERIPH_NO_RESET, tegra_clk_sdmmc_legacy),
 	MUX8("qspi", mux_pllp_pllc_pllc_out1_pllc4_out2_pllc4_out1_clkm_pllc4_out0, CLK_SOURCE_QSPI, 211, TEGRA_PERIPH_ON_APB, tegra_clk_qspi),
 	I2C("vii2c", mux_pllp_pllc_clkm, CLK_SOURCE_VI_I2C, 208, tegra_clk_vi_i2c),
@@ -788,6 +774,208 @@ static struct tegra_periph_init_data periph_clks[] = {
 	MUX8("tsecb", mux_pllp_pllc2_c_c3_clkm, CLK_SOURCE_TSECB, 206, 0, tegra_clk_tsecb),
 	MUX8("maud", mux_pllp_pllp_out3_clkm_clk32k_plla, CLK_SOURCE_MAUD, 202, TEGRA_PERIPH_ON_APB | TEGRA_PERIPH_NO_RESET, tegra_clk_maud),
 };
+
+struct tegra_clk_sor {
+	struct clk_hw hw;
+	void __iomem *base;
+	const struct tegra_clk_periph_regs *regs;
+	const struct tegra_clk_parent *parents;
+	unsigned int num_parents;
+	unsigned int num;
+
+	unsigned int source;
+};
+
+#define DIV71_MASK 0xffU
+#define DIV71_MUL 2
+
+static inline struct tegra_clk_sor *to_tegra_clk_sor(struct clk_hw *hw)
+{
+	return container_of(hw, struct tegra_clk_sor, hw);
+}
+
+static int tegra_clk_sor_is_enabled(struct clk_hw *hw)
+{
+	struct tegra_clk_sor *sor= to_tegra_clk_sor(hw);
+	u32 mask = 1 << (sor->num % 32), value;
+
+	value = readl(sor->base + sor->regs->enb_reg);
+	if (value & mask) {
+		value = readl(sor->base + sor->regs->rst_reg);
+		if ((value & mask) == 0)
+			return 1;
+	}
+
+	return 0;
+}
+
+static int tegra_clk_sor_enable(struct clk_hw *hw)
+{
+	struct tegra_clk_sor *sor = to_tegra_clk_sor(hw);
+	u32 mask = 1 << (sor->num % 32);
+
+	writel(mask, sor->base + sor->regs->enb_set_reg);
+
+	return 0;
+}
+
+static void tegra_clk_sor_disable(struct clk_hw *hw)
+{
+	struct tegra_clk_sor *sor = to_tegra_clk_sor(hw);
+	u32 mask = 1 << (sor->num % 32);
+
+	writel(mask, sor->base + sor->regs->enb_clr_reg);
+}
+
+static unsigned long tegra_clk_sor_recalc_rate(struct clk_hw *hw,
+					       unsigned long parent_rate)
+{
+	struct tegra_clk_sor *sor= to_tegra_clk_sor(hw);
+	unsigned int div, mul = DIV71_MUL;
+	u32 value;
+	u64 rate;
+
+	value = readl(sor->base + sor->source);
+	div = (value & DIV71_MASK) + mul;
+
+	rate = parent_rate * mul;
+	rate += div - 1;
+	do_div(rate, div);
+
+	return rate;
+}
+
+static long tegra_clk_sor_round_rate(struct clk_hw *hw, unsigned long rate,
+				     unsigned long *parent_rate)
+{
+	unsigned int mul = DIV71_MUL, div;
+	u64 divider;
+
+	if (!rate)
+		return *parent_rate;
+
+	divider = *parent_rate * mul;
+	divider += rate - 1;
+	do_div(divider, rate);
+	div = divider - mul;
+
+	div = clamp(div, 0U, DIV71_MASK);
+
+	return DIV_ROUND_UP(*parent_rate * mul, div + mul);
+}
+
+static u8 tegra_clk_sor_get_parent(struct clk_hw *hw)
+{
+	struct tegra_clk_sor *sor = to_tegra_clk_sor(hw);
+	unsigned int i;
+	u32 value;
+
+	value = readl(sor->base + sor->source);
+
+	for (i = 0; i < sor->num_parents; i++) {
+		const struct tegra_clk_parent *parent = &sor->parents[i];
+
+		if ((value & parent->mask) == parent->value)
+			return i;
+	}
+
+	return -EINVAL;
+}
+
+static int tegra_clk_sor_set_parent(struct clk_hw *hw, u8 index)
+{
+	struct tegra_clk_sor *sor = to_tegra_clk_sor(hw);
+	const struct tegra_clk_parent *parent;
+	u32 value;
+
+	if (index >= sor->num_parents)
+		return -EINVAL;
+
+	parent = &sor->parents[index];
+
+	value = readl(sor->base + sor->source);
+	value &= ~parent->mask;
+	value |= parent->value;
+	writel(value, sor->base + sor->source);
+
+	return 0;
+}
+
+int tegra_clk_sor_set_rate(struct clk_hw *hw, unsigned long rate,
+			   unsigned long parent_rate)
+{
+	struct tegra_clk_sor *sor = to_tegra_clk_sor(hw);
+	unsigned int mul = DIV71_MUL;
+	u32 value;
+	u64 div;
+
+	div = parent_rate * mul;
+	div += rate - 1;
+	do_div(div, rate);
+	div -= mul;
+
+	div = clamp_t(u64, div, 0, DIV71_MASK);
+
+	value = readl(sor->base + sor->source);
+	value &= ~DIV71_MASK;
+	value |= div;
+	writel(value, sor->base + sor->source);
+
+	return 0;
+}
+
+static const struct clk_ops tegra_clk_sor_ops = {
+	.is_enabled = tegra_clk_sor_is_enabled,
+	.enable = tegra_clk_sor_enable,
+	.disable = tegra_clk_sor_disable,
+	.recalc_rate = tegra_clk_sor_recalc_rate,
+	.round_rate = tegra_clk_sor_round_rate,
+	.get_parent = tegra_clk_sor_get_parent,
+	.set_parent = tegra_clk_sor_set_parent,
+	.set_rate = tegra_clk_sor_set_rate,
+};
+
+struct clk *tegra_clk_register_sor(const char *name, void __iomem *base,
+				   const char **parent_names,
+				   const struct tegra_clk_parent *parents,
+				   unsigned int num_parents,
+				   unsigned long flags, unsigned int source,
+				   unsigned int num)
+{
+	const struct tegra_clk_periph_regs *regs;
+	struct tegra_clk_sor *sor;
+	struct clk_init_data init;
+	struct clk *clk;
+
+	regs = get_reg_bank(num);
+	if (!regs)
+		return ERR_PTR(-EINVAL);
+
+	sor = kzalloc(sizeof(*sor), GFP_KERNEL);
+	if (!sor)
+		return ERR_PTR(-ENOMEM);
+
+	init.name = name;
+	init.flags = flags;
+	init.parent_names = parent_names;
+	init.num_parents = num_parents;
+	init.ops = &tegra_clk_sor_ops;
+
+	sor->base = base;
+	sor->regs = regs;
+	sor->num = num;
+	sor->parents = parents;
+	sor->num_parents = num_parents;
+	sor->source = source;
+
+	sor->hw.init = &init;
+
+	clk = clk_register(NULL, &sor->hw);
+	if (IS_ERR(clk))
+		kfree(sor);
+
+	return clk;
+}
 
 static struct tegra_periph_init_data gate_clks[] = {
 	GATE("rtc", "clk_32k", 4, TEGRA_PERIPH_ON_APB | TEGRA_PERIPH_NO_RESET, tegra_clk_rtc, 0),
@@ -803,7 +991,7 @@ static struct tegra_periph_init_data gate_clks[] = {
 	GATE("hda2hdmi", "clk_m", 128, TEGRA_PERIPH_ON_APB, tegra_clk_hda2hdmi, 0),
 	GATE("bsea", "clk_m", 62, 0, tegra_clk_bsea, 0),
 	GATE("bsev", "clk_m", 63, 0, tegra_clk_bsev, 0),
-	GATE("mipi-cal", "clk_m", 56, 0, tegra_clk_mipi_cal, 0),
+	GATE("mipi-cal", "clk72mhz", 56, 0, tegra_clk_mipi_cal, 0),
 	GATE("usbd", "clk_m", 22, 0, tegra_clk_usbd, 0),
 	GATE("usb2", "clk_m", 58, 0, tegra_clk_usb2, 0),
 	GATE("usb3", "clk_m", 59, 0, tegra_clk_usb3, 0),
@@ -821,7 +1009,6 @@ static struct tegra_periph_init_data gate_clks[] = {
 	GATE("ispb", "clk_m", 3, 0, tegra_clk_ispb, 0),
 	GATE("vim2_clk", "clk_m", 11, 0, tegra_clk_vim2_clk, 0),
 	GATE("pcie", "clk_m", 70, 0, tegra_clk_pcie, 0),
-	GATE("dpaux", "clk_m", 181, 0, tegra_clk_dpaux, 0),
 	GATE("gpu", "pll_ref", 184, 0, tegra_clk_gpu, 0),
 	GATE("pllg_ref", "pll_ref", 189, 0, tegra_clk_pll_g_ref, 0),
 	GATE("hsic_trk", "usb2_hsic_trk", 209, TEGRA_PERIPH_NO_RESET, tegra_clk_hsic_trk, 0),
@@ -877,7 +1064,7 @@ static void __init periph_clk_init(void __iomem *clk_base,
 	struct clk **dt_clk;
 
 	for (i = 0; i < ARRAY_SIZE(periph_clks); i++) {
-		struct tegra_clk_periph_regs *bank;
+		const struct tegra_clk_periph_regs *bank;
 		struct tegra_periph_init_data *data;
 
 		data = periph_clks + i;

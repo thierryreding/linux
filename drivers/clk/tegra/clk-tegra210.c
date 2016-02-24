@@ -175,6 +175,19 @@
 #define UTMIP_PLL_CFG1_FORCE_PLL_ENABLE_POWERDOWN BIT(14)
 #define UTMIP_PLL_CFG1_FORCE_PLL_ACTIVE_POWERDOWN BIT(12)
 
+#define SATA_PLL_CFG0				0x490
+#define SATA_PLL_CFG0_PADPLL_RESET_SWCTL	BIT(0)
+#define SATA_PLL_CFG0_PADPLL_USE_LOCKDET	BIT(2)
+#define SATA_PLL_CFG0_PADPLL_SLEEP_IDDQ		BIT(13)
+#define SATA_PLL_CFG0_SEQ_ENABLE		BIT(24)
+
+#define XUSBIO_PLL_CFG0				0x51c
+#define XUSBIO_PLL_CFG0_PADPLL_RESET_SWCTL	BIT(0)
+#define XUSBIO_PLL_CFG0_CLK_ENABLE_SWCTL	BIT(2)
+#define XUSBIO_PLL_CFG0_PADPLL_USE_LOCKDET	BIT(6)
+#define XUSBIO_PLL_CFG0_PADPLL_SLEEP_IDDQ	BIT(13)
+#define XUSBIO_PLL_CFG0_SEQ_ENABLE		BIT(24)
+
 #define UTMIPLL_HW_PWRDN_CFG0			0x52c
 #define UTMIPLL_HW_PWRDN_CFG0_UTMIPLL_LOCK	BIT(31)
 #define UTMIPLL_HW_PWRDN_CFG0_SEQ_START_STATE	BIT(25)
@@ -415,6 +428,51 @@ static const char *mux_pllmcp_clkm[] = {
 
 #define PLLU_MISC0_WRITE_MASK		0xbfffffff
 #define PLLU_MISC1_WRITE_MASK		0x00000007
+
+void tegra210_xusb_pll_hw_control_enable(void)
+{
+	u32 val;
+
+	val = readl_relaxed(clk_base + XUSBIO_PLL_CFG0);
+	val &= ~(XUSBIO_PLL_CFG0_CLK_ENABLE_SWCTL |
+		 XUSBIO_PLL_CFG0_PADPLL_RESET_SWCTL);
+	val |= XUSBIO_PLL_CFG0_PADPLL_USE_LOCKDET |
+	       XUSBIO_PLL_CFG0_PADPLL_SLEEP_IDDQ;
+	writel_relaxed(val, clk_base + XUSBIO_PLL_CFG0);
+}
+EXPORT_SYMBOL_GPL(tegra210_xusb_pll_hw_control_enable);
+
+void tegra210_xusb_pll_hw_sequence_start(void)
+{
+	u32 val;
+
+	val = readl_relaxed(clk_base + XUSBIO_PLL_CFG0);
+	val |= XUSBIO_PLL_CFG0_SEQ_ENABLE;
+	writel_relaxed(val, clk_base + XUSBIO_PLL_CFG0);
+}
+EXPORT_SYMBOL_GPL(tegra210_xusb_pll_hw_sequence_start);
+
+void tegra210_sata_pll_hw_control_enable(void)
+{
+	u32 val;
+
+	val = readl_relaxed(clk_base + SATA_PLL_CFG0);
+	val &= ~SATA_PLL_CFG0_PADPLL_RESET_SWCTL;
+	val |= SATA_PLL_CFG0_PADPLL_USE_LOCKDET |
+	       SATA_PLL_CFG0_PADPLL_SLEEP_IDDQ;
+	writel_relaxed(val, clk_base + SATA_PLL_CFG0);
+}
+EXPORT_SYMBOL_GPL(tegra210_sata_pll_hw_control_enable);
+
+void tegra210_sata_pll_hw_sequence_start(void)
+{
+	u32 val;
+
+	val = readl_relaxed(clk_base + SATA_PLL_CFG0);
+	val |= SATA_PLL_CFG0_SEQ_ENABLE;
+	writel_relaxed(val, clk_base + SATA_PLL_CFG0);
+}
+EXPORT_SYMBOL_GPL(tegra210_sata_pll_hw_sequence_start);
 
 static inline void _pll_misc_chk_default(void __iomem *base,
 					struct tegra_clk_pll_params *params,
@@ -2092,6 +2150,7 @@ static struct tegra_clk tegra210_clks[tegra_clk_max] __initdata = {
 	[tegra_clk_clk72Mhz_8] = { .dt_id = TEGRA210_CLK_CLK72MHZ, .present = true },
 	[tegra_clk_vic03_8] = { .dt_id = TEGRA210_CLK_VIC03, .present = true },
 	[tegra_clk_dpaux] = { .dt_id = TEGRA210_CLK_DPAUX, .present = true },
+	[tegra_clk_dpaux1] = { .dt_id = TEGRA210_CLK_DPAUX1, .present = true },
 	[tegra_clk_sor0] = { .dt_id = TEGRA210_CLK_SOR0, .present = true },
 	[tegra_clk_sor0_lvds] = { .dt_id = TEGRA210_CLK_SOR0_LVDS, .present = true },
 	[tegra_clk_gpu] = { .dt_id = TEGRA210_CLK_GPU, .present = true },
@@ -2393,6 +2452,20 @@ static void tegra210_utmi_param_configure(void __iomem *clk_base)
 	writel_relaxed(reg, clk_base + UTMIPLL_HW_PWRDN_CFG0);
 }
 
+static const char *tegra_clk_sor1_parents[] = {
+	"sor_safe", "sor1_brick", "pll_p_out0", "pll_d_out0", "pll_d2_out0",
+	"clk_m"
+};
+
+static const struct tegra_clk_parent tegra_clk_sor1_mux[] = {
+	{ "sor_safe",    0x0000c000, 0x00000000 },
+	{ "sor1_brick",  0x0000c000, 0xa0004000 },
+	{ "pll_p_out0",  0xe000c000, 0x00008000 },
+	{ "pll_d_out0",  0xe000c000, 0x40008000 },
+	{ "pll_d2_out0", 0xe000c000, 0xa0008000 },
+	{ "clk_m",       0xe000c000, 0xc0008000 },
+};
+
 static __init void tegra210_periph_clk_init(void __iomem *clk_base,
 					    void __iomem *pmc_base)
 {
@@ -2402,6 +2475,24 @@ static __init void tegra210_periph_clk_init(void __iomem *clk_base,
 	clk = clk_register_fixed_factor(NULL, "xusb_ss_div2", "xusb_ss_src", 0,
 					1, 2);
 	clks[TEGRA210_CLK_XUSB_SS_DIV2] = clk;
+
+	clk = tegra_clk_register_periph_fixed("dpaux", "pll_p", 0, clk_base,
+					      1, 17, 181);
+	clks[TEGRA210_CLK_DPAUX] = clk;
+
+	clk = tegra_clk_register_periph_fixed("dpaux1", "pll_p", 0, clk_base,
+					      1, 17, 207);
+	clks[TEGRA210_CLK_DPAUX1] = clk;
+
+	clk = tegra_clk_register_periph_fixed("sor_safe", "pll_p", 0, clk_base,
+					      1, 17, 222);
+	clks[TEGRA210_CLK_SOR_SAFE] = clk;
+
+	clk = tegra_clk_register_sor("sor1", clk_base, tegra_clk_sor1_parents,
+				     tegra_clk_sor1_mux,
+				     ARRAY_SIZE(tegra_clk_sor1_parents), 0,
+				     0x410, 183);
+	clks[TEGRA210_CLK_SOR1] = clk;
 
 	/* pll_d_dsi_out */
 	clk = clk_register_gate(NULL, "pll_d_dsi_out", "pll_d_out0", 0,
