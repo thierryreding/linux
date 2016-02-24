@@ -143,6 +143,7 @@ static int pwm_backlight_parse_dt(struct device *dev,
 		return -ENODEV;
 
 	memset(data, 0, sizeof(*data));
+	data->pwm_id = -1;
 
 	/* determine the number of brightness levels */
 	prop = of_find_property(node, "brightness-levels", &length);
