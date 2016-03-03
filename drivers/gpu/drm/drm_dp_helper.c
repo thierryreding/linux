@@ -120,17 +120,7 @@ EXPORT_SYMBOL(drm_dp_get_adjust_request_pre_emphasis);
 
 void drm_dp_link_train_clock_recovery_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 {
-	unsigned int rd_interval = dpcd[DP_TRAINING_AUX_RD_INTERVAL] &
-					DP_TRAINING_AUX_RD_MASK;
-
-	if (rd_interval > 4)
-		DRM_DEBUG_KMS("AUX interval %u, out of range (max 4)\n",
-			      rd_interval);
-
-	if (rd_interval == 0 || dpcd[DP_DPCD_REV] >= DP_DPCD_REV_14)
-		rd_interval = 100;
-	else
-		rd_interval *= 4;
+	unsigned int rd_interval = drm_dp_aux_rd_interval(dpcd);
 
 	usleep_range(rd_interval, rd_interval * 2);
 }
@@ -138,17 +128,7 @@ EXPORT_SYMBOL(drm_dp_link_train_clock_recovery_delay);
 
 void drm_dp_link_train_channel_eq_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 {
-	unsigned int rd_interval = dpcd[DP_TRAINING_AUX_RD_INTERVAL] &
-					DP_TRAINING_AUX_RD_MASK;
-
-	if (rd_interval > 4)
-		DRM_DEBUG_KMS("AUX interval %u, out of range (max 4)\n",
-			      rd_interval);
-
-	if (rd_interval == 0)
-		rd_interval = 400;
-	else
-		rd_interval *= 4;
+	unsigned int min = drm_dp_aux_rd_interval(dpcd);
 
 	usleep_range(rd_interval, rd_interval * 2);
 }
