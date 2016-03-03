@@ -3601,6 +3601,30 @@ static const struct tegra_sor_soc tegra210_sor = {
 	.tx_pu = tegra124_sor_tx_pu,
 };
 
+static const u8 tegra210_sor1_pre_emphasis[4][4][4] = {
+	{
+		{ 0x00, 0x08, 0x12, 0x24 },
+		{ 0x01, 0x0e, 0x1d, },
+		{ 0x01, 0x13, },
+		{ 0x00, },
+	}, {
+		{ 0x00, 0x08, 0x12, 0x24 },
+		{ 0x00, 0x0e, 0x1d, },
+		{ 0x00, 0x13, },
+		{ 0x00, }
+	}, {
+		{ 0x00, 0x08, 0x12, 0x24 },
+		{ 0x00, 0x0e, 0x1d, },
+		{ 0x00, 0x13, },
+		{ 0x00, },
+	}, {
+		{ 0x00, 0x08, 0x12, 0x24 },
+		{ 0x00, 0x0e, 0x1d, },
+		{ 0x00, 0x13, },
+		{ 0x00, },
+	},
+};
+
 static const struct tegra_sor_soc tegra210_sor1 = {
 	.supports_edp = false,
 	.supports_lvds = false,
@@ -3615,6 +3639,9 @@ static const struct tegra_sor_soc tegra210_sor1 = {
 	.xbar_cfg = tegra210_sor_xbar_cfg,
 	.lane_map = tegra210_sor_lane_map,
 	.voltage_swing = tegra124_sor_voltage_swing,
+	/*
+	.pre_emphasis = tegra210_sor1_pre_emphasis,
+	*/
 	.pre_emphasis = tegra124_sor_pre_emphasis,
 	.post_cursor = tegra124_sor_post_cursor,
 	.tx_pu = tegra124_sor_tx_pu,
