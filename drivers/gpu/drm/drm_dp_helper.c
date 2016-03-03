@@ -120,11 +120,13 @@ EXPORT_SYMBOL(drm_dp_get_adjust_request_pre_emphasis);
 
 void drm_dp_link_train_clock_recovery_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 {
-	unsigned int min;
+	unsigned int min = drm_dp_aux_rd_interval(dpcd);
 
-	if (dpcd[DP_TRAINING_AUX_RD_INTERVAL] != 0)
-		min = dpcd[DP_TRAINING_AUX_RD_INTERVAL] * 4000;
-	else
+	/*
+	 * The DP specification mandates a delay of 100 us during clock
+	 * recovery if the sink doesn't report an AUX read interval.
+	 */
+	if (min == 0)
 		min = 100;
 
 	usleep_range(min, min * 2);
@@ -133,11 +135,13 @@ EXPORT_SYMBOL(drm_dp_link_train_clock_recovery_delay);
 
 void drm_dp_link_train_channel_eq_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 {
-	unsigned int min;
+	unsigned int min = drm_dp_aux_rd_interval(dpcd);
 
-	if (dpcd[DP_TRAINING_AUX_RD_INTERVAL] != 0)
-		min = dpcd[DP_TRAINING_AUX_RD_INTERVAL] * 4000;
-	else
+	/*
+	 * The DP specification mandates a delay of 400 us during clock
+	 * recovery if the sink doesn't report an AUX read interval.
+	 */
+	if (min == 0)
 		min = 400;
 
 	usleep_range(min, min * 2);
