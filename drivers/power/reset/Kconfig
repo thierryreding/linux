@@ -98,6 +98,12 @@ config POWER_RESET_HISI
 	help
 	  Reboot support for Hisilicon boards.
 
+config POWER_RESET_MAX77620
+	bool "Maxim MAX77620 PMIC power off and restart driver"
+	depends on MFD_MAX77620
+	help
+	  Power off and restart support for Maxim MAX77620 PMICs.
+
 config POWER_RESET_MSM
 	bool "Qualcomm MSM power-off driver"
 	depends on ARCH_QCOM
