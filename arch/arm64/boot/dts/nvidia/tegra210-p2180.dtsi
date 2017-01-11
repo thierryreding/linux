@@ -40,6 +40,8 @@
 			reg = <0x3c>;
 			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
 
+			system-power-controller;
+
 			#interrupt-cells = <2>;
 			interrupt-controller;
 
