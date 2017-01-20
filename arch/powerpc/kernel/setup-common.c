@@ -17,7 +17,6 @@
 #include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/reboot.h>
 #include <linux/delay.h>
 #include <linux/initrd.h>
 #include <linux/platform_device.h>
@@ -35,6 +34,7 @@
 #include <linux/memblock.h>
 #include <linux/of_platform.h>
 #include <linux/hugetlb.h>
+#include <linux/system-power.h>
 #include <asm/debugfs.h>
 #include <asm/io.h>
 #include <asm/paca.h>
@@ -161,7 +161,7 @@ void machine_restart(char *cmd)
 
 	smp_send_stop();
 
-	do_kernel_restart(cmd);
+	system_restart(cmd);
 	mdelay(1000);
 
 	machine_hang();
@@ -170,9 +170,7 @@ void machine_restart(char *cmd)
 void machine_power_off(void)
 {
 	machine_shutdown();
-	if (pm_power_off)
-		pm_power_off();
-
+	system_power_off();
 	smp_send_stop();
 	machine_hang();
 }
