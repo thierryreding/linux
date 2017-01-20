@@ -32,6 +32,7 @@
 #include <linux/ktime.h>
 #include <linux/security.h>
 #include <trace/events/power.h>
+#include <linux/system-power.h>
 
 #include "power.h"
 
@@ -649,7 +650,7 @@ static void power_down(void)
 		hibernation_platform_enter();
 		/* Fall through */
 	case HIBERNATION_SHUTDOWN:
-		if (pm_power_off)
+		if (system_can_power_off())
 			kernel_power_off();
 		break;
 	}
