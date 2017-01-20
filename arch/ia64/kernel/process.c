@@ -34,6 +34,7 @@
 #include <linux/utsname.h>
 #include <linux/tracehook.h>
 #include <linux/rcupdate.h>
+#include <linux/system-power.h>
 
 #include <asm/cpu.h>
 #include <asm/delay.h>
@@ -676,8 +677,7 @@ machine_halt (void)
 void
 machine_power_off (void)
 {
-	if (pm_power_off)
-		pm_power_off();
+	system_power_off();
 	machine_halt();
 }
 
