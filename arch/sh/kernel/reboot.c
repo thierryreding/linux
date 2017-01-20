@@ -4,6 +4,7 @@
 #include <linux/kernel.h>
 #include <linux/reboot.h>
 #include <linux/module.h>
+#include <linux/system-power.h>
 #ifdef CONFIG_SUPERH32
 #include <asm/watchdog.h>
 #endif
@@ -52,8 +53,7 @@ static void native_machine_shutdown(void)
 
 static void native_machine_power_off(void)
 {
-	if (pm_power_off)
-		pm_power_off();
+	system_power_off();
 }
 
 static void native_machine_halt(void)
