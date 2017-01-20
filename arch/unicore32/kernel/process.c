@@ -33,6 +33,7 @@
 #include <linux/random.h>
 #include <linux/gpio.h>
 #include <linux/stacktrace.h>
+#include <linux/system-power.h>
 
 #include <asm/cacheflush.h>
 #include <asm/processor.h>
@@ -66,8 +67,7 @@ EXPORT_SYMBOL(pm_power_off);
 
 void machine_power_off(void)
 {
-	if (pm_power_off)
-		pm_power_off();
+	system_power_off();
 	machine_halt();
 }
 
