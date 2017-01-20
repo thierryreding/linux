@@ -8,7 +8,7 @@
  */
 #include <linux/cpu.h>
 #include <linux/delay.h>
-#include <linux/reboot.h>
+#include <linux/system-power.h>
 
 #include <asm/cacheflush.h>
 #include <asm/idmap.h>
@@ -119,9 +119,7 @@ void machine_power_off(void)
 {
 	local_irq_disable();
 	smp_send_stop();
-
-	if (pm_power_off)
-		pm_power_off();
+	system_power_off();
 }
 
 /*
@@ -140,7 +138,7 @@ void machine_restart(char *cmd)
 	local_irq_disable();
 	smp_send_stop();
 
-	do_kernel_restart(cmd);
+	system_restart(cmd);
 
 	/* Give a grace period for failure to restart of 1s */
 	mdelay(1000);
