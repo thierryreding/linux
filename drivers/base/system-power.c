@@ -4,8 +4,11 @@
  * This file is released under the GPL v2
  */
 
+#define DEBUG
+
 #define pr_fmt(fmt) "system-power: " fmt
 
+#include <linux/delay.h>
 #include <linux/system-power.h>
 
 static DEFINE_MUTEX(system_power_lock);
@@ -32,6 +35,8 @@ int system_power_chip_add(struct system_power_chip *chip)
 {
 	struct system_power_chip *node;
 
+	pr_debug("> %s(chip=%p)\n", __func__, chip);
+
 	if (!chip->restart && !chip->power_off) {
 		WARN(1, pr_fmt("must implement restart or power off\n"));
 		return -EINVAL;
@@ -49,18 +54,23 @@ int system_power_chip_add(struct system_power_chip *chip)
 
 	mutex_unlock(&system_power_lock);
 
+	pr_debug("< %s()\n", __func__);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(system_power_chip_add);
 
 int system_power_chip_remove(struct system_power_chip *chip)
 {
+	pr_debug("> %s(chip=%p)\n", __func__, chip);
+
 	mutex_lock(&system_power_lock);
 
 	list_del_init(&chip->list);
 
 	mutex_unlock(&system_power_lock);
 
+	pr_debug("< %s()\n", __func__);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(system_power_chip_remove);
@@ -89,6 +99,8 @@ int system_restart(char *cmd)
 	struct system_power_chip *chip;
 	int err;
 
+	pr_debug("> %s(cmd=%s)\n", __func__, cmd);
+
 	mutex_lock(&system_power_lock);
 
 	list_for_each_entry(chip, &system_power_chips, list) {
@@ -107,6 +119,7 @@ int system_restart(char *cmd)
 			continue;
 
 		spc_dbg(chip, "restarting...\n");
+		msleep(250);
 
 		err = chip->restart(chip, reboot_mode, cmd);
 		if (err < 0)
@@ -118,14 +131,19 @@ int system_restart(char *cmd)
 	/* XXX for backwards compatibility */
 	do_kernel_restart(cmd);
 
+	pr_debug("< %s()\n", __func__);
 	return 0;
 }
 
 int system_power_off_prepare(void)
 {
+	pr_debug("> %s()\n", __func__);
+
 	/* XXX for backwards compatibility */
 	if (pm_power_off_prepare)
 		pm_power_off_prepare();
+
+	pr_debug("< %s()\n", __func__);
 
 	return 0;
 }
@@ -135,6 +153,8 @@ int system_power_off(void)
 	struct system_power_chip *chip;
 	int err;
 
+	pr_debug("> %s()\n", __func__);
+
 	mutex_lock(&system_power_lock);
 
 	list_for_each_entry(chip, &system_power_chips, list) {
@@ -142,6 +162,7 @@ int system_power_off(void)
 			continue;
 
 		spc_dbg(chip, "preparing to power off...\n");
+		msleep(250);
 
 		err = chip->power_off_prepare(chip);
 		if (err < 0)
@@ -154,6 +175,7 @@ int system_power_off(void)
 			continue;
 
 		spc_dbg(chip, "powering off...\n");
+		msleep(250);
 
 		err = chip->power_off(chip);
 		if (err < 0)
@@ -166,5 +188,6 @@ int system_power_off(void)
 	if (pm_power_off)
 		pm_power_off();
 
+	pr_debug("< %s()\n", __func__);
 	return 0;
 }
