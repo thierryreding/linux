@@ -38,11 +38,11 @@
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/platform_device.h>
 #include <linux/pm_domain.h>
-#include <linux/reboot.h>
 #include <linux/reset.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/system-power.h>
 
 #include <soc/tegra/common.h>
 #include <soc/tegra/fuse.h>
@@ -201,6 +201,7 @@ struct tegra_pmc_soc {
  * @powergates_lock: mutex for power gate register access
  */
 struct tegra_pmc {
+	struct system_power_chip chip;
 	struct device *dev;
 	void __iomem *base;
 	void __iomem *wake;
@@ -231,6 +232,11 @@ struct tegra_pmc {
 
 	struct pinctrl_dev *pctl_dev;
 };
+
+static inline struct tegra_pmc *to_pmc(struct system_power_chip *chip)
+{
+	return container_of(chip, struct tegra_pmc, chip);
+}
 
 static struct tegra_pmc *pmc = &(struct tegra_pmc) {
 	.base = NULL,
@@ -662,10 +668,9 @@ int tegra_pmc_cpu_remove_clamping(unsigned int cpuid)
 }
 #endif /* CONFIG_SMP */
 
-static int tegra_pmc_restart_notify(struct notifier_block *this,
-				    unsigned long action, void *data)
+static int tegra_pmc_restart_prepare(struct system_power_chip *chip,
+				     enum reboot_mode mode, char *cmd)
 {
-	const char *cmd = data;
 	u32 value;
 
 	value = readl(pmc->scratch + pmc->soc->regs->scratch0);
@@ -684,18 +689,22 @@ static int tegra_pmc_restart_notify(struct notifier_block *this,
 
 	writel(value, pmc->scratch + pmc->soc->regs->scratch0);
 
+	return 0;
+}
+
+static int tegra_pmc_restart(struct system_power_chip *chip,
+			     enum reboot_mode mode,
+			     char *cmd)
+{
+	u32 value;
+
 	/* reset everything but PMC_SCRATCH0 and PMC_RST_STATUS */
 	value = tegra_pmc_readl(PMC_CNTRL);
 	value |= PMC_CNTRL_MAIN_RST;
 	tegra_pmc_writel(value, PMC_CNTRL);
 
-	return NOTIFY_DONE;
+	return 0;
 }
-
-static struct notifier_block tegra_pmc_restart_handler = {
-	.notifier_call = tegra_pmc_restart_notify,
-	.priority = 128,
-};
 
 static int powergate_show(struct seq_file *s, void *data)
 {
@@ -1618,9 +1627,15 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 			return err;
 	}
 
-	err = register_restart_handler(&tegra_pmc_restart_handler);
+	pmc->chip.level = SYSTEM_POWER_LEVEL_SOC;
+	pmc->chip.dev = &pdev->dev;
+	pmc->chip.restart_prepare = tegra_pmc_restart_prepare;
+	pmc->chip.restart = tegra_pmc_restart;
+
+	err = system_power_chip_add(&pmc->chip);
 	if (err) {
-		dev_err(&pdev->dev, "unable to register restart handler, %d\n",
+		dev_err(&pdev->dev,
+			"unable to register system power chip: %d\n",
 			err);
 		goto cleanup_debugfs;
 	}
