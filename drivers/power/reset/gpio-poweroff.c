@@ -18,47 +18,60 @@
 #include <linux/gpio/consumer.h>
 #include <linux/of_platform.h>
 #include <linux/module.h>
+#include <linux/system-power.h>
 
 #define DEFAULT_TIMEOUT_MS 3000
 /*
  * Hold configuration here, cannot be more than one instance of the driver
  * since pm_power_off itself is global.
  */
-static struct gpio_desc *reset_gpio;
 static u32 timeout = DEFAULT_TIMEOUT_MS;
 
-static void gpio_poweroff_do_poweroff(void)
+struct gpio_power_off {
+	struct system_power_chip chip;
+	struct gpio_desc *gpio;
+};
+
+static inline struct gpio_power_off *
+to_gpio_power_off(struct system_power_chip *chip)
 {
-	BUG_ON(!reset_gpio);
+	return container_of(chip, struct gpio_power_off, chip);
+}
+
+static int gpio_power_off(struct system_power_chip *chip)
+{
+	struct gpio_power_off *power = to_gpio_power_off(chip);
+
+	BUG_ON(!power->gpio);
 
 	/* drive it active, also inactive->active edge */
-	gpiod_direction_output(reset_gpio, 1);
-	mdelay(100);
+	gpiod_direction_output(power->gpio, 1);
+	msleep(100);
 	/* drive inactive, also active->inactive edge */
-	gpiod_set_value_cansleep(reset_gpio, 0);
-	mdelay(100);
+	gpiod_set_value_cansleep(power->gpio, 0);
+	msleep(100);
 
 	/* drive it active, also inactive->active edge */
-	gpiod_set_value_cansleep(reset_gpio, 1);
+	gpiod_set_value_cansleep(power->gpio, 1);
 
 	/* give it some time */
 	mdelay(timeout);
 
 	WARN_ON(1);
+
+	return 0;
 }
 
 static int gpio_poweroff_probe(struct platform_device *pdev)
 {
+	struct gpio_power_off *power;
 	bool input = false;
 	enum gpiod_flags flags;
+	int err;
 
-	/* If a pm_power_off function has already been added, leave it alone */
-	if (pm_power_off != NULL) {
-		dev_err(&pdev->dev,
-			"%s: pm_power_off function already registered",
-		       __func__);
-		return -EBUSY;
-	}
+	power = devm_kzalloc(&pdev->dev, sizeof(*power), GFP_KERNEL);
+	if (!power)
+		return -ENOMEM;
 
 	input = device_property_read_bool(&pdev->dev, "input");
 	if (input)
@@ -68,20 +81,28 @@ static int gpio_poweroff_probe(struct platform_device *pdev)
 
 	device_property_read_u32(&pdev->dev, "timeout-ms", &timeout);
 
-	reset_gpio = devm_gpiod_get(&pdev->dev, NULL, flags);
-	if (IS_ERR(reset_gpio))
-		return PTR_ERR(reset_gpio);
+	power->gpio = devm_gpiod_get(&pdev->dev, NULL, flags);
+	if (IS_ERR(power->gpio))
+		return PTR_ERR(power->gpio);
 
-	pm_power_off = &gpio_poweroff_do_poweroff;
+	power->chip.level = SYSTEM_POWER_LEVEL_SYSTEM;
+	power->chip.dev = &pdev->dev;
+	power->chip.power_off = gpio_power_off;
+
+	platform_set_drvdata(pdev, power);
+
+	err = system_power_chip_add(&power->chip);
+	if (err < 0)
+		return err;
+
 	return 0;
 }
 
 static int gpio_poweroff_remove(struct platform_device *pdev)
 {
-	if (pm_power_off == &gpio_poweroff_do_poweroff)
-		pm_power_off = NULL;
+	struct gpio_power_off *power = platform_get_drvdata(pdev);
 
-	return 0;
+	return system_power_chip_remove(&power->chip);
 }
 
 static const struct of_device_id of_gpio_poweroff_match[] = {
