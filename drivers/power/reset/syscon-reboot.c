@@ -16,35 +16,39 @@
  */
 #include <linux/delay.h>
 #include <linux/io.h>
-#include <linux/notifier.h>
 #include <linux/mfd/syscon.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
-#include <linux/reboot.h>
 #include <linux/regmap.h>
+#include <linux/system-power.h>
 
 struct syscon_reboot_context {
+	struct system_power_chip chip;
 	struct regmap *map;
 	u32 offset;
 	u32 mask;
-	struct notifier_block restart_handler;
 };
 
-static int syscon_restart_handle(struct notifier_block *this,
-					unsigned long mode, void *cmd)
+static inline struct syscon_reboot_context *
+to_syscon(struct system_power_chip *chip)
 {
-	struct syscon_reboot_context *ctx =
-			container_of(this, struct syscon_reboot_context,
-					restart_handler);
+	return container_of(chip, struct syscon_reboot_context, chip);
+}
+
+static int syscon_restart(struct system_power_chip *chip,
+			  enum reboot_mode mode, char *cmd)
+{
+	struct syscon_reboot_context *ctx = to_syscon(chip);
 
 	/* Issue the reboot */
 	regmap_write(ctx->map, ctx->offset, ctx->mask);
 
-	mdelay(1000);
+	msleep(1000);
 
 	pr_emerg("Unable to restart system\n");
-	return NOTIFY_DONE;
+
+	return 0;
 }
 
 static int syscon_reboot_probe(struct platform_device *pdev)
@@ -67,13 +71,17 @@ static int syscon_reboot_probe(struct platform_device *pdev)
 	if (of_property_read_u32(pdev->dev.of_node, "mask", &ctx->mask))
 		return -EINVAL;
 
-	ctx->restart_handler.notifier_call = syscon_restart_handle;
-	ctx->restart_handler.priority = 192;
-	err = register_restart_handler(&ctx->restart_handler);
-	if (err)
-		dev_err(dev, "can't register restart notifier (err=%d)\n", err);
+	ctx->chip.level = SYSTEM_POWER_LEVEL_SOC;
+	ctx->chip.dev = &pdev->dev;
+	ctx->chip.restart = syscon_restart;
 
-	return err;
+	err = system_power_chip_add(&ctx->chip);
+	if (err < 0) {
+		dev_err(dev, "failed to register restart chip: %d\n", err);
+		return err;
+	}
+
+	return 0;
 }
 
 static const struct of_device_id syscon_reboot_of_match[] = {
