@@ -14,7 +14,7 @@
  *
  * Based on the gpio-poweroff driver.
  */
-#include <linux/reboot.h>
+
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -22,90 +22,86 @@
 #include <linux/gpio/consumer.h>
 #include <linux/of_platform.h>
 #include <linux/module.h>
+#include <linux/system-power.h>
 
 struct gpio_restart {
+	struct system_power_chip chip;
 	struct gpio_desc *reset_gpio;
-	struct notifier_block restart_handler;
 	u32 active_delay_ms;
 	u32 inactive_delay_ms;
 	u32 wait_delay_ms;
 };
 
-static int gpio_restart_notify(struct notifier_block *this,
-				unsigned long mode, void *cmd)
+static inline struct gpio_restart *
+to_gpio_restart(struct system_power_chip *chip)
 {
-	struct gpio_restart *gpio_restart =
-		container_of(this, struct gpio_restart, restart_handler);
+	return container_of(chip, struct gpio_restart, chip);
+}
+
+static int gpio_restart(struct system_power_chip *chip, enum reboot_mode mode,
+			char *cmd)
+{
+	struct gpio_restart *restart = to_gpio_restart(chip);
 
 	/* drive it active, also inactive->active edge */
-	gpiod_direction_output(gpio_restart->reset_gpio, 1);
-	mdelay(gpio_restart->active_delay_ms);
+	gpiod_direction_output(restart->reset_gpio, 1);
+	mdelay(restart->active_delay_ms);
 
 	/* drive inactive, also active->inactive edge */
-	gpiod_set_value(gpio_restart->reset_gpio, 0);
-	mdelay(gpio_restart->inactive_delay_ms);
+	gpiod_set_value(restart->reset_gpio, 0);
+	mdelay(restart->inactive_delay_ms);
 
 	/* drive it active, also inactive->active edge */
-	gpiod_set_value(gpio_restart->reset_gpio, 1);
+	gpiod_set_value(restart->reset_gpio, 1);
 
 	/* give it some time */
-	mdelay(gpio_restart->wait_delay_ms);
+	msleep(restart->wait_delay_ms);
 
 	WARN_ON(1);
 
-	return NOTIFY_DONE;
+	return 0;
 }
 
 static int gpio_restart_probe(struct platform_device *pdev)
 {
-	struct gpio_restart *gpio_restart;
-	bool open_source = false;
-	u32 property;
+	enum gpiod_flags flags = GPIOD_OUT_LOW;
+	struct gpio_restart *restart;
 	int ret;
 
-	gpio_restart = devm_kzalloc(&pdev->dev, sizeof(*gpio_restart),
-			GFP_KERNEL);
-	if (!gpio_restart)
+	restart = devm_kzalloc(&pdev->dev, sizeof(*restart), GFP_KERNEL);
+	if (!restart)
 		return -ENOMEM;
 
-	open_source = of_property_read_bool(pdev->dev.of_node, "open-source");
+	if (of_property_read_bool(pdev->dev.of_node, "open-source"))
+		flags = GPIOD_IN;
 
-	gpio_restart->reset_gpio = devm_gpiod_get(&pdev->dev, NULL,
-			open_source ? GPIOD_IN : GPIOD_OUT_LOW);
-	if (IS_ERR(gpio_restart->reset_gpio)) {
+	restart->reset_gpio = devm_gpiod_get(&pdev->dev, NULL, flags);
+	if (IS_ERR(restart->reset_gpio)) {
 		dev_err(&pdev->dev, "Could net get reset GPIO\n");
-		return PTR_ERR(gpio_restart->reset_gpio);
+		return PTR_ERR(restart->reset_gpio);
 	}
 
-	gpio_restart->restart_handler.notifier_call = gpio_restart_notify;
-	gpio_restart->restart_handler.priority = 129;
-	gpio_restart->active_delay_ms = 100;
-	gpio_restart->inactive_delay_ms = 100;
-	gpio_restart->wait_delay_ms = 3000;
-
-	ret = of_property_read_u32(pdev->dev.of_node, "priority", &property);
-	if (!ret) {
-		if (property > 255)
-			dev_err(&pdev->dev, "Invalid priority property: %u\n",
-					property);
-		else
-			gpio_restart->restart_handler.priority = property;
-	}
+	restart->active_delay_ms = 100;
+	restart->inactive_delay_ms = 100;
+	restart->wait_delay_ms = 3000;
 
 	of_property_read_u32(pdev->dev.of_node, "active-delay",
-			&gpio_restart->active_delay_ms);
+			     &restart->active_delay_ms);
 	of_property_read_u32(pdev->dev.of_node, "inactive-delay",
-			&gpio_restart->inactive_delay_ms);
+			     &restart->inactive_delay_ms);
 	of_property_read_u32(pdev->dev.of_node, "wait-delay",
-			&gpio_restart->wait_delay_ms);
+			     &restart->wait_delay_ms);
 
-	platform_set_drvdata(pdev, gpio_restart);
+	restart->chip.level = SYSTEM_POWER_LEVEL_SYSTEM;
+	restart->chip.dev = &pdev->dev;
+	restart->chip.restart = gpio_restart;
 
-	ret = register_restart_handler(&gpio_restart->restart_handler);
-	if (ret) {
-		dev_err(&pdev->dev, "%s: cannot register restart handler, %d\n",
-				__func__, ret);
-		return -ENODEV;
+	platform_set_drvdata(pdev, restart);
+
+	ret = system_power_chip_add(&restart->chip);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "cannot register restart chip: %d\n", ret);
+		return ret;
 	}
 
 	return 0;
@@ -113,18 +109,9 @@ static int gpio_restart_probe(struct platform_device *pdev)
 
 static int gpio_restart_remove(struct platform_device *pdev)
 {
-	struct gpio_restart *gpio_restart = platform_get_drvdata(pdev);
-	int ret;
+	struct gpio_restart *restart = platform_get_drvdata(pdev);
 
-	ret = unregister_restart_handler(&gpio_restart->restart_handler);
-	if (ret) {
-		dev_err(&pdev->dev,
-				"%s: cannot unregister restart handler, %d\n",
-				__func__, ret);
-		return -ENODEV;
-	}
-
-	return 0;
+	return system_power_chip_remove(&restart->chip);
 }
 
 static const struct of_device_id of_gpio_restart_match[] = {
