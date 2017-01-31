@@ -28,15 +28,6 @@ Optional properties:
 - open-source : Treat the GPIO as being open source and defer driving
   it to when the restart is initiated.  If this optional property is not
   specified, the GPIO is initialized as an output in its inactive state.
-- priority : A priority ranging from 0 to 255 (default 128) according to
-  the following guidelines:
-	0:	Restart handler of last resort, with limited restart
-		capabilities
-	128:	Default restart handler; use if no other restart handler is
-		expected to be available, and/or if restart functionality is
-		sufficient to restart the entire system
-	255:	Highest priority restart handler, will preempt all other
-		restart handlers
 - active-delay: Delay (default 100) to wait after driving gpio active [ms]
 - inactive-delay: Delay (default 100) to wait after driving gpio inactive [ms]
 - wait-delay: Delay (default 3000) to wait after completing restart
@@ -47,7 +38,6 @@ Examples:
 gpio-restart {
 	compatible = "gpio-restart";
 	gpios = <&gpio 4 0>;
-	priority = <128>;
 	active-delay = <100>;
 	inactive-delay = <100>;
 	wait-delay = <3000>;
