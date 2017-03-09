@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright (c) 2009-2013, NVIDIA Corporation. All rights reserved.
+ * Copyright (c) 2009-2019, NVIDIA Corporation. All rights reserved.
  */
 
 #ifndef __LINUX_HOST1X_H
@@ -61,6 +61,7 @@ struct host1x_client {
  * host1x buffer objects
  */
 
+struct dma_fence;
 struct host1x_bo;
 struct sg_table;
 
@@ -244,6 +245,9 @@ struct host1x_job {
 
 	/* Add a channel wait for previous ops to complete */
 	bool serialize;
+
+	/* Wait for prefence to complete before submitting */
+	struct dma_fence *prefence;
 };
 
 struct host1x_job *host1x_job_alloc(struct host1x_channel *ch,
@@ -329,5 +333,10 @@ void tegra_mipi_free(struct tegra_mipi_device *device);
 int tegra_mipi_enable(struct tegra_mipi_device *device);
 int tegra_mipi_disable(struct tegra_mipi_device *device);
 int tegra_mipi_calibrate(struct tegra_mipi_device *device);
+
+struct host1x_fence;
+
+struct dma_fence *host1x_fence_create(struct host1x_syncpt *syncpt,
+				      u32 threshold);
 
 #endif

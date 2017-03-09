@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2012-2015, NVIDIA Corporation.
+ * Copyright (c) 2012-2019 NVIDIA Corporation.
  */
 
 #ifndef HOST1X_DEV_H
@@ -31,6 +31,7 @@ struct host1x_channel_ops {
 	int (*init)(struct host1x_channel *channel, struct host1x *host,
 		    unsigned int id);
 	int (*submit)(struct host1x_job *job);
+	void (*push_wait)(struct host1x_channel *ch, u32 id, u32 thresh);
 };
 
 struct host1x_cdma_ops {
@@ -113,6 +114,8 @@ struct host1x {
 	struct device *dev;
 	struct clk *clk;
 	struct reset_control *rst;
+
+	u64 fence_ctx_base;
 
 	struct iommu_group *group;
 	struct iommu_domain *domain;
@@ -240,6 +243,13 @@ static inline int host1x_hw_channel_submit(struct host1x *host,
 					   struct host1x_job *job)
 {
 	return host->channel_op->submit(job);
+}
+
+static inline void host1x_hw_channel_push_wait(struct host1x *host,
+					       struct host1x_channel *channel,
+					       u32 id, u32 thresh)
+{
+	host->channel_op->push_wait(channel, id, thresh);
 }
 
 static inline void host1x_hw_cdma_start(struct host1x *host,
