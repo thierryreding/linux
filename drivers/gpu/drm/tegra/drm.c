@@ -11,6 +11,7 @@
 #include <linux/host1x.h>
 #include <linux/idr.h>
 #include <linux/iommu.h>
+#include <linux/sync_file.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
@@ -312,6 +313,7 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		     struct drm_tegra_submit *args, struct drm_device *drm,
 		     struct drm_file *file)
 {
+	struct host1x *host1x = dev_get_drvdata(drm->dev->parent);
 	struct host1x_client *client = &context->client->base;
 	unsigned int num_cmdbufs = args->num_cmdbufs;
 	unsigned int num_relocs = args->num_relocs;
@@ -319,7 +321,6 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 	struct drm_tegra_reloc __user *user_relocs;
 	struct drm_tegra_syncpt __user *user_syncpt;
 	struct drm_tegra_syncpt syncpt;
-	struct host1x *host1x = dev_get_drvdata(drm->dev->parent);
 	struct drm_gem_object **refs;
 	struct host1x_syncpt *sp;
 	struct host1x_job *job;
@@ -338,6 +339,10 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 	if (args->num_waitchks != 0)
 		return -EINVAL;
 
+	/* Check for unrecognized flags */
+	if (args->flags & ~DRM_TEGRA_SUBMIT_FLAGS)
+		return -EINVAL;
+
 	job = host1x_job_alloc(context->channel, args->num_cmdbufs,
 			       args->num_relocs);
 	if (!job)
@@ -347,6 +352,14 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 	job->client = client;
 	job->class = client->class;
 	job->serialize = true;
+
+	if (args->flags & DRM_TEGRA_SUBMIT_WAIT_FENCE_FD) {
+		job->prefence = sync_file_get_fence(args->fence);
+		if (!job->prefence) {
+			err = -ENOENT;
+			goto put;
+		}
+	}
 
 	/*
 	 * Track referenced BOs so that they can be unreferenced after the
@@ -371,7 +384,7 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 
 		if (copy_from_user(&cmdbuf, user_cmdbufs, sizeof(cmdbuf))) {
 			err = -EFAULT;
-			goto fail;
+			goto put_bos;
 		}
 
 		/*
@@ -380,13 +393,13 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		 */
 		if (cmdbuf.words > CDMA_GATHER_FETCHES_MAX_NB) {
 			err = -EINVAL;
-			goto fail;
+			goto put_bos;
 		}
 
 		bo = host1x_bo_lookup(file, cmdbuf.handle);
 		if (!bo) {
 			err = -ENOENT;
-			goto fail;
+			goto put_bos;
 		}
 
 		offset = (u64)cmdbuf.offset + (u64)cmdbuf.words * sizeof(u32);
@@ -400,7 +413,7 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		 */
 		if (offset & 3 || offset > obj->gem.size) {
 			err = -EINVAL;
-			goto fail;
+			goto put_bos;
 		}
 
 		host1x_job_add_gather(job, bo, cmdbuf.words, cmdbuf.offset);
@@ -417,7 +430,7 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 						  &user_relocs[num_relocs], drm,
 						  file);
 		if (err < 0)
-			goto fail;
+			goto put_bos;
 
 		reloc = &job->relocs[num_relocs];
 		obj = host1x_to_tegra_bo(reloc->cmdbuf.bo);
@@ -431,7 +444,7 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		if (reloc->cmdbuf.offset & 3 ||
 		    reloc->cmdbuf.offset >= obj->gem.size) {
 			err = -EINVAL;
-			goto fail;
+			goto put_bos;
 		}
 
 		obj = host1x_to_tegra_bo(reloc->target.bo);
@@ -439,20 +452,20 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 
 		if (reloc->target.offset >= obj->gem.size) {
 			err = -EINVAL;
-			goto fail;
+			goto put_bos;
 		}
 	}
 
 	if (copy_from_user(&syncpt, user_syncpt, sizeof(syncpt))) {
 		err = -EFAULT;
-		goto fail;
+		goto put_bos;
 	}
 
 	/* check whether syncpoint ID is valid */
 	sp = host1x_syncpt_get(host1x, syncpt.id);
 	if (!sp) {
 		err = -ENOENT;
-		goto fail;
+		goto put_bos;
 	}
 
 	job->is_addr_reg = context->client->ops->is_addr_reg;
@@ -466,23 +479,60 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 
 	err = host1x_job_pin(job, context->client->base.dev);
 	if (err)
-		goto fail;
+		goto put_bos;
 
 	err = host1x_job_submit(job);
 	if (err) {
 		host1x_job_unpin(job);
-		goto fail;
+		goto put_bos;
 	}
 
-	args->fence = job->syncpt_end;
+	if (args->flags & DRM_TEGRA_SUBMIT_EMIT_FENCE_FD) {
+		struct host1x_syncpt *syncpt;
+		struct dma_fence *fence;
+		struct sync_file *file;
 
-fail:
+		syncpt = host1x_syncpt_get(host1x, job->syncpt_id);
+		if (!syncpt) {
+			err = -EINVAL;
+			goto put_bos;
+		}
+
+		fence = host1x_fence_create(host1x, syncpt, job->syncpt_end);
+		if (!fence) {
+			err = -ENOMEM;
+			goto put_bos;
+		}
+
+		file = sync_file_create(fence);
+		if (!file) {
+			dma_fence_put(fence);
+			err = -ENOMEM;
+			goto put_bos;
+		}
+
+		err = get_unused_fd_flags(O_CLOEXEC);
+		if (err < 0) {
+			dma_fence_put(fence);
+			goto put_bos;
+		}
+
+		fd_install(err, file->file);
+		args->fence = err;
+	} else {
+		args->fence = job->syncpt_end;
+	}
+
+put_bos:
 	while (num_refs--)
 		drm_gem_object_put_unlocked(refs[num_refs]);
 
 	kfree(refs);
 
 put:
+	if (job->prefence)
+		dma_fence_put(job->prefence);
+
 	host1x_job_put(job);
 	return err;
 }
