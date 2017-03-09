@@ -405,6 +405,11 @@ struct drm_tegra_waitchk {
 	__u32 thresh;
 };
 
+#define DRM_TEGRA_SUBMIT_WAIT_FENCE_FD		(1 << 0)
+#define DRM_TEGRA_SUBMIT_EMIT_FENCE_FD		(1 << 1)
+#define DRM_TEGRA_SUBMIT_FLAGS (DRM_TEGRA_SUBMIT_WAIT_FENCE_FD | \
+				DRM_TEGRA_SUBMIT_EMIT_FENCE_FD)
+
 /**
  * struct drm_tegra_submit - job submission structure
  */
@@ -514,11 +519,27 @@ struct drm_tegra_submit {
 	__u32 fence;
 
 	/**
+	 * @flags:
+	 *
+	 * A bitmask of flags indicating how to use the value specified in the
+	 * @fence parameter. The following are valid bitmasks:
+	 *
+	 * DRM_TEGRA_SUBMIT_WAIT_FENCE_FD
+	 *   The value in @fence is a sync file descriptor that should be
+	 *   waited on before submitting the current job.
+	 *
+	 * DRM_TEGRA_SUBMIT_EMIT_FENCE_FD
+	 *   Upon completion of the job, a sync file should be created and the
+	 *   value of its descriptor should be stored in @fence.
+	 */
+	__u32 flags;
+
+	/**
 	 * @reserved:
 	 *
 	 * This field is reserved for future use. Must be 0.
 	 */
-	__u32 reserved[5];
+	__u32 reserved[4];
 };
 
 #define DRM_TEGRA_GEM_TILING_MODE_PITCH 0
