@@ -25,6 +25,7 @@
 #include <linux/reboot.h>
 #include <linux/slab.h>
 #include <linux/suspend.h>
+#include <linux/system-power.h>
 
 #include <uapi/linux/psci.h>
 
@@ -251,22 +252,27 @@ static int get_set_conduit_method(struct device_node *np)
 	return 0;
 }
 
-static int psci_sys_reset(struct notifier_block *nb, unsigned long action,
-			  void *data)
+static int psci_sys_reset(struct system_power_chip *chip,
+			  enum reboot_mode mode, char *cmd)
 {
 	invoke_psci_fn(PSCI_0_2_FN_SYSTEM_RESET, 0, 0, 0);
-	return NOTIFY_DONE;
+
+	return 0;
 }
 
-static struct notifier_block psci_sys_reset_nb = {
-	.notifier_call = psci_sys_reset,
-	.priority = 129,
-};
-
-static void psci_sys_poweroff(void)
+static int psci_sys_power_off(struct system_power_chip *chip)
 {
 	invoke_psci_fn(PSCI_0_2_FN_SYSTEM_OFF, 0, 0, 0);
+
+	return 0;
 }
+
+static struct system_power_chip psci_system_power = {
+	.level = SYSTEM_POWER_LEVEL_SYSTEM,
+	.name = "PSCI",
+	.restart = psci_sys_reset,
+	.power_off = psci_sys_power_off,
+};
 
 static int __init psci_features(u32 psci_func_id)
 {
@@ -546,6 +552,8 @@ static void __init psci_init_smccc(void)
 
 static void __init psci_0_2_set_functions(void)
 {
+	int err;
+
 	pr_info("Using standard PSCI v0.2 function IDs\n");
 	psci_ops.get_version = psci_get_version;
 
@@ -566,9 +574,9 @@ static void __init psci_0_2_set_functions(void)
 
 	psci_ops.migrate_info_type = psci_migrate_info_type;
 
-	register_restart_handler(&psci_sys_reset_nb);
-
-	pm_power_off = psci_sys_poweroff;
+	err = system_power_chip_add(&psci_system_power);
+	if (err < 0)
+		pr_err("failed to add system power chip: %d\n", err);
 }
 
 /*
