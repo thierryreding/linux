@@ -229,7 +229,6 @@ struct tegra_msi {
 	struct msi_controller chip;
 	DECLARE_BITMAP(used, INT_PCI_MSI_NR);
 	struct irq_domain *domain;
-	unsigned long pages;
 	struct mutex lock;
 	u64 phys;
 	int irq;
@@ -247,6 +246,7 @@ struct tegra_pcie_soc {
 	unsigned int num_ports;
 	const struct tegra_pcie_port_soc *ports;
 	unsigned int msi_base_shift;
+	u64 msi_target;
 	u32 pads_pll_ctl;
 	u32 tx_ref_sel;
 	u32 pads_refclk_cfg0;
@@ -1546,9 +1546,35 @@ static int tegra_pcie_msi_setup(struct tegra_pcie *pcie)
 		goto err;
 	}
 
-	/* setup AFI/FPCI range */
-	msi->pages = __get_free_pages(GFP_KERNEL, 0);
-	msi->phys = virt_to_phys((void *)msi->pages);
+	/*
+	 * The PCI host bridge on Tegra contains some logic that intercepts
+	 * MSI writes, which means that the MSI target address doesn't have
+	 * to point to actual physical memory. Rather than allocating one 4
+	 * KiB page of system memory that's never used, we can simply pick
+	 * an arbitrary address within a reserved area in the FPCI address
+	 * map.
+	 *
+	 * Note that MSI writes are never committed to memory, so it doesn't
+	 * really matter which address we pick. However, since the address
+	 * may show up at some point and potentially confuse users, the best
+	 * solution would be to pick an address that is obviously not within
+	 * system memory. The FPCI address map contains a range that cannot
+	 * be accessed by any Tegra CPU, but unfortunately that excludes the
+	 * usage for 32-bit MSI capable devices.
+	 *
+	 * A good choice that supports both 32-bit and 64-bit MSI would be to
+	 * pick a memory address within the PCI MMIO region that is currently
+	 * not used for configuration space, downstream I/O, prefetchable or
+	 * non prefetchable memory. However, it seems like not all chips will
+	 * be able to intercept MSI writes to those addresses.
+	 *
+	 * The only reliable addresses that seem to work point to external
+	 * memory. Pick the physical base address of system memory as the MSI
+	 * target address. This is slightly less than ideal because it could
+	 * technically, though unlikely, be used for DMA. However, since the
+	 * MSI writes will be intercepted, this should be of little concern.
+	 */
+	msi->phys = pcie->soc->msi_target;
 	host->msi = &msi->chip;
 
 	return 0;
@@ -1589,8 +1615,6 @@ static void tegra_pcie_msi_teardown(struct tegra_pcie *pcie)
 {
 	struct tegra_msi *msi = &pcie->msi;
 	unsigned int i, irq;
-
-	free_pages(msi->pages, 0);
 
 	if (msi->irq > 0)
 		free_irq(msi->irq, pcie);
@@ -2134,6 +2158,7 @@ static const struct tegra_pcie_soc tegra20_pcie = {
 	.num_ports = 2,
 	.ports = tegra20_pcie_ports,
 	.msi_base_shift = 0,
+	.msi_target = 0x00000000,
 	.pads_pll_ctl = PADS_PLL_CTL_TEGRA20,
 	.tx_ref_sel = PADS_PLL_CTL_TXCLKREF_DIV10,
 	.pads_refclk_cfg0 = 0xfa5cfa5c,
@@ -2156,6 +2181,7 @@ static const struct tegra_pcie_soc tegra30_pcie = {
 	.num_ports = 3,
 	.ports = tegra30_pcie_ports,
 	.msi_base_shift = 8,
+	.msi_target = 0x80000000,
 	.pads_pll_ctl = PADS_PLL_CTL_TEGRA30,
 	.tx_ref_sel = PADS_PLL_CTL_TXCLKREF_BUF_EN,
 	.pads_refclk_cfg0 = 0xfa5cfa5c,
@@ -2173,6 +2199,7 @@ static const struct tegra_pcie_soc tegra124_pcie = {
 	.num_ports = 2,
 	.ports = tegra20_pcie_ports,
 	.msi_base_shift = 8,
+	.msi_target = 0x80000000,
 	.pads_pll_ctl = PADS_PLL_CTL_TEGRA30,
 	.tx_ref_sel = PADS_PLL_CTL_TXCLKREF_BUF_EN,
 	.pads_refclk_cfg0 = 0x44ac44ac,
@@ -2189,6 +2216,7 @@ static const struct tegra_pcie_soc tegra210_pcie = {
 	.num_ports = 2,
 	.ports = tegra20_pcie_ports,
 	.msi_base_shift = 8,
+	.msi_target = 0x80000000,
 	.pads_pll_ctl = PADS_PLL_CTL_TEGRA30,
 	.tx_ref_sel = PADS_PLL_CTL_TXCLKREF_BUF_EN,
 	.pads_refclk_cfg0 = 0x90b890b8,
@@ -2211,6 +2239,7 @@ static const struct tegra_pcie_soc tegra186_pcie = {
 	.num_ports = 3,
 	.ports = tegra186_pcie_ports,
 	.msi_base_shift = 8,
+	.msi_target = 0x80000000,
 	.pads_pll_ctl = PADS_PLL_CTL_TEGRA30,
 	.tx_ref_sel = PADS_PLL_CTL_TXCLKREF_BUF_EN,
 	.pads_refclk_cfg0 = 0x80b880b8,
