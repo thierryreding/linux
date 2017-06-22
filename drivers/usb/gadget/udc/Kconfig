@@ -285,6 +285,14 @@ config USB_SNP_UDC_PLAT
 	  and Cygnus SoCs.
 
 	  If unsure, say N.
+
+config USB_TEGRA_XUDC
+	tristate "NVIDIA Tegra USB 3.0 Device Controller"
+	depends on ARCH_TEGRA
+	help
+	  Enables the driver for the USB 3.0 device controller (XUDC) found
+	  on Tegra SoCs.
+
 #
 # Controllers available in both integrated and discrete versions
 #
