@@ -11,6 +11,8 @@
  * more details.
  */
 
+#define DEBUG
+
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -264,6 +266,8 @@ void tegra_phy_xusb_utmi_pad_power_on(struct phy *phy)
 	unsigned int index = lane->index;
 	u32 value;
 
+	dev_dbg(padctl->dev, "> %s(phy=%p)\n", __func__, phy);
+
 	if (!phy)
 		return;
 
@@ -284,6 +288,8 @@ void tegra_phy_xusb_utmi_pad_power_on(struct phy *phy)
 	value = padctl_readl(padctl, XUSB_PADCTL_USB2_OTG_PADX_CTL1(index));
 	value &= ~USB2_OTG_PD_DR;
 	padctl_writel(padctl, value, XUSB_PADCTL_USB2_OTG_PADX_CTL1(index));
+
+	dev_dbg(padctl->dev, "< %s()\n", __func__);
 }
 
 void tegra_phy_xusb_utmi_pad_power_down(struct phy *phy)
@@ -292,6 +298,8 @@ void tegra_phy_xusb_utmi_pad_power_down(struct phy *phy)
 	struct tegra_xusb_padctl *padctl = lane->pad->padctl;
 	unsigned int index = lane->index;
 	u32 value;
+
+	dev_dbg(padctl->dev, "> %s(phy=%p)\n", __func__, phy);
 
 	if (!phy)
 		return;
@@ -307,6 +315,8 @@ void tegra_phy_xusb_utmi_pad_power_down(struct phy *phy)
 	udelay(2);
 
 	tegra186_utmi_bias_pad_power_off(padctl);
+
+	dev_dbg(padctl->dev, "< %s()\n", __func__);
 }
 
 static int tegra186_utmi_phy_power_on(struct phy *phy)
@@ -319,6 +329,9 @@ static int tegra186_utmi_phy_power_on(struct phy *phy)
 	unsigned int index = lane->index;
 	struct device *dev = padctl->dev;
 	u32 value;
+
+	dev_dbg(padctl->dev, "> %s(phy=%p)\n", __func__, phy);
+	dev_dbg(padctl->dev, "  port: %u\n", index);
 
 	port = tegra_xusb_find_usb2_port(padctl, index);
 	if (!port) {
@@ -378,14 +391,22 @@ static int tegra186_utmi_phy_power_on(struct phy *phy)
 
 	/* TODO: pad power saving */
 	tegra_phy_xusb_utmi_pad_power_on(phy);
+
+	dev_dbg(padctl->dev, "< %s()\n", __func__);
 	return 0;
 }
 
 static int tegra186_utmi_phy_power_off(struct phy *phy)
 {
+	struct tegra_xusb_lane *lane = phy_get_drvdata(phy);
+	struct tegra_xusb_padctl *padctl = lane->pad->padctl;
+
+	dev_dbg(padctl->dev, "> %s(phy=%p)\n", __func__, phy);
+
 	/* TODO: pad power saving */
 	tegra_phy_xusb_utmi_pad_power_down(phy);
 
+	dev_dbg(padctl->dev, "< %s()\n", __func__);
 	return 0;
 }
 
