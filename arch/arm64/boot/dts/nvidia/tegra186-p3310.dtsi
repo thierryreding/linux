@@ -169,6 +169,8 @@
 				#gpio-cells = <2>;
 				gpio-controller;
 
+				system-power-controller;
+
 				pinctrl-names = "default";
 				pinctrl-0 = <&max77620_default>;
 
