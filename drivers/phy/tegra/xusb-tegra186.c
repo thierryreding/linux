@@ -919,3 +919,29 @@ EXPORT_SYMBOL_GPL(tegra186_xusb_padctl_soc);
 MODULE_AUTHOR("JC Kuo <jckuo@nvidia.com>");
 MODULE_DESCRIPTION("NVIDIA Tegra186 XUSB Pad Controller driver");
 MODULE_LICENSE("GPL v2");
+
+int tegra_xusb_padctl_set_vbus_override(struct tegra_xusb_padctl *padctl)
+{
+	u32 value;
+
+	value = padctl_readl(padctl, USB2_VBUS_ID);
+	value |= VBUS_OVERRIDE;
+	value &= ~ID_OVERRIDE(~0);
+	value |= ID_OVERRIDE_FLOATING;
+	padctl_writel(padctl, value, USB2_VBUS_ID);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(tegra_xusb_padctl_set_vbus_override);
+
+int tegra_xusb_padctl_clear_vbus_override(struct tegra_xusb_padctl *padctl)
+{
+	u32 value;
+
+	value = padctl_readl(padctl, USB2_VBUS_ID);
+	value &= ~VBUS_OVERRIDE;
+	padctl_writel(padctl, value, USB2_VBUS_ID);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(tegra_xusb_padctl_clear_vbus_override);
