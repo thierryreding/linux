@@ -396,12 +396,31 @@
 			      "xusb_ss_src", "xusb_hs_src", "xusb_fs_src",
 			      "pll_u_480m", "clk_m", "pll_e";
 
+		power-domains = <&bpmp TEGRA186_POWER_DOMAIN_XUSBC>,
+				<&bpmp TEGRA186_POWER_DOMAIN_XUSBA>;
 		nvidia,xusb-padctl = <&padctl>;
 
 		status = "disabled";
 
 		#address-cells = <1>;
 		#size-cells = <0>;
+	};
+
+	udc@3550000 {
+		compatible = "nvidia,tegra186-xudc";
+		reg = <0x0 0x03550000 0x0 0x8000>,
+		      <0x0 0x03558000 0x0 0x1000>;
+		interrupts = <GIC_SPI 166 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&bpmp TEGRA186_CLK_PLLU>,
+			 <&bpmp TEGRA186_CLK_XUSB_DEV>,
+			 <&bpmp TEGRA186_CLK_XUSB_SS>,
+			 <&bpmp TEGRA186_CLK_PLLE>;
+		clock-names = "pll_u_480m", "dev", "ss", "pll_e";
+		status = "disabled";
+
+		power-domains = <&bpmp TEGRA186_POWER_DOMAIN_XUSBB>,
+				<&bpmp TEGRA186_POWER_DOMAIN_XUSBA>;
+		nvidia,xusb-padctl = <&padctl>;
 	};
 
 	fuse@3820000 {
