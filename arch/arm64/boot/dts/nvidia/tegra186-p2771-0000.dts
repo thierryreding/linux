@@ -45,7 +45,7 @@
 
 	/* SDMMC1 (SD/MMC) */
 	sdhci@3400000 {
-		status = "okay";
+		status = "disabled";
 
 		vmmc-supply = <&vdd_sd>;
 	};
