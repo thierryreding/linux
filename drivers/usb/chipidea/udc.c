@@ -7,6 +7,7 @@
  * Author: David Lopo
  */
 
+#define DEBUG
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/dmapool.h>
@@ -1517,6 +1518,8 @@ static int ci_udc_vbus_session(struct usb_gadget *_gadget, int is_active)
 	unsigned long flags;
 	int gadget_ready = 0;
 
+	dev_dbg(ci->dev, "> %s(gadget=%p, is_active=%d)\n", __func__, _gadget, is_active);
+
 	spin_lock_irqsave(&ci->lock, flags);
 	ci->vbus_active = is_active;
 	if (ci->driver)
@@ -1548,6 +1551,7 @@ static int ci_udc_vbus_session(struct usb_gadget *_gadget, int is_active)
 		}
 	}
 
+	dev_dbg(ci->dev, "< %s()\n", __func__);
 	return 0;
 }
 
@@ -1931,6 +1935,9 @@ static int udc_start(struct ci_hdrc *ci)
 	if (retval)
 		goto destroy_eps;
 
+	if (ci->usb_phy)
+		otg_set_peripheral(ci->usb_phy->otg, &ci->gadget);
+
 	pm_runtime_no_callbacks(&ci->gadget.dev);
 	pm_runtime_enable(&ci->gadget.dev);
 
@@ -1954,6 +1961,9 @@ void ci_hdrc_gadget_destroy(struct ci_hdrc *ci)
 {
 	if (!ci->roles[CI_ROLE_GADGET])
 		return;
+
+	if (ci->usb_phy)
+		otg_set_peripheral(ci->usb_phy->otg, NULL);
 
 	usb_del_gadget_udc(&ci->gadget);
 
