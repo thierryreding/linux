@@ -100,7 +100,7 @@
 
 	/* SDMMC3 (SDIO) */
 	sdhci@3440000 {
-		status = "okay";
+		status = "disabled";
 		bus-width = <4>;
 		non-removable;
 
@@ -112,7 +112,7 @@
 
 	/* SDMMC4 (eMMC) */
 	sdhci@3460000 {
-		status = "okay";
+		status = "disabled";
 		bus-width = <8>;
 		non-removable;
 
