@@ -55,6 +55,8 @@
 
 		pads {
 			usb2 {
+				status = "okay";
+
 				lanes {
 					usb2-0 {
 						nvidia,function = "xusb";
@@ -74,6 +76,8 @@
 			};
 
 			usb3 {
+				status = "okay";
+
 				lanes {
 					usb3-0 {
 						nvidia,function = "xusb";
@@ -108,7 +112,7 @@
 				vbus-supply = <&vdd_usb1>;
 			};
 
-			usb3-0 {
+			usb3-1 {
 				nvidia,usb2-companion = <1>;
 				status = "okay";
 			};
@@ -122,6 +126,14 @@
 		       <&{/padctl@3520000/pads/usb2/lanes/usb2-1}>,
 		       <&{/padctl@3520000/pads/usb3/lanes/usb3-1}>;
 		phy-names = "usb2-0", "usb2-1", "usb3-1";
+	};
+
+	udc@3550000 {
+		status = "okay";
+
+		phys = <&{/padctl@3520000/pads/usb2/lanes/usb2-0}>;
+		phy-names = "usb2";
+		extcon = <&usb_id>;
 	};
 
 	pcie@10003000 {
@@ -273,5 +285,11 @@
 
 			vin-supply = <&vdd_5v0_sys>;
 		};
+	};
+
+	usb_id: usb-id {
+		compatible = "linux,extcon-usb-gpio";
+		id-gpio = <&pmic 0 GPIO_ACTIVE_HIGH>;
+		vbus-gpio = <&gpio TEGRA_MAIN_GPIO(X, 7) GPIO_ACTIVE_LOW>;
 	};
 };
