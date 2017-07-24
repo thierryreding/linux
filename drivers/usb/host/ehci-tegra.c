@@ -472,6 +472,7 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 		goto cleanup_clk_en;
 	}
 
+	/*
 	u_phy->otg = devm_kzalloc(&pdev->dev, sizeof(struct usb_otg),
 			     GFP_KERNEL);
 	if (!u_phy->otg) {
@@ -479,6 +480,7 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 		goto cleanup_phy;
 	}
 	u_phy->otg->host = hcd_to_bus(hcd);
+	*/
 
 	err = usb_phy_set_suspend(hcd->usb_phy, 0);
 	if (err) {
