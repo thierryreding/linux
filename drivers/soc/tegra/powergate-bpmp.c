@@ -20,6 +20,9 @@
 #include <soc/tegra/bpmp.h>
 #include <soc/tegra/bpmp-abi.h>
 
+/* XXX */
+#include <dt-bindings/power/tegra186-powergate.h>
+
 struct tegra_powergate_info {
 	unsigned int id;
 	char *name;
@@ -198,6 +201,15 @@ tegra_powergate_add(struct tegra_bpmp *bpmp,
 	if (err < 0) {
 		kfree(powergate->genpd.name);
 		return ERR_PTR(err);
+	}
+
+	switch (powergate->id) {
+	case TEGRA186_POWER_DOMAIN_XUSBA:
+	case TEGRA186_POWER_DOMAIN_XUSBB:
+	case TEGRA186_POWER_DOMAIN_XUSBC:
+		err = tegra_powergate_power_on(&powergate->genpd);
+		dev_info(bpmp->dev, "power domain %s powered on: %d\n", powergate->genpd.name, err);
+		break;
 	}
 
 	return powergate;
