@@ -27,21 +27,17 @@
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/phy/phy.h>
 #include <linux/phy/tegra/xusb.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 #include <linux/reset.h>
-#include <linux/tegra-powergate.h>
-#include <linux/tegra_pm_domains.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
-#include <linux/usb/tegra_usb_charger.h>
 #include <linux/workqueue.h>
-#include <soc/tegra/chip-id.h>
 
 /* XUSB_DEV registers */
 #define SPARAM 0x000
@@ -199,33 +195,15 @@
 #define IPFS_XUSB_DEV_INTR_MASK 0x188
 #define  IPFS_XUSB_DEV_INTR_MASK_IP_INT_MASK BIT(16)
 
+/* XXX */
 /* Device ID */
 #define XUDC_DEVICE_ID_T210     0x0fad
 #define XUDC_DEVICE_ID_T186     0x10e2
-#define XUDC_DEVICE_ID_T194     0x10ff
 
 #define XUDC_IS_T210(t) \
 	(t->soc ? (t->soc->device_id == XUDC_DEVICE_ID_T210) : false)
 #define XUDC_IS_T186(t) \
 	(t->soc ? (t->soc->device_id == XUDC_DEVICE_ID_T186) : false)
-#define XUDC_IS_T194(t) \
-	(t->soc ? (t->soc->device_id == XUDC_DEVICE_ID_T194) : false)
-
-#if IS_ENABLED(CONFIG_PM_GENERIC_DOMAINS)
-static struct of_device_id tegra_xusba_pd[] = {
-	{ .compatible = "nvidia,tegra186-xusba-pd", },
-	{ .compatible = "nvidia,tegra210-xusba-pd", },
-	{ .compatible = "nvidia,tegra132-xusba-pd", },
-	{},
-};
-
-static struct of_device_id tegra_xusbb_pd[] = {
-	{ .compatible = "nvidia,tegra186-xusbb-pd", },
-	{ .compatible = "nvidia,tegra210-xusbb-pd", },
-	{ .compatible = "nvidia,tegra132-xusbb-pd", },
-	{},
-};
-#endif
 
 struct tegra_xudc_ep_context {
 	__le32 info0;
@@ -252,19 +230,22 @@ struct tegra_xudc_ep_context {
 #define EP_TYPE_INTERRUPT_IN 7
 
 #define BUILD_EP_CONTEXT_RW(name, member, shift, mask)			\
-static inline u32 ep_ctx_read_##name(struct tegra_xudc_ep_context *ctx)	\
-{									\
-	return (le32_to_cpu(ctx->member) >> shift) & mask;		\
-}									\
-static inline void							\
-ep_ctx_write_##name(struct tegra_xudc_ep_context *ctx, u32 val)		\
-{									\
-	u32 tmp;							\
+	static inline u32						\
+	ep_ctx_read_##name(struct tegra_xudc_ep_context *ctx)		\
+	{								\
+		return (le32_to_cpu(ctx->member) >> shift) & mask;	\
+	}								\
 									\
-	tmp = le32_to_cpu(ctx->member) & ~(mask << shift);		\
-	tmp |= (val & mask) << shift;					\
-	ctx->member = cpu_to_le32(tmp);					\
-}
+	static inline void						\
+	ep_ctx_write_##name(struct tegra_xudc_ep_context *ctx,		\
+			    u32 value)					\
+	{								\
+		u32 val;						\
+									\
+		val = le32_to_cpu(ctx->member) & ~(mask << shift);	\
+		val |= (value & mask) << shift;				\
+		ctx->member = cpu_to_le32(val);				\
+	}
 
 BUILD_EP_CONTEXT_RW(state, info0, 0, 0x7)
 BUILD_EP_CONTEXT_RW(mult, info0, 8, 0x3)
@@ -342,19 +323,20 @@ struct tegra_xudc_trb {
 #define TRB_CMPL_CODE_CTRL_SEQNUM_ERR 223
 
 #define BUILD_TRB_RW(name, member, shift, mask)				\
-static inline u32 trb_read_##name(struct tegra_xudc_trb *trb)		\
-{									\
-	return (le32_to_cpu(trb->member) >> shift) & mask;		\
-}									\
-static inline void							\
-trb_write_##name(struct tegra_xudc_trb *trb, u32 val)			\
-{									\
-	u32 tmp;							\
+	static inline u32 trb_read_##name(struct tegra_xudc_trb *trb)	\
+	{								\
+		return (le32_to_cpu(trb->member) >> shift) & mask;	\
+	}								\
 									\
-	tmp = le32_to_cpu(trb->member) & ~(mask << shift);		\
-	tmp |= (val & mask) << shift;					\
-	trb->member = cpu_to_le32(tmp);					\
-}
+	static inline void						\
+	trb_write_##name(struct tegra_xudc_trb *trb, u32 value)		\
+	{								\
+		u32 val;						\
+									\
+		val = le32_to_cpu(trb->member) & ~(mask << shift);	\
+		val |= (value & mask) << shift;				\
+		trb->member = cpu_to_le32(val);				\
+	}
 
 BUILD_TRB_RW(data_lo, data_lo, 0, 0xffffffff)
 BUILD_TRB_RW(data_hi, data_hi, 0, 0xffffffff)
@@ -497,40 +479,31 @@ struct tegra_xudc {
 	int irq;
 
 	void __iomem *base;
-	resource_size_t phys_base;
+	resource_size_t phys;
 	void __iomem *ipfs;
 	void __iomem *fpci;
 
-	struct clk *pll_u_480M;
-	struct clk *pll_e;
-	struct clk *dev_clk;
-	struct clk *ss_clk;
+	struct clk *clk_pllu;
+	struct clk *clk_plle;
+	struct clk *clk_dev;
+	struct clk *clk_ss;
 
 	struct regulator_bulk_data *supplies;
 
 	bool device_mode;
-	struct extcon_dev *data_role_extcon;
+	struct extcon_dev *extcon;
 	struct notifier_block data_role_nb;
 	struct work_struct data_role_work;
 
-	struct phy *usb3_phy;
-	struct phy *utmi_phy;
+	struct phy *phy_usb3;
+	struct phy *phy_utmi;
 
 	struct tegra_xudc_save_regs saved_regs;
+	bool selfpowered;
 	bool suspended;
 	bool powergated;
 
 	struct completion disconnect_complete;
-
-	/* charger detection */
-	struct tegra_usb_cd *ucd;
-	unsigned int connect_type;
-#define NON_STD_CHARGER_DET_TIME_MS 2000
-#define USB_ANDROID_SUSPEND_CURRENT_MA 2
-	struct work_struct set_charging_current_work;
-	struct delayed_work non_std_charger_work;
-	u32 current_ma;
-	bool selfpowered;
 };
 
 #define XUDC_TRB_MAX_BUFFER_SIZE 65536
@@ -555,43 +528,47 @@ struct tegra_xudc_soc_data {
 	bool invalid_seq_num;
 };
 
-static inline u32 fpci_readl(struct tegra_xudc *xudc, u32 addr)
+static inline u32 fpci_readl(struct tegra_xudc *xudc, unsigned int offset)
 {
-	return readl(xudc->fpci + addr);
+	return readl(xudc->fpci + offset);
 }
 
-static inline void fpci_writel(struct tegra_xudc *xudc, u32 val, u32 addr)
+static inline void fpci_writel(struct tegra_xudc *xudc, u32 value,
+			       unsigned int offset)
 {
-	writel(val, xudc->fpci + addr);
+	writel(value, xudc->fpci + offset);
 }
 
-static inline u32 ipfs_readl(struct tegra_xudc *xudc, u32 addr)
+static inline u32 ipfs_readl(struct tegra_xudc *xudc, unsigned int offset)
 {
-	return readl(xudc->ipfs + addr);
+	return readl(xudc->ipfs + offset);
 }
 
-static inline void ipfs_writel(struct tegra_xudc *xudc, u32 val, u32 addr)
+static inline void ipfs_writel(struct tegra_xudc *xudc, u32 value,
+			       unsigned int offset)
 {
-	writel(val, xudc->ipfs + addr);
+	writel(value, xudc->ipfs + offset);
 }
 
-static inline u32 xudc_readl(struct tegra_xudc *xudc, u32 addr)
+static inline u32 xudc_readl(struct tegra_xudc *xudc, unsigned int offset)
 {
-	return readl(xudc->base + addr);
+	return readl(xudc->base + offset);
 }
 
-static inline void xudc_writel(struct tegra_xudc *xudc, u32 val, u32 addr)
+static inline void xudc_writel(struct tegra_xudc *xudc, u32 value,
+			       unsigned int offset)
 {
-	writel(val, xudc->base + addr);
+	writel(value, xudc->base + offset);
 }
 
-static inline int xudc_readl_poll(struct tegra_xudc *xudc, u32 addr, u32 mask,
-				  u32 val)
+static inline int xudc_readl_poll(struct tegra_xudc *xudc,
+				  unsigned int offset, u32 mask,
+				  u32 value)
 {
-	u32 regval;
+	u32 val;
 
-	return readl_poll_timeout_atomic(xudc->base + addr, regval,
-					 (regval & mask) == val, 1, 100);
+	return readl_poll_timeout_atomic(xudc->base + offset, val,
+					 (val & mask) == value, 1, 100);
 }
 
 static inline struct tegra_xudc *to_xudc(struct usb_gadget *gadget)
@@ -618,110 +595,54 @@ static inline void dump_trb(struct tegra_xudc *xudc, const char *type,
 		trb->control);
 }
 
-static void tegra_fpga_hack_init(struct tegra_xudc *xudc)
-{
-	dev_info(xudc->dev, "setup mods values\n");
-	xudc_writel(xudc, 0x9C, 0x100);
-	xudc_writel(xudc, 0x1ADD, 0x104);
-	xudc_writel(xudc, 0x1871, 0x108);
-	xudc_writel(xudc, 0x1E848, 0x10c);
-	xudc_writel(xudc, 0x9c4, 0x110);
-	xudc_writel(xudc, 0xEA6, 0x114);
-	xudc_writel(xudc, 0x2DCB7, 0x118);
-	xudc_writel(xudc, 0x74, 0x11c);
-	xudc_writel(xudc, 0x5b, 0x120);
-	xudc_writel(xudc, 0x98968, 0x124);
-	xudc_writel(xudc, 0x1E87, 0x128);
-	xudc_writel(xudc, 0xF444, 0x12c);
-	xudc_writel(xudc, 0x1FE, 0x130);
-	xudc_writel(xudc, 0xC35, 0x134);
-	xudc_writel(xudc, 0x21, 0x18c);
-	xudc_writel(xudc, 0x5b, 0x190);
-	xudc_writel(xudc, 0x0, 0x19c);
-}
-
-static void fpga_hack_setup_car(const struct tegra_xudc *xudc)
-{
-	struct device *dev = xudc->dev;
-	void __iomem *xusb_car_base;
-	u32 val;
-
-	xusb_car_base = devm_ioremap(dev, 0x20470000, 0x10);
-	if (!xusb_car_base) {
-		dev_err(dev, "failed to map XUSB CAR mmio\n");
-		return;
-	}
-#define   SWR_XUSB_HOST_RST			(1 << 0)
-#define   SWR_XUSB_DEV_RST			(1 << 1)
-#define   SWR_XUSB_PADCTL_RST			(1 << 2)
-#define   SWR_XUSB_SS_RST			(1 << 3)
-
-	val = ioread32(xusb_car_base);
-	val &= ~(SWR_XUSB_HOST_RST | SWR_XUSB_DEV_RST | SWR_XUSB_PADCTL_RST |
-			SWR_XUSB_SS_RST);
-	iowrite32(val, xusb_car_base);
-	devm_iounmap(dev, xusb_car_base);
-}
+int tegra_xusb_padctl_set_vbus_override(struct tegra_xusb_padctl *padctl);
+int tegra_xusb_padctl_clear_vbus_override(struct tegra_xusb_padctl *padctl);
 
 static void tegra_xudc_device_mode_on(struct tegra_xudc *xudc)
 {
 	unsigned long flags;
-	unsigned int type;
-
-	spin_lock_irqsave(&xudc->lock, flags);
-	if (xudc->device_mode) {
-		spin_unlock_irqrestore(&xudc->lock, flags);
-		return;
-	}
-	spin_unlock_irqrestore(&xudc->lock, flags);
-
-	/* charger detection should be done when b_idle->b_peripheral only */
-	if (xudc->ucd && !xudc->gadget.is_a_peripheral) {
-		type = tegra_ucd_detect_cable_and_set_current(xudc->ucd);
-
-		spin_lock_irqsave(&xudc->lock, flags);
-		xudc->connect_type = type;
-		if (xudc->connect_type == EXTCON_USB && xudc->pullup)
-			schedule_delayed_work(&xudc->non_std_charger_work,
-				msecs_to_jiffies(NON_STD_CHARGER_DET_TIME_MS));
-		spin_unlock_irqrestore(&xudc->lock, flags);
-	}
 
 	pm_runtime_get_sync(xudc->dev);
 
 	spin_lock_irqsave(&xudc->lock, flags);
-	dev_info(xudc->dev, "device mode on\n");
-	tegra_xusb_padctl_set_vbus_override(xudc->padctl);
 
+	if (xudc->device_mode) {
+		spin_unlock_irqrestore(&xudc->lock, flags);
+		pm_runtime_put(xudc->dev);
+		return;
+	}
+
+	/* XXX */
+#ifdef CONFIG_ARM64
+	tegra_xusb_padctl_set_vbus_override(xudc->padctl);
+#endif
+	dev_dbg(xudc->dev, "device mode on\n");
 	xudc->device_mode = true;
+
 	spin_unlock_irqrestore(&xudc->lock, flags);
-	tegra_phy_xusb_utmi_pad_power_on(xudc->utmi_phy);
 }
 
 static void tegra_xudc_device_mode_off(struct tegra_xudc *xudc)
 {
 	bool connected = false;
 	unsigned long flags;
-	u32 pls, val;
+	u32 pls, value;
 
 	spin_lock_irqsave(&xudc->lock, flags);
+
 	if (!xudc->device_mode) {
 		spin_unlock_irqrestore(&xudc->lock, flags);
 		return;
 	}
 
-	dev_info(xudc->dev, "device mode off\n");
-
-	if (xudc->ucd) {
-		xudc->connect_type = EXTCON_NONE;
-		cancel_delayed_work(&xudc->non_std_charger_work);
-		xudc->current_ma = 0;
-	}
-
 	connected = !!(xudc_readl(xudc, PORTSC) & PORTSC_CCS);
 	reinit_completion(&xudc->disconnect_complete);
 
+	/* XXX */
+#ifdef CONFIG_ARM64
 	tegra_xusb_padctl_clear_vbus_override(xudc->padctl);
+#endif
+	dev_dbg(xudc->dev, "device mode off\n");
 
 	pls = (xudc_readl(xudc, PORTSC) >> PORTSC_PLS_SHIFT) &
 		PORTSC_PLS_MASK;
@@ -729,20 +650,19 @@ static void tegra_xudc_device_mode_off(struct tegra_xudc *xudc)
 	/* Direct link to U0 if disconnected in RESUME or U2. */
 	if (XUDC_IS_T210(xudc) && xudc->gadget.speed == USB_SPEED_SUPER &&
 	    (pls == PORTSC_PLS_RESUME || pls == PORTSC_PLS_U2)) {
-		val = xudc_readl(xudc, PORTPM);
-		val |= PORTPM_FRWE;
-		xudc_writel(xudc, val, PORTPM);
+		value = xudc_readl(xudc, PORTPM);
+		value |= PORTPM_FRWE;
+		xudc_writel(xudc, value, PORTPM);
 
-		val = xudc_readl(xudc, PORTSC);
-		val &= ~(PORTSC_CHANGE_MASK |
-			 (PORTSC_PLS_MASK << PORTSC_PLS_SHIFT));
-		val |= PORTSC_LWS | (PORTSC_PLS_U0 << PORTSC_PLS_SHIFT);
-		xudc_writel(xudc, val, PORTSC);
+		value = xudc_readl(xudc, PORTSC);
+		value &= ~(PORTSC_CHANGE_MASK |
+			   (PORTSC_PLS_MASK << PORTSC_PLS_SHIFT));
+		value |= PORTSC_LWS | (PORTSC_PLS_U0 << PORTSC_PLS_SHIFT);
+		xudc_writel(xudc, value, PORTSC);
 	}
 
 	xudc->device_mode = false;
 	spin_unlock_irqrestore(&xudc->lock, flags);
-	tegra_phy_xusb_utmi_pad_power_down(xudc->utmi_phy);
 
 	/* Wait for disconnect event. */
 	if (connected)
@@ -751,20 +671,12 @@ static void tegra_xudc_device_mode_off(struct tegra_xudc *xudc)
 	/* Make sure interrupt handler has completed before powergating. */
 	synchronize_irq(xudc->irq);
 
-	if (xudc->ucd)
-		tegra_ucd_set_charger_type(xudc->ucd, EXTCON_NONE);
-
 	pm_runtime_put(xudc->dev);
 }
 
 static void tegra_xudc_update_data_role(struct tegra_xudc *xudc)
 {
-	if (tegra_platform_is_fpga()) {
-		tegra_xudc_device_mode_on(xudc);
-		return;
-	}
-
-	if (extcon_get_cable_state_(xudc->data_role_extcon, EXTCON_USB))
+	if (extcon_get_state(xudc->extcon, EXTCON_USB))
 		tegra_xudc_device_mode_on(xudc);
 	else
 		tegra_xudc_device_mode_off(xudc);
@@ -785,12 +697,11 @@ static int tegra_xudc_data_role_notifier(struct notifier_block *nb,
 					       data_role_nb);
 	unsigned long flags;
 
-	if (tegra_platform_is_fpga())
-		return NOTIFY_DONE;
-
 	spin_lock_irqsave(&xudc->lock, flags);
+
 	if (!xudc->suspended)
 		schedule_work(&xudc->data_role_work);
+
 	spin_unlock_irqrestore(&xudc->lock, flags);
 
 	return NOTIFY_DONE;
@@ -832,13 +743,14 @@ static void ep_reload(struct tegra_xudc *xudc, unsigned int ep)
 
 static void ep_pause(struct tegra_xudc *xudc, unsigned int ep)
 {
-	u32 val;
+	u32 value;
 
-	val = xudc_readl(xudc, EP_PAUSE);
-	if (val & BIT(ep))
+	value = xudc_readl(xudc, EP_PAUSE);
+	if (value & BIT(ep))
 		return;
-	val |= BIT(ep);
-	xudc_writel(xudc, val, EP_PAUSE);
+
+	value |= BIT(ep);
+	xudc_writel(xudc, value, EP_PAUSE);
 
 	xudc_readl_poll(xudc, EP_STCHG, BIT(ep), BIT(ep));
 
@@ -847,13 +759,14 @@ static void ep_pause(struct tegra_xudc *xudc, unsigned int ep)
 
 static void ep_unpause(struct tegra_xudc *xudc, unsigned int ep)
 {
-	u32 val;
+	u32 value;
 
-	val = xudc_readl(xudc, EP_PAUSE);
-	if (!(val & BIT(ep)))
+	value = xudc_readl(xudc, EP_PAUSE);
+	if (!(value & BIT(ep)))
 		return;
-	val &= ~BIT(ep);
-	xudc_writel(xudc, val, EP_PAUSE);
+
+	value &= ~BIT(ep);
+	xudc_writel(xudc, value, EP_PAUSE);
 
 	xudc_readl_poll(xudc, EP_STCHG, BIT(ep), BIT(ep));
 
@@ -862,25 +775,26 @@ static void ep_unpause(struct tegra_xudc *xudc, unsigned int ep)
 
 static void ep_unpause_all(struct tegra_xudc *xudc)
 {
-	u32 val;
+	u32 value;
 
-	val = xudc_readl(xudc, EP_PAUSE);
+	value = xudc_readl(xudc, EP_PAUSE);
 	xudc_writel(xudc, 0, EP_PAUSE);
 
-	xudc_readl_poll(xudc, EP_STCHG, val, val);
+	xudc_readl_poll(xudc, EP_STCHG, value, value);
 
-	xudc_writel(xudc, val, EP_STCHG);
+	xudc_writel(xudc, value, EP_STCHG);
 }
 
 static void ep_halt(struct tegra_xudc *xudc, unsigned int ep)
 {
-	u32 val;
+	u32 value;
 
-	val = xudc_readl(xudc, EP_HALT);
-	if (val & BIT(ep))
+	value = xudc_readl(xudc, EP_HALT);
+	if (value & BIT(ep))
 		return;
-	val |= BIT(ep);
-	xudc_writel(xudc, val, EP_HALT);
+
+	value |= BIT(ep);
+	xudc_writel(xudc, value, EP_HALT);
 
 	xudc_readl_poll(xudc, EP_STCHG, BIT(ep), BIT(ep));
 
@@ -889,13 +803,14 @@ static void ep_halt(struct tegra_xudc *xudc, unsigned int ep)
 
 static void ep_unhalt(struct tegra_xudc *xudc, unsigned int ep)
 {
-	u32 val;
+	u32 value;
 
-	val = xudc_readl(xudc, EP_HALT);
-	if (!(val & BIT(ep)))
+	value = xudc_readl(xudc, EP_HALT);
+	if (!(value & BIT(ep)))
 		return;
-	val &= ~BIT(ep);
-	xudc_writel(xudc, val, EP_HALT);
+
+	value &= ~BIT(ep);
+	xudc_writel(xudc, value, EP_HALT);
 
 	xudc_readl_poll(xudc, EP_STCHG, BIT(ep), BIT(ep));
 
@@ -1091,26 +1006,29 @@ static unsigned int tegra_xudc_queue_trbs(struct tegra_xudc_ep *ep,
 static void tegra_xudc_ep_ring_doorbell(struct tegra_xudc_ep *ep)
 {
 	struct tegra_xudc *xudc = ep->xudc;
-	u32 val;
+	u32 value;
 
 	if (list_empty(&ep->queue))
 		return;
 
-	val = ep->index << DB_TARGET_SHIFT;
+	value = ep->index << DB_TARGET_SHIFT;
+
 	if (usb_endpoint_xfer_control(ep->desc)) {
-		val |= xudc->setup_seq_num << DB_STREAMID_SHIFT;
+		value |= xudc->setup_seq_num << DB_STREAMID_SHIFT;
 	} else if (usb_ss_max_streams(ep->comp_desc) > 0) {
 		struct tegra_xudc_request *req;
 
 		/* Don't ring doorbell if the stream has been rejected. */
 		if (ep->stream_rejected)
 			return;
+
 		req = list_first_entry(&ep->queue, struct tegra_xudc_request,
 				       list);
-		val |= req->usb_req.stream_id << DB_STREAMID_SHIFT;
+		value |= req->usb_req.stream_id << DB_STREAMID_SHIFT;
 	}
-	dev_dbg(xudc->dev, "ring doorbell: %#x\n", val);
-	xudc_writel(xudc, val, DB);
+
+	dev_dbg(xudc->dev, "ring doorbell: %#x\n", value);
+	xudc_writel(xudc, value, DB);
 }
 
 static void tegra_xudc_ep_kick_queue(struct tegra_xudc_ep *ep)
@@ -1187,24 +1105,28 @@ tegra_xudc_ep_queue(struct usb_ep *usb_ep, struct usb_request *usb_req,
 	struct tegra_xudc_ep *ep;
 	struct tegra_xudc *xudc;
 	unsigned long flags;
-	int ret;
+	int err;
 
 	if (!usb_ep || !usb_req)
 		return -EINVAL;
+
 	ep = to_xudc_ep(usb_ep);
 	req = to_xudc_req(usb_req);
 	xudc = ep->xudc;
 
 	spin_lock_irqsave(&xudc->lock, flags);
+
 	if (xudc->powergated || !ep->desc) {
-		ret = -ESHUTDOWN;
+		err = -ESHUTDOWN;
 		goto unlock;
 	}
-	ret = __tegra_xudc_ep_queue(ep, req);
+
+	err = __tegra_xudc_ep_queue(ep, req);
+
 unlock:
 	spin_unlock_irqrestore(&xudc->lock, flags);
 
-	return ret;
+	return err;
 }
 
 static unsigned int actual_data_transferred(struct tegra_xudc_ep *ep,
@@ -1263,9 +1185,11 @@ static bool trb_in_request(struct tegra_xudc_ep *ep,
 	if (trb >= req->first_trb && (trb <= req->last_trb ||
 				      req->last_trb < req->first_trb))
 		return true;
+
 	if (trb < req->first_trb && trb <= req->last_trb &&
 	    req->last_trb < req->first_trb)
 		return true;
+
 	return false;
 }
 
@@ -1285,8 +1209,10 @@ static bool trb_before_request(struct tegra_xudc_ep *ep,
 	if (trb < req->first_trb && (enq_trb <= trb ||
 				     req->first_trb < enq_trb))
 		return true;
+
 	if (trb > req->first_trb && req->first_trb < enq_trb && enq_trb <= trb)
 		return true;
+
 	return false;
 }
 
@@ -1298,13 +1224,14 @@ __tegra_xudc_ep_dequeue(struct tegra_xudc_ep *ep,
 	struct tegra_xudc_request *r;
 	struct tegra_xudc_trb *deq_trb;
 	bool busy, kick_queue = false;
-	int ret = 0;
+	int err = 0;
 
 	/* Make sure the request is actually queued to this endpoint. */
 	list_for_each_entry(r, &ep->queue, list) {
 		if (r == req)
 			break;
 	}
+
 	if (r != req)
 		return -EINVAL;
 
@@ -1356,7 +1283,7 @@ __tegra_xudc_ep_dequeue(struct tegra_xudc_ep *ep,
 		 * completion event yet.
 		 */
 		tegra_xudc_req_done(ep, req, -ECONNRESET);
-		ret = -EINVAL;
+		err = -EINVAL;
 	}
 
 	/* Resume the endpoint. */
@@ -1365,7 +1292,7 @@ __tegra_xudc_ep_dequeue(struct tegra_xudc_ep *ep,
 	if (kick_queue)
 		tegra_xudc_ep_kick_queue(ep);
 
-	return ret;
+	return err;
 }
 
 static int
@@ -1375,7 +1302,7 @@ tegra_xudc_ep_dequeue(struct usb_ep *usb_ep, struct usb_request *usb_req)
 	struct tegra_xudc_ep *ep;
 	struct tegra_xudc *xudc;
 	unsigned long flags;
-	int ret;
+	int err;
 
 	if (!usb_ep || !usb_req)
 		return -EINVAL;
@@ -1384,15 +1311,18 @@ tegra_xudc_ep_dequeue(struct usb_ep *usb_ep, struct usb_request *usb_req)
 	xudc = ep->xudc;
 
 	spin_lock_irqsave(&xudc->lock, flags);
+
 	if (xudc->powergated || !ep->desc) {
-		ret = -ESHUTDOWN;
+		err = -ESHUTDOWN;
 		goto unlock;
 	}
-	ret = __tegra_xudc_ep_dequeue(ep, req);
+
+	err = __tegra_xudc_ep_dequeue(ep, req);
+
 unlock:
 	spin_unlock_irqrestore(&xudc->lock, flags);
 
-	return ret;
+	return err;
 }
 
 static int __tegra_xudc_ep_set_halt(struct tegra_xudc_ep *ep, bool halt)
@@ -1410,6 +1340,7 @@ static int __tegra_xudc_ep_set_halt(struct tegra_xudc_ep *ep, bool halt)
 	if (!!(xudc_readl(xudc, EP_HALT) & BIT(ep->index)) == halt) {
 		dev_dbg(xudc->dev, "ep %u already %s\n", ep->index,
 			halt ? "halted" : "not halted");
+
 		/* Reset already-unhalted endpoints. */
 		if (halt)
 			return 0;
@@ -1440,7 +1371,7 @@ static int tegra_xudc_ep_set_halt(struct usb_ep *usb_ep, int value)
 	struct tegra_xudc_ep *ep;
 	struct tegra_xudc *xudc;
 	unsigned long flags;
-	int ret;
+	int err;
 
 	if (!usb_ep)
 		return -EINVAL;
@@ -1450,20 +1381,22 @@ static int tegra_xudc_ep_set_halt(struct usb_ep *usb_ep, int value)
 
 	spin_lock_irqsave(&xudc->lock, flags);
 	if (xudc->powergated) {
-		ret = -ESHUTDOWN;
+		err = -ESHUTDOWN;
 		goto unlock;
 	}
+
 	if (value && usb_endpoint_dir_in(ep->desc) &&
 	    !list_empty(&ep->queue)) {
 		dev_err(xudc->dev, "can't halt ep with requests pending\n");
-		ret = -EAGAIN;
+		err = -EAGAIN;
 		goto unlock;
 	}
-	ret = __tegra_xudc_ep_set_halt(ep, value);
+
+	err = __tegra_xudc_ep_set_halt(ep, value);
+
 unlock:
 	spin_unlock_irqrestore(&xudc->lock, flags);
-
-	return ret;
+	return err;
 }
 
 static void tegra_xudc_ep_context_setup(struct tegra_xudc_ep *ep)
@@ -1472,12 +1405,14 @@ static void tegra_xudc_ep_context_setup(struct tegra_xudc_ep *ep)
 	const struct usb_ss_ep_comp_descriptor *comp_desc = ep->comp_desc;
 	struct tegra_xudc *xudc = ep->xudc;
 	u16 maxpacket, maxburst = 0, esit = 0;
-	u32 val;
+	u32 value;
 
 	maxpacket = usb_endpoint_maxp(desc) & 0x7ff;
+
 	if (xudc->gadget.speed == USB_SPEED_SUPER) {
 		if (!usb_endpoint_xfer_control(desc))
 			maxburst = comp_desc->bMaxBurst;
+
 		if (usb_endpoint_xfer_int(desc) || usb_endpoint_xfer_isoc(desc))
 			esit = le16_to_cpu(comp_desc->wBytesPerInterval);
 	} else if ((xudc->gadget.speed < USB_SPEED_SUPER) &&
@@ -1485,12 +1420,14 @@ static void tegra_xudc_ep_context_setup(struct tegra_xudc_ep *ep)
 		    usb_endpoint_xfer_isoc(desc))) {
 		if (xudc->gadget.speed == USB_SPEED_HIGH) {
 			maxburst = (usb_endpoint_maxp(desc) >> 11) & 0x3;
+
 			if (maxburst == 0x3) {
 				dev_warn(xudc->dev,
 					 "invalid endpoint maxburst\n");
 				maxburst = 0x2;
 			}
 		}
+
 		esit = maxpacket * (maxburst + 1);
 	}
 
@@ -1498,11 +1435,13 @@ static void tegra_xudc_ep_context_setup(struct tegra_xudc_ep *ep)
 
 	ep_ctx_write_state(ep->context, EP_STATE_RUNNING);
 	ep_ctx_write_interval(ep->context, desc->bInterval);
+
 	if (xudc->gadget.speed == USB_SPEED_SUPER) {
 		if (usb_endpoint_xfer_isoc(desc)) {
 			ep_ctx_write_mult(ep->context,
 					  comp_desc->bmAttributes & 0x3);
 		}
+
 		if (usb_endpoint_xfer_bulk(desc)) {
 			ep_ctx_write_max_pstreams(ep->context,
 						  comp_desc->bmAttributes &
@@ -1512,10 +1451,11 @@ static void tegra_xudc_ep_context_setup(struct tegra_xudc_ep *ep)
 	}
 
 	if (!usb_endpoint_xfer_control(desc) && usb_endpoint_dir_out(desc))
-		val = usb_endpoint_type(desc);
+		value = usb_endpoint_type(desc);
 	else
-		val = usb_endpoint_type(desc) + EP_TYPE_CONTROL;
-	ep_ctx_write_type(ep->context, val);
+		value = usb_endpoint_type(desc) + EP_TYPE_CONTROL;
+
+	ep_ctx_write_type(ep->context, value);
 	ep_ctx_write_cerr(ep->context, 0x3);
 	ep_ctx_write_max_packet_size(ep->context, maxpacket);
 	ep_ctx_write_max_burst_size(ep->context, maxburst);
@@ -1526,18 +1466,21 @@ static void tegra_xudc_ep_context_setup(struct tegra_xudc_ep *ep)
 	/* Select a reasonable average TRB length based on endpoint type. */
 	switch (usb_endpoint_type(desc)) {
 	case USB_ENDPOINT_XFER_CONTROL:
-		val = 8;
+		value = 8;
 		break;
+
 	case USB_ENDPOINT_XFER_INT:
-		val = 1024;
+		value = 1024;
 		break;
+
 	case USB_ENDPOINT_XFER_BULK:
 	case USB_ENDPOINT_XFER_ISOC:
 	default:
-		val = 3072;
+		value = 3072;
 		break;
 	}
-	ep_ctx_write_avg_trb_len(ep->context, val);
+
+	ep_ctx_write_avg_trb_len(ep->context, value);
 	ep_ctx_write_max_esit_payload(ep->context, esit);
 
 	ep_ctx_write_cerrcnt(ep->context, 0x3);
@@ -1586,16 +1529,16 @@ static int __tegra_xudc_ep_disable(struct tegra_xudc_ep *ep)
 	 */
 	if ((xudc->device_state == USB_STATE_CONFIGURED) &&
 	    (xudc->nr_enabled_eps == 1)) {
-		u32 val;
+		u32 value;
 
 		xudc->device_state = USB_STATE_ADDRESS;
 
-		val = xudc_readl(xudc, CTRL);
-		val &= ~CTRL_RUN;
-		xudc_writel(xudc, val, CTRL);
+		value = xudc_readl(xudc, CTRL);
+		value &= ~CTRL_RUN;
+		xudc_writel(xudc, value, CTRL);
 	}
 
-	dev_info(xudc->dev, "ep %u disabled\n", ep->index);
+	dev_dbg(xudc->dev, "ep %u disabled\n", ep->index);
 
 	return 0;
 }
@@ -1605,7 +1548,7 @@ static int tegra_xudc_ep_disable(struct usb_ep *usb_ep)
 	struct tegra_xudc_ep *ep;
 	struct tegra_xudc *xudc;
 	unsigned long flags;
-	int ret;
+	int err;
 
 	if (!usb_ep)
 		return -EINVAL;
@@ -1614,15 +1557,17 @@ static int tegra_xudc_ep_disable(struct usb_ep *usb_ep)
 	xudc = ep->xudc;
 
 	spin_lock_irqsave(&xudc->lock, flags);
+
 	if (xudc->powergated) {
-		ret = -ESHUTDOWN;
+		err = -ESHUTDOWN;
 		goto unlock;
 	}
-	ret = __tegra_xudc_ep_disable(ep);
+
+	err = __tegra_xudc_ep_disable(ep);
+
 unlock:
 	spin_unlock_irqrestore(&xudc->lock, flags);
-
-	return ret;
+	return err;
 }
 
 static int __tegra_xudc_ep_enable(struct tegra_xudc_ep *ep,
@@ -1630,7 +1575,7 @@ static int __tegra_xudc_ep_enable(struct tegra_xudc_ep *ep,
 {
 	struct tegra_xudc *xudc = ep->xudc;
 	unsigned int i;
-	u32 val;
+	u32 value;
 
 	/* Disable the EP if it is not disabled */
 	if (ep_ctx_read_state(ep->context) != EP_STATE_DISABLED)
@@ -1671,9 +1616,9 @@ static int __tegra_xudc_ep_enable(struct tegra_xudc_ep *ep,
 	 * endpoint is enabled.
 	 */
 	if (xudc->device_state == USB_STATE_ADDRESS) {
-		val = xudc_readl(xudc, CTRL);
-		val |= CTRL_RUN;
-		xudc_writel(xudc, val, CTRL);
+		value = xudc_readl(xudc, CTRL);
+		value |= CTRL_RUN;
+		xudc_writel(xudc, value, CTRL);
 
 		xudc->device_state = USB_STATE_CONFIGURED;
 	}
@@ -1703,9 +1648,9 @@ static int __tegra_xudc_ep_enable(struct tegra_xudc_ep *ep,
 	}
 
 out:
-	dev_info(xudc->dev, "ep %u (type: %d, dir: %s) enabled\n", ep->index,
-		 usb_endpoint_type(ep->desc),
-		 usb_endpoint_dir_in(ep->desc) ? "in" : "out");
+	dev_dbg(xudc->dev, "ep %u (type: %d, dir: %s) enabled\n", ep->index,
+		usb_endpoint_type(ep->desc),
+		usb_endpoint_dir_in(ep->desc) ? "in" : "out");
 
 	return 0;
 }
@@ -1716,7 +1661,7 @@ static int tegra_xudc_ep_enable(struct usb_ep *usb_ep,
 	struct tegra_xudc_ep *ep;
 	struct tegra_xudc *xudc;
 	unsigned long flags;
-	int ret;
+	int err;
 
 	if  (!usb_ep || !desc || (desc->bDescriptorType != USB_DT_ENDPOINT))
 		return -EINVAL;
@@ -1725,15 +1670,17 @@ static int tegra_xudc_ep_enable(struct usb_ep *usb_ep,
 	xudc = ep->xudc;
 
 	spin_lock_irqsave(&xudc->lock, flags);
+
 	if (xudc->powergated) {
-		ret = -ESHUTDOWN;
+		err = -ESHUTDOWN;
 		goto unlock;
 	}
-	ret = __tegra_xudc_ep_enable(ep, desc);
+
+	err = __tegra_xudc_ep_enable(ep, desc);
+
 unlock:
 	spin_unlock_irqrestore(&xudc->lock, flags);
-
-	return ret;
+	return err;
 }
 
 static struct usb_request *
@@ -1793,35 +1740,38 @@ static int tegra_xudc_gadget_get_frame(struct usb_gadget *gadget)
 {
 	struct tegra_xudc *xudc = to_xudc(gadget);
 	unsigned long flags;
-	int ret;
+	int err;
 
 	spin_lock_irqsave(&xudc->lock, flags);
+
 	if (xudc->powergated) {
-		ret = -ESHUTDOWN;
+		err = -ESHUTDOWN;
 		goto unlock;
 	}
-	ret = (xudc_readl(xudc, MFINDEX) >> MFINDEX_FRAME_SHIFT) &
+
+	err = (xudc_readl(xudc, MFINDEX) >> MFINDEX_FRAME_SHIFT) &
 		MFINDEX_FRAME_MASK;
+
 unlock:
 	spin_unlock_irqrestore(&xudc->lock, flags);
-
-	return ret;
+	return err;
 }
 
 static void tegra_xudc_resume_device_state(struct tegra_xudc *xudc)
 {
 	unsigned int i;
-	u32 val;
+	u32 value;
 
 	ep_unpause_all(xudc);
 
 	/* Direct link to U0. */
-	val = xudc_readl(xudc, PORTSC);
-	if (((val >> PORTSC_PLS_SHIFT) & PORTSC_PLS_MASK) != PORTSC_PLS_U0) {
-		val &= ~(PORTSC_CHANGE_MASK |
-			 (PORTSC_PLS_MASK << PORTSC_PLS_SHIFT));
-		val |= PORTSC_LWS | (PORTSC_PLS_U0 << PORTSC_PLS_SHIFT);
-		xudc_writel(xudc, val, PORTSC);
+	value = xudc_readl(xudc, PORTSC);
+
+	if (((value >> PORTSC_PLS_SHIFT) & PORTSC_PLS_MASK) != PORTSC_PLS_U0) {
+		value &= ~(PORTSC_CHANGE_MASK |
+			   (PORTSC_PLS_MASK << PORTSC_PLS_SHIFT));
+		value |= PORTSC_LWS | (PORTSC_PLS_U0 << PORTSC_PLS_SHIFT);
+		xudc_writel(xudc, value, PORTSC);
 	}
 
 	if (xudc->device_state == USB_STATE_SUSPENDED) {
@@ -1834,6 +1784,7 @@ static void tegra_xudc_resume_device_state(struct tegra_xudc *xudc)
 	 * after unpausing the endpoint.  Wait for 500ns just to be safe.
 	 */
 	ndelay(500);
+
 	for (i = 0; i < ARRAY_SIZE(xudc->ep); i++)
 		tegra_xudc_ep_ring_doorbell(&xudc->ep[i]);
 }
@@ -1842,58 +1793,64 @@ static int tegra_xudc_gadget_wakeup(struct usb_gadget *gadget)
 {
 	struct tegra_xudc *xudc = to_xudc(gadget);
 	unsigned long flags;
-	int ret = 0;
-	u32 val;
+	int err = 0;
+	u32 value;
 
 	spin_lock_irqsave(&xudc->lock, flags);
+
 	if (xudc->powergated) {
-		ret = -ESHUTDOWN;
+		err = -ESHUTDOWN;
 		goto unlock;
 	}
-	val = xudc_readl(xudc, PORTPM);
-	dev_dbg(xudc->dev, "%s: PORTPM=%#x, speed=%x\n", __func__,
-			val, gadget->speed);
+
+	value = xudc_readl(xudc, PORTPM);
+	dev_dbg(xudc->dev, "%s: PORTPM=%#x, speed=%x\n", __func__, value,
+		gadget->speed);
+
 	if (((xudc->gadget.speed <= USB_SPEED_HIGH) &&
-	     (val & PORTPM_RWE)) ||
+	     (value & PORTPM_RWE)) ||
 	    ((xudc->gadget.speed == USB_SPEED_SUPER) &&
-	     (val & PORTPM_FRWE))) {
+	     (value & PORTPM_FRWE))) {
 		tegra_xudc_resume_device_state(xudc);
 
 		/* Send Device Notification packet. */
 		if (xudc->gadget.speed == USB_SPEED_SUPER) {
-			val = (DEVNOTIF_LO_TYPE_FUNCTION_WAKE <<
-			       DEVNOTIF_LO_TYPE_SHIFT) | DEVNOTIF_LO_TRIG;
+			value = (DEVNOTIF_LO_TYPE_FUNCTION_WAKE <<
+			         DEVNOTIF_LO_TYPE_SHIFT) | DEVNOTIF_LO_TRIG;
 			xudc_writel(xudc, 0, DEVNOTIF_HI);
-			xudc_writel(xudc, val, DEVNOTIF_LO);
+			xudc_writel(xudc, value, DEVNOTIF_LO);
 		}
 	}
+
 unlock:
 	spin_unlock_irqrestore(&xudc->lock, flags);
 
-	return ret;
+	return err;
 }
 
 static int tegra_xudc_gadget_pullup(struct usb_gadget *gadget, int is_on)
 {
 	struct tegra_xudc *xudc = to_xudc(gadget);
 	unsigned long flags;
-	u32 val;
+	u32 value;
 
 	pm_runtime_get_sync(xudc->dev);
+
 	spin_lock_irqsave(&xudc->lock, flags);
+
 	if (is_on != xudc->pullup) {
-		val = xudc_readl(xudc, CTRL);
+		value = xudc_readl(xudc, CTRL);
+
 		if (is_on)
-			val |= CTRL_ENABLE;
+			value |= CTRL_ENABLE;
 		else
-			val &= ~CTRL_ENABLE;
-		xudc_writel(xudc, val, CTRL);
+			value &= ~CTRL_ENABLE;
+
+		xudc_writel(xudc, value, CTRL);
 	}
+
 	xudc->pullup = is_on;
-	if (xudc->ucd && xudc->device_mode &&
-	    xudc->connect_type == EXTCON_USB && is_on)
-		schedule_delayed_work(&xudc->non_std_charger_work,
-			msecs_to_jiffies(NON_STD_CHARGER_DET_TIME_MS));
+
 	spin_unlock_irqrestore(&xudc->lock, flags);
 	pm_runtime_put(xudc->dev);
 
@@ -1905,91 +1862,68 @@ static int tegra_xudc_gadget_start(struct usb_gadget *gadget,
 {
 	struct tegra_xudc *xudc = to_xudc(gadget);
 	unsigned long flags;
-	u32 val;
-	int ret;
+	u32 value;
+	int err;
 
 	if (!driver)
 		return -EINVAL;
 
-	dev_dbg(xudc->dev, "%s\n", __func__);
-
 	pm_runtime_get_sync(xudc->dev);
 	spin_lock_irqsave(&xudc->lock, flags);
+
 	if (xudc->driver) {
-		ret = -EBUSY;
+		err = -EBUSY;
 		goto unlock;
 	}
 
 	xudc->setup_state = WAIT_FOR_SETUP;
 	xudc->device_state = USB_STATE_DEFAULT;
 
-	ret = __tegra_xudc_ep_enable(&xudc->ep[0], &tegra_xudc_ep0_desc);
-	if (ret < 0)
+	err = __tegra_xudc_ep_enable(&xudc->ep[0], &tegra_xudc_ep0_desc);
+	if (err < 0)
 		goto unlock;
 
-	val = xudc_readl(xudc, CTRL);
-	val |= CTRL_IE | CTRL_LSE;
-	xudc_writel(xudc, val, CTRL);
+	value = xudc_readl(xudc, CTRL);
+	value |= CTRL_IE | CTRL_LSE;
+	xudc_writel(xudc, value, CTRL);
 
-	val = xudc_readl(xudc, PORTHALT);
-	val |= PORTHALT_STCHG_INTR_EN;
-	xudc_writel(xudc, val, PORTHALT);
+	value = xudc_readl(xudc, PORTHALT);
+	value |= PORTHALT_STCHG_INTR_EN;
+	xudc_writel(xudc, value, PORTHALT);
 
 	if (xudc->pullup) {
-		val = xudc_readl(xudc, CTRL);
-		val |= CTRL_ENABLE;
-		xudc_writel(xudc, val, CTRL);
+		value = xudc_readl(xudc, CTRL);
+		value |= CTRL_ENABLE;
+		xudc_writel(xudc, value, CTRL);
 	}
 
 	xudc->driver = driver;
+
 unlock:
 	spin_unlock_irqrestore(&xudc->lock, flags);
 	pm_runtime_put(xudc->dev);
-	dev_dbg(xudc->dev, "%s done\n", __func__);
-	return ret;
+	return err;
 }
 
 static int tegra_xudc_gadget_stop(struct usb_gadget *gadget)
 {
 	struct tegra_xudc *xudc = to_xudc(gadget);
 	unsigned long flags;
-	u32 val;
+	u32 value;
 
 	pm_runtime_get_sync(xudc->dev);
 	spin_lock_irqsave(&xudc->lock, flags);
-	val = xudc_readl(xudc, CTRL);
-	val &= ~(CTRL_IE | CTRL_ENABLE);
-	xudc_writel(xudc, val, CTRL);
+
+	value = xudc_readl(xudc, CTRL);
+	value &= ~(CTRL_IE | CTRL_ENABLE);
+	xudc_writel(xudc, value, CTRL);
 
 	__tegra_xudc_ep_disable(&xudc->ep[0]);
 
 	xudc->driver = NULL;
+
 	spin_unlock_irqrestore(&xudc->lock, flags);
 	pm_runtime_put(xudc->dev);
-
-	return 0;
-}
-
-static void tegra_xudc_set_charging_current_work(struct work_struct *work)
-{
-	struct tegra_xudc *xudc = container_of(work, struct tegra_xudc,
-				  set_charging_current_work);
-
-	dev_dbg(xudc->dev, "%s\n", __func__);
-	tegra_ucd_set_sdp_cdp_current(xudc->ucd, xudc->current_ma);
-}
-
-static int tegra_xudc_gadget_vbus_draw(struct usb_gadget *gadget,
-						unsigned int m_a)
-{
-	struct tegra_xudc *xudc = to_xudc(gadget);
-
-	dev_dbg(xudc->dev, "%s: %u mA\n", __func__, m_a);
-
-	if (xudc->ucd && xudc->current_ma != m_a) {
-		xudc->current_ma = m_a;
-		schedule_work(&xudc->set_charging_current_work);
-	}
 
 	return 0;
 }
@@ -2010,7 +1944,6 @@ static struct usb_gadget_ops tegra_xudc_gadget_ops = {
 	.pullup = tegra_xudc_gadget_pullup,
 	.udc_start = tegra_xudc_gadget_start,
 	.udc_stop = tegra_xudc_gadget_stop,
-	.vbus_draw = tegra_xudc_gadget_vbus_draw,
 	.set_selfpowered = tegra_xudc_set_selfpowered,
 };
 
@@ -2033,7 +1966,7 @@ tegra_xudc_ep0_queue_status(struct tegra_xudc *xudc,
 
 static int
 tegra_xudc_ep0_queue_data(struct tegra_xudc *xudc, void *buf, size_t len,
-		void (*cmpl)(struct usb_ep *, struct usb_request *))
+			  void (*cmpl)(struct usb_ep *, struct usb_request *))
 {
 	xudc->ep0_req->usb_req.buf = buf;
 	xudc->ep0_req->usb_req.length = len;
@@ -2050,10 +1983,12 @@ static void tegra_xudc_ep0_req_done(struct tegra_xudc *xudc)
 		xudc->setup_state = STATUS_STAGE_RECV;
 		tegra_xudc_ep0_queue_status(xudc, no_op_complete);
 		break;
+
 	case DATA_STAGE_RECV:
 		xudc->setup_state = STATUS_STAGE_XFER;
 		tegra_xudc_ep0_queue_status(xudc, no_op_complete);
 		break;
+
 	default:
 		xudc->setup_state = WAIT_FOR_SETUP;
 		break;
@@ -2063,13 +1998,13 @@ static void tegra_xudc_ep0_req_done(struct tegra_xudc *xudc)
 static int tegra_xudc_ep0_delegate_req(struct tegra_xudc *xudc,
 				       struct usb_ctrlrequest *ctrl)
 {
-	int ret;
+	int err;
 
 	spin_unlock(&xudc->lock);
-	ret = xudc->driver->setup(&xudc->gadget, ctrl);
+	err = xudc->driver->setup(&xudc->gadget, ctrl);
 	spin_lock(&xudc->lock);
 
-	return ret;
+	return err;
 }
 
 static void set_feature_complete(struct usb_ep *ep, struct usb_request *req)
@@ -2088,8 +2023,8 @@ static int tegra_xudc_ep0_set_feature(struct tegra_xudc *xudc,
 	bool set = (ctrl->bRequest == USB_REQ_SET_FEATURE);
 	u32 feature = le16_to_cpu(ctrl->wValue);
 	u32 index = le16_to_cpu(ctrl->wIndex);
-	u32 val, ep;
-	int ret;
+	u32 value, ep;
+	int err;
 
 	if (le16_to_cpu(ctrl->wLength) != 0)
 		return -EINVAL;
@@ -2102,49 +2037,59 @@ static int tegra_xudc_ep0_set_feature(struct tegra_xudc *xudc,
 			    (xudc->device_state == USB_STATE_DEFAULT))
 				return -EINVAL;
 
-			val = xudc_readl(xudc, PORTPM);
+			value = xudc_readl(xudc, PORTPM);
+
 			if (set)
-				val |= PORTPM_RWE;
+				value |= PORTPM_RWE;
 			else
-				val &= ~PORTPM_RWE;
-			xudc_writel(xudc, val, PORTPM);
+				value &= ~PORTPM_RWE;
+
+			xudc_writel(xudc, value, PORTPM);
 			break;
+
 		case USB_DEVICE_U1_ENABLE:
 		case USB_DEVICE_U2_ENABLE:
 			if ((xudc->device_state != USB_STATE_CONFIGURED) ||
 			    (xudc->gadget.speed != USB_SPEED_SUPER))
 				return -EINVAL;
 
-			val = xudc_readl(xudc, PORTPM);
+			value = xudc_readl(xudc, PORTPM);
+
 			if ((feature == USB_DEVICE_U1_ENABLE) &&
 			    xudc->soc->u1_enable) {
 				if (set)
-					val |= PORTPM_U1E;
+					value |= PORTPM_U1E;
 				else
-					val &= ~PORTPM_U1E;
+					value &= ~PORTPM_U1E;
 			}
+
 			if ((feature == USB_DEVICE_U2_ENABLE) &&
 			    xudc->soc->u2_enable) {
 				if (set)
-					val |= PORTPM_U2E;
+					value |= PORTPM_U2E;
 				else
-					val &= ~PORTPM_U2E;
+					value &= ~PORTPM_U2E;
 			}
-			xudc_writel(xudc, val, PORTPM);
+
+			xudc_writel(xudc, value, PORTPM);
 			break;
+
 		case USB_DEVICE_TEST_MODE:
 			if (xudc->gadget.speed != USB_SPEED_HIGH)
 				return -EINVAL;
+
 			if (!set)
 				return -EINVAL;
 
 			xudc->test_mode_pattern = index >> 8;
 			break;
+
 		default:
 			return -EINVAL;
 		}
 
 		break;
+
 	case USB_RECIP_INTERFACE:
 		if (xudc->device_state != USB_STATE_CONFIGURED)
 			return -EINVAL;
@@ -2152,19 +2097,24 @@ static int tegra_xudc_ep0_set_feature(struct tegra_xudc *xudc,
 		switch (feature) {
 		case USB_INTRF_FUNC_SUSPEND:
 			if (set) {
-				val = xudc_readl(xudc, PORTPM);
+				value = xudc_readl(xudc, PORTPM);
+
 				if (index & USB_INTRF_FUNC_SUSPEND_RW)
-					val |= PORTPM_FRWE;
+					value |= PORTPM_FRWE;
 				else
-					val &= ~PORTPM_FRWE;
-				xudc_writel(xudc, val, PORTPM);
+					value &= ~PORTPM_FRWE;
+
+				xudc_writel(xudc, value, PORTPM);
 			}
+
 			return tegra_xudc_ep0_delegate_req(xudc, ctrl);
+
 		default:
 			return -EINVAL;
 		}
 
 		break;
+
 	case USB_RECIP_ENDPOINT:
 		ep = (index & USB_ENDPOINT_NUMBER_MASK) * 2 +
 			((index & USB_DIR_IN) ? 1 : 0);
@@ -2174,10 +2124,12 @@ static int tegra_xudc_ep0_set_feature(struct tegra_xudc *xudc,
 		     (index != 0)))
 			return -EINVAL;
 
-		ret = __tegra_xudc_ep_set_halt(&xudc->ep[ep], set);
-		if (ret < 0)
-			return ret;
+		err = __tegra_xudc_ep_set_halt(&xudc->ep[ep], set);
+		if (err < 0)
+			return err;
+
 		break;
+
 	default:
 		return -EINVAL;
 	}
@@ -2188,8 +2140,8 @@ static int tegra_xudc_ep0_set_feature(struct tegra_xudc *xudc,
 static int tegra_xudc_ep0_get_status(struct tegra_xudc *xudc,
 				     struct usb_ctrlrequest *ctrl)
 {
+	u32 value, ep, index = le16_to_cpu(ctrl->wIndex);
 	struct tegra_xudc_ep_context *ep_ctx;
-	u32 val, ep, index = le16_to_cpu(ctrl->wIndex);
 	u16 status = 0;
 
 	if (!(ctrl->bRequestType & USB_DIR_IN))
@@ -2201,30 +2153,33 @@ static int tegra_xudc_ep0_get_status(struct tegra_xudc *xudc,
 
 	switch (ctrl->bRequestType & USB_RECIP_MASK) {
 	case USB_RECIP_DEVICE:
-		val = xudc_readl(xudc, PORTPM);
+		value = xudc_readl(xudc, PORTPM);
 
 		if (xudc->selfpowered)
 			status |= BIT(USB_DEVICE_SELF_POWERED);
 
 		if ((xudc->gadget.speed < USB_SPEED_SUPER) &&
-		    (val & PORTPM_RWE))
+		    (value & PORTPM_RWE))
 			status |= BIT(USB_DEVICE_REMOTE_WAKEUP);
 
 		if (xudc->gadget.speed == USB_SPEED_SUPER) {
-			if (val & PORTPM_U1E)
+			if (value & PORTPM_U1E)
 				status |= BIT(USB_DEV_STAT_U1_ENABLED);
-			if (val & PORTPM_U2E)
+			if (value & PORTPM_U2E)
 				status |= BIT(USB_DEV_STAT_U2_ENABLED);
 		}
 		break;
+
 	case USB_RECIP_INTERFACE:
 		if (xudc->gadget.speed == USB_SPEED_SUPER) {
 			status |= USB_INTRF_STAT_FUNC_RW_CAP;
-			val = xudc_readl(xudc, PORTPM);
-			if (val & PORTPM_FRWE)
+			value = xudc_readl(xudc, PORTPM);
+
+			if (value & PORTPM_FRWE)
 				status |= USB_INTRF_STAT_FUNC_RW;
 		}
 		break;
+
 	case USB_RECIP_ENDPOINT:
 		ep = (index & USB_ENDPOINT_NUMBER_MASK) * 2 +
 			((index & USB_DIR_IN) ? 1 : 0);
@@ -2239,7 +2194,9 @@ static int tegra_xudc_ep0_get_status(struct tegra_xudc *xudc,
 
 		if (xudc_readl(xudc, EP_HALT) & BIT(ep))
 			status |= BIT(USB_ENDPOINT_HALT);
+
 		break;
+
 	default:
 		return -EINVAL;
 	}
@@ -2313,8 +2270,8 @@ static void set_address_complete(struct usb_ep *ep, struct usb_request *req)
 static int tegra_xudc_ep0_set_address(struct tegra_xudc *xudc,
 				      struct usb_ctrlrequest *ctrl)
 {
+	u32 value, addr = le16_to_cpu(ctrl->wValue);
 	struct tegra_xudc_ep *ep0 = &xudc->ep[0];
-	u32 val, addr = le16_to_cpu(ctrl->wValue);
 
 	if (ctrl->bRequestType != (USB_DIR_OUT | USB_RECIP_DEVICE |
 				     USB_TYPE_STANDARD))
@@ -2328,12 +2285,12 @@ static int tegra_xudc_ep0_set_address(struct tegra_xudc *xudc,
 		return -EINVAL;
 
 	dev_dbg(xudc->dev, "set address: %u\n", addr);
-
 	xudc->dev_addr = addr;
-	val = xudc_readl(xudc, CTRL);
-	val &= ~(CTRL_DEVADDR_MASK << CTRL_DEVADDR_SHIFT);
-	val |= addr << CTRL_DEVADDR_SHIFT;
-	xudc_writel(xudc, val, CTRL);
+
+	value = xudc_readl(xudc, CTRL);
+	value &= ~(CTRL_DEVADDR_MASK << CTRL_DEVADDR_SHIFT);
+	value |= addr << CTRL_DEVADDR_SHIFT;
+	xudc_writel(xudc, value, CTRL);
 
 	ep_ctx_write_devaddr(ep0->context, addr);
 
@@ -2343,30 +2300,35 @@ static int tegra_xudc_ep0_set_address(struct tegra_xudc *xudc,
 static int tegra_xudc_ep0_standard_req(struct tegra_xudc *xudc,
 				      struct usb_ctrlrequest *ctrl)
 {
-	int ret;
+	int err;
 
 	switch (ctrl->bRequest) {
 	case USB_REQ_GET_STATUS:
 		dev_dbg(xudc->dev, "USB_REQ_GET_STATUS\n");
-		ret = tegra_xudc_ep0_get_status(xudc, ctrl);
+		err = tegra_xudc_ep0_get_status(xudc, ctrl);
 		break;
+
 	case USB_REQ_SET_ADDRESS:
 		dev_dbg(xudc->dev, "USB_REQ_SET_ADDRESS\n");
-		ret = tegra_xudc_ep0_set_address(xudc, ctrl);
+		err = tegra_xudc_ep0_set_address(xudc, ctrl);
 		break;
+
 	case USB_REQ_SET_SEL:
 		dev_dbg(xudc->dev, "USB_REQ_SET_SEL\n");
-		ret = tegra_xudc_ep0_set_sel(xudc, ctrl);
+		err = tegra_xudc_ep0_set_sel(xudc, ctrl);
 		break;
+
 	case USB_REQ_SET_ISOCH_DELAY:
 		dev_dbg(xudc->dev, "USB_REQ_SET_ISOCH_DELAY\n");
-		ret = tegra_xudc_ep0_set_isoch_delay(xudc, ctrl);
+		err = tegra_xudc_ep0_set_isoch_delay(xudc, ctrl);
 		break;
+
 	case USB_REQ_CLEAR_FEATURE:
 	case USB_REQ_SET_FEATURE:
 		dev_dbg(xudc->dev, "USB_REQ_CLEAR/SET_FEATURE\n");
-		ret = tegra_xudc_ep0_set_feature(xudc, ctrl);
+		err = tegra_xudc_ep0_set_feature(xudc, ctrl);
 		break;
+
 	case USB_REQ_SET_CONFIGURATION:
 		dev_dbg(xudc->dev, "USB_REQ_SET_CONFIGURATION\n");
 		/*
@@ -2374,19 +2336,20 @@ static int tegra_xudc_ep0_standard_req(struct tegra_xudc *xudc,
 		 * deconfig request sent, but this seems to be causing problems.
 		 * Clear RUN once all endpoints are disabled instead.
 		 */
+
 	default:
-		ret = tegra_xudc_ep0_delegate_req(xudc, ctrl);
+		err = tegra_xudc_ep0_delegate_req(xudc, ctrl);
 		break;
 	}
 
-	return ret;
+	return err;
 }
 
 static void tegra_xudc_handle_ep0_setup_packet(struct tegra_xudc *xudc,
 					       struct usb_ctrlrequest *ctrl,
 					       u16 seq_num)
 {
-	int ret;
+	int err;
 
 	xudc->setup_seq_num = seq_num;
 
@@ -2411,12 +2374,12 @@ static void tegra_xudc_handle_ep0_setup_packet(struct tegra_xudc *xudc,
 		xudc->setup_state = STATUS_STAGE_XFER;
 
 	if ((ctrl->bRequestType & USB_TYPE_MASK) == USB_TYPE_STANDARD)
-		ret = tegra_xudc_ep0_standard_req(xudc, ctrl);
+		err = tegra_xudc_ep0_standard_req(xudc, ctrl);
 	else
-		ret = tegra_xudc_ep0_delegate_req(xudc, ctrl);
+		err = tegra_xudc_ep0_delegate_req(xudc, ctrl);
 
-	if (ret < 0) {
-		dev_warn(xudc->dev, "setup request failed: %d\n", ret);
+	if (err < 0) {
+		dev_warn(xudc->dev, "setup request failed: %d\n", err);
 		xudc->setup_state = WAIT_FOR_SETUP;
 		ep_halt(xudc, 0);
 	}
@@ -2428,8 +2391,6 @@ static void tegra_xudc_handle_ep0_event(struct tegra_xudc *xudc,
 	struct usb_ctrlrequest *ctrl = (struct usb_ctrlrequest *)event;
 	u16 seq_num = trb_read_seq_num(event);
 
-	if (xudc->ucd)
-		cancel_delayed_work(&xudc->non_std_charger_work);
 	if (xudc->setup_state != WAIT_FOR_SETUP) {
 		/*
 		 * The controller is in the process of handling another
@@ -2474,6 +2435,7 @@ static void tegra_xudc_handle_transfer_completion(struct tegra_xudc *xudc,
 
 	trb = trb_phys_to_virt(ep, trb_read_data_ptr(event));
 	req = trb_to_request(ep, trb);
+
 	/*
 	 * TDs are complete on short packet or when the completed TRB is the
 	 * last TRB in the TD (the CHAIN bit is unset).
@@ -2527,8 +2489,10 @@ static void tegra_xudc_handle_transfer_event(struct tegra_xudc *xudc,
 	/* Update transfer ring dequeue pointer. */
 	trb = trb_phys_to_virt(ep, trb_read_data_ptr(event));
 	ep->deq_ptr = (trb - ep->transfer_ring) + 1;
+
 	if (ep->deq_ptr == XUDC_TRANSFER_RING_SIZE - 1)
 		ep->deq_ptr = 0;
+
 	ep->ring_full = false;
 
 	comp_code = trb_read_cmpl_code(event);
@@ -2537,11 +2501,12 @@ static void tegra_xudc_handle_transfer_event(struct tegra_xudc *xudc,
 	case TRB_CMPL_CODE_SHORT_PACKET:
 		tegra_xudc_handle_transfer_completion(xudc, ep, event);
 		break;
+
 	case TRB_CMPL_CODE_HOST_REJECTED:
 		dev_info(xudc->dev, "stream rejected on ep %u\n", ep_index);
-
 		ep->stream_rejected = true;
 		break;
+
 	case TRB_CMPL_CODE_PRIME_PIPE_RECEIVED:
 		dev_info(xudc->dev, "prime pipe received on ep %u\n", ep_index);
 
@@ -2554,14 +2519,17 @@ static void tegra_xudc_handle_transfer_event(struct tegra_xudc *xudc,
 			 */
 			ep_wait_for_stopped(xudc, ep_index);
 		}
+
 		tegra_xudc_ep_ring_doorbell(ep);
 		break;
+
 	case TRB_CMPL_CODE_BABBLE_DETECTED_ERR:
 		/*
 		 * Wait for the EP to be stopped so the controller stops
 		 * processing doorbells.
 		 */
 		ep_wait_for_stopped(xudc, ep_index);
+
 	case TRB_CMPL_CODE_STREAM_NUMP_ERROR:
 	case TRB_CMPL_CODE_CTRL_DIR_ERR:
 	case TRB_CMPL_CODE_INVALID_STREAM_TYPE_ERR:
@@ -2575,6 +2543,7 @@ static void tegra_xudc_handle_transfer_event(struct tegra_xudc *xudc,
 
 		ep_halt(xudc, ep_index);
 		break;
+
 	case TRB_CMPL_CODE_CTRL_SEQNUM_ERR:
 		dev_info(xudc->dev, "sequence number error\n");
 
@@ -2584,6 +2553,7 @@ static void tegra_xudc_handle_transfer_event(struct tegra_xudc *xudc,
 		 */
 		tegra_xudc_ep_nuke(ep, -EINVAL);
 		xudc->setup_state = WAIT_FOR_SETUP;
+
 		if (!xudc->queued_setup_packet)
 			break;
 
@@ -2592,6 +2562,7 @@ static void tegra_xudc_handle_transfer_event(struct tegra_xudc *xudc,
 						   xudc->setup_packet.seq_num);
 		xudc->queued_setup_packet = false;
 		break;
+
 	case TRB_CMPL_CODE_STOPPED:
 		dev_dbg(xudc->dev, "stop completion code on ep %u\n",
 			ep_index);
@@ -2599,6 +2570,7 @@ static void tegra_xudc_handle_transfer_event(struct tegra_xudc *xudc,
 		/* Disconnected. */
 		tegra_xudc_ep_nuke(ep, -ECONNREFUSED);
 		break;
+
 	default:
 		dev_dbg(xudc->dev, "completion event %#x on ep %u\n",
 			comp_code, ep_index);
@@ -2644,22 +2616,27 @@ static void tegra_xudc_port_connect(struct tegra_xudc *xudc)
 {
 	struct tegra_xudc_ep *ep0 = &xudc->ep[0];
 	u16 maxpacket;
-	u32 val;
+	u32 value;
 
-	val = (xudc_readl(xudc, PORTSC) >> PORTSC_PS_SHIFT) & PORTSC_PS_MASK;
-	switch (val) {
+	value = (xudc_readl(xudc, PORTSC) >> PORTSC_PS_SHIFT) & PORTSC_PS_MASK;
+
+	switch (value) {
 	case PORTSC_PS_LS:
 		xudc->gadget.speed = USB_SPEED_LOW;
 		break;
+
 	case PORTSC_PS_FS:
 		xudc->gadget.speed = USB_SPEED_FULL;
 		break;
+
 	case PORTSC_PS_HS:
 		xudc->gadget.speed = USB_SPEED_HIGH;
 		break;
+
 	case PORTSC_PS_SS:
 		xudc->gadget.speed = USB_SPEED_SUPER;
 		break;
+
 	default:
 		xudc->gadget.speed = USB_SPEED_UNKNOWN;
 		break;
@@ -2672,38 +2649,45 @@ static void tegra_xudc_port_connect(struct tegra_xudc *xudc)
 		maxpacket = 512;
 	else
 		maxpacket = 64;
+
 	ep_ctx_write_max_packet_size(ep0->context, maxpacket);
 	tegra_xudc_ep0_desc.wMaxPacketSize = cpu_to_le16(maxpacket);
 	usb_ep_set_maxpacket_limit(&ep0->usb_ep, maxpacket);
 
 	if (!xudc->soc->u1_enable) {
-		val = xudc_readl(xudc, PORTPM);
-		val &= ~(PORTPM_U1TIMEOUT_MASK << PORTPM_U1TIMEOUT_SHIFT);
-		xudc_writel(xudc, val, PORTPM);
-	}
-	if (!xudc->soc->u2_enable) {
-		val = xudc_readl(xudc, PORTPM);
-		val &= ~(PORTPM_U2TIMEOUT_MASK << PORTPM_U2TIMEOUT_SHIFT);
-		xudc_writel(xudc, val, PORTPM);
-	}
-	if (xudc->gadget.speed <= USB_SPEED_HIGH) {
-		val = xudc_readl(xudc, PORTPM);
-		val &= ~(PORTPM_L1S_MASK << PORTPM_L1S_SHIFT);
-		if (xudc->soc->lpm_enable)
-			val |= PORTPM_L1S_ACCEPT << PORTPM_L1S_SHIFT;
-		else
-			val |= PORTPM_L1S_NYET << PORTPM_L1S_SHIFT;
-		xudc_writel(xudc, val, PORTPM);
+		value = xudc_readl(xudc, PORTPM);
+		value &= ~(PORTPM_U1TIMEOUT_MASK << PORTPM_U1TIMEOUT_SHIFT);
+		xudc_writel(xudc, value, PORTPM);
 	}
 
-	val = xudc_readl(xudc, ST);
-	if (val & ST_RC)
+	if (!xudc->soc->u2_enable) {
+		value = xudc_readl(xudc, PORTPM);
+		value &= ~(PORTPM_U2TIMEOUT_MASK << PORTPM_U2TIMEOUT_SHIFT);
+		xudc_writel(xudc, value, PORTPM);
+	}
+
+	if (xudc->gadget.speed <= USB_SPEED_HIGH) {
+		value = xudc_readl(xudc, PORTPM);
+		value &= ~(PORTPM_L1S_MASK << PORTPM_L1S_SHIFT);
+
+		if (xudc->soc->lpm_enable)
+			value |= PORTPM_L1S_ACCEPT << PORTPM_L1S_SHIFT;
+		else
+			value |= PORTPM_L1S_NYET << PORTPM_L1S_SHIFT;
+
+		xudc_writel(xudc, value, PORTPM);
+	}
+
+	value = xudc_readl(xudc, ST);
+
+	if (value & ST_RC)
 		xudc_writel(xudc, ST_RC, ST);
 }
 
 static void tegra_xudc_port_disconnect(struct tegra_xudc *xudc)
 {
 	tegra_xudc_reset(xudc);
+
 	if (xudc->driver && xudc->driver->disconnect) {
 		spin_unlock(&xudc->lock);
 		xudc->driver->disconnect(&xudc->gadget);
@@ -2716,19 +2700,23 @@ static void tegra_xudc_port_disconnect(struct tegra_xudc *xudc)
 static void tegra_xudc_port_reset(struct tegra_xudc *xudc)
 {
 	tegra_xudc_reset(xudc);
+
 	if (xudc->driver) {
 		spin_unlock(&xudc->lock);
 		usb_gadget_udc_reset(&xudc->gadget, xudc->driver);
 		spin_lock(&xudc->lock);
 	}
+
 	tegra_xudc_port_connect(xudc);
 }
 
 static void tegra_xudc_port_suspend(struct tegra_xudc *xudc)
 {
 	dev_dbg(xudc->dev, "port suspend\n");
+
 	xudc->resume_state = xudc->device_state;
 	xudc->device_state = USB_STATE_SUSPENDED;
+
 	if (xudc->driver->suspend) {
 		spin_unlock(&xudc->lock);
 		xudc->driver->suspend(&xudc->gadget);
@@ -2739,7 +2727,9 @@ static void tegra_xudc_port_suspend(struct tegra_xudc *xudc)
 static void tegra_xudc_port_resume(struct tegra_xudc *xudc)
 {
 	dev_dbg(xudc->dev, "port resume\n");
+
 	tegra_xudc_resume_device_state(xudc);
+
 	if (xudc->driver->resume) {
 		spin_unlock(&xudc->lock);
 		xudc->driver->resume(&xudc->gadget);
@@ -2749,12 +2739,12 @@ static void tegra_xudc_port_resume(struct tegra_xudc *xudc)
 
 static inline void clear_port_change(struct tegra_xudc *xudc, u32 flag)
 {
-	u32 val;
+	u32 value;
 
-	val = xudc_readl(xudc, PORTSC);
-	val &= ~PORTSC_CHANGE_MASK;
-	val |= flag;
-	xudc_writel(xudc, val, PORTSC);
+	value = xudc_readl(xudc, PORTSC);
+	value &= ~PORTSC_CHANGE_MASK;
+	value |= flag;
+	xudc_writel(xudc, value, PORTSC);
 }
 
 static void __tegra_xudc_handle_port_status(struct tegra_xudc *xudc)
@@ -2762,6 +2752,7 @@ static void __tegra_xudc_handle_port_status(struct tegra_xudc *xudc)
 	u32 portsc, porthalt;
 
 	porthalt = xudc_readl(xudc, PORTHALT);
+
 	if ((porthalt & PORTHALT_STCHG_REQ) &&
 	    (porthalt & PORTHALT_HALT_LTSSM)) {
 		dev_dbg(xudc->dev, "STCHG_REQ, PORTHALT = %#x\n", porthalt);
@@ -2770,25 +2761,31 @@ static void __tegra_xudc_handle_port_status(struct tegra_xudc *xudc)
 	}
 
 	portsc = xudc_readl(xudc, PORTSC);
+
 	if (portsc & PORTSC_PRC) {
 		dev_dbg(xudc->dev, "PRC, PORTSC = %#x\n", portsc);
 		clear_port_change(xudc, PORTSC_PRC | PORTSC_PED);
+
 		if (!(xudc_readl(xudc, PORTSC) & PORTSC_PR))
 			tegra_xudc_port_reset(xudc);
 	}
 
 	portsc = xudc_readl(xudc, PORTSC);
+
 	if (portsc & PORTSC_WRC) {
 		dev_dbg(xudc->dev, "WRC, PORTSC = %#x\n", portsc);
 		clear_port_change(xudc, PORTSC_WRC | PORTSC_PED);
+
 		if (!(xudc_readl(xudc, PORTSC) & PORTSC_WPR))
 			tegra_xudc_port_reset(xudc);
 	}
 
 	portsc = xudc_readl(xudc, PORTSC);
+
 	if (portsc & PORTSC_CSC) {
 		dev_dbg(xudc->dev, "CSC, PORTSC = %#x\n", portsc);
 		clear_port_change(xudc, PORTSC_CSC);
+
 		if (portsc & PORTSC_CCS)
 			tegra_xudc_port_connect(xudc);
 		else
@@ -2796,23 +2793,28 @@ static void __tegra_xudc_handle_port_status(struct tegra_xudc *xudc)
 	}
 
 	portsc = xudc_readl(xudc, PORTSC);
+
 	if (portsc & PORTSC_PLC) {
 		u32 pls = (portsc >> PORTSC_PLS_SHIFT) & PORTSC_PLS_MASK;
 
 		dev_dbg(xudc->dev, "PLC, PORTSC = %#x\n", portsc);
 		clear_port_change(xudc, PORTSC_PLC);
+
 		switch (pls) {
 		case PORTSC_PLS_U3:
 			tegra_xudc_port_suspend(xudc);
 			break;
+
 		case PORTSC_PLS_U0:
 			if (xudc->gadget.speed < USB_SPEED_SUPER)
 				tegra_xudc_port_resume(xudc);
 			break;
+
 		case PORTSC_PLS_RESUME:
 			if (xudc->gadget.speed == USB_SPEED_SUPER)
 				tegra_xudc_port_resume(xudc);
 			break;
+
 		default:
 			break;
 		}
@@ -2844,12 +2846,15 @@ static void tegra_xudc_handle_event(struct tegra_xudc *xudc,
 	case TRB_TYPE_PORT_STATUS_CHANGE_EVENT:
 		tegra_xudc_handle_port_status(xudc);
 		break;
+
 	case TRB_TYPE_TRANSFER_EVENT:
 		tegra_xudc_handle_transfer_event(xudc, event);
 		break;
+
 	case TRB_TYPE_SETUP_PACKET_EVENT:
 		tegra_xudc_handle_ep0_event(xudc, event);
 		break;
+
 	default:
 		dev_info(xudc->dev, "Unrecognized TRB type = %#x\n", type);
 		break;
@@ -2871,10 +2876,12 @@ static void tegra_xudc_process_event_ring(struct tegra_xudc *xudc)
 		tegra_xudc_handle_event(xudc, event);
 
 		xudc->event_ring_deq_ptr++;
+
 		if (xudc->event_ring_deq_ptr == XUDC_EVENT_RING_SIZE) {
 			xudc->event_ring_deq_ptr = 0;
 			xudc->event_ring_index++;
 		}
+
 		if (xudc->event_ring_index == XUDC_NR_EVENT_RINGS) {
 			xudc->event_ring_index = 0;
 			xudc->ccs = !xudc->ccs;
@@ -2891,11 +2898,13 @@ static irqreturn_t tegra_xudc_irq(int irq, void *data)
 {
 	struct tegra_xudc *xudc = data;
 	unsigned long flags;
-	u32 val;
+	u32 value;
 
-	val = xudc_readl(xudc, ST);
-	if (!(val & ST_IP))
+	value = xudc_readl(xudc, ST);
+
+	if (!(value & ST_IP))
 		return IRQ_NONE;
+
 	xudc_writel(xudc, ST_IP, ST);
 
 	spin_lock_irqsave(&xudc->lock, flags);
@@ -2936,10 +2945,12 @@ static int tegra_xudc_alloc_ep(struct tegra_xudc *xudc, unsigned int index)
 		ep->usb_ep.ops = &tegra_xudc_ep_ops;
 		ep->usb_ep.caps.type_bulk = true;
 		ep->usb_ep.caps.type_int = true;
+
 		if (index & 1)
 			ep->usb_ep.caps.dir_in = true;
 		else
 			ep->usb_ep.caps.dir_out = true;
+
 		list_add_tail(&ep->usb_ep.ep_list, &xudc->gadget.ep_list);
 	} else {
 		strcpy(ep->name, "ep0");
@@ -2993,6 +3004,7 @@ static int tegra_xudc_alloc_eps(struct tegra_xudc *xudc)
 	}
 
 	INIT_LIST_HEAD(&xudc->gadget.ep_list);
+
 	for (i = 0; i < ARRAY_SIZE(xudc->ep); i++) {
 		err = tegra_xudc_alloc_ep(xudc, i);
 		if (err < 0)
@@ -3004,6 +3016,7 @@ static int tegra_xudc_alloc_eps(struct tegra_xudc *xudc)
 		err = -ENOMEM;
 		goto free_eps;
 	}
+
 	xudc->ep0_req = to_xudc_req(req);
 
 	return 0;
@@ -3054,33 +3067,33 @@ static int tegra_xudc_alloc_event_ring(struct tegra_xudc *xudc)
 	return 0;
 
 free_dma:
-	for (; i > 0; i--) {
+	for (; i > 0; i--)
 		dma_free_coherent(xudc->dev, XUDC_EVENT_RING_SIZE *
 				  sizeof(*xudc->event_ring[i - 1]),
 				  xudc->event_ring[i - 1],
 				  xudc->event_ring_phys[i - 1]);
-	}
+
 	return -ENOMEM;
 }
 
 static void tegra_xudc_init_event_ring(struct tegra_xudc *xudc)
 {
 	unsigned int i;
-	u32 val;
+	u32 value;
 
-	val = xudc_readl(xudc, SPARAM);
-	val &= ~(SPARAM_ERSTMAX_MASK << SPARAM_ERSTMAX_SHIFT);
-	val |= XUDC_NR_EVENT_RINGS << SPARAM_ERSTMAX_SHIFT;
-	xudc_writel(xudc, val, SPARAM);
+	value = xudc_readl(xudc, SPARAM);
+	value &= ~(SPARAM_ERSTMAX_MASK << SPARAM_ERSTMAX_SHIFT);
+	value |= XUDC_NR_EVENT_RINGS << SPARAM_ERSTMAX_SHIFT;
+	xudc_writel(xudc, value, SPARAM);
 
 	for (i = 0; i < ARRAY_SIZE(xudc->event_ring); i++) {
 		memset(xudc->event_ring[i], 0, XUDC_EVENT_RING_SIZE *
 		       sizeof(*xudc->event_ring[i]));
 
-		val = xudc_readl(xudc, ERSTSZ);
-		val &= ~(ERSTSZ_ERSTXSZ_MASK << ERSTSZ_ERSTXSZ_SHIFT(i));
-		val |= XUDC_EVENT_RING_SIZE << ERSTSZ_ERSTXSZ_SHIFT(i);
-		xudc_writel(xudc, val, ERSTSZ);
+		value = xudc_readl(xudc, ERSTSZ);
+		value &= ~(ERSTSZ_ERSTXSZ_MASK << ERSTSZ_ERSTXSZ_SHIFT(i));
+		value |= XUDC_EVENT_RING_SIZE << ERSTSZ_ERSTXSZ_SHIFT(i);
+		xudc_writel(xudc, value, ERSTSZ);
 
 		xudc_writel(xudc, lower_32_bits(xudc->event_ring_phys[i]),
 			    ERSTXBALO(i));
@@ -3088,14 +3101,14 @@ static void tegra_xudc_init_event_ring(struct tegra_xudc *xudc)
 			    ERSTXBAHI(i));
 	}
 
-	val = lower_32_bits(xudc->event_ring_phys[0]);
-	xudc_writel(xudc, val, ERDPLO);
-	val |= EREPLO_ECS;
-	xudc_writel(xudc, val, EREPLO);
+	value = lower_32_bits(xudc->event_ring_phys[0]);
+	xudc_writel(xudc, value, ERDPLO);
+	value |= EREPLO_ECS;
+	xudc_writel(xudc, value, EREPLO);
 
-	val = upper_32_bits(xudc->event_ring_phys[0]);
-	xudc_writel(xudc, val, ERDPHI);
-	xudc_writel(xudc, val, EREPHI);
+	value = upper_32_bits(xudc->event_ring_phys[0]);
+	xudc_writel(xudc, value, ERDPHI);
+	xudc_writel(xudc, value, EREPHI);
 
 	xudc->ccs = true;
 	xudc->event_ring_index = 0;
@@ -3106,82 +3119,83 @@ static void tegra_xudc_free_event_ring(struct tegra_xudc *xudc)
 {
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(xudc->event_ring); i++) {
+	for (i = 0; i < ARRAY_SIZE(xudc->event_ring); i++)
 		dma_free_coherent(xudc->dev, XUDC_EVENT_RING_SIZE *
 				  sizeof(*xudc->event_ring[i]),
 				  xudc->event_ring[i],
 				  xudc->event_ring_phys[i]);
-	}
 }
 
 static void tegra_xudc_fpci_ipfs_init(struct tegra_xudc *xudc)
 {
-	u32 val;
+	u32 value;
 
 	if (XUDC_IS_T210(xudc)) {
-		val = ipfs_readl(xudc, IPFS_XUSB_DEV_CONFIGURATION);
-		val |= IPFS_XUSB_DEV_CONFIGURATION_EN_FPCI;
-		ipfs_writel(xudc, val, IPFS_XUSB_DEV_CONFIGURATION);
-		udelay(10);
+		value = ipfs_readl(xudc, IPFS_XUSB_DEV_CONFIGURATION);
+		value |= IPFS_XUSB_DEV_CONFIGURATION_EN_FPCI;
+		ipfs_writel(xudc, value, IPFS_XUSB_DEV_CONFIGURATION);
+
+		usleep_range(10, 20);
 	}
 
 	/* Enable bus master */
-	val = XUSB_DEV_CFG_1_IO_SPACE_EN | XUSB_DEV_CFG_1_MEMORY_SPACE_EN |
+	value = XUSB_DEV_CFG_1_IO_SPACE_EN | XUSB_DEV_CFG_1_MEMORY_SPACE_EN |
 		XUSB_DEV_CFG_1_BUS_MASTER_EN;
-	fpci_writel(xudc, val, XUSB_DEV_CFG_1);
+	fpci_writel(xudc, value, XUSB_DEV_CFG_1);
 
 	/* Program BAR0 space */
-	val = fpci_readl(xudc, XUSB_DEV_CFG_4);
-	val &= ~(XUSB_DEV_CFG_4_BASE_ADDR_MASK <<
-		 XUSB_DEV_CFG_4_BASE_ADDR_SHIFT);
-	val |= xudc->phys_base & (XUSB_DEV_CFG_4_BASE_ADDR_MASK <<
-				  XUSB_DEV_CFG_4_BASE_ADDR_SHIFT);
-	fpci_writel(xudc, val, XUSB_DEV_CFG_4);
-	fpci_writel(xudc, upper_32_bits(xudc->phys_base), XUSB_DEV_CFG_5);
+	value = fpci_readl(xudc, XUSB_DEV_CFG_4);
+	value &= ~(XUSB_DEV_CFG_4_BASE_ADDR_MASK <<
+		   XUSB_DEV_CFG_4_BASE_ADDR_SHIFT);
+	value |= xudc->phys & (XUSB_DEV_CFG_4_BASE_ADDR_MASK <<
+			       XUSB_DEV_CFG_4_BASE_ADDR_SHIFT);
+	fpci_writel(xudc, value, XUSB_DEV_CFG_4);
+	fpci_writel(xudc, upper_32_bits(xudc->phys), XUSB_DEV_CFG_5);
+
 	usleep_range(100, 200);
 
 	if (XUDC_IS_T210(xudc)) {
 		/* Enable interrupt assertion */
-		val = ipfs_readl(xudc, IPFS_XUSB_DEV_INTR_MASK);
-		val |= IPFS_XUSB_DEV_INTR_MASK_IP_INT_MASK;
-		ipfs_writel(xudc, val, IPFS_XUSB_DEV_INTR_MASK);
+		value = ipfs_readl(xudc, IPFS_XUSB_DEV_INTR_MASK);
+		value |= IPFS_XUSB_DEV_INTR_MASK_IP_INT_MASK;
+		ipfs_writel(xudc, value, IPFS_XUSB_DEV_INTR_MASK);
 	}
 }
 
 static void tegra_xudc_device_params_init(struct tegra_xudc *xudc)
 {
-	u32 val, imod;
+	u32 value, imod;
 
 	/* Set a reasonable U3 exit timer value. */
-	val = xudc_readl(xudc, SSPX_CORE_PADCTL4);
-	val &= ~(SSPX_CORE_PADCTL4_RXDAT_VLD_TIMEOUT_U3_MASK <<
-		 SSPX_CORE_PADCTL4_RXDAT_VLD_TIMEOUT_U3_SHIFT);
-	val |= 0x5dc0 << SSPX_CORE_PADCTL4_RXDAT_VLD_TIMEOUT_U3_SHIFT;
-	xudc_writel(xudc, val, SSPX_CORE_PADCTL4);
+	value = xudc_readl(xudc, SSPX_CORE_PADCTL4);
+	value &= ~(SSPX_CORE_PADCTL4_RXDAT_VLD_TIMEOUT_U3_MASK <<
+		   SSPX_CORE_PADCTL4_RXDAT_VLD_TIMEOUT_U3_SHIFT);
+	value |= 0x5dc0 << SSPX_CORE_PADCTL4_RXDAT_VLD_TIMEOUT_U3_SHIFT;
+	xudc_writel(xudc, value, SSPX_CORE_PADCTL4);
 
 	/* Default ping LFPS tBurst is too large. */
-	val = xudc_readl(xudc, SSPX_CORE_CNT0);
-	val &= ~(SSPX_CORE_CNT0_PING_TBURST_MASK <<
-		 SSPX_CORE_CNT0_PING_TBURST_SHIFT);
-	val |= 0x6 << SSPX_CORE_CNT0_PING_TBURST_SHIFT;
-	xudc_writel(xudc, val, SSPX_CORE_CNT0);
+	value = xudc_readl(xudc, SSPX_CORE_CNT0);
+	value &= ~(SSPX_CORE_CNT0_PING_TBURST_MASK <<
+		   SSPX_CORE_CNT0_PING_TBURST_SHIFT);
+	value |= 0x6 << SSPX_CORE_CNT0_PING_TBURST_SHIFT;
+	xudc_writel(xudc, value, SSPX_CORE_CNT0);
 
 	/* Default tPortConfiguration timeout is too small. */
-	val = xudc_readl(xudc, SSPX_CORE_CNT30);
-	val &= ~(SSPX_CORE_CNT30_LMPITP_TIMER_MASK <<
-		 SSPX_CORE_CNT30_LMPITP_TIMER_SHIFT);
-	val |= 0x978 << SSPX_CORE_CNT30_LMPITP_TIMER_SHIFT;
-	xudc_writel(xudc, val, SSPX_CORE_CNT30);
+	value = xudc_readl(xudc, SSPX_CORE_CNT30);
+	value &= ~(SSPX_CORE_CNT30_LMPITP_TIMER_MASK <<
+		   SSPX_CORE_CNT30_LMPITP_TIMER_SHIFT);
+	value |= 0x978 << SSPX_CORE_CNT30_LMPITP_TIMER_SHIFT;
+	xudc_writel(xudc, value, SSPX_CORE_CNT30);
 
 	/*
 	 * Compliacne suite appears to be violating polling LFPS tBurst max
 	 * of 1.4us.  Send 1.45us instead.
 	 */
-	val = xudc_readl(xudc, SSPX_CORE_CNT32);
-	val &= ~(SSPX_CORE_CNT32_POLL_TBURST_MAX_MASK <<
-		 SSPX_CORE_CNT32_POLL_TBURST_MAX_SHIFT);
-	val |= 0xb0 << SSPX_CORE_CNT32_POLL_TBURST_MAX_SHIFT;
-	xudc_writel(xudc, val, SSPX_CORE_CNT32);
+	value = xudc_readl(xudc, SSPX_CORE_CNT32);
+	value &= ~(SSPX_CORE_CNT32_POLL_TBURST_MAX_MASK <<
+		   SSPX_CORE_CNT32_POLL_TBURST_MAX_SHIFT);
+	value |= 0xb0 << SSPX_CORE_CNT32_POLL_TBURST_MAX_SHIFT;
+	xudc_writel(xudc, value, SSPX_CORE_CNT32);
 
 	if (XUDC_IS_T186(xudc)) {
 		/* Increase HS link stability */
@@ -3195,122 +3209,126 @@ static void tegra_xudc_device_params_init(struct tegra_xudc *xudc)
 	}
 
 	/* Direct HS/FS port instance to RxDetect. */
-	val = xudc_readl(xudc, CFG_DEV_FE);
-	val &= ~(CFG_DEV_FE_PORTREGSEL_MASK << CFG_DEV_FE_PORTREGSEL_SHIFT);
-	val |= CFG_DEV_FE_PORTREGSEL_HSFS_PI << CFG_DEV_FE_PORTREGSEL_SHIFT;
-	xudc_writel(xudc, val, CFG_DEV_FE);
+	value = xudc_readl(xudc, CFG_DEV_FE);
+	value &= ~(CFG_DEV_FE_PORTREGSEL_MASK << CFG_DEV_FE_PORTREGSEL_SHIFT);
+	value |= CFG_DEV_FE_PORTREGSEL_HSFS_PI << CFG_DEV_FE_PORTREGSEL_SHIFT;
+	xudc_writel(xudc, value, CFG_DEV_FE);
 
-	val = xudc_readl(xudc, PORTSC);
-	val &= ~(PORTSC_CHANGE_MASK | (PORTSC_PLS_MASK << PORTSC_PLS_SHIFT));
-	val |= PORTSC_LWS | (PORTSC_PLS_RXDETECT << PORTSC_PLS_SHIFT);
-	xudc_writel(xudc, val, PORTSC);
+	value = xudc_readl(xudc, PORTSC);
+	value &= ~(PORTSC_CHANGE_MASK | (PORTSC_PLS_MASK << PORTSC_PLS_SHIFT));
+	value |= PORTSC_LWS | (PORTSC_PLS_RXDETECT << PORTSC_PLS_SHIFT);
+	xudc_writel(xudc, value, PORTSC);
 
 	/* Direct SS port instance to RxDetect. */
-	val = xudc_readl(xudc, CFG_DEV_FE);
-	val &= ~(CFG_DEV_FE_PORTREGSEL_MASK << CFG_DEV_FE_PORTREGSEL_SHIFT);
-	val |= CFG_DEV_FE_PORTREGSEL_SS_PI << CFG_DEV_FE_PORTREGSEL_SHIFT;
-	xudc_writel(xudc, val, CFG_DEV_FE);
+	value = xudc_readl(xudc, CFG_DEV_FE);
+	value &= ~(CFG_DEV_FE_PORTREGSEL_MASK << CFG_DEV_FE_PORTREGSEL_SHIFT);
+	value |= CFG_DEV_FE_PORTREGSEL_SS_PI << CFG_DEV_FE_PORTREGSEL_SHIFT;
+	xudc_writel(xudc, value, CFG_DEV_FE);
 
-	val = xudc_readl(xudc, PORTSC);
-	val &= ~(PORTSC_CHANGE_MASK | (PORTSC_PLS_MASK << PORTSC_PLS_SHIFT));
-	val |= PORTSC_LWS | (PORTSC_PLS_RXDETECT << PORTSC_PLS_SHIFT);
-	xudc_writel(xudc, val, PORTSC);
+	value = xudc_readl(xudc, PORTSC);
+	value &= ~(PORTSC_CHANGE_MASK | (PORTSC_PLS_MASK << PORTSC_PLS_SHIFT));
+	value |= PORTSC_LWS | (PORTSC_PLS_RXDETECT << PORTSC_PLS_SHIFT);
+	xudc_writel(xudc, value, PORTSC);
 
 	/* Restore port instance. */
-	val = xudc_readl(xudc, CFG_DEV_FE);
-	val &= ~(CFG_DEV_FE_PORTREGSEL_MASK << CFG_DEV_FE_PORTREGSEL_SHIFT);
-	xudc_writel(xudc, val, CFG_DEV_FE);
+	value = xudc_readl(xudc, CFG_DEV_FE);
+	value &= ~(CFG_DEV_FE_PORTREGSEL_MASK << CFG_DEV_FE_PORTREGSEL_SHIFT);
+	xudc_writel(xudc, value, CFG_DEV_FE);
 
 	/*
 	 * Enable INFINITE_SS_RETRY to prevent device from entering
 	 * Disabled.Error when attached to buggy SuperSpeed hubs.
 	 */
-	val = xudc_readl(xudc, CFG_DEV_FE);
-	val |= CFG_DEV_FE_INFINITE_SS_RETRY;
-	xudc_writel(xudc, val, CFG_DEV_FE);
+	value = xudc_readl(xudc, CFG_DEV_FE);
+	value |= CFG_DEV_FE_INFINITE_SS_RETRY;
+	xudc_writel(xudc, value, CFG_DEV_FE);
 
 	/* Set interrupt moderation. */
 	imod = XUDC_INTERRUPT_MODERATION_US * 4;
-	val = xudc_readl(xudc, RT_IMOD);
-	val &= ~((RT_IMOD_IMODI_MASK << RT_IMOD_IMODI_SHIFT) |
-		 (RT_IMOD_IMODC_MASK << RT_IMOD_IMODC_SHIFT));
-	val |= (imod << RT_IMOD_IMODI_SHIFT) | (imod << RT_IMOD_IMODC_SHIFT);
-	xudc_writel(xudc, val, RT_IMOD);
+
+	value = xudc_readl(xudc, RT_IMOD);
+	value &= ~((RT_IMOD_IMODI_MASK << RT_IMOD_IMODI_SHIFT) |
+		   (RT_IMOD_IMODC_MASK << RT_IMOD_IMODC_SHIFT));
+	value |= (imod << RT_IMOD_IMODI_SHIFT) | (imod << RT_IMOD_IMODC_SHIFT);
+	xudc_writel(xudc, value, RT_IMOD);
 }
 
 static int tegra_xudc_clk_enable(struct tegra_xudc *xudc)
 {
 	int err;
 
-	err = clk_prepare_enable(xudc->pll_e);
+	err = clk_prepare_enable(xudc->clk_plle);
 	if (err < 0)
 		return err;
-	err = clk_prepare_enable(xudc->pll_u_480M);
+
+	err = clk_prepare_enable(xudc->clk_pllu);
 	if (err < 0)
-		goto disable_pll_e;
+		goto disable_plle;
+
+	err = clk_prepare_enable(xudc->clk_dev);
+	if (err < 0)
+		goto disable_pllu;
+
+	err = clk_prepare_enable(xudc->clk_ss);
+	if (err < 0)
+		goto disable_dev;
+
 	return 0;
 
-disable_pll_e:
-	clk_disable_unprepare(xudc->pll_e);
+disable_dev:
+	clk_disable_unprepare(xudc->clk_dev);
+disable_pllu:
+	clk_disable_unprepare(xudc->clk_pllu);
+disable_plle:
+	clk_disable_unprepare(xudc->clk_plle);
 	return err;
 }
 
 static void tegra_xudc_clk_disable(struct tegra_xudc *xudc)
 {
-	clk_disable_unprepare(xudc->pll_u_480M);
-	clk_disable_unprepare(xudc->pll_e);
+	clk_disable_unprepare(xudc->clk_ss);
+	clk_disable_unprepare(xudc->clk_dev);
+	clk_disable_unprepare(xudc->clk_pllu);
+	clk_disable_unprepare(xudc->clk_plle);
 }
 
 static int tegra_xudc_phy_power_on(struct tegra_xudc *xudc)
 {
 	int err;
 
-	err = phy_init(xudc->utmi_phy);
+	err = phy_init(xudc->phy_utmi);
 	if (err < 0)
 		return err;
-	err = phy_init(xudc->usb3_phy);
+
+	err = phy_init(xudc->phy_usb3);
 	if (err < 0)
-		goto exit_utmi_phy;
-	err = phy_power_on(xudc->utmi_phy);
+		goto exit_utmi;
+
+	err = phy_power_on(xudc->phy_utmi);
 	if (err < 0)
-		goto exit_usb3_phy;
-	err = phy_power_on(xudc->usb3_phy);
+		goto exit_usb3;
+
+	err = phy_power_on(xudc->phy_usb3);
 	if (err < 0)
-		goto disable_utmi_phy;
+		goto disable_utmi;
 
 	return 0;
 
-disable_utmi_phy:
-	phy_power_off(xudc->utmi_phy);
-exit_usb3_phy:
-	phy_exit(xudc->usb3_phy);
-exit_utmi_phy:
-	phy_exit(xudc->utmi_phy);
+disable_utmi:
+	phy_power_off(xudc->phy_utmi);
+exit_usb3:
+	phy_exit(xudc->phy_usb3);
+exit_utmi:
+	phy_exit(xudc->phy_utmi);
 	return err;
 }
 
 static void tegra_xudc_phy_power_off(struct tegra_xudc *xudc)
 {
-	phy_power_off(xudc->usb3_phy);
-	phy_power_off(xudc->utmi_phy);
-	phy_exit(xudc->usb3_phy);
-	phy_exit(xudc->utmi_phy);
-}
-
-static void tegra_xudc_non_std_charger_work(struct work_struct *work)
-{
-	struct delayed_work *dwork = to_delayed_work(work);
-	struct tegra_xudc *xudc = container_of(dwork, struct tegra_xudc,
-					       non_std_charger_work);
-	unsigned long flags;
-
-	if (xudc->ucd) {
-		spin_lock_irqsave(&xudc->lock, flags);
-		xudc->connect_type = EXTCON_CHG_USB_SLOW;
-		spin_unlock_irqrestore(&xudc->lock, flags);
-		tegra_ucd_set_charger_type(xudc->ucd,
-					   EXTCON_CHG_USB_SLOW);
-	}
+	phy_power_off(xudc->phy_usb3);
+	phy_power_off(xudc->phy_utmi);
+	phy_exit(xudc->phy_usb3);
+	phy_exit(xudc->phy_utmi);
 }
 
 static const char * const tegra210_xudc_supply_names[] = {
@@ -3320,19 +3338,6 @@ static const char * const tegra210_xudc_supply_names[] = {
 };
 
 static const char * const tegra186_xudc_supply_names[] = {
-	/* for USB2 pads */
-	"avdd-usb",
-
-	/* for PEX USB pads */
-	"dvdd-pex",
-	"hvdd-pex",
-
-	/* for PEX PLL */
-	"dvdd-pex-pll",
-	"hvdd-pex-pll",
-};
-
-static const char * const tegra194_xudc_supply_names[] = {
 	/* for USB2 pads */
 	"avdd-usb",
 
@@ -3365,60 +3370,41 @@ static struct tegra_xudc_soc_data tegra186_xudc_soc_data = {
 	.invalid_seq_num = false,
 };
 
-static struct tegra_xudc_soc_data tegra194_xudc_soc_data = {
-	.device_id = XUDC_DEVICE_ID_T194,
-	.supply_names = tegra194_xudc_supply_names,
-	.num_supplies = ARRAY_SIZE(tegra194_xudc_supply_names),
-	.u1_enable = true,
-	.u2_enable = true,
-	.lpm_enable = false,
-	.invalid_seq_num = false,
-};
-
 static struct of_device_id tegra_xudc_of_match[] = {
 	{
-		.compatible = "nvidia,tegra210-xudc-new",
+		.compatible = "nvidia,tegra210-xudc",
 		.data = &tegra210_xudc_soc_data
-	},
-	{
+	}, {
 		.compatible = "nvidia,tegra186-xudc",
 		.data = &tegra186_xudc_soc_data
-	},
-	{
-		.compatible = "nvidia,tegra194-xudc",
-		.data = &tegra194_xudc_soc_data
-	},
-	{ }
+	}, {
+		/* sentinel */
+	}
 };
 MODULE_DEVICE_TABLE(of, tegra_xudc_of_match);
 
 static int tegra_xudc_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *match;
 	struct tegra_xudc *xudc;
 	struct resource *res;
 	unsigned int i;
 	int err;
-	int partition_id_xusba, partition_id_xusbb;
-	struct device_node *np;
-	struct platform_device *cd_pdev;
 
 	xudc = devm_kzalloc(&pdev->dev, sizeof(*xudc), GFP_ATOMIC);
 	if (!xudc)
 		return -ENOMEM;
-	xudc->dev = &pdev->dev;
-	platform_set_drvdata(pdev, xudc);
 
-	match = of_match_device(tegra_xudc_of_match, &pdev->dev);
-	if (!match)
-		return -ENODEV;
-	xudc->soc = match->data;
+	xudc->soc = of_device_get_match_data(&pdev->dev);
+	xudc->dev = &pdev->dev;
+
+	platform_set_drvdata(pdev, xudc);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	xudc->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(xudc->base))
 		return PTR_ERR(xudc->base);
-	xudc->phys_base = res->start;
+
+	xudc->phys = res->start;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	xudc->fpci = devm_ioremap_resource(&pdev->dev, res);
@@ -3438,6 +3424,7 @@ static int tegra_xudc_probe(struct platform_device *pdev)
 				xudc->irq);
 		return xudc->irq;
 	}
+
 	err = devm_request_irq(&pdev->dev, xudc->irq, tegra_xudc_irq, 0,
 			       dev_name(&pdev->dev), xudc);
 	if (err < 0) {
@@ -3445,140 +3432,101 @@ static int tegra_xudc_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	if (tegra_platform_is_fpga())
-		fpga_hack_setup_car(xudc);
+	xudc->supplies = devm_kcalloc(&pdev->dev, xudc->soc->num_supplies,
+				      sizeof(*xudc->supplies), GFP_KERNEL);
+	if (!xudc->supplies)
+		return -ENOMEM;
 
-	if (tegra_platform_is_silicon()) {
-		xudc->supplies = devm_kcalloc(&pdev->dev,
-				xudc->soc->num_supplies,
-				sizeof(*xudc->supplies), GFP_KERNEL);
-		if (!xudc->supplies)
-			return -ENOMEM;
-		for (i = 0; i < xudc->soc->num_supplies; i++)
-			xudc->supplies[i].supply = xudc->soc->supply_names[i];
-		err = devm_regulator_bulk_get(&pdev->dev,
-				xudc->soc->num_supplies, xudc->supplies);
-		if (err) {
-			dev_err(xudc->dev, "failed to request regulators %d\n",
-				err);
-			return err;
-		}
+	for (i = 0; i < xudc->soc->num_supplies; i++)
+		xudc->supplies[i].supply = xudc->soc->supply_names[i];
+
+	err = devm_regulator_bulk_get(&pdev->dev, xudc->soc->num_supplies,
+				      xudc->supplies);
+	if (err < 0) {
+		dev_err(xudc->dev, "failed to request regulators: %d\n", err);
+		return err;
 	}
 
 	xudc->padctl = tegra_xusb_padctl_get(&pdev->dev);
 	if (IS_ERR(xudc->padctl))
 		return PTR_ERR(xudc->padctl);
 
-	if (tegra_platform_is_silicon()) {
-		err = regulator_bulk_enable(xudc->soc->num_supplies,
-						xudc->supplies);
-		if (err) {
-			dev_err(xudc->dev, "failed to enable regulators %d\n",
-				err);
-			goto put_padctl;
-		}
-
-		xudc->pll_u_480M = devm_clk_get(&pdev->dev, "pll_u_480M");
-		if (IS_ERR(xudc->pll_u_480M)) {
-			err = PTR_ERR(xudc->pll_u_480M);
-			dev_err(xudc->dev, "failed to get pll_u_480M %d\n",
-				err);
-			goto disable_regulator;
-		}
-		xudc->pll_e = devm_clk_get(&pdev->dev, "pll_e");
-		if (IS_ERR(xudc->pll_e)) {
-			err = PTR_ERR(xudc->pll_e);
-			dev_err(xudc->dev, "failed to get pll_e %d\n", err);
-			goto disable_regulator;
-		}
-		xudc->dev_clk = devm_clk_get(&pdev->dev, "dev");
-		if (IS_ERR(xudc->dev_clk)) {
-			err = PTR_ERR(xudc->dev_clk);
-			dev_err(xudc->dev, "failed to get dev clk %d\n", err);
-			goto disable_regulator;
-		}
-		xudc->ss_clk = devm_clk_get(&pdev->dev, "ss");
-		if (IS_ERR(xudc->ss_clk)) {
-			err = PTR_ERR(xudc->ss_clk);
-			dev_err(xudc->dev, "failed to get ss clk %d\n", err);
-			goto disable_regulator;
-		}
+	err = regulator_bulk_enable(xudc->soc->num_supplies, xudc->supplies);
+	if (err < 0) {
+		dev_err(xudc->dev, "failed to enable regulators: %d\n", err);
+		goto put_padctl;
 	}
 
-	xudc->usb3_phy = devm_phy_optional_get(&pdev->dev, "usb3");
-	if (IS_ERR(xudc->usb3_phy)) {
-		err = PTR_ERR(xudc->usb3_phy);
-		dev_err(xudc->dev, "failed to get usb3 phy %d\n", err);
-		goto disable_regulator;
-	}
-	xudc->utmi_phy = devm_phy_optional_get(&pdev->dev, "usb2");
-	if (IS_ERR(xudc->utmi_phy)) {
-		err = PTR_ERR(xudc->utmi_phy);
-		dev_err(xudc->dev, "failed to get usb2 phy %d\n", err);
+	xudc->clk_pllu = devm_clk_get(&pdev->dev, "pll_u_480m");
+	if (IS_ERR(xudc->clk_pllu)) {
+		err = PTR_ERR(xudc->clk_pllu);
+		dev_err(xudc->dev, "failed to get pll_u: %d\n", err);
 		goto disable_regulator;
 	}
 
-#if IS_ENABLED(CONFIG_PM_GENERIC_DOMAINS)
-	partition_id_xusba = tegra_pd_get_powergate_id(tegra_xusba_pd);
-	partition_id_xusbb = tegra_pd_get_powergate_id(tegra_xusbb_pd);
-#else
-	partition_id_xusba = TEGRA_POWERGATE_XUSBA;
-	partition_id_xusbb = TEGRA_POWERGATE_XUSBB;
-#endif
-
-	if (tegra_platform_is_silicon()) {
-
-		xudc->data_role_extcon =
-			extcon_get_extcon_dev_by_cable(&pdev->dev, "vbus");
-		if (IS_ERR(xudc->data_role_extcon)) {
-			err = PTR_ERR(xudc->data_role_extcon);
-			dev_err(xudc->dev, "extcon_get_extcon_dev_by_cable failed %d\n",
-					err);
-			goto disable_regulator;
-		}
-
-		if (partition_id_xusba < 0) {
-			err = -EINVAL;
-			goto disable_regulator;
-		}
-		err = tegra_unpowergate_partition_with_clk_on(
-				partition_id_xusba);
-		if (err < 0) {
-			dev_err(xudc->dev, "failed to unpowergate XUSBA partition\n");
-			goto disable_regulator;
-		}
-
-		if (partition_id_xusbb < 0) {
-			err = -EINVAL;
-			goto powergate_xusba;
-		}
-		err = tegra_unpowergate_partition_with_clk_on(
-				partition_id_xusbb);
-		if (err < 0) {
-			dev_err(xudc->dev, "failed to unpowergate XUSBB partition\n");
-			goto powergate_xusba;
-		}
-
-		err = tegra_xudc_clk_enable(xudc);
-		if (err < 0)
-			goto powergate_xusbb;
+	xudc->clk_plle = devm_clk_get(&pdev->dev, "pll_e");
+	if (IS_ERR(xudc->clk_plle)) {
+		err = PTR_ERR(xudc->clk_plle);
+		dev_err(xudc->dev, "failed to get pll_e: %d\n", err);
+		goto disable_regulator;
 	}
+
+	xudc->clk_dev = devm_clk_get(&pdev->dev, "dev");
+	if (IS_ERR(xudc->clk_dev)) {
+		err = PTR_ERR(xudc->clk_dev);
+		dev_err(xudc->dev, "failed to get device clock: %d\n", err);
+		goto disable_regulator;
+	}
+
+	xudc->clk_ss = devm_clk_get(&pdev->dev, "ss");
+	if (IS_ERR(xudc->clk_ss)) {
+		err = PTR_ERR(xudc->clk_ss);
+		dev_err(xudc->dev, "failed to get SS clock: %d\n", err);
+		goto disable_regulator;
+	}
+
+	xudc->phy_usb3 = devm_phy_optional_get(&pdev->dev, "usb3");
+	if (IS_ERR(xudc->phy_usb3)) {
+		err = PTR_ERR(xudc->phy_usb3);
+		dev_err(xudc->dev, "failed to get USB3 PHY: %d\n", err);
+		goto disable_regulator;
+	}
+
+	xudc->phy_utmi = devm_phy_optional_get(&pdev->dev, "usb2");
+	if (IS_ERR(xudc->phy_utmi)) {
+		err = PTR_ERR(xudc->phy_utmi);
+		dev_err(xudc->dev, "failed to get USB2 PHY: %d\n", err);
+		goto disable_regulator;
+	}
+
+	xudc->extcon = extcon_get_edev_by_phandle(&pdev->dev, 0);
+	if (IS_ERR(xudc->extcon)) {
+		err = PTR_ERR(xudc->extcon);
+		dev_err(xudc->dev, "extcon_get_extcon_dev_by_cable failed %d\n",
+				err);
+		goto disable_regulator;
+	}
+
+	err = tegra_xudc_clk_enable(xudc);
+	if (err < 0)
+		goto disable_regulator;
 
 	err = tegra_xudc_phy_power_on(xudc);
-	if (err)
+	if (err < 0)
 		goto disable_clk;
 
 	tegra_xudc_fpci_ipfs_init(xudc);
 	tegra_xudc_device_params_init(xudc);
 
 	err = tegra_xudc_alloc_event_ring(xudc);
-	if (err)
+	if (err < 0)
 		goto disable_phy;
 	tegra_xudc_init_event_ring(xudc);
 
 	err = tegra_xudc_alloc_eps(xudc);
-	if (err)
+	if (err < 0)
 		goto free_event_ring;
+
 	tegra_xudc_init_eps(xudc);
 
 	spin_lock_init(&xudc->lock);
@@ -3589,50 +3537,23 @@ static int tegra_xudc_probe(struct platform_device *pdev)
 	xudc->gadget.max_speed = USB_SPEED_SUPER;
 
 	err = usb_add_gadget_udc(&pdev->dev, &xudc->gadget);
-	if (err) {
-		dev_err(&pdev->dev, "failed to usb_add_gadget_udc\n");
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to add UDC: %d\n", err);
 		goto free_eps;
-	}
-
-	/* get charger detector */
-	np = of_parse_phandle(pdev->dev.of_node, "charger-detector", 0);
-	if (np) {
-		cd_pdev = of_find_device_by_node(np);
-		of_node_put(np);
-		xudc->ucd = tegra_usb_get_ucd(cd_pdev);
-
-		if (IS_ERR(xudc->ucd)) {
-			dev_info(xudc->dev, "USB charger detection disabled\n");
-			xudc->ucd = NULL;
-		} else {
-			xudc->current_ma = USB_ANDROID_SUSPEND_CURRENT_MA;
-			xudc->connect_type = EXTCON_NONE;
-			INIT_WORK(&xudc->set_charging_current_work,
-				  tegra_xudc_set_charging_current_work);
-			INIT_DELAYED_WORK(&xudc->non_std_charger_work,
-					  tegra_xudc_non_std_charger_work);
-			xudc->connect_type = EXTCON_NONE;
-		}
 	}
 
 	init_completion(&xudc->disconnect_complete);
 
-	if (tegra_platform_is_silicon()) {
-		INIT_WORK(&xudc->data_role_work, tegra_xudc_data_role_work);
-		xudc->data_role_nb.notifier_call =
-				tegra_xudc_data_role_notifier;
-		extcon_register_notifier(xudc->data_role_extcon, EXTCON_USB,
-				&xudc->data_role_nb);
-	}
+	INIT_WORK(&xudc->data_role_work, tegra_xudc_data_role_work);
+	xudc->data_role_nb.notifier_call =
+			tegra_xudc_data_role_notifier;
+	extcon_register_notifier(xudc->extcon, EXTCON_USB,
+			&xudc->data_role_nb);
 
 	tegra_xudc_update_data_role(xudc);
 
-	tegra_pd_add_device(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
-
-	if (tegra_platform_is_fpga())
-		tegra_fpga_hack_init(xudc);
 
 	return 0;
 
@@ -3643,17 +3564,9 @@ free_event_ring:
 disable_phy:
 	tegra_xudc_phy_power_off(xudc);
 disable_clk:
-	if (tegra_platform_is_silicon())
-		tegra_xudc_clk_disable(xudc);
-powergate_xusbb:
-	if (tegra_platform_is_silicon())
-		tegra_powergate_partition_with_clk_off(partition_id_xusbb);
-powergate_xusba:
-	if (tegra_platform_is_silicon())
-		tegra_powergate_partition_with_clk_off(partition_id_xusba);
+	tegra_xudc_clk_disable(xudc);
 disable_regulator:
-	if (tegra_platform_is_silicon())
-		regulator_bulk_disable(xudc->soc->num_supplies, xudc->supplies);
+	regulator_bulk_disable(xudc->soc->num_supplies, xudc->supplies);
 put_padctl:
 	tegra_xusb_padctl_put(xudc->padctl);
 	return err;
@@ -3662,17 +3575,10 @@ put_padctl:
 static int tegra_xudc_remove(struct platform_device *pdev)
 {
 	struct tegra_xudc *xudc = platform_get_drvdata(pdev);
-	int partition_id_xusba, partition_id_xusbb;
 
 	pm_runtime_get_sync(xudc->dev);
 
-	if (xudc->ucd) {
-		cancel_work_sync(&xudc->set_charging_current_work);
-		cancel_delayed_work_sync(&xudc->non_std_charger_work);
-		tegra_usb_release_ucd(xudc->ucd);
-	}
-
-	extcon_unregister_notifier(xudc->data_role_extcon, EXTCON_USB,
+	extcon_unregister_notifier(xudc->extcon, EXTCON_USB,
 				   &xudc->data_role_nb);
 	cancel_work_sync(&xudc->data_role_work);
 	usb_del_gadget_udc(&xudc->gadget);
@@ -3680,26 +3586,8 @@ static int tegra_xudc_remove(struct platform_device *pdev)
 	tegra_xudc_free_event_ring(xudc);
 	tegra_xudc_phy_power_off(xudc);
 
-	if (tegra_platform_is_silicon()) {
-		tegra_xudc_clk_disable(xudc);
-#if IS_ENABLED(CONFIG_PM_GENERIC_DOMAINS)
-		partition_id_xusbb = tegra_pd_get_powergate_id(tegra_xusbb_pd);
-#else
-		partition_id_xusbb = TEGRA_POWERGATE_XUSBB;
-#endif
-		if (partition_id_xusbb < 0)
-			return -EINVAL;
-#if IS_ENABLED(CONFIG_PM_GENERIC_DOMAINS)
-		partition_id_xusba = tegra_pd_get_powergate_id(tegra_xusba_pd);
-#else
-		partition_id_xusba = TEGRA_POWERGATE_XUSBA;
-#endif
-		if (partition_id_xusba < 0)
-			return -EINVAL;
-		tegra_powergate_partition_with_clk_off(partition_id_xusbb);
-		tegra_powergate_partition_with_clk_off(partition_id_xusba);
-		regulator_bulk_disable(xudc->soc->num_supplies, xudc->supplies);
-	}
+	tegra_xudc_clk_disable(xudc);
+	regulator_bulk_disable(xudc->soc->num_supplies, xudc->supplies);
 
 	pm_runtime_disable(xudc->dev);
 	pm_runtime_put(xudc->dev);
@@ -3713,107 +3601,68 @@ static int tegra_xudc_remove(struct platform_device *pdev)
 static int tegra_xudc_powergate(struct tegra_xudc *xudc)
 {
 	unsigned long flags;
-	int partition_id;
 
-	dev_info(xudc->dev, "entering ELPG\n");
+	dev_dbg(xudc->dev, "entering ELPG\n");
+
 	spin_lock_irqsave(&xudc->lock, flags);
+
 	xudc->powergated = true;
 	xudc->saved_regs.ctrl = xudc_readl(xudc, CTRL);
 	xudc->saved_regs.portpm = xudc_readl(xudc, PORTPM);
 	xudc_writel(xudc, 0, CTRL);
+
 	spin_unlock_irqrestore(&xudc->lock, flags);
 
-	phy_power_off(xudc->usb3_phy);
-	phy_power_off(xudc->utmi_phy);
+	phy_power_off(xudc->phy_usb3);
+	phy_power_off(xudc->phy_utmi);
 
-	if (tegra_platform_is_silicon()) {
-		tegra_xudc_clk_disable(xudc);
+	tegra_xudc_clk_disable(xudc);
 
-#if IS_ENABLED(CONFIG_PM_GENERIC_DOMAINS)
-		partition_id = tegra_pd_get_powergate_id(tegra_xusba_pd);
-#else
-		partition_id = TEGRA_POWERGATE_XUSBA;
-#endif
-		if (partition_id < 0)
-			return -EINVAL;
-		tegra_powergate_partition_with_clk_off(partition_id);
-#if IS_ENABLED(CONFIG_PM_GENERIC_DOMAINS)
-		partition_id = tegra_pd_get_powergate_id(tegra_xusbb_pd);
-#else
-		partition_id = TEGRA_POWERGATE_XUSBB;
-#endif
-		if (partition_id < 0)
-			return -EINVAL;
-		tegra_powergate_partition_with_clk_off(partition_id);
-	}
-
-	phy_exit(xudc->usb3_phy);
-	phy_exit(xudc->utmi_phy);
+	phy_exit(xudc->phy_usb3);
+	phy_exit(xudc->phy_utmi);
 
 	regulator_bulk_disable(xudc->soc->num_supplies, xudc->supplies);
 
-	dev_info(xudc->dev, "entering ELPG done\n");
+	dev_dbg(xudc->dev, "entering ELPG done\n");
 	return 0;
 }
 
 static int tegra_xudc_unpowergate(struct tegra_xudc *xudc)
 {
 	unsigned long flags;
-	u32 val;
+	u32 value;
 	int err;
-	int partition_id;
 
-	dev_info(xudc->dev, "exiting ELPG\n");
+	dev_dbg(xudc->dev, "exiting ELPG\n");
+
 	err = regulator_bulk_enable(xudc->soc->num_supplies, xudc->supplies);
 	if (err < 0)
 		return err;
 
-	phy_init(xudc->usb3_phy);
-	phy_init(xudc->utmi_phy);
+	phy_init(xudc->phy_usb3);
+	phy_init(xudc->phy_utmi);
 
-	if (tegra_platform_is_silicon()) {
-#if IS_ENABLED(CONFIG_PM_GENERIC_DOMAINS)
-		partition_id = tegra_pd_get_powergate_id(tegra_xusbb_pd);
-#else
-		partition_id = TEGRA_POWERGATE_XUSBB;
-#endif
-		if (partition_id < 0)
-			return -EINVAL;
-		err = tegra_unpowergate_partition_with_clk_on(partition_id);
-		if (err < 0)
-			return err;
-#if IS_ENABLED(CONFIG_PM_GENERIC_DOMAINS)
-		partition_id = tegra_pd_get_powergate_id(tegra_xusba_pd);
-#else
-		partition_id = TEGRA_POWERGATE_XUSBA;
-#endif
-		if (partition_id < 0)
-			return -EINVAL;
-		err = tegra_unpowergate_partition_with_clk_on(partition_id);
-		if (err < 0)
-			return err;
+	tegra_xudc_clk_enable(xudc);
 
-		tegra_xudc_clk_enable(xudc);
-	}
-
-	err = phy_power_on(xudc->utmi_phy);
+	err = phy_power_on(xudc->phy_utmi);
 	if (err < 0)
 		return err;
-	err = phy_power_on(xudc->usb3_phy);
+
+	err = phy_power_on(xudc->phy_usb3);
 	if (err < 0)
 		return err;
 
 	if (XUDC_IS_T210(xudc)) {
-		val = xudc_readl(xudc, BLCG);
-		val |= BLCG_ALL;
-		val &= ~(BLCG_DFPCI | BLCG_UFPCI | BLCG_FE |
-				BLCG_COREPLL_PWRDN);
-		xudc_writel(xudc, val, BLCG);
+		value = xudc_readl(xudc, BLCG);
+		value |= BLCG_ALL;
+		value &= ~(BLCG_DFPCI | BLCG_UFPCI | BLCG_FE |
+			   BLCG_COREPLL_PWRDN);
+		xudc_writel(xudc, value, BLCG);
 	} else if (XUDC_IS_T186(xudc)) {
-		/* T186 WAR: Disable BLCG COREPLL_PWRDN */
-		val = xudc_readl(xudc, BLCG);
-		val &= ~BLCG_COREPLL_PWRDN;
-		xudc_writel(xudc, val, BLCG);
+		/* Tegra186 WAR: Disable BLCG COREPLL_PWRDN */
+		value = xudc_readl(xudc, BLCG);
+		value &= ~BLCG_COREPLL_PWRDN;
+		xudc_writel(xudc, value, BLCG);
 	}
 
 	tegra_xudc_fpci_ipfs_init(xudc);
@@ -3829,7 +3678,7 @@ static int tegra_xudc_unpowergate(struct tegra_xudc *xudc)
 	xudc->powergated = false;
 	spin_unlock_irqrestore(&xudc->lock, flags);
 
-	dev_info(xudc->dev, "exiting ELPG done\n");
+	dev_dbg(xudc->dev, "exiting ELPG done\n");
 	return 0;
 }
 #endif
@@ -3887,10 +3736,12 @@ static int tegra_xudc_runtime_suspend(struct device *dev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&xudc->lock, flags);
+
 	if (WARN_ON(xudc->device_mode)) {
 		spin_unlock_irqrestore(&xudc->lock, flags);
 		return -EBUSY;
 	}
+
 	spin_unlock_irqrestore(&xudc->lock, flags);
 
 	return tegra_xudc_powergate(xudc);
@@ -3914,7 +3765,7 @@ static struct platform_driver tegra_xudc_driver = {
 	.probe = tegra_xudc_probe,
 	.remove = tegra_xudc_remove,
 	.driver = {
-		.name = "tegra-xudc-new",
+		.name = "tegra-xudc",
 		.pm = &tegra_xudc_pm_ops,
 		.of_match_table = tegra_xudc_of_match,
 	},
