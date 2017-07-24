@@ -437,6 +437,107 @@ int of_gpio_simple_xlate(struct gpio_chip *gc,
 EXPORT_SYMBOL(of_gpio_simple_xlate);
 
 /**
+ * gpio_banked_irq_domain_xlate - decode an IRQ specifier for banked chips
+ * @domain: IRQ domain
+ * @np: device tree node
+ * @spec: IRQ specifier
+ * @size: number of cells in IRQ specifier
+ * @hwirq: return location for the hardware IRQ number
+ * @type: return location for the IRQ type
+ *
+ * Translates the IRQ specifier found in device tree into a hardware IRQ
+ * number and an interrupt type.
+ *
+ * Returns:
+ * 0 on success or a negative error code on failure.
+ */
+int gpio_banked_irq_domain_xlate(struct irq_domain *domain,
+				 struct device_node *np,
+				 const u32 *spec, unsigned int size,
+				 unsigned long *hwirq,
+				 unsigned int *type)
+{
+	struct gpio_chip *gc = domain->host_data;
+	unsigned int bank, line, i, offset = 0;
+
+	if (size < 2)
+		return -EINVAL;
+
+	bank = (spec[0] >> gc->of_gpio_bank_shift) & gc->of_gpio_bank_mask;
+	line = (spec[0] >> gc->of_gpio_line_shift) & gc->of_gpio_line_mask;
+
+	if (bank >= gc->num_banks) {
+		dev_err(gc->parent, "invalid bank number: %u\n", bank);
+		return -EINVAL;
+	}
+
+	if (line >= gc->banks[bank]->num_lines) {
+		dev_err(gc->parent, "invalid line number: %u\n", line);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < bank; i++)
+		offset += gc->banks[i]->num_lines;
+
+	*type = spec[1] & IRQ_TYPE_SENSE_MASK;
+	*hwirq = offset + line;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(gpio_banked_irq_domain_xlate);
+
+/**
+ * of_gpio_banked_xlate - translate GPIO specifier to a GPIO number and flags
+ * @gc: GPIO chip
+ * @gpiospec: GPIO specifier
+ * @flags: return location for flags parsed from the GPIO specifier
+ *
+ * This translation function takes into account multiple banks that can make
+ * up a single controller. Each bank can contain one or more pins. A single
+ * cell in the specifier is used to represent a (bank, pin) pair, with each
+ * encoded in different fields. The &gpio_chip.of_gpio_bank_shift and
+ * &gpio_chip.of_gpio_bank_mask fields, and &gpio_chip.of_gpio_line_shift and
+ * &gpio_chip.of_gpio_line_mask are used to specify the encoding.
+ *
+ * Returns:
+ * The chip-relative index of the pin given by the GPIO specifier.
+ */
+int of_gpio_banked_xlate(struct gpio_chip *gc,
+			 const struct of_phandle_args *gpiospec, u32 *flags)
+{
+	unsigned int offset = 0, bank, line, i;
+	const u32 *spec = gpiospec->args;
+
+	if (WARN_ON(gc->of_gpio_n_cells < 2))
+		return -EINVAL;
+
+	if (WARN_ON(gpiospec->args_count < gc->of_gpio_n_cells))
+		return -EINVAL;
+
+	bank = (spec[0] >> gc->of_gpio_bank_shift) & gc->of_gpio_bank_mask;
+	line = (spec[0] >> gc->of_gpio_line_shift) & gc->of_gpio_line_mask;
+
+	if (bank >= gc->num_banks) {
+		dev_err(gc->parent, "invalid bank number: %u\n", bank);
+		return -EINVAL;
+	}
+
+	if (line >= gc->banks[bank]->num_lines) {
+		dev_err(gc->parent, "invalid line number: %u\n", line);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < bank; i++)
+		offset += gc->banks[i]->num_lines;
+
+	if (flags)
+		*flags = spec[1];
+
+	return offset + line;
+}
+EXPORT_SYMBOL(of_gpio_banked_xlate);
+
+/**
  * of_mm_gpiochip_add_data - Add memory mapped GPIO chip (bank)
  * @np:		device node of the GPIO chip
  * @mm_gc:	pointer to the of_mm_gpio_chip allocated structure

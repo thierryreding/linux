@@ -1886,6 +1886,57 @@ static int gpiochip_add_irqchip(struct gpio_chip *gpiochip,
 	gpiochip->irq.lock_key = lock_key;
 	gpiochip->irq.request_key = request_key;
 
+	if (gpiochip->num_banks > 0 && !gpiochip->irq.map) {
+		struct gpio_irq_chip *irq = &gpiochip->irq;
+		unsigned int i, j, offset = 0;
+
+		if (!irq->parents) {
+			chip_err(gpiochip, "no parent interrupts defined\n");
+			return -EINVAL;
+		}
+
+		irq->map = devm_kcalloc(gpiochip->parent, gpiochip->ngpio,
+					sizeof(*irq->map), GFP_KERNEL);
+		if (!irq->map)
+			return -ENOMEM;
+
+		for (i = 0; i < gpiochip->num_banks; i++) {
+			struct gpio_bank *bank = gpiochip->banks[i];
+			unsigned int parent = bank->parent_irq;
+
+			for (j = 0; j < bank->num_lines; j++) {
+				if (parent >= irq->num_parents) {
+					chip_err(gpiochip,
+						 "invalid parent interrupt: %u\n",
+						 parent);
+					return -EINVAL;
+				}
+
+				irq->map[offset + j] = irq->parents[parent];
+			}
+
+			offset += bank->num_lines;
+		}
+	}
+
+	if (gpiochip->num_banks > 0) {
+		unsigned int i;
+
+		for (i = 0; i < gpiochip->num_banks; i++) {
+			struct gpio_bank *bank = gpiochip->banks[i];
+			unsigned int num_lines = bank->num_lines;
+
+			bank->pending = devm_kcalloc(gpiochip->parent,
+						     BITS_TO_LONGS(num_lines),
+						     sizeof(unsigned long),
+						     GFP_KERNEL);
+			if (!bank->pending)
+				return -ENOMEM;
+
+			bank->chip = gpiochip;
+		}
+	}
+
 	if (gpiochip->irq.domain_ops)
 		ops = gpiochip->irq.domain_ops;
 	else
@@ -2071,6 +2122,53 @@ int gpiochip_irqchip_add_key(struct gpio_chip *gpiochip,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(gpiochip_irqchip_add_key);
+
+/**
+ * gpio_irq_chip_banked_chained_handler - interrupt handler for banked IRQ chips
+ * @desc: IRQ descriptor
+ *
+ * Drivers can use this interrupt handler for banked GPIO controllers. This
+ * implementation iterates over all banks and handles pending interrupts of
+ * the pins associated with the bank.
+ *
+ * This function uses driver specific parts, split out into the
+ * &gpio_chip.update_bank() callback, to retrieves the interrupt pending
+ * state for each of the GPIOs exposed by the given bank.
+ */
+void gpio_irq_chip_banked_chained_handler(struct irq_desc *desc)
+{
+	struct gpio_chip *gpio = irq_desc_get_handler_data(desc);
+	struct irq_chip *irq = irq_desc_get_chip(desc);
+	unsigned int parent = irq_desc_get_irq(desc);
+	struct gpio_irq_chip *chip = &gpio->irq;
+	unsigned int i, offset = 0;
+
+	chained_irq_enter(irq, desc);
+
+	for (i = 0; i < gpio->num_banks; i++) {
+		struct gpio_bank *bank = gpio->banks[i];
+		unsigned int line, virq;
+
+		if (parent != chip->parents[bank->parent_irq])
+			goto skip;
+
+		chip->update_bank(bank);
+
+		for_each_set_bit(line, bank->pending, bank->num_lines) {
+			virq = irq_find_mapping(chip->domain, offset + line);
+			if (WARN_ON(virq == 0))
+				continue;
+
+			generic_handle_irq(virq);
+		}
+
+skip:
+		offset += bank->num_lines;
+	}
+
+	chained_irq_exit(irq, desc);
+}
+EXPORT_SYMBOL_GPL(gpio_irq_chip_banked_chained_handler);
 
 #else /* CONFIG_GPIOLIB_IRQCHIP */
 
