@@ -62,6 +62,9 @@ extern void of_mm_gpiochip_remove(struct of_mm_gpio_chip *mm_gc);
 extern int of_gpio_simple_xlate(struct gpio_chip *gc,
 				const struct of_phandle_args *gpiospec,
 				u32 *flags);
+extern int of_gpio_banked_xlate(struct gpio_chip *gc,
+				const struct of_phandle_args *gpiospec,
+				u32 *flags);
 
 #else /* CONFIG_OF_GPIO */
 
@@ -76,6 +79,13 @@ static inline int of_get_named_gpio_flags(struct device_node *np,
 }
 
 static inline int of_gpio_simple_xlate(struct gpio_chip *gc,
+				       const struct of_phandle_args *gpiospec,
+				       u32 *flags)
+{
+	return -ENOSYS;
+}
+
+static inline int of_gpio_banked_xlate(struct gpio_chip *gc,
 				       const struct of_phandle_args *gpiospec,
 				       u32 *flags)
 {
