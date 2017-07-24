@@ -410,8 +410,12 @@ struct tegra_xusb_lane *tegra_xusb_find_lane(struct tegra_xusb_padctl *padctl,
 	if (!name)
 		return ERR_PTR(-ENOMEM);
 
+	dev_info(padctl->dev, "looking for lane %s...\n", name);
+
 	list_for_each_entry(lane, &padctl->lanes, list) {
+		dev_info(padctl->dev, "  %s...\n", lane->soc->name);
 		if (strcmp(lane->soc->name, name) == 0) {
+			dev_info(padctl->dev, "    found: %p\n", lane);
 			hit = lane;
 			break;
 		}
@@ -466,6 +470,9 @@ tegra_xusb_find_port_node(struct tegra_xusb_padctl *padctl, const char *type,
 		of_node_put(ports);
 		return ERR_PTR(-ENOMEM);
 	}
+
+	dev_info(padctl->dev, "looking for port %s\n", name);
+
 	np = of_get_child_by_name(ports, name);
 	kfree(name);
 	of_node_put(ports);
@@ -484,7 +491,10 @@ tegra_xusb_find_port(struct tegra_xusb_padctl *padctl, const char *type,
 	if (!np)
 		return NULL;
 
+	dev_info(padctl->dev, "  looking for port with node %s\n", np->full_name);
+
 	list_for_each_entry(port, &padctl->ports, list) {
+		dev_info(padctl->dev, "    %s...\n", port->dev.of_node->full_name);
 		if (np == port->dev.of_node) {
 			of_node_put(np);
 			return port;
@@ -619,19 +629,23 @@ static int tegra_xusb_add_usb2_port(struct tegra_xusb_padctl *padctl,
 	}
 
 	err = tegra_xusb_port_init(&usb2->base, padctl, np, "usb2", index);
-	if (err < 0)
+	if (err < 0) {
+		dev_err(padctl->dev, "failed to init USB2 port: %d\n", err);
 		goto out;
+	}
 
 	usb2->base.ops = padctl->soc->ports.usb2.ops;
 
 	usb2->base.lane = usb2->base.ops->map(&usb2->base);
 	if (IS_ERR(usb2->base.lane)) {
 		err = PTR_ERR(usb2->base.lane);
+		dev_err(padctl->dev, "failed to map USB2 port: %d\n", err);
 		goto out;
 	}
 
 	err = tegra_xusb_usb2_port_parse_dt(usb2);
 	if (err < 0) {
+		dev_err(padctl->dev, "failed to parse DT for USB2 port: %d\n", err);
 		tegra_xusb_port_unregister(&usb2->base);
 		goto out;
 	}
@@ -831,26 +845,34 @@ static int tegra_xusb_setup_ports(struct tegra_xusb_padctl *padctl)
 
 	for (i = 0; i < padctl->soc->ports.usb2.count; i++) {
 		err = tegra_xusb_add_usb2_port(padctl, i);
-		if (err < 0)
+		if (err < 0) {
+			dev_err(padctl->dev, "failed to add USB2 port: %d\n", err);
 			goto remove_ports;
+		}
 	}
 
 	for (i = 0; i < padctl->soc->ports.ulpi.count; i++) {
 		err = tegra_xusb_add_ulpi_port(padctl, i);
-		if (err < 0)
+		if (err < 0) {
+			dev_err(padctl->dev, "failed to add ULPI port: %d\n", err);
 			goto remove_ports;
+		}
 	}
 
 	for (i = 0; i < padctl->soc->ports.hsic.count; i++) {
 		err = tegra_xusb_add_hsic_port(padctl, i);
-		if (err < 0)
+		if (err < 0) {
+			dev_err(padctl->dev, "failed to add HSIC port: %d\n", err);
 			goto remove_ports;
+		}
 	}
 
 	for (i = 0; i < padctl->soc->ports.usb3.count; i++) {
 		err = tegra_xusb_add_usb3_port(padctl, i);
-		if (err < 0)
+		if (err < 0) {
+			dev_err(padctl->dev, "failed to add USB3 port: %d\n", err);
 			goto remove_ports;
+		}
 	}
 
 	list_for_each_entry(port, &padctl->ports, list) {
@@ -884,6 +906,8 @@ static int tegra_xusb_padctl_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	struct resource *res;
 	int err;
+
+	dev_info(&pdev->dev, "> %s(pdev=%p)\n", __func__, pdev);
 
 	/* for backwards compatibility with old device trees */
 	np = of_get_child_by_name(np, "pads");
@@ -936,6 +960,7 @@ static int tegra_xusb_padctl_probe(struct platform_device *pdev)
 		goto remove_pads;
 	}
 
+	dev_info(&pdev->dev, "< %s()\n", __func__);
 	return 0;
 
 remove_pads:
@@ -944,6 +969,7 @@ reset:
 	reset_control_assert(padctl->rst);
 remove:
 	soc->ops->remove(padctl);
+	dev_info(&pdev->dev, "< %s() = %d\n", __func__, err);
 	return err;
 }
 
