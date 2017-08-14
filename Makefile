@@ -389,6 +389,7 @@ NM		= $(CROSS_COMPILE)nm
 STRIP		= $(CROSS_COMPILE)strip
 OBJCOPY		= $(CROSS_COMPILE)objcopy
 OBJDUMP		= $(CROSS_COMPILE)objdump
+STRINGS		= $(CROSS_COMPILE)strings
 LEX		= flex
 YACC		= bison
 AWK		= awk
@@ -609,7 +610,12 @@ endif
 # command line.
 # This allow a user to issue only 'make' to build a kernel including modules
 # Defaults to vmlinux, but the arch makefile usually adds further targets
-all: vmlinux
+all: vmlinux firmware.builtin
+
+firmware.builtin: vmlinux
+	$(Q)$(OBJCOPY) -j .modinfo -O binary $< $@.tmp; \
+		$(STRINGS) $@.tmp | cut -d = -f 2 > $@; \
+		rm -f $@.tmp; \
 
 CFLAGS_GCOV	:= -fprofile-arcs -ftest-coverage \
 	$(call cc-option,-fno-tree-loop-im) \

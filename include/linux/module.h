@@ -256,7 +256,7 @@ extern typeof(name) __mod_##type##__##name##_device_table		\
 /* Optional firmware file (or files) needed by the module
  * format is simply firmware file name.  Multiple firmware
  * files require multiple MODULE_FIRMWARE() specifiers */
-#define MODULE_FIRMWARE(_firmware) MODULE_INFO(firmware, _firmware)
+#define MODULE_FIRMWARE(_firmware) ____MODULE_INFO(firmware, firmware, _firmware)
 
 struct notifier_block;
 
