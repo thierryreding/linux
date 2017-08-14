@@ -17,6 +17,11 @@
 /* Chosen so that structs with an unsigned long line up. */
 #define MAX_PARAM_PREFIX_LEN (64 - sizeof(unsigned long))
 
+#define ____MODULE_INFO(tag, name, info)				  \
+static const char __UNIQUE_ID(name)[]					  \
+  __used __attribute__((section(".modinfo"), unused, aligned(1)))	  \
+  = __stringify(tag) "=" info
+
 #ifdef MODULE
 #define __MODULE_INFO(tag, name, info)					  \
 static const char __UNIQUE_ID(name)[]					  \
