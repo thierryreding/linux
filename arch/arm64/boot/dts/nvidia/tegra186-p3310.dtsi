@@ -10,6 +10,7 @@
 	aliases {
 		sdhci0 = "/sdhci@3460000";
 		sdhci1 = "/sdhci@3400000";
+		sdhci2 = "/sdhci@3440000";
 		serial0 = &uarta;
 		i2c0 = "/bpmp/i2c";
 		i2c1 = "/i2c@3160000";
@@ -100,6 +101,13 @@
 	/* SDMMC3 (SDIO) */
 	sdhci@3440000 {
 		status = "okay";
+		bus-width = <4>;
+		non-removable;
+
+		power-gpios = <&gpio TEGRA_MAIN_GPIO(N, 0) GPIO_ACTIVE_HIGH>;
+
+		vqmmc-supply = <&vddio_sdmmc3>;
+		vmmc-supply = <&vdd_1v8>;
 	};
 
 	/* SDMMC4 (eMMC) */
