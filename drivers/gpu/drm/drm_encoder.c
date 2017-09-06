@@ -63,12 +63,38 @@ static const struct drm_prop_enum_list drm_encoder_enum_list[] = {
 	{ DRM_MODE_ENCODER_DPI, "DPI" },
 };
 
+static void drm_encoder_check_sanity(struct drm_encoder *encoder)
+{
+	unsigned long invalid_crtcs = encoder->possible_crtcs;
+	const char *name = encoder->name;
+	struct drm_crtc *crtc;
+	unsigned int bit;
+
+	/* remove all bits corresponding to valid CRTCs */
+	drm_for_each_crtc(crtc, encoder->dev)
+		invalid_crtcs &= ~drm_crtc_mask(crtc);
+
+	if (invalid_crtcs) {
+		/*
+		 * It's a driver bug to list CRTCs in the possible_crtcs mask
+		 * that don't exist, so make sure people notice.
+		 */
+		for_each_set_bit(bit, &invalid_crtcs, BITS_PER_LONG)
+			WARN(1, "encoder %s uses invalid CRTC %u", name, bit);
+
+		/* patch up the encoder's mask of possible CRTCs */
+		encoder->possible_crtcs &= ~invalid_crtcs;
+	}
+}
+
 int drm_encoder_register_all(struct drm_device *dev)
 {
 	struct drm_encoder *encoder;
 	int ret = 0;
 
 	drm_for_each_encoder(encoder, dev) {
+		drm_encoder_check_sanity(encoder);
+
 		if (encoder->funcs->late_register)
 			ret = encoder->funcs->late_register(encoder);
 		if (ret)
