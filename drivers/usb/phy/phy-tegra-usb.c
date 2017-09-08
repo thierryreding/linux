@@ -217,12 +217,29 @@ static void set_phcd(struct tegra_usb_phy *phy, bool enable)
 	void __iomem *base = phy->regs;
 	unsigned long val;
 
+	pr_info("> %s(phy=%p, enable=%d)\n", __func__, phy, enable);
+
 	if (phy->soc_config->has_hostpc) {
+		pr_info("  reading HOSTPC1_DEVLC...\n");
 		val = readl(base + TEGRA_USB_HOSTPC1_DEVLC);
+		pr_info("  HOSTPC1_DEVLC > %08lx\n", val);
 		if (enable)
 			val |= TEGRA_USB_HOSTPC1_DEVLC_PHCD;
-		else
+		else {
+			/*
+			 * While changing this bit from 1 to 0 or from 0 to 1
+			 * seems to work fine, clearing the bit while it is
+			 * already cleared seems to cause the processor to
+			 * hang. Since the PHY clock is already disabled in
+			 * this case, just abort and avoid the hang.
+			 */
+			if ((val & TEGRA_USB_HOSTPC1_DEVLC_PHCD) == 0)
+				return;
+
 			val &= ~TEGRA_USB_HOSTPC1_DEVLC_PHCD;
+		}
+
+		pr_info("  HOSTPC1_DEVLC < %08lx\n", val);
 		writel(val, base + TEGRA_USB_HOSTPC1_DEVLC);
 	} else {
 		val = readl(base + TEGRA_USB_PORTSC1) & ~PORT_RWC_BITS;
@@ -232,6 +249,8 @@ static void set_phcd(struct tegra_usb_phy *phy, bool enable)
 			val &= ~TEGRA_USB_PORTSC1_PHCD;
 		writel(val, base + TEGRA_USB_PORTSC1);
 	}
+
+	pr_info("< %s()\n", __func__);
 }
 
 static int utmip_pad_open(struct tegra_usb_phy *phy)
