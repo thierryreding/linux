@@ -9,7 +9,6 @@
 #include <linux/extcon.h>
 #include <linux/usb/otg.h>
 
-struct usb_hcd;
 struct ci_hdrc;
 
 /**
@@ -78,9 +77,6 @@ struct ci_hdrc_platform_data {
 	struct ci_hdrc_cable		vbus_extcon;
 	struct ci_hdrc_cable		id_extcon;
 	u32			phy_clkgate_delay_us;
-
-	int (*hub_control)(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
-			   u16 wIndex, char *buf, u16 wLength);
 };
 
 /* Default offset of capability registers */
