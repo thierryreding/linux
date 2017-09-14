@@ -7,7 +7,6 @@
  * Author: Alexander Shishkin
  */
 
-#define DEBUG
 #include <linux/kernel.h>
 #include <linux/io.h>
 #include <linux/usb.h>
@@ -37,8 +36,6 @@ static int ehci_ci_portpower(struct usb_hcd *hcd, int portnum, bool enable)
 	int ret = 0;
 	int port = HCS_N_PORTS(ehci->hcs_params);
 
-	dev_dbg(dev, "> %s(hcd=%p, portnum=%d, enable=%d)\n", __func__, hcd, portnum, enable);
-
 	if (priv->reg_vbus) {
 		if (port > 1) {
 			dev_warn(dev,
@@ -65,8 +62,6 @@ static int ehci_ci_portpower(struct usb_hcd *hcd, int portnum, bool enable)
 		hw_port_test_set(ci, 5);
 		hw_port_test_set(ci, 0);
 	}
-
-	dev_dbg(dev, "< %s()\n", __func__);
 	return 0;
 };
 
@@ -77,13 +72,9 @@ static int ehci_ci_reset(struct usb_hcd *hcd)
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	int ret;
 
-	dev_dbg(dev, "> %s(hcd=%p)\n", __func__, hcd);
-
 	ret = ehci_setup(hcd);
-	if (ret) {
-		dev_dbg(dev, "failed to setup EHCI: %d\n", ret);
+	if (ret)
 		return ret;
-	}
 
 	ehci->need_io_watchdog = 0;
 
@@ -96,7 +87,6 @@ static int ehci_ci_reset(struct usb_hcd *hcd)
 
 	ci_platform_configure(ci);
 
-	dev_dbg(dev, "< %s()\n", __func__);
 	return ret;
 }
 
@@ -117,8 +107,6 @@ static int host_start(struct ci_hdrc *ci)
 	struct ehci_hcd *ehci;
 	struct ehci_ci_priv *priv;
 	int ret;
-
-	dev_dbg(ci->dev, "> %s(ci=%p)\n", __func__, ci);
 
 	if (usb_disabled())
 		return -ENODEV;
@@ -145,13 +133,11 @@ static int host_start(struct ci_hdrc *ci)
 	ehci = hcd_to_ehci(hcd);
 	ehci->caps = ci->hw_bank.cap;
 	ehci->has_hostpc = ci->hw_bank.lpm;
-	ehci->has_tdi_phy_lpm = 0; //ci->hw_bank.lpm;
+	ehci->has_tdi_phy_lpm = ci->hw_bank.lpm;
 	ehci->imx28_write_fix = ci->imx28_write_fix;
 
 	priv = (struct ehci_ci_priv *)ehci->priv;
 	priv->reg_vbus = NULL;
-
-	dev_dbg(ci->dev, "trying to enable VBUS regulator: %p\n", ci->platdata->reg_vbus);
 
 	if (ci->platdata->reg_vbus && !ci_otg_is_fsm_mode(ci)) {
 		if (ci->platdata->flags & CI_HDRC_TURN_VBUS_EARLY_ON) {
@@ -181,7 +167,6 @@ static int host_start(struct ci_hdrc *ci)
 		}
 	}
 
-	dev_dbg(ci->dev, "< %s() = %d\n", __func__, ret);
 	return ret;
 
 disable_reg:
@@ -191,7 +176,6 @@ disable_reg:
 put_hcd:
 	usb_put_hcd(hcd);
 
-	dev_dbg(ci->dev, "< %s() = %d\n", __func__, ret);
 	return ret;
 }
 
@@ -224,30 +208,19 @@ void ci_hdrc_host_destroy(struct ci_hdrc *ci)
 
 static int ci_ehci_bus_suspend(struct usb_hcd *hcd)
 {
-	struct device *dev = hcd->self.controller;
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
-	int port, ret;
+	int port;
 	u32 tmp;
 
-	dev_dbg(dev, "> %s(hcd=%p)\n", __func__, hcd);
-	dev_dbg(dev, "  orig_bus_suspend(): %p\n", orig_bus_suspend);
-	dev_dbg(dev, "    %ps\n", orig_bus_suspend);
-	if (orig_bus_suspend) {
-		ret = orig_bus_suspend(hcd);
-		dev_dbg(dev, "  done: %d\n", ret);
-		if (ret) {
-			dev_dbg(dev, "< %s() = %d\n", __func__, ret);
-			return ret;
-		}
-	}
+	int ret = orig_bus_suspend(hcd);
+
+	if (ret)
+		return ret;
 
 	port = HCS_N_PORTS(ehci->hcs_params);
-	dev_dbg(dev, "  ports: %d\n", port);
 	while (port--) {
 		u32 __iomem *reg = &ehci->regs->port_status[port];
-		dev_dbg(dev, "    status: %p\n", reg);
 		u32 portsc = ehci_readl(ehci, reg);
-		dev_dbg(dev, "      %08x\n", portsc);
 
 		if (portsc & PORT_CONNECT) {
 			/*
@@ -271,30 +244,7 @@ static int ci_ehci_bus_suspend(struct usb_hcd *hcd)
 		}
 	}
 
-	dev_dbg(dev, "< %s()\n", __func__);
 	return 0;
-}
-
-static int ci_ehci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
-			       u16 wIndex, char *buf, u16 wLength)
-{
-	struct device *dev = hcd->self.controller;
-	struct ci_hdrc *ci = dev_get_drvdata(dev);
-	int err;
-
-	dev_dbg(dev, "> %s(hcd=%p, ...)\n", __func__, hcd);
-	dev_dbg(dev, "  ci: %p\n", ci);
-	dev_dbg(dev, "    dev: %p (%s)\n", ci->dev, dev_name(ci->dev));
-
-	if (ci->platdata->hub_control)
-		err = ci->platdata->hub_control(hcd, typeReq, wValue, wIndex,
-						buf, wLength);
-	else
-		err = ehci_hub_control(hcd, typeReq, wValue, wIndex, buf,
-				       wLength);
-
-	dev_dbg(dev, "< %s() = %d\n", __func__, err);
-	return err;
 }
 
 int ci_hdrc_host_init(struct ci_hdrc *ci)
@@ -322,5 +272,4 @@ void ci_hdrc_host_driver_init(void)
 	ehci_init_driver(&ci_ehci_hc_driver, &ehci_ci_overrides);
 	orig_bus_suspend = ci_ehci_hc_driver.bus_suspend;
 	ci_ehci_hc_driver.bus_suspend = ci_ehci_bus_suspend;
-	ci_ehci_hc_driver.hub_control = ci_ehci_hub_control;
 }
