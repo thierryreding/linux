@@ -65,7 +65,6 @@ struct tegra_usb_phy {
 	const struct tegra_xtal_freq *freq;
 	void __iomem *regs;
 	void __iomem *pad_regs;
-	int irq;
 	struct clk *clk;
 	struct clk *pll_u;
 	struct clk *pad_clk;
@@ -79,8 +78,6 @@ struct tegra_usb_phy {
 	bool is_ulpi_phy;
 	int reset_gpio;
 	struct reset_control *pad_rst;
-
-	struct work_struct work;
 };
 
 void tegra_usb_phy_preresume(struct usb_phy *phy);

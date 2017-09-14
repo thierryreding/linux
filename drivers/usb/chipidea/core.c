@@ -40,7 +40,6 @@
  * TODO List
  * - Suspend & Remote Wakeup
  */
-#define DEBUG
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
