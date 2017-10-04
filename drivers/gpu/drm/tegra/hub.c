@@ -524,6 +524,7 @@ static const struct drm_plane_helper_funcs tegra_shared_plane_helper_funcs = {
 	.atomic_check = tegra_shared_plane_atomic_check,
 	.atomic_update = tegra_shared_plane_atomic_update,
 	.atomic_disable = tegra_shared_plane_atomic_disable,
+	.prepare_fb = tegra_plane_prepare_fb,
 };
 
 struct drm_plane *tegra_shared_plane_create(struct drm_device *drm,
