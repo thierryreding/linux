@@ -8,6 +8,7 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_atomic_uapi.h>
 #include <drm/drm_plane_helper.h>
 
 #include "dc.h"
@@ -96,6 +97,23 @@ const struct drm_plane_funcs tegra_plane_funcs = {
 	.atomic_destroy_state = tegra_plane_atomic_destroy_state,
 	.format_mod_supported = tegra_plane_format_mod_supported,
 };
+
+int tegra_plane_prepare_fb(struct drm_plane *plane,
+			   struct drm_plane_state *state)
+{
+	struct dma_fence *fence;
+	struct tegra_bo *bo;
+
+	if ((plane->state->fb == state->fb) || !state->fb)
+		return 0;
+
+	/* XXX handle multi-planar formats */
+	bo = tegra_fb_get_plane(state->fb, 0);
+	fence = reservation_object_get_excl_rcu(bo->resv);
+	drm_atomic_set_fence_for_plane(state, fence);
+
+	return 0;
+}
 
 int tegra_plane_state_add(struct tegra_plane *plane,
 			  struct drm_plane_state *state)

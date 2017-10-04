@@ -12,6 +12,7 @@
 #define __HOST1X_GEM_H
 
 #include <linux/host1x.h>
+#include <linux/reservation.h>
 
 #include <drm/drm.h>
 #include <drm/drmP.h>
@@ -45,6 +46,10 @@ struct tegra_bo {
 	size_t size;
 
 	struct tegra_bo_tiling tiling;
+
+	/* normally (resv == &_resv) except for imported BOs */
+	struct reservation_object *resv;
+	struct reservation_object _resv;
 };
 
 static inline struct tegra_bo *to_tegra_bo(struct drm_gem_object *gem)
@@ -78,5 +83,6 @@ struct dma_buf *tegra_gem_prime_export(struct drm_device *drm,
 				       int flags);
 struct drm_gem_object *tegra_gem_prime_import(struct drm_device *drm,
 					      struct dma_buf *buf);
+struct reservation_object *tegra_gem_prime_res_obj(struct drm_gem_object *obj);
 
 #endif
