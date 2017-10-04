@@ -1022,6 +1022,7 @@ static struct drm_driver tegra_drm_driver = {
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_export = tegra_gem_prime_export,
 	.gem_prime_import = tegra_gem_prime_import,
+	.gem_prime_res_obj = tegra_gem_prime_res_obj,
 
 	.dumb_create = tegra_bo_dumb_create,
 

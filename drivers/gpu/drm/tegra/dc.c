@@ -595,6 +595,7 @@ static const struct drm_plane_helper_funcs tegra_plane_helper_funcs = {
 	.atomic_check = tegra_plane_atomic_check,
 	.atomic_disable = tegra_plane_atomic_disable,
 	.atomic_update = tegra_plane_atomic_update,
+	.prepare_fb = tegra_plane_prepare_fb,
 };
 
 static unsigned long tegra_plane_get_possible_crtcs(struct drm_device *drm)
@@ -779,6 +780,7 @@ static const struct drm_plane_helper_funcs tegra_cursor_plane_helper_funcs = {
 	.atomic_check = tegra_cursor_atomic_check,
 	.atomic_update = tegra_cursor_atomic_update,
 	.atomic_disable = tegra_cursor_atomic_disable,
+	.prepare_fb = tegra_plane_prepare_fb,
 };
 
 static struct drm_plane *tegra_dc_cursor_plane_create(struct drm_device *drm,
