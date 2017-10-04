@@ -424,7 +424,7 @@ nouveau_fence_new(struct nouveau_channel *chan, bool sysmem,
 	return ret;
 }
 
-static const char *nouveau_fence_get_get_driver_name(struct dma_fence *fence)
+static const char *nouveau_fence_get_driver_name(struct dma_fence *fence)
 {
 	return "nouveau";
 }
@@ -494,7 +494,7 @@ static void nouveau_fence_release(struct dma_fence *f)
 }
 
 static const struct dma_fence_ops nouveau_fence_ops_legacy = {
-	.get_driver_name = nouveau_fence_get_get_driver_name,
+	.get_driver_name = nouveau_fence_get_driver_name,
 	.get_timeline_name = nouveau_fence_get_timeline_name,
 	.enable_signaling = nouveau_fence_no_signaling,
 	.signaled = nouveau_fence_is_signaled,
@@ -521,7 +521,7 @@ static bool nouveau_fence_enable_signaling(struct dma_fence *f)
 }
 
 static const struct dma_fence_ops nouveau_fence_ops_uevent = {
-	.get_driver_name = nouveau_fence_get_get_driver_name,
+	.get_driver_name = nouveau_fence_get_driver_name,
 	.get_timeline_name = nouveau_fence_get_timeline_name,
 	.enable_signaling = nouveau_fence_enable_signaling,
 	.signaled = nouveau_fence_is_signaled,
