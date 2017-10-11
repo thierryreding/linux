@@ -865,6 +865,20 @@ void irq_dispose_mapping(unsigned int virq)
 EXPORT_SYMBOL_GPL(irq_dispose_mapping);
 
 /**
+ * irq_domain_dispose_mappings - dispose mappings for an IRQ domain
+ * @domain: IRQ domain
+ * @count: number of IRQ mappings to dispose of
+ */
+void irq_domain_dispose_mappings(struct irq_domain *domain, unsigned int count)
+{
+	unsigned int i;
+
+	for (i = 0; i < count; i++)
+		irq_dispose_mapping(irq_find_mapping(domain, i));
+}
+EXPORT_SYMBOL_GPL(irq_domain_dispose_mappings);
+
+/**
  * irq_find_mapping() - Find a linux irq from an hw irq number.
  * @domain: domain owning this hardware interrupt
  * @hwirq: hardware irq number in that domain space
