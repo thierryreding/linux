@@ -369,6 +369,8 @@ extern unsigned int irq_create_mapping(struct irq_domain *host,
 				       irq_hw_number_t hwirq);
 extern unsigned int irq_create_fwspec_mapping(struct irq_fwspec *fwspec);
 extern void irq_dispose_mapping(unsigned int virq);
+extern void irq_dispose_mappings(struct irq_domain *domain,
+				 unsigned int count);
 
 /**
  * irq_linear_revmap() - Find a linux irq from a hw irq number.
