@@ -355,7 +355,7 @@ static const struct tegra_drm_client_ops vic_ops = {
 	.submit = tegra_drm_submit,
 };
 
-#define NVIDIA_TEGRA_124_VIC_FIRMWARE "nvidia/tegra124/vic03_ucode.bin"
+#define NVIDIA_TEGRA_124_VIC_FIRMWARE "nvidia/tegra124/vic.bin"
 
 static const struct vic_config vic_t124_config = {
 	.firmware = NVIDIA_TEGRA_124_VIC_FIRMWARE,
@@ -363,7 +363,7 @@ static const struct vic_config vic_t124_config = {
 	.supports_sid = false,
 };
 
-#define NVIDIA_TEGRA_210_VIC_FIRMWARE "nvidia/tegra210/vic04_ucode.bin"
+#define NVIDIA_TEGRA_210_VIC_FIRMWARE "nvidia/tegra210/vic.bin"
 
 static const struct vic_config vic_t210_config = {
 	.firmware = NVIDIA_TEGRA_210_VIC_FIRMWARE,
@@ -371,7 +371,7 @@ static const struct vic_config vic_t210_config = {
 	.supports_sid = false,
 };
 
-#define NVIDIA_TEGRA_186_VIC_FIRMWARE "nvidia/tegra186/vic04_ucode.bin"
+#define NVIDIA_TEGRA_186_VIC_FIRMWARE "nvidia/tegra186/vic.bin"
 
 static const struct vic_config vic_t186_config = {
 	.firmware = NVIDIA_TEGRA_186_VIC_FIRMWARE,
