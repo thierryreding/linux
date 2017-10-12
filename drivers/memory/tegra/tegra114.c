@@ -17,11 +17,11 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	{
 		.id = 0x00,
 		.name = "ptcr",
-		.swgroup = TEGRA_SWGROUP_PTC,
+		.swgroup = TEGRA114_SWGROUP_PTC,
 	}, {
 		.id = 0x01,
 		.name = "display0a",
-		.swgroup = TEGRA_SWGROUP_DC,
+		.swgroup = TEGRA114_SWGROUP_DC,
 		.smmu = {
 			.reg = 0x228,
 			.bit = 1,
@@ -35,7 +35,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x02,
 		.name = "display0ab",
-		.swgroup = TEGRA_SWGROUP_DCB,
+		.swgroup = TEGRA114_SWGROUP_DCB,
 		.smmu = {
 			.reg = 0x228,
 			.bit = 2,
@@ -49,7 +49,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x03,
 		.name = "display0b",
-		.swgroup = TEGRA_SWGROUP_DC,
+		.swgroup = TEGRA114_SWGROUP_DC,
 		.smmu = {
 			.reg = 0x228,
 			.bit = 3,
@@ -63,7 +63,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x04,
 		.name = "display0bb",
-		.swgroup = TEGRA_SWGROUP_DCB,
+		.swgroup = TEGRA114_SWGROUP_DCB,
 		.smmu = {
 			.reg = 0x228,
 			.bit = 4,
@@ -77,7 +77,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x05,
 		.name = "display0c",
-		.swgroup = TEGRA_SWGROUP_DC,
+		.swgroup = TEGRA114_SWGROUP_DC,
 		.smmu = {
 			.reg = 0x228,
 			.bit = 5,
@@ -91,7 +91,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x06,
 		.name = "display0cb",
-		.swgroup = TEGRA_SWGROUP_DCB,
+		.swgroup = TEGRA114_SWGROUP_DCB,
 		.smmu = {
 			.reg = 0x228,
 			.bit = 6,
@@ -105,7 +105,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x09,
 		.name = "eppup",
-		.swgroup = TEGRA_SWGROUP_EPP,
+		.swgroup = TEGRA114_SWGROUP_EPP,
 		.smmu = {
 			.reg = 0x228,
 			.bit = 9,
@@ -119,7 +119,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x0a,
 		.name = "g2pr",
-		.swgroup = TEGRA_SWGROUP_G2,
+		.swgroup = TEGRA114_SWGROUP_G2,
 		.smmu = {
 			.reg = 0x228,
 			.bit = 10,
@@ -133,7 +133,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x0b,
 		.name = "g2sr",
-		.swgroup = TEGRA_SWGROUP_G2,
+		.swgroup = TEGRA114_SWGROUP_G2,
 		.smmu = {
 			.reg = 0x228,
 			.bit = 11,
@@ -147,7 +147,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x0f,
 		.name = "avpcarm7r",
-		.swgroup = TEGRA_SWGROUP_AVPC,
+		.swgroup = TEGRA114_SWGROUP_AVPC,
 		.smmu = {
 			.reg = 0x228,
 			.bit = 15,
@@ -161,7 +161,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x10,
 		.name = "displayhc",
-		.swgroup = TEGRA_SWGROUP_DC,
+		.swgroup = TEGRA114_SWGROUP_DC,
 		.smmu = {
 			.reg = 0x228,
 			.bit = 16,
@@ -175,7 +175,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x11,
 		.name = "displayhcb",
-		.swgroup = TEGRA_SWGROUP_DCB,
+		.swgroup = TEGRA114_SWGROUP_DCB,
 		.smmu = {
 			.reg = 0x228,
 			.bit = 17,
@@ -189,7 +189,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x12,
 		.name = "fdcdrd",
-		.swgroup = TEGRA_SWGROUP_NV,
+		.swgroup = TEGRA114_SWGROUP_NV,
 		.smmu = {
 			.reg = 0x228,
 			.bit = 18,
@@ -203,7 +203,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x13,
 		.name = "fdcdrd2",
-		.swgroup = TEGRA_SWGROUP_NV,
+		.swgroup = TEGRA114_SWGROUP_NV,
 		.smmu = {
 			.reg = 0x228,
 			.bit = 19,
@@ -217,7 +217,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x14,
 		.name = "g2dr",
-		.swgroup = TEGRA_SWGROUP_G2,
+		.swgroup = TEGRA114_SWGROUP_G2,
 		.smmu = {
 			.reg = 0x228,
 			.bit = 20,
@@ -231,7 +231,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x15,
 		.name = "hdar",
-		.swgroup = TEGRA_SWGROUP_HDA,
+		.swgroup = TEGRA114_SWGROUP_HDA,
 		.smmu = {
 			.reg = 0x228,
 			.bit = 21,
@@ -245,7 +245,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x16,
 		.name = "host1xdmar",
-		.swgroup = TEGRA_SWGROUP_HC,
+		.swgroup = TEGRA114_SWGROUP_HC,
 		.smmu = {
 			.reg = 0x228,
 			.bit = 22,
@@ -259,7 +259,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x17,
 		.name = "host1xr",
-		.swgroup = TEGRA_SWGROUP_HC,
+		.swgroup = TEGRA114_SWGROUP_HC,
 		.smmu = {
 			.reg = 0x228,
 			.bit = 23,
@@ -273,7 +273,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x18,
 		.name = "idxsrd",
-		.swgroup = TEGRA_SWGROUP_NV,
+		.swgroup = TEGRA114_SWGROUP_NV,
 		.smmu = {
 			.reg = 0x228,
 			.bit = 24,
@@ -287,7 +287,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x1c,
 		.name = "msencsrd",
-		.swgroup = TEGRA_SWGROUP_MSENC,
+		.swgroup = TEGRA114_SWGROUP_MSENC,
 		.smmu = {
 			.reg = 0x228,
 			.bit = 28,
@@ -301,7 +301,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x1d,
 		.name = "ppcsahbdmar",
-		.swgroup = TEGRA_SWGROUP_PPCS,
+		.swgroup = TEGRA114_SWGROUP_PPCS,
 		.smmu = {
 			.reg = 0x228,
 			.bit = 29,
@@ -315,7 +315,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x1e,
 		.name = "ppcsahbslvr",
-		.swgroup = TEGRA_SWGROUP_PPCS,
+		.swgroup = TEGRA114_SWGROUP_PPCS,
 		.smmu = {
 			.reg = 0x228,
 			.bit = 30,
@@ -329,7 +329,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x20,
 		.name = "texl2srd",
-		.swgroup = TEGRA_SWGROUP_NV,
+		.swgroup = TEGRA114_SWGROUP_NV,
 		.smmu = {
 			.reg = 0x22c,
 			.bit = 0,
@@ -343,7 +343,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x22,
 		.name = "vdebsevr",
-		.swgroup = TEGRA_SWGROUP_VDE,
+		.swgroup = TEGRA114_SWGROUP_VDE,
 		.smmu = {
 			.reg = 0x22c,
 			.bit = 2,
@@ -357,7 +357,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x23,
 		.name = "vdember",
-		.swgroup = TEGRA_SWGROUP_VDE,
+		.swgroup = TEGRA114_SWGROUP_VDE,
 		.smmu = {
 			.reg = 0x22c,
 			.bit = 3,
@@ -371,7 +371,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x24,
 		.name = "vdemcer",
-		.swgroup = TEGRA_SWGROUP_VDE,
+		.swgroup = TEGRA114_SWGROUP_VDE,
 		.smmu = {
 			.reg = 0x22c,
 			.bit = 4,
@@ -385,7 +385,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x25,
 		.name = "vdetper",
-		.swgroup = TEGRA_SWGROUP_VDE,
+		.swgroup = TEGRA114_SWGROUP_VDE,
 		.smmu = {
 			.reg = 0x22c,
 			.bit = 5,
@@ -399,7 +399,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x26,
 		.name = "mpcorelpr",
-		.swgroup = TEGRA_SWGROUP_MPCORELP,
+		.swgroup = TEGRA114_SWGROUP_MPCORELP,
 		.la = {
 			.reg = 0x324,
 			.shift = 0,
@@ -409,7 +409,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x27,
 		.name = "mpcorer",
-		.swgroup = TEGRA_SWGROUP_MPCORE,
+		.swgroup = TEGRA114_SWGROUP_MPCORE,
 		.la = {
 			.reg = 0x320,
 			.shift = 0,
@@ -419,7 +419,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x28,
 		.name = "eppu",
-		.swgroup = TEGRA_SWGROUP_EPP,
+		.swgroup = TEGRA114_SWGROUP_EPP,
 		.smmu = {
 			.reg = 0x22c,
 			.bit = 8,
@@ -433,7 +433,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x29,
 		.name = "eppv",
-		.swgroup = TEGRA_SWGROUP_EPP,
+		.swgroup = TEGRA114_SWGROUP_EPP,
 		.smmu = {
 			.reg = 0x22c,
 			.bit = 9,
@@ -447,7 +447,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x2a,
 		.name = "eppy",
-		.swgroup = TEGRA_SWGROUP_EPP,
+		.swgroup = TEGRA114_SWGROUP_EPP,
 		.smmu = {
 			.reg = 0x22c,
 			.bit = 10,
@@ -461,7 +461,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x2b,
 		.name = "msencswr",
-		.swgroup = TEGRA_SWGROUP_MSENC,
+		.swgroup = TEGRA114_SWGROUP_MSENC,
 		.smmu = {
 			.reg = 0x22c,
 			.bit = 11,
@@ -475,7 +475,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x2c,
 		.name = "viwsb",
-		.swgroup = TEGRA_SWGROUP_VI,
+		.swgroup = TEGRA114_SWGROUP_VI,
 		.smmu = {
 			.reg = 0x22c,
 			.bit = 12,
@@ -489,7 +489,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x2d,
 		.name = "viwu",
-		.swgroup = TEGRA_SWGROUP_VI,
+		.swgroup = TEGRA114_SWGROUP_VI,
 		.smmu = {
 			.reg = 0x22c,
 			.bit = 13,
@@ -503,7 +503,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x2e,
 		.name = "viwv",
-		.swgroup = TEGRA_SWGROUP_VI,
+		.swgroup = TEGRA114_SWGROUP_VI,
 		.smmu = {
 			.reg = 0x22c,
 			.bit = 14,
@@ -517,7 +517,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x2f,
 		.name = "viwy",
-		.swgroup = TEGRA_SWGROUP_VI,
+		.swgroup = TEGRA114_SWGROUP_VI,
 		.smmu = {
 			.reg = 0x22c,
 			.bit = 15,
@@ -531,7 +531,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x30,
 		.name = "g2dw",
-		.swgroup = TEGRA_SWGROUP_G2,
+		.swgroup = TEGRA114_SWGROUP_G2,
 		.smmu = {
 			.reg = 0x22c,
 			.bit = 16,
@@ -545,7 +545,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x32,
 		.name = "avpcarm7w",
-		.swgroup = TEGRA_SWGROUP_AVPC,
+		.swgroup = TEGRA114_SWGROUP_AVPC,
 		.smmu = {
 			.reg = 0x22c,
 			.bit = 18,
@@ -559,7 +559,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x33,
 		.name = "fdcdwr",
-		.swgroup = TEGRA_SWGROUP_NV,
+		.swgroup = TEGRA114_SWGROUP_NV,
 		.smmu = {
 			.reg = 0x22c,
 			.bit = 19,
@@ -573,7 +573,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x34,
 		.name = "fdcwr2",
-		.swgroup = TEGRA_SWGROUP_NV,
+		.swgroup = TEGRA114_SWGROUP_NV,
 		.smmu = {
 			.reg = 0x22c,
 			.bit = 20,
@@ -587,7 +587,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x35,
 		.name = "hdaw",
-		.swgroup = TEGRA_SWGROUP_HDA,
+		.swgroup = TEGRA114_SWGROUP_HDA,
 		.smmu = {
 			.reg = 0x22c,
 			.bit = 21,
@@ -601,7 +601,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x36,
 		.name = "host1xw",
-		.swgroup = TEGRA_SWGROUP_HC,
+		.swgroup = TEGRA114_SWGROUP_HC,
 		.smmu = {
 			.reg = 0x22c,
 			.bit = 22,
@@ -615,7 +615,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x37,
 		.name = "ispw",
-		.swgroup = TEGRA_SWGROUP_ISP,
+		.swgroup = TEGRA114_SWGROUP_ISP,
 		.smmu = {
 			.reg = 0x22c,
 			.bit = 23,
@@ -629,7 +629,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x38,
 		.name = "mpcorelpw",
-		.swgroup = TEGRA_SWGROUP_MPCORELP,
+		.swgroup = TEGRA114_SWGROUP_MPCORELP,
 		.la = {
 			.reg = 0x324,
 			.shift = 16,
@@ -639,7 +639,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x39,
 		.name = "mpcorew",
-		.swgroup = TEGRA_SWGROUP_MPCORE,
+		.swgroup = TEGRA114_SWGROUP_MPCORE,
 		.la = {
 			.reg = 0x320,
 			.shift = 16,
@@ -649,7 +649,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x3b,
 		.name = "ppcsahbdmaw",
-		.swgroup = TEGRA_SWGROUP_PPCS,
+		.swgroup = TEGRA114_SWGROUP_PPCS,
 		.smmu = {
 			.reg = 0x22c,
 			.bit = 27,
@@ -663,7 +663,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x3c,
 		.name = "ppcsahbslvw",
-		.swgroup = TEGRA_SWGROUP_PPCS,
+		.swgroup = TEGRA114_SWGROUP_PPCS,
 		.smmu = {
 			.reg = 0x22c,
 			.bit = 28,
@@ -677,7 +677,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x3e,
 		.name = "vdebsevw",
-		.swgroup = TEGRA_SWGROUP_VDE,
+		.swgroup = TEGRA114_SWGROUP_VDE,
 		.smmu = {
 			.reg = 0x22c,
 			.bit = 30,
@@ -691,7 +691,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x3f,
 		.name = "vdedbgw",
-		.swgroup = TEGRA_SWGROUP_VDE,
+		.swgroup = TEGRA114_SWGROUP_VDE,
 		.smmu = {
 			.reg = 0x22c,
 			.bit = 31,
@@ -705,7 +705,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x40,
 		.name = "vdembew",
-		.swgroup = TEGRA_SWGROUP_VDE,
+		.swgroup = TEGRA114_SWGROUP_VDE,
 		.smmu = {
 			.reg = 0x230,
 			.bit = 0,
@@ -719,7 +719,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x41,
 		.name = "vdetpmw",
-		.swgroup = TEGRA_SWGROUP_VDE,
+		.swgroup = TEGRA114_SWGROUP_VDE,
 		.smmu = {
 			.reg = 0x230,
 			.bit = 1,
@@ -733,7 +733,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x4a,
 		.name = "xusb_hostr",
-		.swgroup = TEGRA_SWGROUP_XUSB_HOST,
+		.swgroup = TEGRA114_SWGROUP_XUSB_HOST,
 		.smmu = {
 			.reg = 0x230,
 			.bit = 10,
@@ -747,7 +747,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x4b,
 		.name = "xusb_hostw",
-		.swgroup = TEGRA_SWGROUP_XUSB_HOST,
+		.swgroup = TEGRA114_SWGROUP_XUSB_HOST,
 		.smmu = {
 			.reg = 0x230,
 			.bit = 11,
@@ -761,7 +761,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x4c,
 		.name = "xusb_devr",
-		.swgroup = TEGRA_SWGROUP_XUSB_DEV,
+		.swgroup = TEGRA114_SWGROUP_XUSB_DEV,
 		.smmu = {
 			.reg = 0x230,
 			.bit = 12,
@@ -775,7 +775,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x4d,
 		.name = "xusb_devw",
-		.swgroup = TEGRA_SWGROUP_XUSB_DEV,
+		.swgroup = TEGRA114_SWGROUP_XUSB_DEV,
 		.smmu = {
 			.reg = 0x230,
 			.bit = 13,
@@ -789,7 +789,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x4e,
 		.name = "fdcdwr3",
-		.swgroup = TEGRA_SWGROUP_NV,
+		.swgroup = TEGRA114_SWGROUP_NV,
 		.smmu = {
 			.reg = 0x230,
 			.bit = 14,
@@ -803,7 +803,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x4f,
 		.name = "fdcdrd3",
-		.swgroup = TEGRA_SWGROUP_NV,
+		.swgroup = TEGRA114_SWGROUP_NV,
 		.smmu = {
 			.reg = 0x230,
 			.bit = 15,
@@ -817,7 +817,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x50,
 		.name = "fdcwr4",
-		.swgroup = TEGRA_SWGROUP_NV,
+		.swgroup = TEGRA114_SWGROUP_NV,
 		.smmu = {
 			.reg = 0x230,
 			.bit = 16,
@@ -831,7 +831,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x51,
 		.name = "fdcrd4",
-		.swgroup = TEGRA_SWGROUP_NV,
+		.swgroup = TEGRA114_SWGROUP_NV,
 		.smmu = {
 			.reg = 0x230,
 			.bit = 17,
@@ -845,7 +845,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x52,
 		.name = "emucifr",
-		.swgroup = TEGRA_SWGROUP_EMUCIF,
+		.swgroup = TEGRA114_SWGROUP_EMUCIF,
 		.la = {
 			.reg = 0x38c,
 			.shift = 0,
@@ -855,7 +855,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x53,
 		.name = "emucifw",
-		.swgroup = TEGRA_SWGROUP_EMUCIF,
+		.swgroup = TEGRA114_SWGROUP_EMUCIF,
 		.la = {
 			.reg = 0x38c,
 			.shift = 16,
@@ -865,7 +865,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x54,
 		.name = "tsecsrd",
-		.swgroup = TEGRA_SWGROUP_TSEC,
+		.swgroup = TEGRA114_SWGROUP_TSEC,
 		.smmu = {
 			.reg = 0x230,
 			.bit = 20,
@@ -879,7 +879,7 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	}, {
 		.id = 0x55,
 		.name = "tsecswr",
-		.swgroup = TEGRA_SWGROUP_TSEC,
+		.swgroup = TEGRA114_SWGROUP_TSEC,
 		.smmu = {
 			.reg = 0x230,
 			.bit = 21,
@@ -893,28 +893,31 @@ static const struct tegra_mc_client tegra114_mc_clients[] = {
 	},
 };
 
+#define TEGRA_SMMU_SWGROUP(_name, _swgroup, _offset) \
+	{ .name = _name, .swgroup = _swgroup, .reg = _offset }
+
 static const struct tegra_smmu_swgroup tegra114_swgroups[] = {
-	{ .name = "dc",        .swgroup = TEGRA_SWGROUP_DC,        .reg = 0x240 },
-	{ .name = "dcb",       .swgroup = TEGRA_SWGROUP_DCB,       .reg = 0x244 },
-	{ .name = "epp",       .swgroup = TEGRA_SWGROUP_EPP,       .reg = 0x248 },
-	{ .name = "g2",        .swgroup = TEGRA_SWGROUP_G2,        .reg = 0x24c },
-	{ .name = "avpc",      .swgroup = TEGRA_SWGROUP_AVPC,      .reg = 0x23c },
-	{ .name = "nv",        .swgroup = TEGRA_SWGROUP_NV,        .reg = 0x268 },
-	{ .name = "hda",       .swgroup = TEGRA_SWGROUP_HDA,       .reg = 0x254 },
-	{ .name = "hc",        .swgroup = TEGRA_SWGROUP_HC,        .reg = 0x250 },
-	{ .name = "msenc",     .swgroup = TEGRA_SWGROUP_MSENC,     .reg = 0x264 },
-	{ .name = "ppcs",      .swgroup = TEGRA_SWGROUP_PPCS,      .reg = 0x270 },
-	{ .name = "vde",       .swgroup = TEGRA_SWGROUP_VDE,       .reg = 0x27c },
-	{ .name = "vi",        .swgroup = TEGRA_SWGROUP_VI,        .reg = 0x280 },
-	{ .name = "isp",       .swgroup = TEGRA_SWGROUP_ISP,       .reg = 0x258 },
-	{ .name = "xusb_host", .swgroup = TEGRA_SWGROUP_XUSB_HOST, .reg = 0x288 },
-	{ .name = "xusb_dev",  .swgroup = TEGRA_SWGROUP_XUSB_DEV,  .reg = 0x28c },
-	{ .name = "tsec",      .swgroup = TEGRA_SWGROUP_TSEC,      .reg = 0x294 },
+	TEGRA_SMMU_SWGROUP("dc",        TEGRA114_SWGROUP_DC,        0x240),
+	TEGRA_SMMU_SWGROUP("dcb",       TEGRA114_SWGROUP_DCB,       0x244),
+	TEGRA_SMMU_SWGROUP("epp",       TEGRA114_SWGROUP_EPP,       0x248),
+	TEGRA_SMMU_SWGROUP("g2",        TEGRA114_SWGROUP_G2,        0x24c),
+	TEGRA_SMMU_SWGROUP("avpc",      TEGRA114_SWGROUP_AVPC,      0x23c),
+	TEGRA_SMMU_SWGROUP("nv",        TEGRA114_SWGROUP_NV,        0x268),
+	TEGRA_SMMU_SWGROUP("hda",       TEGRA114_SWGROUP_HDA,       0x254),
+	TEGRA_SMMU_SWGROUP("hc",        TEGRA114_SWGROUP_HC,        0x250),
+	TEGRA_SMMU_SWGROUP("msenc",     TEGRA114_SWGROUP_MSENC,     0x264),
+	TEGRA_SMMU_SWGROUP("ppcs",      TEGRA114_SWGROUP_PPCS,      0x270),
+	TEGRA_SMMU_SWGROUP("vde",       TEGRA114_SWGROUP_VDE,       0x27c),
+	TEGRA_SMMU_SWGROUP("vi",        TEGRA114_SWGROUP_VI,        0x280),
+	TEGRA_SMMU_SWGROUP("isp",       TEGRA114_SWGROUP_ISP,       0x258),
+	TEGRA_SMMU_SWGROUP("xusb_host", TEGRA114_SWGROUP_XUSB_HOST, 0x288),
+	TEGRA_SMMU_SWGROUP("xusb_dev",  TEGRA114_SWGROUP_XUSB_DEV,  0x28c),
+	TEGRA_SMMU_SWGROUP("tsec",      TEGRA114_SWGROUP_TSEC,      0x294),
 };
 
 static const unsigned int tegra114_group_display[] = {
-	TEGRA_SWGROUP_DC,
-	TEGRA_SWGROUP_DCB,
+	TEGRA114_SWGROUP_DC,
+	TEGRA114_SWGROUP_DCB,
 };
 
 static const struct tegra_smmu_group_soc tegra114_groups[] = {
