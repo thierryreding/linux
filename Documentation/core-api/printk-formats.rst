@@ -345,6 +345,18 @@ last components.  %pD does the same thing for struct file.
 
 Passed by reference.
 
+DMA fences
+==========
+
+::
+
+	%pDF
+
+For printing DMA fences; it prints the timeline name as obtained from
+:c:func:`struct dma_fence_ops.get_timeline_name()`.
+
+Passed by reference.
+
 block_device names
 ------------------
 
