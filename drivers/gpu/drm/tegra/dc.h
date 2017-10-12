@@ -16,6 +16,8 @@
 
 #include "drm.h"
 
+#define DC_TRACE_REGISTERS 0
+
 struct tegra_output;
 
 struct tegra_dc_state {
@@ -111,6 +113,9 @@ static inline struct tegra_dc *to_tegra_dc(struct drm_crtc *crtc)
 static inline void tegra_dc_writel(struct tegra_dc *dc, u32 value,
 				   unsigned int offset)
 {
+	if (DC_TRACE_REGISTERS)
+		dev_dbg(dc->dev, "%08x < %08x\n", offset, value);
+
 	trace_dc_writel(dc->dev, offset, value);
 	writel(value, dc->regs + (offset << 2));
 }
@@ -118,6 +123,9 @@ static inline void tegra_dc_writel(struct tegra_dc *dc, u32 value,
 static inline u32 tegra_dc_readl(struct tegra_dc *dc, unsigned int offset)
 {
 	u32 value = readl(dc->regs + (offset << 2));
+
+	if (DC_TRACE_REGISTERS)
+		dev_dbg(dc->dev, "%08x > %08x\n", offset, value);
 
 	trace_dc_readl(dc->dev, offset, value);
 
