@@ -1669,6 +1669,7 @@ static const struct dev_pm_ops tegra_dsi_pm_ops = {
 };
 
 static const struct of_device_id tegra_dsi_of_match[] = {
+	{ .compatible = "nvidia,tegra186-dsi", },
 	{ .compatible = "nvidia,tegra210-dsi", },
 	{ .compatible = "nvidia,tegra132-dsi", },
 	{ .compatible = "nvidia,tegra124-dsi", },
