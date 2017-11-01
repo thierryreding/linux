@@ -6,6 +6,7 @@
  * published by the Free Software Foundation.
  */
 
+#define DEBUG
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -571,6 +572,18 @@ static int tegra186_mc_probe(struct platform_device *pdev)
 
 		dev_dbg(&pdev->dev, "client %s: override: %x security: %x\n",
 			client->name, override, security);
+	}
+
+	if (1) {
+		u32 value;
+
+		dev_dbg(&pdev->dev, "programming latency allowance:\n");
+
+		value = readl(mc->regs + 0x708);
+		dev_dbg(&pdev->dev, "  0x708 > %08x\n", value);
+		value = 0x2d;
+		dev_dbg(&pdev->dev, "  0x708 < %08x\n", value);
+		writel(value, mc->regs + 0x708);
 	}
 
 	platform_set_drvdata(pdev, mc);
