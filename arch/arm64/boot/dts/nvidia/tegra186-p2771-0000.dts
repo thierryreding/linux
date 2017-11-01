@@ -198,7 +198,7 @@
 	};
 
 	gpu@17000000 {
-		status = "okay";
+		status = "disabled";
 	};
 
 	gpio-keys {
