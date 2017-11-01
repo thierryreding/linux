@@ -61,6 +61,8 @@
 		reset-names = "eqos";
 		status = "disabled";
 
+		//iommus = <&smmu TEGRA186_SID_EQOS>;
+
 		snps,write-requests = <1>;
 		snps,read-requests = <3>;
 		snps,burst-map = <0x7>;
