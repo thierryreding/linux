@@ -254,6 +254,8 @@
 				  <&bpmp TEGRA186_CLK_PLLP_OUT0>;
 		assigned-clock-parents = <&bpmp TEGRA186_CLK_PLLP_OUT0>;
 		status = "disabled";
+
+		iommus = <&smmu TEGRA186_SID_SDMMC1>;
 	};
 
 	sdmmc2: sdhci@3420000 {
@@ -274,6 +276,8 @@
 		nvidia,default-tap = <0x5>;
 		nvidia,default-trim = <0xb>;
 		status = "disabled";
+
+		iommus = <&smmu TEGRA186_SID_SDMMC2>;
 	};
 
 	sdmmc3: sdhci@3440000 {
@@ -296,6 +300,8 @@
 		nvidia,default-tap = <0x5>;
 		nvidia,default-trim = <0xb>;
 		status = "disabled";
+
+		iommus = <&smmu TEGRA186_SID_SDMMC3>;
 	};
 
 	sdmmc4: sdhci@3460000 {
@@ -318,6 +324,8 @@
 		nvidia,dqs-trim = <63>;
 		mmc-hs400-1_8v;
 		status = "disabled";
+
+		iommus = <&smmu TEGRA186_SID_SDMMC4>;
 	};
 
 	padctl: padctl@3520000 {
