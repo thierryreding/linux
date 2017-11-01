@@ -739,9 +739,7 @@
 					 <&tegra_car TEGRA210_CLK_DPAUX>,
 					 <&tegra_car TEGRA210_CLK_DPAUX1>,
 					 <&tegra_car TEGRA210_CLK_MIPI_CAL>;
-				resets = <&tegra_car TEGRA210_CLK_SOR0>,
-					 <&tegra_car TEGRA210_CLK_SOR1>,
-					 <&tegra_car TEGRA210_CLK_CSI>,
+				resets = <&tegra_car TEGRA210_CLK_CSI>,
 					 <&tegra_car TEGRA210_CLK_DSIA>,
 					 <&tegra_car TEGRA210_CLK_DSIB>,
 					 <&tegra_car TEGRA210_CLK_DPAUX>,
