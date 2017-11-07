@@ -544,12 +544,6 @@ static const struct dev_pm_ops tegra_gpio_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(tegra_gpio_suspend, tegra_gpio_resume)
 };
 
-/*
- * This lock class tells lockdep that GPIO IRQs are in a different category
- * than their parents, so it won't report false recursion.
- */
-static struct lock_class_key tegra_gpio_lock_class;
-
 static int tegra_gpio_probe(struct platform_device *pdev)
 {
 	struct tegra_gpio_info *tgi;
@@ -610,7 +604,6 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 	irq = &tgi->gc.irq;
 	irq->chip = &tgi->ic;
 	irq->handler = handle_simple_irq;
-	irq->lock_key = &tegra_gpio_lock_class;
 	irq->default_type = IRQ_TYPE_NONE;
 	irq->parent_handler = gpio_irq_chip_banked_chained_handler;
 	irq->update_bank = tegra_gpio_update_bank;
