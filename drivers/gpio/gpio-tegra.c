@@ -605,7 +605,6 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 	irq = &tgi->gc.irq;
 	irq->chip = &tgi->ic;
 	irq->handler = handle_simple_irq;
-	irq->lock_key = &tegra_gpio_lock_class;
 	irq->default_type = IRQ_TYPE_NONE;
 	irq->parent_handler = gpio_irq_chip_banked_chained_handler;
 	irq->update_bank = tegra_gpio_update_bank;
