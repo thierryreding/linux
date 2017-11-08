@@ -3217,6 +3217,8 @@ static int tegra_sor_resume(struct device *dev)
 			clk_disable_unprepare(sor->clk);
 			return err;
 		}
+
+		usleep_range(1000, 2000);
 	}
 
 	return 0;
