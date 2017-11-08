@@ -108,8 +108,24 @@ bool tegra_dc_has_output(struct tegra_dc *dc, struct device *dev)
  */
 void tegra_dc_commit(struct tegra_dc *dc)
 {
+	unsigned long timeout;
+	u32 value;
+
 	tegra_dc_writel(dc, GENERAL_ACT_REQ << 8, DC_CMD_STATE_CONTROL);
+	value = tegra_dc_readl(dc, DC_CMD_STATE_CONTROL);
+
 	tegra_dc_writel(dc, GENERAL_ACT_REQ, DC_CMD_STATE_CONTROL);
+	value = tegra_dc_readl(dc, DC_CMD_STATE_CONTROL);
+
+	timeout = jiffies + msecs_to_jiffies(1000);
+
+	while (time_before(jiffies, timeout)) {
+		value = tegra_dc_readl(dc, DC_CMD_STATE_CONTROL);
+		if (value == 0)
+			break;
+
+		usleep_range(100, 400);
+	}
 }
 
 static inline u32 compute_dda_inc(unsigned int in, unsigned int out, bool v,
