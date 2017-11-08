@@ -853,6 +853,8 @@
 
 			power-domains = <&bpmp TEGRA186_POWER_DOMAIN_VIC>;
 			iommus = <&smmu TEGRA186_SID_VIC>;
+
+			status = "disabled";
 		};
 
 		jpg@15380000 {
