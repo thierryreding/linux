@@ -190,7 +190,58 @@ static void tegra_windowgroup_disable(struct tegra_windowgroup *wgrp)
 
 int tegra_display_hub_prepare(struct tegra_display_hub *hub)
 {
+	struct drm_device *drm = dev_get_drvdata(hub->client.parent);
+	struct tegra_dc *dc = NULL;
+	struct drm_crtc *crtc;
 	unsigned int i;
+	u32 value;
+
+	drm_for_each_crtc(crtc, drm) {
+		dc = to_tegra_dc(crtc);
+		break;
+	}
+
+	if (!dc)
+		return -ENODEV;
+
+	pm_runtime_get_sync(dc->dev);
+
+	value = tegra_dc_readl(dc, DC_CMD_IHUB_COMMON_CAPA);
+	pr_debug("DC_CMD_IHUB_COMMON_CAPA: %08x\n", value);
+	pr_debug("  request size per line non-rotation: %u\n", (value >> 30) & 0x3);
+	pr_debug("  request size per line rotation: %u\n", (value >> 28) & 0x3);
+	pr_debug("  supports TrustZone window: %s\n", (value & (1 << 27)) ? "yes" : "no");
+	pr_debug("  supports latency event: %s\n", (value & (1 << 26)) ? "yes" : "no");
+	pr_debug("  supports ASR: %s\n", (value & (1 << 24)) ? "yes" : "no");
+	pr_debug("  supports MCLK switch: %s\n", (value & (1 << 23)) ? "yes" : "no");
+	pr_debug("  supports MSPG: %s\n", (value & (1 << 22)) ? "yes" : "no");
+	pr_debug("  supports mempool compression: %s\n", (value & (1 << 21)) ? "yes" : "no");
+	pr_debug("  supports VGA: %s\n", (value & (1 << 20)) ? "yes" : "no");
+	pr_debug("  supports planar: %s\n", (value & (1 << 19)) ? "yes" : "no");
+	pr_debug("  supports rotation: %s\n", (value & (1 << 18)) ? "yes" : "no");
+	pr_debug("  mempool entry width: %u\n", (value >> 16) & 0x3);
+	pr_debug("  mempool entries: %u\n", (value >> 0) & 0xffff);
+
+	value = tegra_dc_readl(dc, DC_CMD_IHUB_COMMON_CAPB);
+	pr_debug("DC_CMD_IHUB_COMMON_CAPB: %08x\n", value);
+	pr_debug("  max packed 422 rotation thread groups: %u\n", (value >> 24) & 0x3f);
+	pr_debug("  max packed 1bpp rotation thread groups: %u\n", (value >> 18) & 0x3f);
+	pr_debug("  max packed 2bpp rotation thread groups: %u\n", (value >> 12) & 0x3f);
+	pr_debug("  max semi planar rotation thread groups: %u\n", (value >> 6) & 0x3f);
+	pr_debug("  max planar rotation thread groups: %u\n", (value >> 0) & 0x3f);
+
+	value = tegra_dc_readl(dc, DC_CMD_IHUB_COMMON_CAPC);
+	pr_debug("DC_CMD_IHUB_COMMON_CAPC: %08x\n", value);
+	pr_debug("  clear rectangles per surface: %u\n", (value >> 8) & 0x7);
+	pr_debug("  max lines buffered: %u\n", (value >> 4) & 0x7);
+	pr_debug("  pitch request size: %u\n", (value & 0x3));
+
+	value = tegra_dc_readl(dc, DC_CMD_IHUB_COMMON_CAPD);
+	pr_debug("DC_CMD_IHUB_COMMON_CAPD: %08x\n", value);
+	pr_debug("  readout buffer size: %u\n", (value >> 16) & 0xffff);
+	pr_debug("  reorder buffer depth: %u\n", value & 0xffff);
+
+	pm_runtime_put(dc->dev);
 
 	/*
 	 * XXX Enabling/disabling windowgroups needs to happen when the owner
