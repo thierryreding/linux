@@ -328,6 +328,26 @@ static int tegra_shared_plane_set_owner(struct tegra_plane *plane,
 	return 0;
 }
 
+static void tegra_shared_plane_program_filter(struct tegra_plane *plane)
+{
+	unsigned int offset = DC_WIN_WINDOWGROUP_SET_INPUT_SCALER_COEFF_VALUE;
+	const unsigned int *filter = vic_filter_coeffs;
+	unsigned int ratio, row, column, index;
+	u32 value;
+
+	for (ratio = 0; ratio <= 2; ratio++) {
+		for (row = 0; row <= 15; row++) {
+			for (column = 0; column <= 3; column++) {
+				index = ratio << 6 | row << 2 | column;
+
+				value = SCALER_COEFF_INDEX(index) |
+					SCALER_COEFF_DATA(filter[index]);
+				tegra_plane_writel(plane, value, offset);
+			}
+		}
+	}
+}
+
 static void tegra_dc_assign_shared_plane(struct tegra_dc *dc,
 					 struct tegra_plane *plane)
 {
@@ -343,6 +363,8 @@ static void tegra_dc_assign_shared_plane(struct tegra_dc *dc,
 	value = tegra_plane_readl(plane, DC_WIN_CORE_IHUB_LINEBUF_CONFIG);
 	value |= MODE_FOUR_LINES;
 	tegra_plane_writel(plane, value, DC_WIN_CORE_IHUB_LINEBUF_CONFIG);
+
+	tegra_shared_plane_program_filter(plane);
 
 	value = tegra_plane_readl(plane, DC_WIN_CORE_IHUB_WGRP_FETCH_METER);
 	value = SLOTS(1);
