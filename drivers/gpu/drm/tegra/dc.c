@@ -1855,8 +1855,12 @@ static const struct drm_crtc_helper_funcs tegra_crtc_helper_funcs = {
 
 static irqreturn_t tegra_dc_irq(int irq, void *data)
 {
+	bool tracing = tracing_is_on();
 	struct tegra_dc *dc = data;
 	unsigned long status;
+
+	if (tracing)
+		tracing_off();
 
 	status = tegra_dc_readl(dc, DC_CMD_INT_STATUS);
 	tegra_dc_writel(dc, status, DC_CMD_INT_STATUS);
@@ -1894,6 +1898,9 @@ static irqreturn_t tegra_dc_irq(int irq, void *data)
 		dev_dbg_ratelimited(dc->dev, "%s(): head underflow\n", __func__);
 		dc->stats.underflow++;
 	}
+
+	if (tracing)
+		tracing_on();
 
 	return IRQ_HANDLED;
 }
