@@ -88,6 +88,7 @@ struct tegra_dc {
 	int irq;
 
 	struct tegra_output *rgb;
+	struct tegra_bo *lut;
 
 	struct tegra_dc_stats stats;
 	struct list_head list;
@@ -417,6 +418,7 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 #define DISP_ORDER_BLUE_RED        (1 << 9)
 
 #define DC_DISP_DISP_COLOR_CONTROL		0x430
+#define CMU_ENABLE (1 << 20)
 #define BASE_COLOR_SIZE666     ( 0 << 0)
 #define BASE_COLOR_SIZE111     ( 1 << 0)
 #define BASE_COLOR_SIZE222     ( 2 << 0)
@@ -716,6 +718,15 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 #define DC_DISP_CORE_SOR_SET_CONTROL(x)		(0x403 + (x))
 #define PROTOCOL_MASK (0xf << 8)
 #define PROTOCOL_SINGLE_TMDS_A (0x1 << 8)
+
+#define DC_DISP_CORE_HEAD_SET_CONTROL_OUTPUT_LUT 0x431
+#define  LUT_OUTPUT_MODE_INDEX (0 << 5)
+#define  LUT_OUTPUT_MODE_INTERPOLATE (1 << 5)
+#define  LUT_SIZE_257 (0 << 1)
+#define  LUT_SIZE_1025 (2 << 1)
+
+#define DC_DISP_HEAD_SET_OUTPUT_LUT_BASE	0x432
+#define DC_DISP_HEAD_SET_OUTPUT_LUT_BASE_HI	0x433
 
 #define DC_WIN_CORE_WINDOWGROUP_SET_CONTROL	0x702
 #define OWNER_MASK (0xf << 0)
