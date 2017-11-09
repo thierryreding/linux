@@ -705,6 +705,17 @@ struct drm_plane *tegra_shared_plane_create(struct drm_device *drm,
 	return p;
 }
 
+#if 0
+	/* XXX tegra_nvdisp_program_imp_curs_entries() */
+	if (dc->soc->has_nvdisplay) {
+		tegra_dc_writel(dc, 0x00000001, 0x453);
+		tegra_dc_writel(dc, 0x00000000, 0x382);
+		tegra_dc_writel(dc, 0x1fffffff, 0x383);
+		tegra_dc_writel(dc, 0x00000000, 0x450);
+		tegra_dc_writel(dc, 0x00000010, 0x452);
+	}
+#endif
+
 static struct drm_private_state *
 tegra_display_hub_duplicate_state(struct drm_private_obj *obj)
 {
