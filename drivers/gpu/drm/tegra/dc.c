@@ -1932,6 +1932,14 @@ static void tegra_crtc_atomic_enable(struct drm_crtc *crtc,
 		tegra_dc_writel(dc, value, DC_DISP_INTERLACE_CONTROL);
 	}
 
+#if 0
+	/* XXX only needed for HDMI */
+	if (dc->soc->has_csc2)
+		tegra_dc_writel(dc, LIMIT_RGB_COLOR, DC_DISP_CSC2_CONTROL);
+#endif
+
+	tegra_dc_commit(dc);
+
 	if (dc->soc->has_nvdisplay)
 		tegra_dc_program_lut(dc);
 

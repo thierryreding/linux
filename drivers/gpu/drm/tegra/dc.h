@@ -524,6 +524,10 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 #define  INTERLACE_ENABLE (1 << 0)
 
 #define DC_DISP_CURSOR_START_ADDR_HI		0x4ec
+
+#define DC_DISP_CSC2_CONTROL			0x4ef
+#define  LIMIT_RGB_COLOR (1 << 2)
+
 #define DC_DISP_BLEND_CURSOR_CONTROL		0x4f1
 #define CURSOR_MODE_LEGACY			(0 << 24)
 #define CURSOR_MODE_NORMAL			(1 << 24)
