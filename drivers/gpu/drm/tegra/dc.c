@@ -639,6 +639,7 @@ static struct drm_plane *tegra_primary_plane_create(struct drm_device *drm,
 		return ERR_PTR(-ENOMEM);
 
 	/* Always use window A as primary window */
+	tegra_plane_init(plane);
 	plane->offset = 0xa00;
 	plane->index = 0;
 	plane->dc = dc;
@@ -805,6 +806,7 @@ static struct drm_plane *tegra_dc_cursor_plane_create(struct drm_device *drm,
 	 * code in tegra_add_plane_state() to do the right thing without the
 	 * need to special-casing the cursor plane.
 	 */
+	tegra_plane_init(plane);
 	plane->index = 6;
 	plane->dc = dc;
 
@@ -917,6 +919,7 @@ static struct drm_plane *tegra_dc_overlay_plane_create(struct drm_device *drm,
 	if (!plane)
 		return ERR_PTR(-ENOMEM);
 
+	tegra_plane_init(plane);
 	plane->offset = 0xa00 + 0x200 * index;
 	plane->index = index;
 	plane->dc = dc;
