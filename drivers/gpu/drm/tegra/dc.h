@@ -670,6 +670,10 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 
 #define DC_WIN_DV_CONTROL			0x70e
 
+#define DC_WIN_WINDOWGROUP_SET_INPUT_SCALER_COEFF_VALUE 0x70f
+#define  SCALER_COEFF_INDEX(x) (((x) & 0xff) << 15)
+#define  SCALER_COEFF_DATA(x) (((x) & 0x3ff) << 0)
+
 #define DC_WIN_BLEND_NOKEY			0x70f
 #define  BLEND_WEIGHT1(x) (((x) & 0xff) << 16)
 #define  BLEND_WEIGHT0(x) (((x) & 0xff) <<  8)
