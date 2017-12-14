@@ -885,6 +885,19 @@
 			power-domains = <&bpmp TEGRA186_POWER_DOMAIN_NVDEC>;
 		};
 
+		encoder@154c0000 {
+			compatible = "nvidia,tegra186-enc";
+			reg = <0x154c0000 0x10000>;
+			interrupts = <GIC_SPI 200 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&bpmp TEGRA186_CLK_NVENC>;
+			clock-names = "nvenc";
+			resets = <&bpmp TEGRA186_RESET_NVENC>;
+			reset-names = "nvenc";
+			status = "disabled";
+
+			power-domains = <&bpmp TEGRA186_POWER_DOMAIN_MPE>;
+		};
+
 		tsec@15500000 {
 			compatible = "nvidia,tegra186-tsec";
 			reg = <0x15500000 0x10000>;
