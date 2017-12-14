@@ -110,7 +110,8 @@ nvkm_device_tegra_probe_iommu(struct nvkm_device_tegra *tdev)
 
 	mutex_init(&tdev->iommu.mutex);
 
-	if (iommu_present(&platform_bus_type)) {
+	tdev->iommu.group = iommu_group_get(dev);
+	if (tdev->iommu.group) {
 		tdev->iommu.domain = iommu_domain_alloc(&platform_bus_type);
 		if (!tdev->iommu.domain)
 			goto error;
@@ -132,7 +133,7 @@ nvkm_device_tegra_probe_iommu(struct nvkm_device_tegra *tdev)
 			tdev->iommu.pgshift -= 1;
 		}
 
-		ret = iommu_attach_device(tdev->iommu.domain, dev);
+		ret = iommu_attach_group(tdev->iommu.domain, tdev->iommu.group);
 		if (ret)
 			goto free_domain;
 
@@ -140,19 +141,21 @@ nvkm_device_tegra_probe_iommu(struct nvkm_device_tegra *tdev)
 				   (1ULL << tdev->func->iommu_bit) >>
 				   tdev->iommu.pgshift, 1);
 		if (ret)
-			goto detach_device;
+			goto detach_group;
 	}
 
 	return;
 
-detach_device:
-	iommu_detach_device(tdev->iommu.domain, dev);
+detach_group:
+	iommu_detach_group(tdev->iommu.domain, tdev->iommu.group);
 
 free_domain:
 	iommu_domain_free(tdev->iommu.domain);
 
 error:
+	iommu_group_put(tdev->iommu.group);
 	tdev->iommu.domain = NULL;
+	tdev->iommu.group = NULL;
 	tdev->iommu.pgshift = 0;
 	dev_err(dev, "cannot initialize IOMMU MM\n");
 #endif
@@ -162,10 +165,11 @@ static void
 nvkm_device_tegra_remove_iommu(struct nvkm_device_tegra *tdev)
 {
 #if IS_ENABLED(CONFIG_IOMMU_API)
-	if (tdev->iommu.domain) {
+	if (tdev->iommu.group && tdev->iommu.domain) {
 		nvkm_mm_fini(&tdev->iommu.mm);
-		iommu_detach_device(tdev->iommu.domain, tdev->device.dev);
+		iommu_detach_group(tdev->iommu.domain, tdev->iommu.group);
 		iommu_domain_free(tdev->iommu.domain);
+		iommu_group_put(tdev->iommu.group);
 	}
 #endif
 }
