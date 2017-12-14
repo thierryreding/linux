@@ -844,6 +844,19 @@
 			power-domains = <&bpmp TEGRA186_POWER_DOMAIN_VIC>;
 		};
 
+		jpg@15380000 {
+			compatible = "nvidia,tegra186-jpg";
+			reg = <0x15380000 0x10000>;
+			interrupts = <GIC_SPI 198 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&bpmp TEGRA186_CLK_NVJPG>;
+			clock-names = "nvjpg";
+			resets = <&bpmp TEGRA186_RESET_NVJPG>;
+			reset-names = "nvjpg";
+			status = "disabled";
+
+			power-domains = <&bpmp TEGRA186_POWER_DOMAIN_NVJPG>;
+		};
+
 		dsib: dsi@15400000 {
 			compatible = "nvidia,tegra186-dsi";
 			reg = <0x15400000 0x10000>;
