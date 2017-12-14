@@ -25,6 +25,7 @@ struct nvkm_device_tegra {
 
 		struct nvkm_mm mm;
 		struct iommu_domain *domain;
+		struct iommu_group *group;
 		unsigned long pgshift;
 	} iommu;
 
