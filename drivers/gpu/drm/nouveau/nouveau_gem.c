@@ -992,3 +992,118 @@ nouveau_gem_ioctl_pushbuf2(struct drm_device *dev, void *data,
 	return __nouveau_gem_ioctl_pushbuf(dev, req, file_priv);
 }
 
+struct nouveau_tiling {
+	unsigned int page;
+	bool contig;
+	u8 kind;
+	u8 comp;
+	u8 zeta;
+	u32 mode;
+};
+
+static int nouveau_parse_tiling(struct nouveau_cli *cli,
+				struct nouveau_tiling *tiling,
+				u32 tile_mode, u32 tile_flags)
+{
+	struct nvif_device *dev = &cli->device;
+	struct nvif_mmu *mmu = &cli->mmu;
+
+	memset(tiling, 0, sizeof(*tiling));
+	tiling->mode = tile_mode;
+	tiling->page = 12;
+
+	if ((tile_flags & NOUVEAU_GEM_TILE_NONCONTIG) == 0)
+		tiling->contig = true;
+
+	if (dev->info.family >= NV_DEVICE_INFO_V0_FERMI) {
+		tiling->kind = (tile_flags & 0x0000ff00) >> 8;
+
+		if (!nvif_mmu_kind_valid(mmu, tiling->kind))
+			return -EINVAL;
+
+		if (mmu->kind[tiling->kind] != tiling->kind)
+			tiling->comp = 1;
+	} else if (dev->info.family >= NV_DEVICE_INFO_V0_TESLA) {
+		tiling->kind = (tile_flags & 0x00007f00) >> 8;
+		tiling->comp = (tile_flags & 0x00030000) >> 16;
+
+		if (!nvif_mmu_kind_valid(mmu, tiling->kind))
+			return -EINVAL;
+	} else {
+		tiling->zeta = tile_flags & 0x00000007;
+	}
+
+	return 0;
+}
+
+static bool nouveau_bo_check_tiling(struct nouveau_bo *bo,
+				    const struct nouveau_tiling *tiling)
+{
+	return bo->page == tiling->page && bo->contig == tiling->contig &&
+	       bo->kind == tiling->kind && bo->comp == tiling->comp &&
+	       bo->zeta == tiling->zeta && bo->mode == tiling->mode;
+}
+
+static void nouveau_bo_set_tiling(struct nouveau_bo *bo,
+				  const struct nouveau_tiling *tiling)
+{
+	bo->page = tiling->page;
+	bo->contig = tiling->contig;
+	bo->kind = tiling->kind;
+	bo->comp = tiling->comp;
+	bo->zeta = tiling->zeta;
+	bo->mode = tiling->mode;
+}
+
+int
+nouveau_gem_ioctl_set_tiling(struct drm_device *dev, void *data,
+			     struct drm_file *file_priv)
+{
+	struct nouveau_cli *cli = nouveau_cli(file_priv);
+	struct drm_nouveau_gem_tiling *req = data;
+	struct nouveau_tiling tiling;
+	struct drm_gem_object *gem;
+	struct nouveau_vma *vma;
+	struct nouveau_mem *mem;
+	struct nouveau_bo *bo;
+	int err = 0;
+
+	/* check flags for validity */
+	if (req->flags != 0)
+		return -EINVAL;
+
+	err = nouveau_parse_tiling(cli, &tiling, req->tile_mode,
+				   req->tile_flags);
+	if (err < 0)
+		return err;
+
+	gem = drm_gem_object_lookup(file_priv, req->handle);
+	if (!gem)
+		return -ENOENT;
+
+	bo = nouveau_gem_object(gem);
+
+	if (nouveau_bo_check_tiling(bo, &tiling))
+		goto out;
+
+	err = ttm_bo_reserve(&bo->bo, false, false, NULL);
+	if (err)
+		goto out;
+
+	vma = nouveau_vma_find(bo, &cli->vmm);
+	if (!vma) {
+		err = -ENOENT;
+		goto unreserve;
+	}
+
+	nouveau_bo_set_tiling(bo, &tiling);
+	mem = bo->bo.mem.mm_node;
+	mem->kind = bo->kind;
+	nouveau_vma_map(vma, mem);
+
+unreserve:
+	ttm_bo_unreserve(&bo->bo);
+out:
+	drm_gem_object_unreference_unlocked(gem);
+	return err;
+}
