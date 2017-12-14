@@ -733,6 +733,17 @@
 			};
 		};
 
+		tsec@15100000 {
+			compatible = "nvidia,tegra186-tsec";
+			reg = <0x15100000 0x10000>;
+			interrupts = <GIC_SPI 229 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&bpmp TEGRA186_CLK_TSECB>;
+			clock-names = "tsec";
+			resets = <&bpmp TEGRA186_RESET_TSECB>;
+			reset-names = "tsec";
+			status = "disabled";
+		};
+
 		display-hub@15200000 {
 			compatible = "nvidia,tegra186-display", "simple-bus";
 			resets = <&bpmp TEGRA186_RESET_NVDISPLAY0_MISC>,
@@ -846,6 +857,17 @@
 			status = "disabled";
 
 			power-domains = <&bpmp TEGRA186_POWER_DOMAIN_DISP>;
+		};
+
+		tsec@15500000 {
+			compatible = "nvidia,tegra186-tsec";
+			reg = <0x15500000 0x10000>;
+			interrupts = <GIC_SPI 228 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&bpmp TEGRA186_CLK_TSEC>;
+			clock-names = "tsec";
+			resets = <&bpmp TEGRA186_RESET_TSEC>;
+			reset-names = "tsec";
+			status = "disabled";
 		};
 
 		sor0: sor@15540000 {
