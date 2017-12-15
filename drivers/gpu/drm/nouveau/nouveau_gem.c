@@ -686,8 +686,6 @@ __nouveau_gem_ioctl_pushbuf(struct drm_device *dev,
 	struct dma_fence *prefence = NULL;
 	int i, j, ret = 0, do_reloc = 0;
 
-	pr_info("> %s(dev=%p, request=%p, file_priv=%p)\n", __func__, dev, request, file_priv);
-
 	/* check for unrecognized flags */
 	if (request->flags & ~NOUVEAU_GEM_PUSHBUF_FLAGS)
 		return -EINVAL;
@@ -738,14 +736,6 @@ __nouveau_gem_ioctl_pushbuf(struct drm_device *dev,
 		return nouveau_abi16_put(abi16, PTR_ERR(bo));
 	}
 
-	pr_info("  push buffers: %u\n", req->nr_push);
-
-	for (i = 0; i < req->nr_push; i++) {
-		pr_info("    %u: index %x pad %x offset %llx length %llx\n",
-			i, push[i].bo_index, push[i].pad, push[i].offset,
-			push[i].length);
-	}
-
 	/* Ensure all push buffers are on validate list */
 	for (i = 0; i < req->nr_push; i++) {
 		if (push[i].bo_index >= req->nr_buffers) {
@@ -767,9 +757,7 @@ __nouveau_gem_ioctl_pushbuf(struct drm_device *dev,
 	if (request->flags & NOUVEAU_GEM_PUSHBUF_FENCE_WAIT) {
 		prefence = sync_file_get_fence(request->fence);
 		if (prefence) {
-			pr_info("  waiting for fence %p...\n", prefence);
 			ret = nouveau_fence_sync(prefence, chan, true);
-			pr_info("  done: %d\n", ret);
 			if (ret < 0)
 				goto out;
 		}
@@ -877,8 +865,6 @@ __nouveau_gem_ioctl_pushbuf(struct drm_device *dev,
 
 		fd_install(fd, file->file);
 		request->fence = fd;
-
-		pr_info("  emitting fence %d (%p)...\n", fd, &fence->base);
 	}
 
 out:
@@ -906,7 +892,6 @@ out_next:
 		req->suffix1 = 0x00000000;
 	}
 
-	pr_info("< %s() = %d\n", __func__, ret);
 	return nouveau_abi16_put(abi16, ret);
 }
 
