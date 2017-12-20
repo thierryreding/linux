@@ -1398,6 +1398,9 @@ static const struct debugfs_reg32 tegra_dc_regs[] = {
 	DEBUGFS_REG32(DC_DISP_SD_MAN_K_VALUES),
 	DEBUGFS_REG32(DC_DISP_CURSOR_START_ADDR_HI),
 	DEBUGFS_REG32(DC_DISP_BLEND_CURSOR_CONTROL),
+};
+
+static const struct debugfs_reg32 tegra_plane_regs[] = {
 	DEBUGFS_REG32(DC_WIN_WIN_OPTIONS),
 	DEBUGFS_REG32(DC_WIN_BYTE_SWAP),
 	DEBUGFS_REG32(DC_WIN_BUFFER_CONTROL),
@@ -1430,15 +1433,17 @@ static const struct debugfs_reg32 tegra_dc_regs[] = {
 	DEBUGFS_REG32(DC_WINBUF_ADDR_V_OFFSET),
 	DEBUGFS_REG32(DC_WINBUF_ADDR_V_OFFSET_NS),
 	DEBUGFS_REG32(DC_WINBUF_UFLOW_STATUS),
-	DEBUGFS_REG32(DC_WINBUF_AD_UFLOW_STATUS),
-	DEBUGFS_REG32(DC_WINBUF_BD_UFLOW_STATUS),
-	DEBUGFS_REG32(DC_WINBUF_CD_UFLOW_STATUS),
 };
+
+#define drm_crtc_for_each_plane(plane, _crtc)		\
+	drm_for_each_plane(plane, (_crtc)->dev)		\
+		for_each_if (plane->crtc == (_crtc))
 
 static int tegra_dc_show_regs(struct seq_file *s, void *data)
 {
 	struct drm_info_node *node = s->private;
 	struct tegra_dc *dc = node->info_ent->data;
+	struct drm_plane *plane;
 	unsigned int i;
 	int err = 0;
 
@@ -1454,6 +1459,20 @@ static int tegra_dc_show_regs(struct seq_file *s, void *data)
 
 		seq_printf(s, "%-40s %#05x %08x\n", tegra_dc_regs[i].name,
 			   offset, tegra_dc_readl(dc, offset));
+	}
+
+	drm_crtc_for_each_plane(plane, &dc->base) {
+		struct tegra_plane *p = to_tegra_plane(plane);
+
+		seq_printf(s, "plane %u:\n", plane->index);
+
+		for (i = 0; i < ARRAY_SIZE(tegra_plane_regs); i++) {
+			unsigned int offset = tegra_plane_regs[i].offset;
+
+			seq_printf(s,   "%-38s %#05x %08x\n",
+				   tegra_plane_regs[i].name, offset,
+				   tegra_plane_readl(p, offset));
+		}
 	}
 
 unlock:

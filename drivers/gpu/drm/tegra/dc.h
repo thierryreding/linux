@@ -718,10 +718,6 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 #define DC_WINBUF_CDE_CONTROL			0x82f
 #define  ENABLE_SURFACE (1 << 0)
 
-#define DC_WINBUF_AD_UFLOW_STATUS		0xbca
-#define DC_WINBUF_BD_UFLOW_STATUS		0xdca
-#define DC_WINBUF_CD_UFLOW_STATUS		0xfca
-
 /* Tegra186 and later */
 #define DC_DISP_CORE_SOR_SET_CONTROL(x)		(0x403 + (x))
 #define PROTOCOL_MASK (0xf << 8)
