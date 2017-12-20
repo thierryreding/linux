@@ -497,30 +497,3 @@ int tegra_plane_setup_legacy_state(struct tegra_plane *tegra,
 
 	return 0;
 }
-
-void tegra_plane_get(struct tegra_plane *plane)
-{
-	mutex_lock(&plane->lock);
-
-	if (plane->usecount == 0)
-		pr_debug("enabling plane %u\n", plane->index);
-
-	plane->usecount++;
-	mutex_unlock(&plane->lock);
-}
-
-void tegra_plane_put(struct tegra_plane *plane)
-{
-	mutex_lock(&plane->lock);
-
-	if (WARN_ON(plane->usecount == 0))
-		goto unlock;
-
-	if (--plane->usecount > 0)
-		goto unlock;
-
-	pr_debug("disabling plane %u\n", plane->index);
-
-unlock:
-	mutex_unlock(&plane->lock);
-}
