@@ -30,12 +30,12 @@ extern int nouveau_gem_ioctl_cpu_fini(struct drm_device *, void *,
 extern int nouveau_gem_ioctl_info(struct drm_device *, void *,
 				  struct drm_file *);
 
-extern int nouveau_gem_prime_pin(struct drm_gem_object *);
-extern void nouveau_gem_prime_unpin(struct drm_gem_object *);
-extern struct sg_table *nouveau_gem_prime_get_sg_table(struct drm_gem_object *);
-extern struct drm_gem_object *nouveau_gem_prime_import_sg_table(
-	struct drm_device *, struct dma_buf_attachment *, struct sg_table *);
-extern void *nouveau_gem_prime_vmap(struct drm_gem_object *);
-extern void nouveau_gem_prime_vunmap(struct drm_gem_object *, void *);
+struct dma_buf *nouveau_gem_prime_export(struct drm_gem_object *obj,
+					 int flags);
+struct drm_gem_object *nouveau_gem_prime_import(struct drm_device *drm,
+						struct dma_buf *buf);
+int nouveau_gem_prime_pin(struct drm_gem_object *);
+void nouveau_gem_prime_unpin(struct drm_gem_object *);
+struct sg_table *nouveau_gem_prime_get_sg_table(struct drm_gem_object *);
 
 #endif
