@@ -90,15 +90,19 @@ nvkm_umem_map(struct nvkm_object *object, void *argv, u32 argc,
 	struct nvkm_umem *umem = nvkm_umem(object);
 	struct nvkm_mmu *mmu = umem->mmu;
 
-	if (!umem->mappable)
+	if (!umem->mappable) {
+		pr_info("  not mappable\n");
 		return -EINVAL;
+	}
 	if (umem->map)
 		return -EEXIST;
 
 	if ((umem->type & NVKM_MEM_HOST) && !argc) {
 		int ret = nvkm_mem_map_host(umem->memory, &umem->map);
-		if (ret)
+		if (ret) {
+			pr_info("nvkm_mem_map_host() failed: %d\n", ret);
 			return ret;
+		}
 
 		*handle = (unsigned long)(void *)umem->map;
 		*length = nvkm_memory_size(umem->memory);
@@ -109,11 +113,14 @@ nvkm_umem_map(struct nvkm_object *object, void *argv, u32 argc,
 	    (umem->type & NVKM_MEM_KIND)) {
 		int ret = mmu->func->mem.umap(mmu, umem->memory, argv, argc,
 					      handle, length, &umem->bar);
-		if (ret)
+		if (ret) {
+			pr_info("%ps() failed: %d\n", mmu->func->mem.umap, ret);
 			return ret;
+		}
 
 		*type = NVKM_OBJECT_MAP_IO;
 	} else {
+		pr_info("invalid type: %x\n", umem->type);
 		return -EINVAL;
 	}
 
