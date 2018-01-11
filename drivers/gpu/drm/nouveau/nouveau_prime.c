@@ -28,6 +28,26 @@
 #include "nouveau_drv.h"
 #include "nouveau_gem.h"
 
+static int nouveau_gem_prime_begin_cpu_access(struct dma_buf *buf,
+					      enum dma_data_direction direction)
+{
+	struct nouveau_bo *bo = nouveau_gem_object(buf->priv);
+
+	nouveau_bo_sync_for_cpu(bo);
+
+	return 0;
+}
+
+static int nouveau_gem_prime_end_cpu_access(struct dma_buf *buf,
+					    enum dma_data_direction direction)
+{
+	struct nouveau_bo *bo = nouveau_gem_object(buf->priv);
+
+	nouveau_bo_sync_for_device(bo);
+
+	return 0;
+}
+
 static inline u64 nouveau_bo_mmap_offset(struct nouveau_bo *bo)
 {
 	return drm_vma_node_offset_addr(&bo->bo.base.vma_node) >> PAGE_SHIFT;
@@ -84,6 +104,8 @@ static const struct dma_buf_ops nouveau_gem_prime_dmabuf_ops = {
 	.map_dma_buf = drm_gem_map_dma_buf,
 	.unmap_dma_buf = drm_gem_unmap_dma_buf,
 	.release = drm_gem_dmabuf_release,
+	.begin_cpu_access = nouveau_gem_prime_begin_cpu_access,
+	.end_cpu_access = nouveau_gem_prime_end_cpu_access,
 	.mmap = nouveau_gem_prime_mmap,
 	.vmap = nouveau_gem_prime_vmap,
 	.vunmap = nouveau_gem_prime_vunmap,
