@@ -105,8 +105,10 @@ int
 nvkm_object_map(struct nvkm_object *object, void *argv, u32 argc,
 		enum nvkm_object_map *type, u64 *addr, u64 *size)
 {
-	if (likely(object->func->map))
+	if (likely(object->func->map)) {
+		pr_info("mapping object using %ps\n", object->func->map);
 		return object->func->map(object, argv, argc, type, addr, size);
+	}
 	return -ENODEV;
 }
 
