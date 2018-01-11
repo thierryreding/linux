@@ -686,6 +686,8 @@ __nouveau_gem_ioctl_pushbuf(struct drm_device *dev,
 	struct dma_fence *prefence = NULL;
 	int i, j, ret = 0, do_reloc = 0;
 
+	pr_info("> %s(dev=%p, request=%p, file_priv=%p)\n", __func__, dev, request, file_priv);
+
 	/* check for unrecognized flags */
 	if (request->flags & ~NOUVEAU_GEM_PUSHBUF_FLAGS)
 		return -EINVAL;
@@ -735,6 +737,9 @@ __nouveau_gem_ioctl_pushbuf(struct drm_device *dev,
 			return nouveau_abi16_put(abi16, PTR_ERR(bo));
 		}
 
+		pr_info("  %u push buffers\n", req->nr_push);
+		pr_info("  %u buffer objects\n", req->nr_buffers);
+
 		/* Ensure all push buffers are on validate list */
 		for (i = 0; i < req->nr_push; i++) {
 			if (push[i].bo_index >= req->nr_buffers) {
@@ -755,7 +760,9 @@ __nouveau_gem_ioctl_pushbuf(struct drm_device *dev,
 	}
 
 	if (request->flags & NOUVEAU_GEM_PUSHBUF_FENCE_WAIT) {
+		pr_info("  prefence: %d\n", request->fence);
 		prefence = sync_file_get_fence(request->fence);
+		pr_info("    fence: %p\n", prefence);
 		if (prefence) {
 			ret = nouveau_fence_sync(prefence, chan, true);
 			if (ret < 0)
@@ -853,17 +860,23 @@ __nouveau_gem_ioctl_pushbuf(struct drm_device *dev,
 		struct sync_file *file;
 		int fd;
 
+		pr_info("  emitting fence %p...\n", &fence->base);
+
 		fd = get_unused_fd_flags(O_CLOEXEC);
 		if (fd < 0) {
 			ret = fd;
 			goto out;
 		}
 
+		pr_info("    fd: %d\n", fd);
+
 		file = sync_file_create(&fence->base);
 		if (!file) {
 			put_unused_fd(fd);
 			goto out;
 		}
+
+		pr_info("    file: %p\n", file);
 
 		fd_install(fd, file->file);
 		request->fence = fd;
@@ -895,7 +908,9 @@ out_prevalid:
 		req->suffix1 = 0x00000000;
 	}
 
-	return nouveau_abi16_put(abi16, ret);
+	ret = nouveau_abi16_put(abi16, ret);
+	pr_info("< %s() = %d\n", __func__, ret);
+	return ret;
 }
 
 int
