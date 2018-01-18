@@ -273,5 +273,19 @@
 			gpio = <&gpio TEGRA194_MAIN_GPIO(A, 3) GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 		};
+
+		vdd_sys_en: regulator@2 {
+			compatible = "regulator-fixed";
+			reg = <2>;
+
+			regulator-name = "VDD_SYS_EN";
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1200000>;
+			gpio = <&gpio TEGRA194_MAIN_GPIO(M, 5) GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+
+			regulator-always-on;
+			regulator-boot-on;
+		};
 	};
 };
