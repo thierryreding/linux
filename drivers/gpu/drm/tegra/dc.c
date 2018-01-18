@@ -2484,6 +2484,7 @@ static int tegra_dc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, dc);
 	pm_runtime_enable(&pdev->dev);
+	pm_runtime_get_sync(&pdev->dev);
 
 	INIT_LIST_HEAD(&dc->client.list);
 	dc->client.ops = &dc_client_ops;
@@ -2517,6 +2518,7 @@ static int tegra_dc_remove(struct platform_device *pdev)
 		return err;
 	}
 
+	pm_runtime_put(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
 	return 0;
