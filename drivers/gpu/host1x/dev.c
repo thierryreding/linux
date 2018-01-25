@@ -127,6 +127,7 @@ static const struct host1x_info host1x06_info = {
 };
 
 static const struct of_device_id host1x_of_match[] = {
+	{ .compatible = "nvidia,tegra194-host1x", .data = &host1x06_info, },
 	{ .compatible = "nvidia,tegra186-host1x", .data = &host1x06_info, },
 	{ .compatible = "nvidia,tegra210-host1x", .data = &host1x05_info, },
 	{ .compatible = "nvidia,tegra124-host1x", .data = &host1x04_info, },
