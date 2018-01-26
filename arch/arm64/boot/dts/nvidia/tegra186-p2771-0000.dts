@@ -190,6 +190,7 @@
 
 			nvidia,ddc-i2c-bus = <&ddc>;
 			nvidia,hpd-gpio = <&gpio TEGRA_MAIN_GPIO(P, 1) GPIO_ACTIVE_LOW>;
+			nvidia,kfuse = <&kfuse>;
 		};
 
 		dpaux@155c0000 {
