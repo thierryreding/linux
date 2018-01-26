@@ -486,6 +486,15 @@
 		clock-names = "fuse";
 	};
 
+	kfuse: kfuse@3830000 {
+		compatible = "nvidia,tegra186-kfuse";
+		reg = <0x0 0x03830000 0x0 0x10000>;
+		clocks = <&bpmp TEGRA186_CLK_KFUSE>;
+		clock-names = "kfuse";
+		resets = <&bpmp TEGRA186_RESET_KFUSE>;
+		reset-names = "kfuse";
+	};
+
 	gic: interrupt-controller@3881000 {
 		compatible = "arm,gic-400";
 		#interrupt-cells = <3>;
