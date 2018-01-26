@@ -1522,8 +1522,9 @@ static const struct drm_encoder_funcs tegra_sor_encoder_funcs = {
 
 static int tegra_sor_hdmi_hdcp(struct tegra_sor *sor)
 {
+	unsigned int retries = 5;
+	u64 aksv, bksv = 0, an;
 	unsigned long weight;
-	u64 aksv, bksv, an;
 	size_t size, i, j;
 	u8 caps, info = 0;
 	ssize_t err;
@@ -1537,6 +1538,8 @@ static int tegra_sor_hdmi_hdcp(struct tegra_sor *sor)
 			err);
 		return err;
 	}
+
+	dev_info(sor->dev, "HDCP capabilites: %02x\n", caps);
 
 	if (caps & HDCP_CAPS_1_1)
 		info = HDCP_INFO_1_1;
@@ -1680,10 +1683,14 @@ static int tegra_sor_hdmi_hdcp(struct tegra_sor *sor)
 		dev_err(sor->dev, "failed to write AN to HDCP: %zd\n", err);
 	}
 
+	msleep(100);
+
 	err = drm_hdcp_write_aksv(&sor->hdcp, aksv);
 	if (err < 0) {
 		dev_err(sor->dev, "failed to write AKSV to HDCP: %zd\n", err);
 	}
+
+	msleep(100);
 
 	err = drm_hdcp_read_bksv(&sor->hdcp, &bksv);
 	if (err < 0) {
@@ -1721,12 +1728,19 @@ static int tegra_sor_hdmi_hdcp(struct tegra_sor *sor)
 	/* can't read Ri until 100 ms after Aksv was written */
 	msleep(100);
 
-	err = drm_hdcp_read_ri(&sor->hdcp, &ri);
-	if (err < 0) {
-		dev_err(sor->dev, "failed to read RI from HDCP: %zd\n", err);
-	}
+	for (i = 0; i < retries; i++) {
+		err = drm_hdcp_read_ri(&sor->hdcp, &ri);
+		if (err < 0) {
+			dev_err(sor->dev, "failed to read RI from HDCP: %zd\n", err);
+		}
 
-	dev_info(sor->dev, "  RI: %04x\n", ri);
+		dev_info(sor->dev, "  RI: %04x\n", ri);
+
+		if (ri == value)
+			break;
+
+		msleep(1000);
+	}
 
 	if (ri != value) {
 		dev_err(sor->dev, "Ri doesn't match: %04x != %04x\n", ri, value);
