@@ -18,9 +18,15 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/reset.h>
 
 #include <soc/tegra/kfuse.h>
+
+#define KFUSE_PD 0x24
+#define  KFUSE_PD_STATUS		(1 << 1)
+#define  KFUSE_PD_CTRL_POWERDOWN	(1 << 0)
+#define  KFUSE_PD_CTRL_POWERUP		(0 << 0)
 
 #define KFUSE_STATE 0x80
 #define  KFUSE_STATE_CRCPASS	(1 << 17)
@@ -34,8 +40,18 @@
 
 #define KFUSE_KEYS 0x8c
 
+#define KFUSE_CG1 0x90
+#define  KFUSE_CG1_SLCG_CTRL_ENABLE (1 << 0)
+#define  KFUSE_CG1_SLCG_CTRL_DISABLE (0 << 0)
+
+struct tegra_kfuse_soc {
+	bool supports_sensing;
+};
+
 struct tegra_kfuse {
 	struct device *dev;
+	const struct tegra_kfuse_soc *soc;
+
 	void __iomem *base;
 	struct clk *clk;
 	struct reset_control *rst;
@@ -83,12 +99,13 @@ static int tegra_kfuse_probe(struct platform_device *pdev)
 {
 	struct tegra_kfuse *kfuse;
 	struct resource *regs;
-	int err = 0;
+	int err;
 
 	kfuse = devm_kzalloc(&pdev->dev, sizeof(*kfuse), GFP_KERNEL);
 	if (!kfuse)
 		return -ENOMEM;
 
+	kfuse->soc = of_device_get_match_data(&pdev->dev);
 	kfuse->dev = &pdev->dev;
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -98,14 +115,8 @@ static int tegra_kfuse_probe(struct platform_device *pdev)
 
 	kfuse->clk = devm_clk_get(&pdev->dev, "kfuse");
 	if (IS_ERR(kfuse->clk)) {
-		dev_err(&pdev->dev, "failed to get clock: %ld\n",
-			PTR_ERR(kfuse->clk));
-		return PTR_ERR(kfuse->clk);
-	}
-
-	err = clk_prepare_enable(kfuse->clk);
-	if (err < 0) {
-		dev_err(&pdev->dev, "failed to enable clock: %d\n", err);
+		err = PTR_ERR(kfuse->clk);
+		dev_err(&pdev->dev, "failed to get clock: %d\n", err);
 		return err;
 	}
 
@@ -113,58 +124,116 @@ static int tegra_kfuse_probe(struct platform_device *pdev)
 	if (IS_ERR(kfuse->rst)) {
 		err = PTR_ERR(kfuse->rst);
 		dev_err(&pdev->dev, "failed to get reset control: %d\n", err);
-		goto disable;
+		return err;
 	}
 
-	err = reset_control_deassert(kfuse->rst);
-	if (err < 0) {
-		dev_err(&pdev->dev, "failed to deassert reset: %d\n", err);
-		goto disable;
-	}
+	platform_set_drvdata(pdev, kfuse);
+	pm_runtime_enable(kfuse->dev);
+	pm_runtime_get_sync(kfuse->dev);
+	pm_runtime_get_sync(kfuse->dev);
 
 	err = tegra_kfuse_wait_for_decode(kfuse, 100);
 	if (err < 0) {
-		dev_err(&pdev->dev, "error waiting for decode: %d\n", err);
-		goto reset;
+		dev_err(kfuse->dev, "error waiting for decode: %d\n", err);
+		goto disable;
 	}
 
 	err = tegra_kfuse_wait_for_crc(kfuse, 100);
 	if (err < 0) {
-		dev_err(&pdev->dev, "error waiting for CRC check: %d\n", err);
-		goto reset;
+		dev_err(kfuse->dev, "error waiting for CRC check: %d\n", err);
+		goto disable;
 	}
+
+	pm_runtime_put(kfuse->dev);
 
 	/*
 	 * The ECC-decoded keyglob data is 144 32-bit words (576 bytes).
 	 */
 	kfuse->size = 576;
 
-	platform_set_drvdata(pdev, kfuse);
-
 	return 0;
 
-reset:
-	reset_control_assert(kfuse->rst);
 disable:
-	clk_disable_unprepare(kfuse->clk);
+	pm_runtime_put(kfuse->dev);
 	return err;
 }
 
 static int tegra_kfuse_remove(struct platform_device *pdev)
 {
 	struct tegra_kfuse *kfuse = platform_get_drvdata(pdev);
-	int err = 0;
 
-	reset_control_assert(kfuse->rst);
+	pm_runtime_put(kfuse->dev);
+
+	return 0;
+}
+
+static int tegra_kfuse_suspend(struct device *dev)
+{
+	struct tegra_kfuse *kfuse = dev_get_drvdata(dev);
+	int err;
+
+	if (kfuse->soc->supports_sensing)
+		writel(KFUSE_CG1_SLCG_CTRL_DISABLE, kfuse->base + KFUSE_CG1);
+
+	err = reset_control_assert(kfuse->rst);
+	if (err < 0) {
+		dev_err(dev, "failed to assert reset: %d\n", err);
+		return err;
+	}
+
+	usleep_range(2000, 4000);
+
 	clk_disable_unprepare(kfuse->clk);
 
-	dev_info(&pdev->dev, "< %s() = %d\n", __func__, err);
+	return 0;
+}
+
+static int tegra_kfuse_resume(struct device *dev)
+{
+	struct tegra_kfuse *kfuse = dev_get_drvdata(dev);
+	int err;
+
+	err = clk_prepare_enable(kfuse->clk);
+	if (err < 0) {
+		dev_err(dev, "failed to enable clock: %d\n", err);
+		return err;
+	}
+
+	usleep_range(1000, 2000);
+
+	err = reset_control_deassert(kfuse->rst);
+	if (err < 0) {
+		dev_err(dev, "failed to assert reset: %d\n", err);
+		goto disable;
+	}
+
+	usleep_range(1000, 2000);
+
+	if (kfuse->soc->supports_sensing)
+		writel(KFUSE_CG1_SLCG_CTRL_ENABLE, kfuse->base + KFUSE_CG1);
+
+	return 0;
+
+disable:
+	clk_disable_unprepare(kfuse->clk);
 	return err;
 }
 
+static const struct dev_pm_ops tegra_kfuse_pm_ops = {
+	SET_RUNTIME_PM_OPS(tegra_kfuse_suspend, tegra_kfuse_resume, NULL)
+};
+
+static const struct tegra_kfuse_soc tegra210_kfuse = {
+	.supports_sensing = false,
+};
+
+static const struct tegra_kfuse_soc tegra186_kfuse = {
+	.supports_sensing = true,
+};
+
 static const struct of_device_id tegra_kfuse_match[] = {
-	{ .compatible = "nvidia,tegra186-kfuse" },
-	{ .compatible = "nvidia,tegra210-kfuse" },
+	{ .compatible = "nvidia,tegra186-kfuse", .data = &tegra186_kfuse },
+	{ .compatible = "nvidia,tegra210-kfuse", .data = &tegra210_kfuse },
 	{ /* sentinel */ }
 };
 
@@ -172,6 +241,7 @@ static struct platform_driver tegra_kfuse_driver = {
 	.driver = {
 		.name = "tegra-kfuse",
 		.of_match_table = tegra_kfuse_match,
+		.pm = &tegra_kfuse_pm_ops,
 	},
 	.probe = tegra_kfuse_probe,
 	.remove = tegra_kfuse_remove,
@@ -214,12 +284,27 @@ ssize_t tegra_kfuse_read(struct tegra_kfuse *kfuse, void *buffer, size_t size)
 {
 	size_t offset;
 	u32 value;
+	int err;
 
 	if (!buffer && size == 0)
 		return kfuse->size;
 
 	if (size > kfuse->size)
 		size = kfuse->size;
+
+	pm_runtime_get_sync(kfuse->dev);
+
+	err = tegra_kfuse_wait_for_decode(kfuse, 100);
+	if (err < 0) {
+		dev_err(kfuse->dev, "error waiting for decode: %d\n", err);
+		goto disable;
+	}
+
+	err = tegra_kfuse_wait_for_crc(kfuse, 100);
+	if (err < 0) {
+		dev_err(kfuse->dev, "error waiting for CRC check: %d\n", err);
+		goto disable;
+	}
 
 	value = KFUSE_KEYADDR_AUTOINC | KFUSE_KEYADDR_ADDR(0);
 	writel(value, kfuse->base + KFUSE_KEYADDR);
@@ -229,7 +314,11 @@ ssize_t tegra_kfuse_read(struct tegra_kfuse *kfuse, void *buffer, size_t size)
 		memcpy(buffer + offset, &value, 4);
 	}
 
-	return offset;
+	err = offset;
+
+disable:
+	pm_runtime_put(kfuse->dev);
+	return err;
 }
 EXPORT_SYMBOL(tegra_kfuse_read);
 
