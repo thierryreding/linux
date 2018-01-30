@@ -32,14 +32,6 @@
 #include "sor.h"
 #include "trace.h"
 
-/*
- * XXX Remove this after the commit adding it to soc/tegra/pmc.h has been
- * merged. Having this around after the commit is merged should be safe since
- * the preprocessor will effectively replace all occurrences and therefore no
- * duplicate will be defined.
- */
-#define TEGRA_IO_PAD_HDMI_DP0 26
-
 #define SOR_TRACE_REGISTERS 0
 #define SOR_REKEY 0x38
 
