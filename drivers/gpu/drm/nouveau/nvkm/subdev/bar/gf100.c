@@ -97,6 +97,8 @@ gf100_bar_oneinit_bar(struct gf100_bar *bar, struct gf100_barN *bar_vm,
 	if (bar_nr == 3 && bar->bar2_halve)
 		bar_len >>= 1;
 
+	pr_info("BAR length: %llu\n", bar_len);
+
 	ret = nvkm_vmm_new(device, 0, bar_len, NULL, 0, key,
 			   (bar_nr == 3) ? "bar2" : "bar1", &bar_vm->vmm);
 	if (ret)

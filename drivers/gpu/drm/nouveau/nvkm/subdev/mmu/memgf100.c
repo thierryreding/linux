@@ -51,14 +51,21 @@ gf100_mem_map(struct nvkm_mmu *mmu, struct nvkm_memory *memory, void *argv,
 	} else
 		return ret;
 
+	pr_info("bar1: %llx-%llx\n", bar->start, bar->limit);
+	pr_info("memory: %02x (%llu)\n", nvkm_memory_page(memory), nvkm_memory_size(memory));
+
 	ret = nvkm_vmm_get(bar, nvkm_memory_page(memory),
 				nvkm_memory_size(memory), pvma);
-	if (ret)
+	if (ret) {
+		pr_info("nvkm_vmm_get() failed: %d\n", ret);
 		return ret;
+	}
 
 	ret = nvkm_memory_map(memory, 0, bar, *pvma, &uvmm, sizeof(uvmm));
-	if (ret)
+	if (ret) {
+		pr_info("nvkm_memory_map() failed: %d\n", ret);
 		return ret;
+	}
 
 	*paddr = device->func->resource_addr(device, 1) + (*pvma)->addr;
 	*psize = (*pvma)->size;
