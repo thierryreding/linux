@@ -352,7 +352,7 @@
 	gpu@57000000 {
 		compatible = "nvidia,gm20b";
 		reg = <0x0 0x57000000 0x0 0x01000000>,
-		      <0x0 0x58000000 0x0 0x01000000>;
+		      <0x0 0x58000000 0x0 0x08000000>;
 		interrupts = <GIC_SPI 157 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 158 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "stall", "nonstall";
