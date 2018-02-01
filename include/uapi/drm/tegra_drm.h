@@ -118,9 +118,9 @@ struct drm_tegra_waitchk {
 };
 
 #define DRM_TEGRA_SUBMIT_WAIT_FENCE_FD		(1 << 0)
-#define DRM_TEGRA_SUBMIT_CREATE_FENCE_FD	(1 << 1)
+#define DRM_TEGRA_SUBMIT_EMIT_FENCE_FD		(1 << 1)
 #define DRM_TEGRA_SUBMIT_FLAGS (DRM_TEGRA_SUBMIT_WAIT_FENCE_FD | \
-				DRM_TEGRA_SUBMIT_CREATE_FENCE_FD)
+				DRM_TEGRA_SUBMIT_EMIT_FENCE_FD)
 
 struct drm_tegra_submit {
 	__u64 context;

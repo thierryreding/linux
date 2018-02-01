@@ -549,7 +549,7 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		goto put_bos;
 	}
 
-	if (args->flags & DRM_TEGRA_SUBMIT_CREATE_FENCE_FD) {
+	if (args->flags & DRM_TEGRA_SUBMIT_EMIT_FENCE_FD) {
 		struct host1x_syncpt *syncpt;
 		struct dma_fence *fence;
 		struct sync_file *file;
