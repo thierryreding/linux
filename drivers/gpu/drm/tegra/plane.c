@@ -274,6 +274,7 @@ bool tegra_plane_format_is_yuv(unsigned int format, bool *planar)
 static bool __drm_format_has_alpha(u32 format)
 {
 	switch (format) {
+	case DRM_FORMAT_ARGB4444:
 	case DRM_FORMAT_ARGB1555:
 	case DRM_FORMAT_RGBA5551:
 	case DRM_FORMAT_ABGR8888:
@@ -291,6 +292,7 @@ static bool __drm_format_has_alpha(u32 format)
 bool tegra_plane_format_has_alpha(unsigned int format)
 {
 	switch (format) {
+	case WIN_COLOR_DEPTH_B4G4R4A4:
 	case WIN_COLOR_DEPTH_B5G5R5A1:
 	case WIN_COLOR_DEPTH_A1B5G5R5:
 	case WIN_COLOR_DEPTH_R8G8B8A8:
