@@ -28,6 +28,8 @@
 #include "drm.h"
 #include "trace.h"
 
+#define DPAUX_TRACE_REGISTERS 0
+
 static DEFINE_MUTEX(dpaux_lock);
 static LIST_HEAD(dpaux_list);
 
@@ -71,6 +73,9 @@ static inline u32 tegra_dpaux_readl(struct tegra_dpaux *dpaux,
 {
 	u32 value = readl(dpaux->regs + (offset << 2));
 
+	if (DPAUX_TRACE_REGISTERS)
+		dev_dbg(dpaux->dev, "%08x > %08x\n", offset, value);
+
 	trace_dpaux_readl(dpaux->dev, offset, value);
 
 	return value;
@@ -80,6 +85,10 @@ static inline void tegra_dpaux_writel(struct tegra_dpaux *dpaux,
 				      u32 value, unsigned int offset)
 {
 	trace_dpaux_writel(dpaux->dev, offset, value);
+
+	if (DPAUX_TRACE_REGISTERS)
+		dev_dbg(dpaux->dev, "%08x < %08x\n", offset, value);
+
 	writel(value, dpaux->regs + (offset << 2));
 }
 
