@@ -1556,13 +1556,13 @@ nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 	u32 mappable = device->func->resource_size(device, 1) >> PAGE_SHIFT;
 	int i, ret;
 
-	pr_info("> %s(bo=%p)\n", __func__, bo);
+	//pr_info("> %s(bo=%p)\n", __func__, bo);
 
 	/* as long as the bo isn't in vram, and isn't tiled, we've got
 	 * nothing to do here.
 	 */
 	if (bo->mem.mem_type != TTM_PL_VRAM) {
-		pr_info("  buffer object not in VRAM\n");
+		//pr_info("  buffer object not in VRAM\n");
 
 		if (drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA ||
 		    !nvbo->kind)
@@ -1572,12 +1572,12 @@ nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 			nouveau_bo_placement_set(nvbo, TTM_PL_TT, 0);
 
 			ret = nouveau_bo_validate(nvbo, false, false);
-			pr_info("  nouveau_bo_validate(): %d\n", ret);
+			//pr_info("  nouveau_bo_validate(): %d\n", ret);
 			if (ret)
 				return ret;
 		}
 
-		pr_info("< %s()\n", __func__);
+		//pr_info("< %s()\n", __func__);
 		return 0;
 	}
 
@@ -1598,7 +1598,7 @@ nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 
 	nouveau_bo_placement_set(nvbo, TTM_PL_FLAG_VRAM, 0);
 	ret = nouveau_bo_validate(nvbo, false, false);
-	pr_info("< %s() = %d\n", __func__, ret);
+	//pr_info("< %s() = %d\n", __func__, ret);
 	return ret;
 }
 
