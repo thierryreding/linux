@@ -982,6 +982,7 @@ static const u32 tegra20_overlay_formats[] = {
 	DRM_FORMAT_ABGR8888,
 	DRM_FORMAT_ARGB8888,
 	/* non-native formats */
+	DRM_FORMAT_XRGB4444,
 	DRM_FORMAT_XRGB1555,
 	DRM_FORMAT_RGBX5551,
 	DRM_FORMAT_XBGR8888,
