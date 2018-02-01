@@ -1074,17 +1074,6 @@ static bool nouveau_bo_check_tiling(struct nouveau_bo *bo,
 	       bo->zeta == tiling->zeta && bo->mode == tiling->mode;
 }
 
-static void nouveau_bo_set_tiling(struct nouveau_bo *bo,
-				  const struct nouveau_tiling *tiling)
-{
-	bo->page = tiling->page;
-	bo->contig = tiling->contig;
-	bo->kind = tiling->kind;
-	bo->comp = tiling->comp;
-	bo->zeta = tiling->zeta;
-	bo->mode = tiling->mode;
-}
-
 int
 nouveau_gem_ioctl_set_tiling(struct drm_device *dev, void *data,
 			     struct drm_file *file_priv)
@@ -1092,10 +1081,10 @@ nouveau_gem_ioctl_set_tiling(struct drm_device *dev, void *data,
 	struct nouveau_cli *cli = nouveau_cli(file_priv);
 	struct drm_nouveau_gem_tiling *req = data;
 	struct nouveau_tiling tiling;
+	struct nouveau_bo *bo, *nvbo;
 	struct drm_gem_object *gem;
-	struct nouveau_vma *vma;
-	struct nouveau_mem *mem;
-	struct nouveau_bo *bo;
+	struct sg_table *sgt;
+	u32 flags = 0;
 	int err = 0;
 
 	/* check flags for validity */
@@ -1113,27 +1102,49 @@ nouveau_gem_ioctl_set_tiling(struct drm_device *dev, void *data,
 
 	bo = nouveau_gem_object(gem);
 
+	/*
+	 * If the requested tiling mode is incompatible, a new buffer object
+	 * will be created. A handle to the new buffer object is returned in
+	 * the ->handle field. If no new buffer object is needed, return the
+	 * 0 handle.
+	 */
+	req->handle = 0;
+
 	if (nouveau_bo_check_tiling(bo, &tiling))
 		goto out;
 
-	err = ttm_bo_reserve(&bo->bo, false, false, NULL);
-	if (err)
+	sgt = drm_prime_pages_to_sg(bo->bo.ttm->pages, bo->bo.num_pages);
+	if (!sgt) {
+		err = -ENOMEM;
 		goto out;
-
-	vma = nouveau_vma_find(bo, &cli->vmm);
-	if (!vma) {
-		err = -ENOENT;
-		goto unreserve;
 	}
 
-	nouveau_bo_set_tiling(bo, &tiling);
-	mem = bo->bo.mem.mm_node;
-	mem->kind = bo->kind;
-	nouveau_vma_map(vma, mem);
+	/* XXX */
+	flags |= TTM_PL_FLAG_TT | TTM_PL_FLAG_UNCACHED;
 
-unreserve:
-	ttm_bo_unreserve(&bo->bo);
+	err = nouveau_bo_new(cli, gem->size, bo->bo.mem.page_alignment, flags,
+			     req->tile_mode, req->tile_flags, sgt, NULL,
+			     &nvbo);
+	if (err < 0)
+		goto free_sgt;
+
+	err = drm_gem_object_init(dev, &nvbo->gem, nvbo->bo.mem.size);
+	if (err < 0)
+		goto unref_bo;
+
+	err = drm_gem_handle_create(file_priv, &nvbo->gem, &req->handle);
+	if (err < 0)
+		goto unref;
+
 out:
-	drm_gem_object_unreference_unlocked(gem);
 	return err;
+
+unref:
+	drm_gem_object_unreference(&nvbo->gem);
+unref_bo:
+	nouveau_bo_ref(NULL, &nvbo);
+free_sgt:
+	sg_free_table(sgt);
+	kfree(sgt);
+	goto out;
 }

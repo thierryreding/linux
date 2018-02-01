@@ -166,7 +166,7 @@ struct drm_nouveau_gem_cpu_fini {
 #define DRM_IOCTL_NOUVEAU_GEM_CPU_FINI       DRM_IOW (DRM_COMMAND_BASE + DRM_NOUVEAU_GEM_CPU_FINI, struct drm_nouveau_gem_cpu_fini)
 #define DRM_IOCTL_NOUVEAU_GEM_INFO           DRM_IOWR(DRM_COMMAND_BASE + DRM_NOUVEAU_GEM_INFO, struct drm_nouveau_gem_info)
 #define DRM_IOCTL_NOUVEAU_GEM_PUSHBUF2       DRM_IOWR(DRM_COMMAND_BASE + DRM_NOUVEAU_GEM_PUSHBUF2, struct drm_nouveau_gem_pushbuf2)
-#define DRM_IOCTL_NOUVEAU_GEM_SET_TILING     DRM_IOW (DRM_COMMAND_BASE + DRM_NOUVEAU_GEM_SET_TILING, struct drm_nouveau_gem_tiling)
+#define DRM_IOCTL_NOUVEAU_GEM_SET_TILING     DRM_IOWR(DRM_COMMAND_BASE + DRM_NOUVEAU_GEM_SET_TILING, struct drm_nouveau_gem_tiling)
 
 #if defined(__cplusplus)
 }
