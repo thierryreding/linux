@@ -32,7 +32,7 @@
 #include "sor.h"
 #include "trace.h"
 
-#define SOR_TRACE_REGISTERS 0
+#define SOR_TRACE_REGISTERS 1
 #define SOR_REKEY 0x38
 
 struct tegra_sor_hdmi_settings {
