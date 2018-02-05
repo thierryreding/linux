@@ -121,6 +121,14 @@ static int of_dev_node_match(struct device *dev, void *data)
 	return dev->of_node == data;
 }
 
+static int of_parent_node_match(struct device *dev, void *data)
+{
+	if (dev->parent)
+		return dev->parent->of_node == data;
+
+	return 0;
+}
+
 /* must call put_device() when done with returned i2c_client device */
 struct i2c_client *of_find_i2c_device_by_node(struct device_node *node)
 {
@@ -146,6 +154,9 @@ struct i2c_adapter *of_find_i2c_adapter_by_node(struct device_node *node)
 	struct i2c_adapter *adapter;
 
 	dev = bus_find_device(&i2c_bus_type, NULL, node, of_dev_node_match);
+	if (!dev)
+		dev = bus_find_device(&i2c_bus_type, NULL, node, of_parent_node_match);
+
 	if (!dev)
 		return NULL;
 
