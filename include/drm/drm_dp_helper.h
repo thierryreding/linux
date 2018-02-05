@@ -1213,6 +1213,13 @@ drm_dp_channel_coding_supported(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 	return dpcd[DP_MAIN_LINK_CHANNEL_CODING] & DP_CAP_ANSI_8B10B;
 }
 
+static inline bool
+drm_dp_alternate_scrambler_reset_cap(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	return dpcd[DP_EDP_CONFIGURATION_CAP] &
+			DP_ALTERNATE_SCRAMBLER_RESET_CAP;
+}
+
 /*
  * DisplayPort AUX channel
  */
@@ -1366,12 +1373,14 @@ int drm_dp_dpcd_read_link_status(struct drm_dp_aux *aux,
  * @tps3_supported: training pattern sequence 3 supported for equalization
  * @fast_training: AUX CH handshake not required for link training
  * @channel_coding: ANSI 8B/10B channel coding capability
+ * @alternate_scrambler_reset: eDP alternate scrambler reset capability
  */
 struct drm_dp_link_caps {
 	bool enhanced_framing;
 	bool tps3_supported;
 	bool fast_training;
 	bool channel_coding;
+	bool alternate_scrambler_reset;
 };
 
 void drm_dp_link_caps_copy(struct drm_dp_link_caps *dest,
