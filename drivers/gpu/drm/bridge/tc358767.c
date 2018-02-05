@@ -649,8 +649,7 @@ static int tc_get_display_props(struct tc_data *tc)
 		tc->link.base.revision >> 4, tc->link.base.revision & 0x0f,
 		(tc->link.base.rate == 162000) ? "1.62Gbps" : "2.7Gbps",
 		tc->link.base.lanes,
-		tc->link.base.caps.enhanced_framing ? "enhanced" :
-			"non-enhanced");
+		tc->link.base.caps.enhanced_framing ? "enhanced" : "default");
 	dev_dbg(tc->dev, "Downspread: %s, scrambler: %s\n",
 		tc->link.spread ? "0.5%" : "0.0%",
 		tc->link.scrambler_dis ? "disabled" : "enabled");
