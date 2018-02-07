@@ -1002,6 +1002,25 @@
 		};
 	};
 
+	sdhci@700b0000 {
+		power-gpios = <&gpio TEGRA_GPIO(X, 7) GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio TEGRA_GPIO(CC, 5) GPIO_ACTIVE_LOW>;
+
+		bus-width = <4>;
+		non-removable;
+		disable-wp;
+
+		status = "okay";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		wifi@1 {
+			compatible = "marvell,sd8797";
+			reg = <1>;
+		};
+	};
+
 	sdhci@700b0400 {
 		cd-gpios = <&gpio TEGRA_GPIO(V, 2) GPIO_ACTIVE_HIGH>;
 		power-gpios = <&gpio TEGRA_GPIO(R, 0) GPIO_ACTIVE_HIGH>;
