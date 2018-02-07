@@ -23,6 +23,7 @@ Required properties:
 
 Optional properties:
 - power-gpios : Specify GPIOs for power control
+- reset-gpios : Specify GPIOs for reset control
 
 Example:
 
