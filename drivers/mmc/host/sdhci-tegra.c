@@ -1148,6 +1148,8 @@ static int sdhci_tegra_remove(struct platform_device *pdev)
 	usleep_range(2000, 4000);
 	clk_disable_unprepare(pltfm_host->clk);
 
+	gpiod_set_value(tegra_host->power_gpio, 0);
+
 	sdhci_pltfm_free(pdev);
 
 	return 0;
