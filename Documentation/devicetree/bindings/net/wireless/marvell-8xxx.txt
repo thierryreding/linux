@@ -9,6 +9,7 @@ Required properties:
 
   - compatible : should be one of the following:
 	* "marvell,sd8787"
+	* "marvell,sd8797"
 	* "marvell,sd8897"
 	* "marvell,sd8997"
 	* "pci11ab,2b42"
