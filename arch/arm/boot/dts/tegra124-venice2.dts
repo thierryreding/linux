@@ -1035,6 +1035,8 @@
 	};
 
 	usb@7d000000 {
+		compatible = "nvidia,tegra124-udc";
+		dr_mode = "peripheral";
 		status = "okay";
 	};
 
