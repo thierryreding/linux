@@ -147,8 +147,9 @@
 			clocks = <&tegra_car TEGRA210_CLK_DISP1>,
 				 <&tegra_car TEGRA210_CLK_PLL_P>;
 			clock-names = "dc", "parent";
-			resets = <&tegra_car 27>;
-			reset-names = "dc";
+			resets = <&tegra_car 27>,
+				 <&mc TEGRA210_MC_RESET_DC>;
+			reset-names = "dc", "mc";
 
 			iommus = <&mc TEGRA_SWGROUP_DC>;
 
@@ -162,8 +163,9 @@
 			clocks = <&tegra_car TEGRA210_CLK_DISP2>,
 				 <&tegra_car TEGRA210_CLK_PLL_P>;
 			clock-names = "dc", "parent";
-			resets = <&tegra_car 26>;
-			reset-names = "dc";
+			resets = <&tegra_car 26>,
+				 <&mc TEGRA210_MC_RESET_DCB>;
+			reset-names = "dc", "mc";
 
 			iommus = <&mc TEGRA_SWGROUP_DCB>;
 
@@ -823,6 +825,7 @@
 
 		interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
 
+		#reset-cells = <1>;
 		#iommu-cells = <1>;
 	};
 
