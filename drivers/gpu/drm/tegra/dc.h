@@ -83,6 +83,7 @@ struct tegra_dc {
 	int pipe;
 
 	struct clk *clk;
+	struct reset_control *rst_mc;
 	struct reset_control *rst;
 	void __iomem *regs;
 	int irq;

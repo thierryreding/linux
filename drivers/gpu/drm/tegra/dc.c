@@ -2674,6 +2674,13 @@ static int tegra_dc_probe(struct platform_device *pdev)
 		return PTR_ERR(dc->clk);
 	}
 
+	dc->rst_mc = devm_reset_control_get_optional(&pdev->dev, "mc");
+	if (IS_ERR(dc->rst_mc)) {
+		err = PTR_ERR(dc->rst_mc);
+		dev_err(&pdev->dev, "failed to get MC reset: %d\n", err);
+		return err;
+	}
+
 	dc->rst = devm_reset_control_get(&pdev->dev, "dc");
 	if (IS_ERR(dc->rst)) {
 		dev_err(&pdev->dev, "failed to get reset\n");
@@ -2687,9 +2694,19 @@ static int tegra_dc_probe(struct platform_device *pdev)
 
 	usleep_range(2000, 4000);
 
-	err = reset_control_assert(dc->rst);
-	if (err < 0)
+	err = reset_control_assert(dc->rst_mc);
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to assert MC reset: %d\n", err);
 		return err;
+	}
+
+	usleep_range(2000, 4000);
+
+	err = reset_control_assert(dc->rst);
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to assert reset: %d\n", err);
+		return err;
+	}
 
 	usleep_range(2000, 4000);
 
@@ -2767,14 +2784,26 @@ static int tegra_dc_suspend(struct device *dev)
 	struct tegra_dc *dc = dev_get_drvdata(dev);
 	int err;
 
+	err = reset_control_assert(dc->rst_mc);
+	if (err < 0) {
+		dev_err(dev, "failed to assert MC reset: %d\n", err);
+		return err;
+	}
+
+	usleep_range(2000, 4000);
+
 	err = reset_control_assert(dc->rst);
 	if (err < 0) {
 		dev_err(dev, "failed to assert reset: %d\n", err);
 		return err;
 	}
 
+	usleep_range(2000, 4000);
+
 	if (!dev->pm_domain && dc->soc->has_powergate)
 		tegra_powergate_power_off(dc->powergate);
+
+	usleep_range(2000, 4000);
 
 	clk_disable_unprepare(dc->clk);
 
@@ -2800,11 +2829,21 @@ static int tegra_dc_resume(struct device *dev)
 			return err;
 		}
 
+		usleep_range(2000, 4000);
+
 		err = reset_control_deassert(dc->rst);
 		if (err < 0) {
 			dev_err(dev, "failed to deassert reset: %d\n", err);
 			return err;
 		}
+	}
+
+	usleep_range(2000, 4000);
+
+	err = reset_control_deassert(dc->rst_mc);
+	if (err < 0) {
+		dev_err(dev, "failed to deassert MC reset: %d\n", err);
+		return err;
 	}
 
 	return 0;
