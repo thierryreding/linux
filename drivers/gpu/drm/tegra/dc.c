@@ -1113,21 +1113,25 @@ static struct drm_plane *tegra_dc_add_shared_planes(struct drm_device *drm,
 		if (wgrp->dc == dc->pipe) {
 			for (j = 0; j < wgrp->num_windows; j++) {
 				unsigned int index = wgrp->windows[j];
-
-				plane = tegra_shared_plane_create(drm, dc,
-								  wgrp->index,
-								  index);
-				if (IS_ERR(plane))
-					return plane;
+				enum drm_plane_type type;
 
 				/*
 				 * Choose the first shared plane owned by this
 				 * head as the primary plane.
 				 */
-				if (!primary) {
-					plane->type = DRM_PLANE_TYPE_PRIMARY;
+				if (!primary)
+					type = DRM_PLANE_TYPE_PRIMARY;
+				else
+					type = DRM_PLANE_TYPE_OVERLAY;
+
+				plane = tegra_shared_plane_create(drm, dc,
+								  wgrp->index,
+								  index, type);
+				if (IS_ERR(plane))
+					return plane;
+
+				if (!primary)
 					primary = plane;
-				}
 			}
 		}
 	}
