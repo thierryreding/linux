@@ -6,6 +6,8 @@
  * published by the Free Software Foundation.
  */
 
+#define DEBUG
+
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
