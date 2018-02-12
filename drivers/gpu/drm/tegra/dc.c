@@ -2695,7 +2695,7 @@ static int tegra_dc_probe(struct platform_device *pdev)
 
 	clk_disable_unprepare(dc->clk);
 
-	if (dc->soc->has_powergate) {
+	if (!pdev->dev.pm_domain && dc->soc->has_powergate) {
 		if (dc->pipe == 0)
 			dc->powergate = TEGRA_POWERGATE_DIS;
 		else
@@ -2773,7 +2773,7 @@ static int tegra_dc_suspend(struct device *dev)
 		return err;
 	}
 
-	if (dc->soc->has_powergate)
+	if (!dev->pm_domain && dc->soc->has_powergate)
 		tegra_powergate_power_off(dc->powergate);
 
 	clk_disable_unprepare(dc->clk);
@@ -2786,7 +2786,7 @@ static int tegra_dc_resume(struct device *dev)
 	struct tegra_dc *dc = dev_get_drvdata(dev);
 	int err;
 
-	if (dc->soc->has_powergate) {
+	if (!dev->pm_domain && dc->soc->has_powergate) {
 		err = tegra_powergate_sequence_power_up(dc->powergate, dc->clk,
 							dc->rst);
 		if (err < 0) {
