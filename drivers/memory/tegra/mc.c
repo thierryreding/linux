@@ -226,6 +226,137 @@ static int tegra_mc_setup_timings(struct tegra_mc *mc)
 	return 0;
 }
 
+static inline struct tegra_mc *reset_to_mc(struct reset_controller_dev *rcdev)
+{
+	return container_of(rcdev, struct tegra_mc, reset);
+}
+
+static const struct tegra_mc_reset *tegra_mc_reset_find(struct tegra_mc *mc,
+							unsigned long id)
+{
+	unsigned int i;
+
+	for (i = 0; i < mc->soc->num_resets; i++)
+		if (mc->soc->resets[i].id == id)
+			return &mc->soc->resets[i];
+
+	return NULL;
+}
+
+static int tegra_mc_reset_assert(struct reset_controller_dev *rcdev,
+				 unsigned long id)
+{
+	struct tegra_mc *mc = reset_to_mc(rcdev);
+	const struct tegra_mc_reset *reset;
+	unsigned long flags;
+	int err = 0;
+	u32 value;
+
+	dev_dbg(mc->dev, "> %s(rcdev=%p, id=%lu)\n", __func__, rcdev, id);
+
+	reset = tegra_mc_reset_find(mc, id);
+	if (!reset) {
+		err = -ENODEV;
+		goto out;
+	}
+
+	dev_dbg(mc->dev, "  asserting %s reset...\n", reset->name);
+
+	spin_lock_irqsave(&mc->lock, flags);
+
+	value = mc_readl(mc, reset->control);
+	value |= BIT(reset->bit);
+	mc_writel(mc, value, reset->control);
+
+	spin_unlock_irqrestore(&mc->lock, flags);
+
+out:
+	dev_dbg(mc->dev, "< %s() = %d\n", __func__, err);
+	return err;
+}
+
+static int tegra_mc_reset_deassert(struct reset_controller_dev *rcdev,
+				   unsigned long id)
+{
+	struct tegra_mc *mc = reset_to_mc(rcdev);
+	const struct tegra_mc_reset *reset;
+	unsigned long flags;
+	int err = 0;
+	u32 value;
+
+	dev_dbg(mc->dev, "> %s(rcdev=%p, id=%lu)\n", __func__, rcdev, id);
+
+	reset = tegra_mc_reset_find(mc, id);
+	if (!reset) {
+		err = -ENODEV;
+		goto out;
+	}
+
+	dev_dbg(mc->dev, "  deasserting %s reset...\n", reset->name);
+
+	spin_lock_irqsave(&mc->lock, flags);
+
+	value = mc_readl(mc, reset->control);
+	value &= ~BIT(reset->bit);
+	mc_writel(mc, value, reset->control);
+
+	spin_unlock_irqrestore(&mc->lock, flags);
+
+out:
+	dev_dbg(mc->dev, "< %s() = %d\n", __func__, err);
+	return err;
+}
+
+static int tegra_mc_reset_status(struct reset_controller_dev *rcdev,
+				 unsigned long id)
+{
+	struct tegra_mc *mc = reset_to_mc(rcdev);
+	const struct tegra_mc_reset *reset;
+	int err = 0;
+	u32 value;
+
+	dev_dbg(mc->dev, "> %s(rcdev=%p, id=%lu)\n", __func__, rcdev, id);
+
+	reset = tegra_mc_reset_find(mc, id);
+	if (!reset) {
+		err = -ENODEV;
+		goto out;
+	}
+
+	dev_dbg(mc->dev, "  querying %s reset...\n", reset->name);
+
+	value = mc_readl(mc, reset->control);
+
+	err = (value & reset->bit) != 0;
+
+out:
+	dev_dbg(mc->dev, "< %s() = %d\n", __func__, err);
+	return err;
+}
+
+static const struct reset_control_ops tegra_mc_reset_ops = {
+	.assert = tegra_mc_reset_assert,
+	.deassert = tegra_mc_reset_deassert,
+	.status = tegra_mc_reset_status,
+};
+
+static int tegra_mc_reset_setup(struct tegra_mc *mc)
+{
+	int err;
+
+	mc->reset.ops = &tegra_mc_reset_ops;
+	mc->reset.owner = THIS_MODULE;
+	mc->reset.of_node = mc->dev->of_node;
+	mc->reset.of_reset_n_cells = 1;
+	mc->reset.nr_resets = mc->soc->num_resets;
+
+	err = devm_reset_controller_register(mc->dev, &mc->reset);
+	if (err < 0)
+		return err;
+
+	return 0;
+}
+
 static const char *const status_names[32] = {
 	[ 1] = "External interrupt",
 	[ 6] = "EMEM address decode error",
@@ -358,6 +489,7 @@ static int tegra_mc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, mc);
+	spin_lock_init(&mc->lock);
 	mc->soc = match->data;
 	mc->dev = &pdev->dev;
 
@@ -395,6 +527,15 @@ static int tegra_mc_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "failed to probe SMMU: %ld\n",
 				PTR_ERR(mc->smmu));
 			return PTR_ERR(mc->smmu);
+		}
+	}
+
+	if (IS_ENABLED(CONFIG_RESET_CONTROLLER)) {
+		err = tegra_mc_reset_setup(mc);
+		if (err < 0) {
+			dev_err(&pdev->dev, "failed to setup MC resets: %d\n",
+				err);
+			return err;
 		}
 	}
 
