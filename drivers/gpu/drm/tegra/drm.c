@@ -15,6 +15,7 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_syncobj.h>
 
 #include "drm.h"
 #include "gem.h"
@@ -344,6 +345,144 @@ static int host1x_waitchk_copy_from_user(struct host1x_waitchk *dest,
 	return 0;
 }
 
+static struct dma_fence *tegra_drm_get_fence(struct drm_file *file,
+					     struct drm_tegra_fence *fence)
+{
+	struct drm_syncobj *syncobj;
+	struct dma_fence *in_fence;
+
+	if (fence->flags & DRM_TEGRA_FENCE_FD)
+		return sync_file_get_fence(fence->handle);
+
+	syncobj = drm_syncobj_find(file, fence->handle);
+	if (!syncobj)
+		return NULL;
+
+	in_fence = drm_syncobj_fence_get(syncobj);
+
+	drm_syncobj_put(syncobj);
+	return in_fence;
+}
+
+static struct dma_fence **
+tegra_drm_get_fences(struct drm_file *file,
+		     struct drm_tegra_fence *fences,
+		     unsigned int num_fences,
+		     unsigned int *num_in_fencesp)
+{
+	unsigned int i, j, num_in_fences = 0;
+	struct dma_fence **in_fences = NULL;
+	struct dma_fence *fence;
+	int err;
+
+	for (i = 0; i < num_fences; i++) {
+		if (fences[i].flags & DRM_TEGRA_FENCE_WAIT)
+			num_in_fences++;
+	}
+
+	if (num_in_fences == 0) {
+		*num_in_fencesp = 0;
+		return NULL;
+	}
+
+	in_fences = kcalloc(num_in_fences, sizeof(*in_fences), GFP_KERNEL);
+	if (!in_fences) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	for (i = 0, j = 0; i < num_fences && j < num_in_fences; i++) {
+		if (fences[i].flags & DRM_TEGRA_FENCE_WAIT) {
+			fence = tegra_drm_get_fence(file, &fences[i]);
+			if (!fence) {
+				err = -ENOENT;
+				goto free;
+			}
+
+			in_fences[j++] = fence;
+		}
+	}
+
+	return in_fences;
+
+free:
+	while (--j)
+		dma_fence_put(in_fences[j]);
+
+	kfree(in_fences);
+out:
+	return ERR_PTR(err);
+}
+
+static int tegra_drm_put_fence(struct drm_file *filp, struct host1x *host,
+			       struct host1x_job *job,
+			       struct drm_tegra_fence *fence)
+{
+	struct host1x_syncpt *syncpt;
+	struct dma_fence *f;
+	int err = 0, fd;
+
+	syncpt = host1x_syncpt_get(host, job->syncpt_id);
+	if (!syncpt)
+		return -EINVAL;
+
+	f = host1x_fence_create(host, syncpt, job->syncpt_end);
+	if (!f)
+		return -ENOMEM;
+
+	if (fence->flags & DRM_TEGRA_FENCE_FD) {
+		struct sync_file *file;
+
+		file = sync_file_create(f);
+		if (!file) {
+			err = -ENOMEM;
+			goto put_fence;
+		}
+
+		fd = get_unused_fd_flags(O_CLOEXEC);
+		if (fd < 0) {
+			err = fd;
+			goto put_fence;
+		}
+
+		fd_install(fd, file->file);
+		fence->handle = fd;
+	} else {
+		struct drm_syncobj *syncobj;
+
+		err = drm_syncobj_create(&syncobj, 0, f);
+		if (err < 0)
+			goto put_fence;
+
+		err = drm_syncobj_get_handle(filp, syncobj, &fence->handle);
+		drm_syncobj_put(syncobj);
+	}
+
+put_fence:
+	dma_fence_put(f);
+
+	return err;
+}
+
+static int tegra_drm_put_fences(struct drm_file *file, struct host1x *host,
+				struct host1x_job *job,
+				struct drm_tegra_fence *fences,
+				unsigned int num_fences)
+{
+	unsigned int i;
+	int err;
+
+	for (i = 0; i < num_fences; i++) {
+		if (fences[i].flags & DRM_TEGRA_FENCE_EMIT) {
+			err = tegra_drm_put_fence(file, host, job, &fences[i]);
+			if (err < 0)
+				return err;
+		}
+	}
+
+	return 0;
+}
+
 int tegra_drm_submit(struct tegra_drm_context *context,
 		     struct drm_tegra_submit *args, struct drm_device *drm,
 		     struct drm_file *file)
@@ -356,17 +495,22 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 	struct drm_tegra_reloc __user *user_relocs;
 	struct drm_tegra_waitchk __user *user_waitchks;
 	struct drm_tegra_syncpt __user *user_syncpt;
+	struct drm_tegra_fence __user *user_fences;
+	struct drm_tegra_fence *fences;
 	struct drm_tegra_syncpt syncpt;
 	struct drm_gem_object **refs;
 	struct host1x_syncpt *sp;
 	struct host1x_job *job;
-	unsigned int num_refs;
+	unsigned int num_refs, i;
+	size_t size;
 	int err;
 
 	user_cmdbufs = u64_to_user_ptr(args->cmdbufs);
 	user_relocs = u64_to_user_ptr(args->relocs);
 	user_waitchks = u64_to_user_ptr(args->waitchks);
 	user_syncpt = u64_to_user_ptr(args->syncpts);
+	user_fences = u64_to_user_ptr(args->fences);
+	size = sizeof(*fences) * args->num_fences;
 
 	/* We don't yet support other than one syncpt_incr struct per submit */
 	if (args->num_syncpts != 1)
@@ -380,10 +524,16 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 	if (args->flags & ~DRM_TEGRA_SUBMIT_FLAGS)
 		return -EINVAL;
 
+	fences = memdup_user(user_fences, size);
+	if (IS_ERR(fences))
+		return PTR_ERR(fences);
+
 	job = host1x_job_alloc(context->channel, args->num_cmdbufs,
 			       args->num_relocs, args->num_waitchks);
-	if (!job)
-		return -ENOMEM;
+	if (!job) {
+		err = -ENOMEM;
+		goto free;
+	}
 
 	job->num_relocs = args->num_relocs;
 	job->num_waitchk = args->num_waitchks;
@@ -391,12 +541,11 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 	job->class = context->client->base.class;
 	job->serialize = true;
 
-	if (args->flags & DRM_TEGRA_SUBMIT_WAIT_FENCE_FD) {
-		job->prefence = sync_file_get_fence(args->fence);
-		if (!job->prefence) {
-			err = -ENOENT;
-			goto put;
-		}
+	job->fences = tegra_drm_get_fences(file, fences, args->num_fences,
+					   &job->num_fences);
+	if (IS_ERR(job->fences)) {
+		err = PTR_ERR(job->fences);
+		goto put;
 	}
 
 	/*
@@ -549,40 +698,14 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		goto put_bos;
 	}
 
-	if (args->flags & DRM_TEGRA_SUBMIT_EMIT_FENCE_FD) {
-		struct host1x_syncpt *syncpt;
-		struct dma_fence *fence;
-		struct sync_file *file;
+	/* create fences and copy them back to userspace */
+	err = tegra_drm_put_fences(file, host1x, job, fences, args->num_fences);
+	if (err < 0)
+		goto put_bos;
 
-		syncpt = host1x_syncpt_get(host1x, job->syncpt_id);
-		if (!syncpt) {
-			err = -EINVAL;
-			goto put_bos;
-		}
-
-		fence = host1x_fence_create(host1x, syncpt, job->syncpt_end);
-		if (!fence) {
-			err = -ENOMEM;
-			goto put_bos;
-		}
-
-		file = sync_file_create(fence);
-		if (!file) {
-			dma_fence_put(fence);
-			err = -ENOMEM;
-			goto put_bos;
-		}
-
-		err = get_unused_fd_flags(O_CLOEXEC);
-		if (err < 0) {
-			dma_fence_put(fence);
-			goto put_bos;
-		}
-
-		fd_install(err, file->file);
-		args->fence = err;
-	} else {
-		args->fence = job->syncpt_end;
+	if (!copy_to_user(user_fences, fences, size)) {
+		err = -EFAULT;
+		goto put_bos;
 	}
 
 put_bos:
@@ -592,10 +715,15 @@ put_bos:
 	kfree(refs);
 
 put:
-	if (job->prefence)
-		dma_fence_put(job->prefence);
+	if (job->fences) {
+		for (i = 0; i < job->num_fences; i++)
+			dma_fence_put(job->fences[i]);
+	}
 
 	host1x_job_put(job);
+
+free:
+	kfree(fences);
 	return err;
 }
 
