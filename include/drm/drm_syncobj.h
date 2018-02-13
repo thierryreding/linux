@@ -28,6 +28,7 @@
 
 #include "linux/dma-fence.h"
 
+struct drm_file;
 struct drm_syncobj_cb;
 
 /**
