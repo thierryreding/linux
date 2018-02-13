@@ -107,6 +107,29 @@ static inline void synchronize_syncpt_base(struct host1x_job *job)
 			 HOST1X_UCLASS_LOAD_SYNCPT_BASE_VALUE_F(value));
 }
 
+static int host1x_job_wait_fences(struct host1x_job *job)
+{
+	struct host1x *host = dev_get_drvdata(job->channel->dev->parent);
+	unsigned int i;
+	int err;
+
+	if (job->num_fences == 0)
+		return 0;
+
+	for (i = 0; i < job->num_fences; i++) {
+		if (host1x_fence_is_waitable(job->fences[i])) {
+			host1x_fence_wait(job->fences[i], host, job->channel);
+			continue;
+		}
+
+		err = dma_fence_wait(job->fences[i], true);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
+}
+
 static int channel_submit(struct host1x_job *job)
 {
 	struct host1x_channel *ch = job->channel;
@@ -126,15 +149,9 @@ static int channel_submit(struct host1x_job *job)
 	/* before error checks, return current max */
 	prev_max = job->syncpt_end = host1x_syncpt_read_max(sp);
 
-	if (job->prefence) {
-		if (host1x_fence_is_waitable(job->prefence)) {
-			host1x_fence_wait(job->prefence, host, job->channel);
-		} else {
-			err = dma_fence_wait(job->prefence, true);
-			if (err)
-				goto error;
-		}
-	}
+	err = host1x_job_wait_fences(job);
+	if (err < 0)
+		goto error;
 
 	/* get submit lock */
 	err = mutex_lock_interruptible(&ch->submitlock);
