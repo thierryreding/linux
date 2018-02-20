@@ -76,7 +76,14 @@ nvkm_mem_map_dma(struct nvkm_memory *memory, u64 offset, struct nvkm_vmm *vmm,
 		.offset = offset,
 		.dma = mem->dma,
 	};
-	return nvkm_vmm_map(vmm, vma, argv, argc, &map);
+	int err;
+
+	pr_info("> %s(memory=%p, offset=%llx, vmm=%p, vma=%p, argv=%p, argc=%u)\n", __func__, memory, offset, vmm, vma, argv, argc);
+
+	err = nvkm_vmm_map(vmm, vma, argv, argc, &map);
+
+	pr_info("< %s() = %d\n", __func__, err);
+	return err;
 }
 
 static void *

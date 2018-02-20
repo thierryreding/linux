@@ -98,6 +98,8 @@ nvkm_uvmm_mthd_map(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 	struct nvkm_memory *memory;
 	int ret = -ENOSYS;
 
+	pr_info("> %s(uvmm=%p, argv=%p, argc=%u)\n", __func__, uvmm, argv, argc);
+
 	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, true))) {
 		addr = args->v0.addr;
 		size = args->v0.size;
@@ -156,6 +158,8 @@ nvkm_uvmm_mthd_map(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 	vma->busy = true;
 	mutex_unlock(&vmm->mutex);
 
+	pr_info("  mapping memory using %ps\n", memory->func->map);
+
 	ret = nvkm_memory_map(memory, offset, vmm, vma, argv, argc);
 	if (ret == 0) {
 		/* Successful map will clear vma->busy. */
@@ -169,6 +173,7 @@ nvkm_uvmm_mthd_map(struct nvkm_uvmm *uvmm, void *argv, u32 argc)
 fail:
 	mutex_unlock(&vmm->mutex);
 	nvkm_memory_unref(&memory);
+	pr_info("< %s() = %d\n", __func__, ret);
 	return ret;
 }
 

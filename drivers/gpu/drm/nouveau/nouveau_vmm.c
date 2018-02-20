@@ -37,10 +37,17 @@ int
 nouveau_vma_map(struct nouveau_vma *vma, struct nouveau_mem *mem)
 {
 	struct nvif_vma tmp = { .addr = vma->addr };
+
+	pr_info("> %s(vma=%p, mem=%p)\n", __func__, vma, mem);
+
 	int ret = nouveau_mem_map(mem, &vma->vmm->vmm, &tmp);
-	if (ret)
+	if (ret) {
+		pr_info("< %s() = %d\n", __func__, ret);
 		return ret;
+	}
+
 	vma->mem = mem;
+	pr_info("< %s()\n", __func__);
 	return 0;
 }
 
@@ -81,8 +88,13 @@ nouveau_vma_new(struct nouveau_bo *nvbo, struct nouveau_vmm *vmm,
 	struct nvif_vma tmp;
 	int ret;
 
+	pr_info("> %s(nvbo=%p, vmm=%p, pvma=%p)\n", __func__, nvbo, vmm, pvma);
+
 	if ((vma = *pvma = nouveau_vma_find(nvbo, vmm))) {
+		pr_info("  vma: %p\n", vma);
 		vma->refs++;
+		pr_info("  ref: %d\n", vma->refs);
+		pr_info("< %s()\n", __func__);
 		return 0;
 	}
 
