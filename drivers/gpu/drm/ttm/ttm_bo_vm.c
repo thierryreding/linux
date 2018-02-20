@@ -125,8 +125,6 @@ static vm_fault_t ttm_bo_vm_fault(struct vm_fault *vmf)
 		&bdev->man[bo->mem.mem_type];
 	struct vm_area_struct cvma;
 
-	//pr_info("> %s(vmf=%p)\n", __func__, vmf);
-
 	/*
 	 * Work around locking order reversal in fault / nopfn
 	 * between mmap_sem and bo_reserve: Perform a trylock operation
@@ -162,7 +160,6 @@ static vm_fault_t ttm_bo_vm_fault(struct vm_fault *vmf)
 	 * (if at all) by redirecting mmap to the exporter.
 	 */
 	if (bo->ttm && (bo->ttm->page_flags & TTM_PAGE_FLAG_SG)) {
-		//pr_info("  refusing to fault imported pages\n");
 		ret = VM_FAULT_SIGBUS;
 		goto out_unlock;
 	}
@@ -204,7 +201,6 @@ static vm_fault_t ttm_bo_vm_fault(struct vm_fault *vmf)
 	}
 	err = ttm_mem_io_reserve_vm(bo);
 	if (unlikely(err != 0)) {
-		//pr_info("  ttm_mem_io_reserve_vm(): %d\n", err);
 		ret = VM_FAULT_SIGBUS;
 		goto out_io_unlock;
 	}
@@ -215,7 +211,6 @@ static vm_fault_t ttm_bo_vm_fault(struct vm_fault *vmf)
 		drm_vma_node_start(&bo->vma_node);
 
 	if (unlikely(page_offset >= bo->num_pages)) {
-		//pr_info("  page_offset: %lu bo->num_pages: %lu\n", page_offset, bo->num_pages);
 		ret = VM_FAULT_SIGBUS;
 		goto out_io_unlock;
 	}
@@ -297,7 +292,6 @@ out_io_unlock:
 	ttm_mem_io_unlock(man);
 out_unlock:
 	ttm_bo_unreserve(bo);
-	//pr_info("< %s() = %d\n", __func__, ret);
 	return ret;
 }
 

@@ -199,8 +199,6 @@ nouveau_bo_new(struct nouveau_cli *cli, u64 size, int align,
 	int type = ttm_bo_type_device;
 	int ret, i, pi = -1;
 
-	pr_info("> %s(cli=%p, size=%llu, align=%d, flags=%x, tile_mode=%x, tile_flags=%x, sg=%p, robj=%p, pnvbo=%p)\n", __func__, cli, size, align, flags, tile_mode, tile_flags, sg, robj, pnvbo);
-
 	if (!size) {
 		NV_WARN(drm, "skipped size %016llx\n", size);
 		return -EINVAL;
@@ -307,7 +305,6 @@ nouveau_bo_new(struct nouveau_cli *cli, u64 size, int align,
 	}
 
 	*pnvbo = nvbo;
-	pr_info("< %s()\n", __func__);
 	return 0;
 }
 
@@ -1454,10 +1451,8 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *reg)
 	reg->bus.size = reg->num_pages << PAGE_SHIFT;
 	reg->bus.base = 0;
 	reg->bus.is_iomem = false;
-	if (!(man->flags & TTM_MEMTYPE_FLAG_MAPPABLE)) {
-		pr_info("  memory type not mappable\n");
+	if (!(man->flags & TTM_MEMTYPE_FLAG_MAPPABLE))
 		return -EINVAL;
-	}
 	switch (reg->mem_type) {
 	case TTM_PL_SYSTEM:
 		/* System memory */
@@ -1509,17 +1504,14 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *reg)
 			ret = nvif_object_map_handle(&mem->mem.object,
 						     &args, argc,
 						     &handle, &length);
-			if (ret != 1) {
-				pr_info("  nvif_object_map_handle(): %d\n", ret);
+			if (ret != 1)
 				return ret ? ret : -EINVAL;
-			}
 
 			reg->bus.base = 0;
 			reg->bus.offset = handle;
 		}
 		break;
 	default:
-		pr_info("invalid mem_type: %d\n", reg->mem_type);
 		return -EINVAL;
 	}
 	return 0;
@@ -1555,14 +1547,10 @@ nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 	u32 mappable = device->func->resource_size(device, 1) >> PAGE_SHIFT;
 	int i, ret;
 
-	//pr_info("> %s(bo=%p)\n", __func__, bo);
-
 	/* as long as the bo isn't in vram, and isn't tiled, we've got
 	 * nothing to do here.
 	 */
 	if (bo->mem.mem_type != TTM_PL_VRAM) {
-		//pr_info("  buffer object not in VRAM\n");
-
 		if (drm->client.device.info.family < NV_DEVICE_INFO_V0_TESLA ||
 		    !nvbo->kind)
 			return 0;
@@ -1571,12 +1559,9 @@ nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 			nouveau_bo_placement_set(nvbo, TTM_PL_TT, 0);
 
 			ret = nouveau_bo_validate(nvbo, false, false);
-			//pr_info("  nouveau_bo_validate(): %d\n", ret);
 			if (ret)
 				return ret;
 		}
-
-		//pr_info("< %s()\n", __func__);
 		return 0;
 	}
 
@@ -1596,9 +1581,7 @@ nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 	}
 
 	nouveau_bo_placement_set(nvbo, TTM_PL_FLAG_VRAM, 0);
-	ret = nouveau_bo_validate(nvbo, false, false);
-	//pr_info("< %s() = %d\n", __func__, ret);
-	return ret;
+	return nouveau_bo_validate(nvbo, false, false);
 }
 
 static int

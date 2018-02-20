@@ -19,7 +19,6 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#define DEBUG
 #include "vmm.h"
 
 #include <subdev/fb.h>
@@ -35,8 +34,6 @@ gf100_vmm_pgt_pte(struct nvkm_vmm *vmm, struct nvkm_mmu_pt *pt,
 {
 	u64 base = (addr >> 8) | map->type;
 	u64 data = base;
-
-	VMM_SPAM(vmm, "  addr %010llx -", addr);
 
 	if (map->ctag && !(map->next & (1ULL << 44))) {
 		while (ptes--) {
@@ -72,7 +69,6 @@ gf100_vmm_pgt_dma(struct nvkm_vmm *vmm, struct nvkm_mmu_pt *pt,
 		VMM_SPAM(vmm, "DMAA %08x %08x PTE(s)", ptei, ptes);
 		nvkm_kmap(pt->memory);
 		while (ptes--) {
-			VMM_SPAM(vmm, "  addr %pad", map->dma);
 			const u64 data = (*map->dma++ >> 8) | map->type;
 			VMM_WO064(pt, vmm, ptei++ * 8, data);
 			map->type += map->ctag;
@@ -235,8 +231,6 @@ gf100_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
 	int kindn, aper, ret = -ENOSYS;
 	const u8 *kindm;
 
-	pr_info("> %s(vmm=%p, argv=%p, argc=%u, map=%p)\n", __func__, vmm, argv, argc, map);
-
 	map->next = (1 << page->shift) >> 8;
 	map->type = map->ctag = 0;
 
@@ -302,9 +296,6 @@ gf100_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
 	map->type |= (u64) vol << 32;
 	map->type |= (u64)aper << 33;
 	map->type |= (u64)kind << 36;
-	pr_info("  kind: %02x\n", kind);
-	pr_info("  type: %016llx\n", map->type);
-	pr_info("< %s()\n", __func__);
 	return 0;
 }
 

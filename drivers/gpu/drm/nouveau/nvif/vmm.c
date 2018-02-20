@@ -40,8 +40,6 @@ nvif_vmm_map(struct nvif_vmm *vmm, u64 addr, u64 size, void *argv, u32 argc,
 	u8 stack[48];
 	int ret;
 
-	pr_info("> %s(vmm=%p, addr=%llx, size=%llu, argv=%p, argc=%u, mem=%p, offset=%llx)\n", __func__, vmm, addr, size, argv, argc, mem, offset);
-
 	if (sizeof(*args) + argc > sizeof(stack)) {
 		if (!(args = kmalloc(sizeof(*args) + argc, GFP_KERNEL)))
 			return -ENOMEM;
@@ -60,7 +58,6 @@ nvif_vmm_map(struct nvif_vmm *vmm, u64 addr, u64 size, void *argv, u32 argc,
 			       args, sizeof(*args) + argc);
 	if (args != (void *)stack)
 		kfree(args);
-	pr_info("< %s() = %d\n", __func__, ret);
 	return ret;
 }
 
