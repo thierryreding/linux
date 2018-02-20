@@ -28,6 +28,8 @@
 #include <drm/drm_mode_object.h>
 #include <drm/drm_modes.h>
 
+struct device_node;
+
 struct drm_bridge;
 struct drm_bridge_timings;
 struct drm_panel;
@@ -268,9 +270,7 @@ struct drm_bridge {
 	struct drm_device *dev;
 	struct drm_encoder *encoder;
 	struct drm_bridge *next;
-#ifdef CONFIG_OF
 	struct device_node *of_node;
-#endif
 	struct list_head list;
 	const struct drm_bridge_timings *timings;
 
