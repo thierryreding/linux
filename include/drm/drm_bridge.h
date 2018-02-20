@@ -28,6 +28,8 @@
 #include <drm/drm_mode_object.h>
 #include <drm/drm_modes.h>
 
+struct device_node;
+
 struct drm_bridge;
 struct drm_bridge_timings;
 struct drm_panel;
@@ -278,10 +280,8 @@ struct drm_bridge {
 	struct drm_encoder *encoder;
 	/** @next: the next bridge in the encoder chain */
 	struct drm_bridge *next;
-#ifdef CONFIG_OF
 	/** @of_node: device node pointer to the bridge */
 	struct device_node *of_node;
-#endif
 	/** @list: to keep track of all added bridges */
 	struct list_head list;
 	/**
