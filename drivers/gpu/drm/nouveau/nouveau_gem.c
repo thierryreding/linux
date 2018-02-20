@@ -75,8 +75,6 @@ nouveau_gem_object_open(struct drm_gem_object *gem, struct drm_file *file_priv)
 	struct nouveau_vma *vma;
 	int ret;
 
-	pr_info("> %s(gem=%p, file_priv=%p)\n", __func__, gem, file_priv);
-
 	if (cli->vmm.vmm.object.oclass < NVIF_CLASS_VMM_NV50)
 		return 0;
 
@@ -93,7 +91,6 @@ nouveau_gem_object_open(struct drm_gem_object *gem, struct drm_file *file_priv)
 	pm_runtime_put_autosuspend(dev);
 out:
 	ttm_bo_unreserve(&nvbo->bo);
-	pr_info("< %s() = %d\n", __func__, ret);
 	return ret;
 }
 
@@ -240,8 +237,6 @@ nouveau_gem_info(struct drm_file *file_priv, struct drm_gem_object *gem,
 	struct nouveau_bo *nvbo = nouveau_gem_object(gem);
 	struct nouveau_vma *vma;
 
-	pr_info("> %s(file_priv=%p, gem=%p, rep=%p)\n", __func__, file_priv, gem, rep);
-
 	if (is_power_of_2(nvbo->valid_domains))
 		rep->domain = nvbo->valid_domains;
 	else if (nvbo->bo.mem.mem_type == TTM_PL_TT)
@@ -257,8 +252,6 @@ nouveau_gem_info(struct drm_file *file_priv, struct drm_gem_object *gem,
 		rep->offset = vma->addr;
 	}
 
-	pr_info("  kind: %02x\n", nvbo->kind);
-
 	rep->size = nvbo->bo.mem.num_pages << PAGE_SHIFT;
 	rep->map_handle = drm_vma_node_offset_addr(&nvbo->bo.vma_node);
 	rep->tile_mode = nvbo->mode;
@@ -270,7 +263,6 @@ nouveau_gem_info(struct drm_file *file_priv, struct drm_gem_object *gem,
 		rep->tile_flags |= nvbo->kind << 8 | nvbo->comp << 16;
 	else
 		rep->tile_flags |= nvbo->zeta;
-	pr_info("< %s()\n", __func__);
 	return 0;
 }
 
@@ -817,8 +809,6 @@ __nouveau_gem_ioctl_pushbuf(struct drm_device *dev,
 	struct nouveau_fence *fence = NULL;
 	int i, j, ret = 0, do_reloc = 0;
 
-	pr_info("> %s(dev=%p, request=%p, file_priv=%p)\n", __func__, dev, request, file_priv);
-
 	/* check for unrecognized flags */
 	if (request->flags & ~NOUVEAU_GEM_PUSHBUF_FLAGS)
 		return -EINVAL;
@@ -867,9 +857,6 @@ __nouveau_gem_ioctl_pushbuf(struct drm_device *dev,
 			u_free(push);
 			return nouveau_abi16_put(abi16, PTR_ERR(bo));
 		}
-
-		pr_info("  %u push buffers\n", req->nr_push);
-		pr_info("  %u buffer objects\n", req->nr_buffers);
 
 		/* Ensure all push buffers are on validate list */
 		for (i = 0; i < req->nr_push; i++) {
@@ -1018,9 +1005,7 @@ out_prevalid:
 		req->suffix1 = 0x00000000;
 	}
 
-	ret = nouveau_abi16_put(abi16, ret);
-	pr_info("< %s() = %d\n", __func__, ret);
-	return ret;
+	return nouveau_abi16_put(abi16, ret);
 }
 
 int
@@ -1185,29 +1170,18 @@ nouveau_gem_ioctl_set_tiling(struct drm_device *dev, void *data,
 	u32 flags = 0;
 	int err = 0;
 
-	pr_info("> %s(dev=%p, data=%p, file_priv=%p)\n", __func__, dev, data, file_priv);
-
 	/* check flags for validity */
-	if (req->flags != 0) {
-		pr_info("  invalid flags\n");
-		pr_info("< %s()\n", __func__);
+	if (req->flags != 0)
 		return -EINVAL;
-	}
 
 	err = nouveau_parse_tiling(cli, &tiling, req->tile_mode,
 				   req->tile_flags);
-	if (err < 0) {
-		pr_info("  failed to parsing tiling\n");
-		pr_info("< %s() = %d\n", __func__, err);
+	if (err < 0)
 		return err;
-	}
 
 	gem = drm_gem_object_lookup(file_priv, req->handle);
-	if (!gem) {
-		pr_info("  failed to find GEM object\n");
-		pr_info("< %s()\n", __func__);
+	if (!gem)
 		return -ENOENT;
-	}
 
 	bo = nouveau_gem_object(gem);
 
@@ -1219,13 +1193,8 @@ nouveau_gem_ioctl_set_tiling(struct drm_device *dev, void *data,
 	 */
 	req->handle = 0;
 
-	if (nouveau_bo_check_tiling(bo, &tiling)) {
-		pr_info("  tiling already correct\n");
+	if (nouveau_bo_check_tiling(bo, &tiling))
 		goto out;
-	}
-
-	pr_info("  creating new buffer object...\n");
-	pr_info("  pages: %p num_pages: %lu\n", bo->bo.ttm->pages, bo->bo.num_pages);
 
 	sgt = drm_prime_pages_to_sg(bo->bo.ttm->pages, bo->bo.num_pages);
 	if (!sgt) {
@@ -1251,7 +1220,6 @@ nouveau_gem_ioctl_set_tiling(struct drm_device *dev, void *data,
 		goto unref;
 
 out:
-	pr_info("< %s() = %d\n", __func__, err);
 	return err;
 
 unref:
