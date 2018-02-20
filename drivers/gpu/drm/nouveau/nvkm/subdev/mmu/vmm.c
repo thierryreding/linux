@@ -680,6 +680,7 @@ nvkm_vmm_ptes_get_map(struct nvkm_vmm *vmm, const struct nvkm_vmm_page *page,
 		      u64 addr, u64 size, struct nvkm_vmm_map *map,
 		      nvkm_vmm_pte_func func)
 {
+	pr_info("> %s(vmm=%p, page=%p, addr=%llx, size=%llu, map=%p, func=%ps)\n", __func__, vmm, page, addr, size, map, func);
 	u64 fail = nvkm_vmm_iter(vmm, page, addr, size, "ref + map", true,
 				 nvkm_vmm_ref_ptes, func, map, NULL);
 	if (fail != ~0ULL) {
@@ -687,6 +688,7 @@ nvkm_vmm_ptes_get_map(struct nvkm_vmm *vmm, const struct nvkm_vmm_page *page,
 			nvkm_vmm_ptes_unmap_put(vmm, page, addr, size, false);
 		return -ENOMEM;
 	}
+	pr_info("< %s()\n", __func__);
 	return 0;
 }
 
@@ -705,8 +707,10 @@ nvkm_vmm_ptes_map(struct nvkm_vmm *vmm, const struct nvkm_vmm_page *page,
 		  u64 addr, u64 size, struct nvkm_vmm_map *map,
 		  nvkm_vmm_pte_func func)
 {
+	pr_info("> %s(vmm=%p, page=%p, addr=%llx, size=%llu, map=%p, func=%ps)\n", __func__, vmm, page, addr, size, map, func);
 	nvkm_vmm_iter(vmm, page, addr, size, "map", false,
 		      NULL, func, map, NULL);
+	pr_info("< %s()\n", __func__);
 }
 
 static void
@@ -1067,11 +1071,16 @@ nvkm_vmm_map_locked(struct nvkm_vmm *vmm, struct nvkm_vma *vma,
 	nvkm_vmm_pte_func func;
 	int ret;
 
+	pr_info("> %s(vmm=%p, vma=%p, argv=%p, argc=%u, map=%p)\n", __func__, vmm, vma, argv, argc, map);
+	pr_info("  map->sgl: %p\n", map->sgl);
+
 	/* Make sure we won't overrun the end of the memory object. */
 	if (unlikely(nvkm_memory_size(map->memory) < map->offset + vma->size)) {
 		VMM_DEBUG(vmm, "overrun %016llx %016llx %016llx",
 			  nvkm_memory_size(map->memory),
 			  map->offset, (u64)vma->size);
+		pr_info("  overrun\n");
+		pr_info("< %s()\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1086,6 +1095,8 @@ nvkm_vmm_map_locked(struct nvkm_vmm *vmm, struct nvkm_vma *vma,
 		if (ret) {
 			VMM_DEBUG(vmm, "invalid at any page size");
 			nvkm_vmm_map_choose(vmm, vma, argv, argc, map);
+			pr_info("  invalid at any page size\n");
+			pr_info("< %s()\n", __func__);
 			return -EINVAL;
 		}
 	} else {
@@ -1098,6 +1109,8 @@ nvkm_vmm_map_locked(struct nvkm_vmm *vmm, struct nvkm_vma *vma,
 		ret = nvkm_vmm_map_valid(vmm, vma, argv, argc, map);
 		if (ret) {
 			VMM_DEBUG(vmm, "invalid %d\n", ret);
+			pr_info("  VMM map invalid\n");
+			pr_info("< %s() = %d\n", __func__, ret);
 			return ret;
 		}
 	}
@@ -1114,6 +1127,7 @@ nvkm_vmm_map_locked(struct nvkm_vmm *vmm, struct nvkm_vma *vma,
 		func = map->page->desc->func->mem;
 	} else
 	if (map->sgl) {
+		pr_info("  using SGL, page: %p\n", map->page);
 		for (; map->off; map->sgl = sg_next(map->sgl)) {
 			u64 size = sg_dma_len(map->sgl);
 			if (size > map->off)
@@ -1130,8 +1144,10 @@ nvkm_vmm_map_locked(struct nvkm_vmm *vmm, struct nvkm_vma *vma,
 	/* Perform the map. */
 	if (vma->refd == NVKM_VMA_PAGE_NONE) {
 		ret = nvkm_vmm_ptes_get_map(vmm, map->page, vma->addr, vma->size, map, func);
-		if (ret)
+		if (ret) {
+			pr_info("< %s() = %d\n", __func__, ret);
 			return ret;
+		}
 
 		vma->refd = map->page - vmm->func->page;
 	} else {
@@ -1142,6 +1158,7 @@ nvkm_vmm_map_locked(struct nvkm_vmm *vmm, struct nvkm_vma *vma,
 	nvkm_memory_unref(&vma->memory);
 	vma->memory = nvkm_memory_ref(map->memory);
 	vma->tags = map->tags;
+	pr_info("< %s()\n", __func__);
 	return 0;
 }
 
