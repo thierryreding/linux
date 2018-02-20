@@ -107,12 +107,18 @@ nouveau_gart_manager_new(struct ttm_mem_type_manager *man,
 	struct nouveau_mem *mem;
 	int ret;
 
+	pr_info("> %s(man=%p, bo=%p, place=%p, reg=%p)\n", __func__, man, bo, place, reg);
+
 	ret = nouveau_mem_new(&drm->master, nvbo->kind, nvbo->comp, reg);
 	mem = nouveau_mem(reg);
-	if (ret)
+	if (ret) {
+		pr_info("< %s() = %d\n", __func__, ret);
 		return ret;
+	}
 
 	reg->start = 0;
+
+	pr_info("< %s()\n", __func__);
 	return 0;
 }
 

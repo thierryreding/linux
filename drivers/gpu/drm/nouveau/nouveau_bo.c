@@ -199,6 +199,8 @@ nouveau_bo_new(struct nouveau_cli *cli, u64 size, int align,
 	int type = ttm_bo_type_device;
 	int ret, i, pi = -1;
 
+	pr_info("> %s(cli=%p, size=%llu, align=%d, flags=%x, tile_mode=%x, tile_flags=%x, sg=%p, robj=%p, pnvbo=%p)\n", __func__, cli, size, align, flags, tile_mode, tile_flags, sg, robj, pnvbo);
+
 	if (!size) {
 		NV_WARN(drm, "skipped size %016llx\n", size);
 		return -EINVAL;
@@ -306,6 +308,7 @@ nouveau_bo_new(struct nouveau_cli *cli, u64 size, int align,
 	}
 
 	*pnvbo = nvbo;
+	pr_info("< %s()\n", __func__);
 	return 0;
 }
 

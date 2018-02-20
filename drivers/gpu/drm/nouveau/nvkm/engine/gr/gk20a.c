@@ -263,13 +263,17 @@ gk20a_gr_init(struct gf100_gr *gr)
 	nvkm_wr32(device, GPC_BCAST(0x098c), data[3]);
 
 	for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
+		pr_info("%08x < %08x\n", GPC_UNIT(gpc, 0x0914), gr->screen_tile_row_offset << 8 | gr->tpc_nr[gpc]);
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x0914),
 			  gr->screen_tile_row_offset << 8 | gr->tpc_nr[gpc]);
+		pr_info("%08x < %08x\n", GPC_UNIT(gpc, 0x0910), 0x00040000 | gr->tpc_total);
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x0910), 0x00040000 |
 			  gr->tpc_total);
+		pr_info("%08x < %08x\n", GPC_UNIT(gpc, 0x0918), magicgpc918);
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x0918), magicgpc918);
 	}
 
+	pr_info("%08x < %08x\n", GPC_BCAST(0x3fd4), magicgpc918);
 	nvkm_wr32(device, GPC_BCAST(0x3fd4), magicgpc918);
 
 	gr->func->init_rop_active_fbps(gr);

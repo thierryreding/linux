@@ -44,6 +44,8 @@ nouveau_mem_map(struct nouveau_mem *mem,
 	bool super;
 	int ret;
 
+	pr_info("> %s(mem=%p, vmm=%p, vma=%p)\n", __func__, mem, vmm, vma);
+
 	switch (vmm->object.oclass) {
 	case NVIF_CLASS_VMM_NV04:
 		break;
@@ -78,6 +80,7 @@ nouveau_mem_map(struct nouveau_mem *mem,
 	ret = nvif_vmm_map(vmm, vma->addr, mem->mem.size, &args, argc,
 			   &mem->mem, 0);
 	vmm->object.client->super = super;
+	pr_info("< %s() = %d\n", __func__, ret);
 	return ret;
 }
 
