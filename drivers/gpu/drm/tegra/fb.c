@@ -54,6 +54,8 @@ int tegra_fb_get_tiling(struct drm_framebuffer *framebuffer,
 	struct tegra_fb *fb = to_tegra_fb(framebuffer);
 	uint64_t modifier = fb->base.modifier;
 
+	pr_info("%s(): using modifier: %llx\n", __func__, modifier);
+
 	switch (modifier) {
 	case DRM_FORMAT_MOD_LINEAR:
 		tiling->mode = TEGRA_BO_TILING_MODE_PITCH;
