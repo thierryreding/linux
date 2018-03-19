@@ -220,11 +220,11 @@ static void syncpt_thresh_work(struct work_struct *work)
 				host1x_syncpt_load(host->syncpt + id));
 }
 
-int host1x_intr_add_action(struct host1x *host, unsigned int id, u32 thresh,
-			   enum host1x_intr_action action, void *data,
-			   struct host1x_waitlist *waiter, void **ref)
+int host1x_intr_add_action(struct host1x *host, struct host1x_syncpt *syncpt,
+			   u32 threshold, enum host1x_intr_action action,
+			   void *data, struct host1x_waitlist *waiter,
+			   void **ref)
 {
-	struct host1x_syncpt *syncpt;
 	int queue_was_empty;
 
 	if (waiter == NULL) {
@@ -235,15 +235,15 @@ int host1x_intr_add_action(struct host1x *host, unsigned int id, u32 thresh,
 	/* initialize a new waiter */
 	INIT_LIST_HEAD(&waiter->list);
 	kref_init(&waiter->refcount);
+
 	if (ref)
 		kref_get(&waiter->refcount);
-	waiter->thresh = thresh;
+
+	waiter->thresh = threshold;
 	waiter->action = action;
 	atomic_set(&waiter->state, WLS_PENDING);
 	waiter->data = data;
 	waiter->count = 1;
-
-	syncpt = host->syncpt + id;
 
 	spin_lock(&syncpt->intr.lock);
 
@@ -251,17 +251,18 @@ int host1x_intr_add_action(struct host1x *host, unsigned int id, u32 thresh,
 
 	if (add_waiter_to_queue(waiter, &syncpt->intr.wait_head)) {
 		/* added at head of list - new threshold value */
-		host1x_hw_intr_set_syncpt_threshold(host, id, thresh);
+		host1x_hw_intr_set_syncpt_threshold(host, syncpt->id, threshold);
 
 		/* added as first waiter - enable interrupt */
 		if (queue_was_empty)
-			host1x_hw_intr_enable_syncpt_intr(host, id);
+			host1x_hw_intr_enable_syncpt_intr(host, syncpt->id);
 	}
 
 	spin_unlock(&syncpt->intr.lock);
 
 	if (ref)
 		*ref = waiter;
+
 	return 0;
 }
 

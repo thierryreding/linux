@@ -20,10 +20,15 @@
 #define __HOST1X_JOB_H
 
 struct host1x_job_gather {
-	u32 words;
+	unsigned int words;
 	dma_addr_t base;
 	struct host1x_bo *bo;
-	u32 offset;
+	unsigned int offset;
+
+	/* Wait for fences to complete before submitting */
+	struct dma_fence **fences;
+	unsigned int num_fences;
+
 	bool handled;
 };
 

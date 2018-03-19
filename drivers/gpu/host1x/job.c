@@ -16,6 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/dma-fence.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/host1x.h>
@@ -33,9 +34,10 @@
 
 #define HOST1X_WAIT_SYNCPT_OFFSET 0x8
 
-struct host1x_job *host1x_job_alloc(struct host1x_channel *ch,
-				    u32 num_cmdbufs, u32 num_relocs,
-				    u32 num_waitchks)
+struct host1x_job *host1x_job_alloc(struct host1x_channel *channel,
+				    unsigned int num_cmdbufs,
+				    unsigned int num_relocs,
+				    unsigned int num_syncpts)
 {
 	struct host1x_job *job = NULL;
 	unsigned int num_unpins = num_cmdbufs + num_relocs;
@@ -46,7 +48,7 @@ struct host1x_job *host1x_job_alloc(struct host1x_channel *ch,
 	total = sizeof(struct host1x_job) +
 		(u64)num_relocs * sizeof(struct host1x_reloc) +
 		(u64)num_unpins * sizeof(struct host1x_job_unpin_data) +
-		(u64)num_waitchks * sizeof(struct host1x_waitchk) +
+		(u64)num_syncpts * sizeof(struct host1x_checkpoint) +
 		(u64)num_cmdbufs * sizeof(struct host1x_job_gather) +
 		(u64)num_unpins * sizeof(dma_addr_t) +
 		(u64)num_unpins * sizeof(u32 *);
@@ -58,7 +60,9 @@ struct host1x_job *host1x_job_alloc(struct host1x_channel *ch,
 		return NULL;
 
 	kref_init(&job->ref);
-	job->channel = ch;
+	job->channel = channel;
+	job->num_relocs = num_relocs;
+	job->num_checkpoints = num_syncpts;
 
 	/* Redistribute memory to the structs  */
 	mem += sizeof(struct host1x_job);
@@ -66,8 +70,8 @@ struct host1x_job *host1x_job_alloc(struct host1x_channel *ch,
 	mem += num_relocs * sizeof(struct host1x_reloc);
 	job->unpins = num_unpins ? mem : NULL;
 	mem += num_unpins * sizeof(struct host1x_job_unpin_data);
-	job->waitchk = num_waitchks ? mem : NULL;
-	mem += num_waitchks * sizeof(struct host1x_waitchk);
+	job->checkpoints = num_syncpts ? mem : NULL;
+	mem += num_syncpts * sizeof(struct host1x_checkpoint);
 	job->gathers = num_cmdbufs ? mem : NULL;
 	mem += num_cmdbufs * sizeof(struct host1x_job_gather);
 	job->addr_phys = num_unpins ? mem : NULL;
@@ -89,6 +93,16 @@ EXPORT_SYMBOL(host1x_job_get);
 static void job_free(struct kref *ref)
 {
 	struct host1x_job *job = container_of(ref, struct host1x_job, ref);
+	unsigned int i, j;
+
+	for (i = 0; i < job->num_gathers; i++) {
+		struct host1x_job_gather *gather = &job->gathers[i];
+
+		for (j = 0; j < gather->num_fences; j++)
+			dma_fence_put(gather->fences[j]);
+
+		kfree(gather->fences);
+	}
 
 	kfree(job);
 }
@@ -100,83 +114,20 @@ void host1x_job_put(struct host1x_job *job)
 EXPORT_SYMBOL(host1x_job_put);
 
 void host1x_job_add_gather(struct host1x_job *job, struct host1x_bo *bo,
-			   u32 words, u32 offset)
+			   unsigned int words, unsigned int offset,
+			   struct dma_fence **fences, unsigned int num_fences)
 {
-	struct host1x_job_gather *cur_gather = &job->gathers[job->num_gathers];
+	struct host1x_job_gather *gather = &job->gathers[job->num_gathers];
 
-	cur_gather->words = words;
-	cur_gather->bo = bo;
-	cur_gather->offset = offset;
+	gather->words = words;
+	gather->bo = bo;
+	gather->offset = offset;
+	gather->fences = fences;
+	gather->num_fences = num_fences;
+
 	job->num_gathers++;
 }
 EXPORT_SYMBOL(host1x_job_add_gather);
-
-/*
- * NULL an already satisfied WAIT_SYNCPT host method, by patching its
- * args in the command stream. The method data is changed to reference
- * a reserved (never given out or incr) HOST1X_SYNCPT_RESERVED syncpt
- * with a matching threshold value of 0, so is guaranteed to be popped
- * by the host HW.
- */
-static void host1x_syncpt_patch_offset(struct host1x_syncpt *sp,
-				       struct host1x_bo *h, u32 offset)
-{
-	void *patch_addr = NULL;
-
-	/* patch the wait */
-	patch_addr = host1x_bo_kmap(h, offset >> PAGE_SHIFT);
-	if (patch_addr) {
-		host1x_syncpt_patch_wait(sp,
-					 patch_addr + (offset & ~PAGE_MASK));
-		host1x_bo_kunmap(h, offset >> PAGE_SHIFT, patch_addr);
-	} else
-		pr_err("Could not map cmdbuf for wait check\n");
-}
-
-/*
- * Check driver supplied waitchk structs for syncpt thresholds
- * that have already been satisfied and NULL the comparison (to
- * avoid a wrap condition in the HW).
- */
-static int do_waitchks(struct host1x_job *job, struct host1x *host,
-		       struct host1x_job_gather *g)
-{
-	struct host1x_bo *patch = g->bo;
-	int i;
-
-	/* compare syncpt vs wait threshold */
-	for (i = 0; i < job->num_waitchk; i++) {
-		struct host1x_waitchk *wait = &job->waitchk[i];
-		struct host1x_syncpt *sp =
-			host1x_syncpt_get(host, wait->syncpt_id);
-
-		/* validate syncpt id */
-		if (wait->syncpt_id > host1x_syncpt_nb_pts(host))
-			continue;
-
-		/* skip all other gathers */
-		if (patch != wait->bo)
-			continue;
-
-		trace_host1x_syncpt_wait_check(wait->bo, wait->offset,
-					       wait->syncpt_id, wait->thresh,
-					       host1x_syncpt_read_min(sp));
-
-		if (host1x_syncpt_is_expired(sp, wait->thresh)) {
-			dev_dbg(host->dev,
-				"drop WAIT id %u (%s) thresh 0x%x, min 0x%x\n",
-				wait->syncpt_id, sp->name, wait->thresh,
-				host1x_syncpt_read_min(sp));
-
-			host1x_syncpt_patch_offset(sp, patch,
-						   g->offset + wait->offset);
-		}
-
-		wait->bo = NULL;
-	}
-
-	return 0;
-}
 
 static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 {
@@ -331,26 +282,12 @@ static bool check_reloc(struct host1x_reloc *reloc, struct host1x_bo *cmdbuf,
 	return true;
 }
 
-static bool check_wait(struct host1x_waitchk *wait, struct host1x_bo *cmdbuf,
-		       unsigned int offset)
-{
-	offset *= sizeof(u32);
-
-	if (wait->bo != cmdbuf || wait->offset != offset)
-		return false;
-
-	return true;
-}
-
 struct host1x_firewall {
 	struct host1x_job *job;
 	struct device *dev;
 
 	unsigned int num_relocs;
 	struct host1x_reloc *reloc;
-
-	unsigned int num_waitchks;
-	struct host1x_waitchk *waitchk;
 
 	struct host1x_bo *cmdbuf;
 	unsigned int offset;
@@ -376,20 +313,6 @@ static int check_register(struct host1x_firewall *fw, unsigned long offset)
 
 		fw->num_relocs--;
 		fw->reloc++;
-	}
-
-	if (offset == HOST1X_WAIT_SYNCPT_OFFSET) {
-		if (fw->class != HOST1X_CLASS_HOST1X)
-			return -EINVAL;
-
-		if (!fw->num_waitchks)
-			return -EINVAL;
-
-		if (!check_wait(fw->waitchk, fw->cmdbuf, fw->offset))
-			return -EINVAL;
-
-		fw->num_waitchks--;
-		fw->waitchk++;
 	}
 
 	return 0;
@@ -556,8 +479,6 @@ static inline int copy_gathers(struct host1x_job *job, struct device *dev)
 	fw.dev = dev;
 	fw.reloc = job->relocarray;
 	fw.num_relocs = job->num_relocs;
-	fw.waitchk = job->waitchk;
-	fw.num_waitchks = job->num_waitchk;
 	fw.class = job->class;
 
 	for (i = 0; i < job->num_gathers; i++) {
@@ -605,7 +526,7 @@ static inline int copy_gathers(struct host1x_job *job, struct device *dev)
 	}
 
 	/* No relocs and waitchks should remain at this point */
-	if (fw.num_relocs || fw.num_waitchks)
+	if (fw.num_relocs)
 		return -EINVAL;
 
 	return 0;
@@ -613,22 +534,9 @@ static inline int copy_gathers(struct host1x_job *job, struct device *dev)
 
 int host1x_job_pin(struct host1x_job *job, struct device *dev)
 {
-	int err;
-	unsigned int i, j;
 	struct host1x *host = dev_get_drvdata(dev->parent);
-	DECLARE_BITMAP(waitchk_mask, host1x_syncpt_nb_pts(host));
-
-	bitmap_zero(waitchk_mask, host1x_syncpt_nb_pts(host));
-	for (i = 0; i < job->num_waitchk; i++) {
-		u32 syncpt_id = job->waitchk[i].syncpt_id;
-
-		if (syncpt_id < host1x_syncpt_nb_pts(host))
-			set_bit(syncpt_id, waitchk_mask);
-	}
-
-	/* get current syncpt values for waitchk */
-	for_each_set_bit(i, waitchk_mask, host1x_syncpt_nb_pts(host))
-		host1x_syncpt_load(host->syncpt + i);
+	unsigned int i, j;
+	int err;
 
 	/* pin memory */
 	err = pin_job(host, job);
@@ -661,10 +569,6 @@ int host1x_job_pin(struct host1x_job *job, struct device *dev)
 		}
 
 		err = do_relocs(job, g);
-		if (err)
-			break;
-
-		err = do_waitchks(job, host, g);
 		if (err)
 			break;
 	}
@@ -710,8 +614,7 @@ EXPORT_SYMBOL(host1x_job_unpin);
  */
 void host1x_job_dump(struct device *dev, struct host1x_job *job)
 {
-	dev_dbg(dev, "    SYNCPT_ID   %d\n", job->syncpt_id);
-	dev_dbg(dev, "    SYNCPT_VAL  %d\n", job->syncpt_end);
+	/* XXX add checkpoints? */
 	dev_dbg(dev, "    FIRST_GET   0x%x\n", job->first_get);
 	dev_dbg(dev, "    TIMEOUT     %d\n", job->timeout);
 	dev_dbg(dev, "    NUM_SLOTS   %d\n", job->num_slots);

@@ -193,11 +193,9 @@ struct host1x_reloc {
 	unsigned long shift;
 };
 
-struct host1x_waitchk {
-	struct host1x_bo *bo;
-	u32 offset;
-	u32 syncpt_id;
-	u32 thresh;
+struct host1x_checkpoint {
+	struct host1x_syncpt *syncpt;
+	u32 value;
 };
 
 struct host1x_job {
@@ -216,10 +214,8 @@ struct host1x_job {
 	struct host1x_job_gather *gathers;
 	unsigned int num_gathers;
 
-	/* Wait checks to be processed at submit time */
-	struct host1x_waitchk *waitchk;
-	unsigned int num_waitchk;
-	u32 waitchk_mask;
+	struct host1x_checkpoint *checkpoints;
+	unsigned int num_checkpoints;
 
 	/* Array of handles to be pinned & unpinned */
 	struct host1x_reloc *relocarray;
@@ -230,11 +226,6 @@ struct host1x_job {
 	dma_addr_t *addr_phys;
 	dma_addr_t *gather_addr_phys;
 	dma_addr_t *reloc_addr_phys;
-
-	/* Sync point id, number of increments and end related to the submit */
-	u32 syncpt_id;
-	u32 syncpt_incrs;
-	u32 syncpt_end;
 
 	/* Maximum time to wait for this job */
 	unsigned int timeout;
@@ -259,17 +250,15 @@ struct host1x_job {
 
 	/* Add a channel wait for previous ops to complete */
 	bool serialize;
-
-	/* Wait for fences to complete before submitting */
-	struct dma_fence **fences;
-	unsigned int num_fences;
 };
 
-struct host1x_job *host1x_job_alloc(struct host1x_channel *ch,
-				    u32 num_cmdbufs, u32 num_relocs,
-				    u32 num_waitchks);
-void host1x_job_add_gather(struct host1x_job *job, struct host1x_bo *mem_id,
-			   u32 words, u32 offset);
+struct host1x_job *host1x_job_alloc(struct host1x_channel *channel,
+				    unsigned int num_cmdbufs,
+				    unsigned int num_relocs,
+				    unsigned int num_syncpts);
+void host1x_job_add_gather(struct host1x_job *job, struct host1x_bo *bo,
+			   unsigned int words, unsigned int offset,
+			   struct dma_fence **fences, unsigned int num_fences);
 struct host1x_job *host1x_job_get(struct host1x_job *job);
 void host1x_job_put(struct host1x_job *job);
 int host1x_job_pin(struct host1x_job *job, struct device *dev);
