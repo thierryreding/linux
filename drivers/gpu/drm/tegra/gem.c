@@ -291,12 +291,6 @@ struct tegra_bo *tegra_bo_create(struct drm_device *drm, size_t size,
 	if (err < 0)
 		goto release;
 
-	if (flags & DRM_TEGRA_GEM_CREATE_TILED)
-		bo->tiling.mode = TEGRA_BO_TILING_MODE_TILED;
-
-	if (flags & DRM_TEGRA_GEM_CREATE_BOTTOM_UP)
-		bo->flags |= TEGRA_BO_BOTTOM_UP;
-
 	reservation_object_init(&bo->_resv);
 	bo->resv = &bo->_resv;
 

@@ -140,7 +140,7 @@ int host1x_fence_wait(struct dma_fence *fence, struct host1x *host,
 		      struct host1x_channel *ch)
 {
 	struct dma_fence_array *array;
-	int i = 0;
+	unsigned int i = 0;
 
 	if (!host1x_fence_is_waitable(fence))
 		return -EINVAL;
