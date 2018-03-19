@@ -451,6 +451,7 @@ static int tegra_plane_atomic_check(struct drm_plane *plane,
 				    struct drm_plane_state *state)
 {
 	struct tegra_plane_state *plane_state = to_tegra_plane_state(state);
+	unsigned int rotation = DRM_MODE_ROTATE_0 | DRM_MODE_REFLECT_Y;
 	struct tegra_bo_tiling *tiling = &plane_state->tiling;
 	struct tegra_plane *tegra = to_tegra_plane(plane);
 	struct tegra_dc *dc = to_tegra_dc(state->crtc);
@@ -497,6 +498,13 @@ static int tegra_plane_atomic_check(struct drm_plane *plane,
 		DRM_ERROR("hardware doesn't support block linear mode\n");
 		return -EINVAL;
 	}
+
+	rotation = drm_rotation_simplify(state->rotation, rotation);
+
+	if (rotation & DRM_MODE_REFLECT_Y)
+		plane_state->bottom_up = true;
+	else
+		plane_state->bottom_up = false;
 
 	/*
 	 * Tegra doesn't support different strides for U and V planes so we
@@ -558,7 +566,7 @@ static void tegra_plane_atomic_update(struct drm_plane *plane,
 	window.dst.w = drm_rect_width(&plane->state->dst);
 	window.dst.h = drm_rect_height(&plane->state->dst);
 	window.bits_per_pixel = fb->format->cpp[0] * 8;
-	window.bottom_up = tegra_fb_is_bottom_up(fb);
+	window.bottom_up = state->bottom_up;
 
 	/* copy from state */
 	window.zpos = plane->state->normalized_zpos;
@@ -642,6 +650,14 @@ static struct drm_plane *tegra_primary_plane_create(struct drm_device *drm,
 
 	if (dc->soc->supports_blending)
 		drm_plane_create_zpos_property(&plane->base, 0, 0, 255);
+
+	err = drm_plane_create_rotation_property(&plane->base,
+						 DRM_MODE_ROTATE_0,
+						 DRM_MODE_ROTATE_0 |
+						 DRM_MODE_REFLECT_Y);
+	if (err < 0)
+		dev_err(dc->dev, "failed to create rotation property: %d\n",
+			err);
 
 	return &plane->base;
 }

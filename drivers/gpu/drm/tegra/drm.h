@@ -177,7 +177,6 @@ int drm_dp_aux_train(struct drm_dp_aux *aux, struct drm_dp_link *link,
 /* from fb.c */
 struct tegra_bo *tegra_fb_get_plane(struct drm_framebuffer *framebuffer,
 				    unsigned int index);
-bool tegra_fb_is_bottom_up(struct drm_framebuffer *framebuffer);
 int tegra_fb_get_tiling(struct drm_framebuffer *framebuffer,
 			struct tegra_bo_tiling *tiling);
 struct drm_framebuffer *tegra_fb_create(struct drm_device *drm,
