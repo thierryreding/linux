@@ -22,6 +22,7 @@
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
 
+struct host1x_syncpt;
 struct host1x;
 
 enum host1x_intr_action {

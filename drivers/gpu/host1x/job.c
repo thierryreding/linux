@@ -35,9 +35,11 @@
 #define HOST1X_WAIT_SYNCPT_OFFSET 0x8
 
 struct host1x_job *host1x_job_alloc(struct host1x_channel *channel,
+				    unsigned int num_buffers,
 				    unsigned int num_cmdbufs,
 				    unsigned int num_relocs,
-				    unsigned int num_syncpts)
+				    unsigned int num_syncpts,
+				    unsigned int num_fences)
 {
 	struct host1x_job *job = NULL;
 	unsigned int num_unpins = num_cmdbufs + num_relocs;
@@ -46,9 +48,11 @@ struct host1x_job *host1x_job_alloc(struct host1x_channel *channel,
 
 	/* Check that we're not going to overflow */
 	total = sizeof(struct host1x_job) +
+		(u64)num_buffers * sizeof(struct host1x_bo *) +
 		(u64)num_relocs * sizeof(struct host1x_reloc) +
 		(u64)num_unpins * sizeof(struct host1x_job_unpin_data) +
 		(u64)num_syncpts * sizeof(struct host1x_checkpoint) +
+		(u64)num_fences * sizeof(struct dma_fence *) +
 		(u64)num_cmdbufs * sizeof(struct host1x_job_gather) +
 		(u64)num_unpins * sizeof(dma_addr_t) +
 		(u64)num_unpins * sizeof(u32 *);
@@ -63,16 +67,24 @@ struct host1x_job *host1x_job_alloc(struct host1x_channel *channel,
 	job->channel = channel;
 	job->num_relocs = num_relocs;
 	job->num_checkpoints = num_syncpts;
+	job->num_fences = num_fences;
 
 	/* Redistribute memory to the structs  */
 	mem += sizeof(struct host1x_job);
-	job->relocarray = num_relocs ? mem : NULL;
+	job->relocs = num_relocs ? mem : NULL;
+
 	mem += num_relocs * sizeof(struct host1x_reloc);
 	job->unpins = num_unpins ? mem : NULL;
+
 	mem += num_unpins * sizeof(struct host1x_job_unpin_data);
 	job->checkpoints = num_syncpts ? mem : NULL;
+
 	mem += num_syncpts * sizeof(struct host1x_checkpoint);
+	job->fences = num_fences ? mem : NULL;
+
+	mem += num_fences * sizeof(struct dma_fence *);
 	job->gathers = num_cmdbufs ? mem : NULL;
+
 	mem += num_cmdbufs * sizeof(struct host1x_job_gather);
 	job->addr_phys = num_unpins ? mem : NULL;
 
@@ -137,7 +149,7 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 	job->num_unpins = 0;
 
 	for (i = 0; i < job->num_relocs; i++) {
-		struct host1x_reloc *reloc = &job->relocarray[i];
+		struct host1x_reloc *reloc = &job->relocs[i];
 		struct sg_table *sgt;
 		dma_addr_t phys_addr;
 
@@ -225,7 +237,7 @@ static int do_relocs(struct host1x_job *job, struct host1x_job_gather *g)
 
 	/* pin & patch the relocs for one gather */
 	for (i = 0; i < job->num_relocs; i++) {
-		struct host1x_reloc *reloc = &job->relocarray[i];
+		struct host1x_reloc *reloc = &job->relocs[i];
 		u32 reloc_addr = (job->reloc_addr_phys[i] +
 				  reloc->target.offset) >> reloc->shift;
 		u32 *target;
@@ -477,7 +489,7 @@ static inline int copy_gathers(struct host1x_job *job, struct device *dev)
 
 	fw.job = job;
 	fw.dev = dev;
-	fw.reloc = job->relocarray;
+	fw.reloc = job->relocs;
 	fw.num_relocs = job->num_relocs;
 	fw.class = job->class;
 
