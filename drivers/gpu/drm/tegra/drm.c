@@ -277,7 +277,8 @@ host1x_bo_lookup(struct drm_file *file, u32 handle)
 	return &bo->base;
 }
 
-static int host1x_reloc_copy_from_user(struct host1x_reloc *dest,
+static int host1x_reloc_copy_from_user(struct host1x_job *job,
+				       struct host1x_reloc *dest,
 				       struct drm_tegra_reloc __user *src,
 				       struct drm_device *drm,
 				       struct drm_file *file)
@@ -289,11 +290,17 @@ static int host1x_reloc_copy_from_user(struct host1x_reloc *dest,
 	if (err < 0)
 		return err;
 
-	err = get_user(dest->cmdbuf.offset, &src->cmdbuf.offset);
+	err = get_user(target, &src->target.index);
 	if (err < 0)
 		return err;
 
-	err = get_user(target, &src->target.index);
+	if (cmdbuf >= job->num_buffers || target >= job->num_buffers)
+		return -ENOENT;
+
+	dest->cmdbuf.bo = job->buffers[cmdbuf];
+	dest->target.bo = job->buffers[target];
+
+	err = get_user(dest->cmdbuf.offset, &src->cmdbuf.offset);
 	if (err < 0)
 		return err;
 
@@ -305,63 +312,38 @@ static int host1x_reloc_copy_from_user(struct host1x_reloc *dest,
 	if (err < 0)
 		return err;
 
-	dest->cmdbuf.bo = host1x_bo_lookup(file, cmdbuf);
-	if (!dest->cmdbuf.bo)
-		return -ENOENT;
-
-	dest->target.bo = host1x_bo_lookup(file, target);
-	if (!dest->target.bo)
-		return -ENOENT;
-
 	return 0;
 }
 
-static struct host1x_bo **
-tegra_drm_get_buffers(struct drm_file *file,
-		      struct drm_tegra_buffer __user *buffers,
-		      unsigned int count)
+static int host1x_job_get_buffers(struct host1x_job *job,
+				  struct drm_file *file,
+				  struct drm_tegra_buffer __user *buffers,
+				  unsigned int count)
 {
 	struct drm_tegra_buffer buffer;
-	struct host1x_bo **objects;
 	unsigned int i;
 	int err;
-
-	objects = kmalloc_array(count, sizeof(*objects), GFP_KERNEL);
-	if (!objects)
-		return ERR_PTR(-ENOMEM);
 
 	for (i = 0; i < count; i++) {
 		if (copy_from_user(&buffer, &buffers[i], sizeof(buffer))) {
 			err = -EFAULT;
-			goto free;
+			goto put;
 		}
 
-		objects[i] = host1x_bo_lookup(file, buffer.handle);
-		if (!objects[i]) {
+		job->buffers[i] = host1x_bo_lookup(file, buffer.handle);
+		if (!job->buffers[i]) {
 			err = -ENOENT;
-			goto free;
+			goto put;
 		}
 	}
 
-	return objects;
+	return 0;
 
-free:
+put:
 	while (i--)
-		host1x_bo_put(objects[i]);
+		host1x_bo_put(job->buffers[i]);
 
-	kfree(objects);
-	return ERR_PTR(err);
-}
-
-static void tegra_drm_put_buffers(struct host1x_bo **buffers,
-				  unsigned int count)
-{
-	unsigned int i;
-
-	for (i = 0; i < count; i++)
-		host1x_bo_put(buffers[i]);
-
-	kfree(buffers);
+	return err;
 }
 
 static struct dma_fence *tegra_drm_get_fence(struct drm_file *file,
@@ -384,23 +366,23 @@ static struct dma_fence *tegra_drm_get_fence(struct drm_file *file,
 }
 
 static struct dma_fence **
-tegra_drm_get_fences(struct drm_file *file, struct drm_tegra_cmdbuf *cmdbuf,
-		     unsigned int *num_fences)
+host1x_job_get_fences(struct host1x_job *job, struct drm_file *file,
+		      struct drm_tegra_cmdbuf *cmdbuf,
+		      struct dma_fence **in_fences, unsigned int *num_fences)
 {
 	struct drm_tegra_fence __user *user_fences;
 	unsigned int i, j = 0, num_in_fences = 0;
 	struct drm_tegra_fence *fences;
-	struct dma_fence **in_fences;
 	struct dma_fence *fence;
 	size_t size;
-	int err;
+	int err = 0;
 
 	user_fences = u64_to_user_ptr(cmdbuf->fences);
 	size = sizeof(*fences) * cmdbuf->num_fences;
 
 	fences = memdup_user(user_fences, size);
-	if (IS_ERR(fences))
-		return ERR_CAST(fences);
+	if (!fences)
+		return ERR_PTR(-EFAULT);
 
 	for (i = 0; i < cmdbuf->num_fences; i++) {
 		if (fences[i].flags & DRM_TEGRA_FENCE_WAIT)
@@ -408,13 +390,9 @@ tegra_drm_get_fences(struct drm_file *file, struct drm_tegra_cmdbuf *cmdbuf,
 	}
 
 	if (num_in_fences == 0) {
-		*num_fences = 0;
-		goto free;
-	}
+		if (num_fences)
+			*num_fences = 0;
 
-	in_fences = kcalloc(num_in_fences, sizeof(*in_fences), GFP_KERNEL);
-	if (!in_fences) {
-		err = -ENOMEM;
 		goto free;
 	}
 
@@ -430,15 +408,16 @@ tegra_drm_get_fences(struct drm_file *file, struct drm_tegra_cmdbuf *cmdbuf,
 		}
 	}
 
+	kfree(fences);
+
+	if (num_fences)
+		*num_fences = j;
+
 	return in_fences;
 
 free:
-	if (num_in_fences > 0) {
-		while (j--)
-			dma_fence_put(in_fences[j]);
-
-		kfree(in_fences);
-	}
+	while (j--)
+		dma_fence_put(in_fences[j]);
 
 	kfree(fences);
 	return ERR_PTR(err);
@@ -527,148 +506,135 @@ static int tegra_drm_put_fences(struct drm_file *file,
 	return 0;
 }
 
-static int tegra_drm_submit_cmdbuf(struct drm_file *file,
-				   struct host1x *host1x,
-				   struct host1x_job *job,
-				   struct drm_tegra_cmdbuf *cmdbuf,
-				   struct host1x_bo **refs,
-				   unsigned int *num_refs)
-{
-	struct drm_gem_object *obj;
-	struct dma_fence **fences;
-	unsigned int num_fences;
-	struct host1x_bo *bo;
-	u64 limit;
-	int err;
-
-	/*
-	 * The maximum number of CDMA gather fetches is 16383, a higher
-	 * value means the words count is malformed.
-	 */
-	if (cmdbuf->words > CDMA_GATHER_FETCHES_MAX_NB)
-		return -EINVAL;
-
-	bo = host1x_bo_lookup(file, cmdbuf->handle);
-	if (!bo)
-		return -ENOENT;
-
-	obj = &host1x_to_tegra_bo(bo)->gem;
-
-	limit = (u64)cmdbuf->offset + (u64)cmdbuf->words * sizeof(u32);
-
-	/*
-	 * Gather buffer base address must be 4-bytes aligned,
-	 * unaligned offset is malformed and cause commands stream
-	 * corruption on the buffer address relocation.
-	 */
-	if (limit & 3 || limit >= obj->size) {
-		err = -EINVAL;
-		goto put;
-	}
-
-	fences = tegra_drm_get_fences(file, cmdbuf, &num_fences);
-	if (IS_ERR(fences)) {
-		err = PTR_ERR(fences);
-		goto put;
-	}
-
-	host1x_job_add_gather(job, bo, cmdbuf->words, cmdbuf->offset, fences,
-			      num_fences);
-
-	refs[(*num_refs)++] = bo;
-
-	return 0;
-
-put:
-	host1x_bo_put(bo);
-	return err;
-}
-
 int tegra_drm_submit(struct tegra_drm_context *context,
 		     struct drm_tegra_submit *args, struct drm_device *drm,
 		     struct drm_file *file)
 {
-	struct host1x *host1x = dev_get_drvdata(drm->dev->parent);
 	struct host1x_client *client = &context->client->base;
-	unsigned int num_cmdbufs = args->num_cmdbufs;
 	unsigned int num_buffers = args->num_buffers;
-	unsigned int num_relocs = args->num_relocs;
-	struct drm_tegra_cmdbuf __user *user_cmdbufs;
 	struct drm_tegra_buffer __user *user_buffers;
+	unsigned int num_cmdbufs = args->num_cmdbufs;
+	struct drm_tegra_cmdbuf __user *user_cmdbufs;
 	struct drm_tegra_reloc __user *user_relocs;
-	struct host1x_bo **buffers, **refs;
-	struct host1x_syncpt *sp;
+	unsigned int num_relocs = args->num_relocs;
+	unsigned int num_fences = 0;
+	struct dma_fence **fences;
 	struct host1x_job *job;
-	unsigned int num_refs, i;
-	size_t size;
+	unsigned int i, j;
 	int err;
 
-	user_cmdbufs = u64_to_user_ptr(args->cmdbufs);
 	user_buffers = u64_to_user_ptr(args->buffers);
+	user_cmdbufs = u64_to_user_ptr(args->cmdbufs);
 	user_relocs = u64_to_user_ptr(args->relocs);
 
 	/* Check for unrecognized flags */
 	if (args->flags & ~DRM_TEGRA_SUBMIT_FLAGS)
 		return -EINVAL;
 
-	buffers = tegra_drm_get_buffers(file, user_buffers, args->num_buffers);
-	if (IS_ERR(buffers))
+	/* count the number of pre-fences */
+	for (i = 0; i < num_cmdbufs; i++) {
+		struct drm_tegra_fence __user *fences;
+		struct drm_tegra_cmdbuf cmdbuf;
+
+		if (copy_from_user(&cmdbuf, &user_cmdbufs[i], sizeof(cmdbuf)))
+			return -EFAULT;
+
+		fences = u64_to_user_ptr(cmdbuf.fences);
+
+		for (j = 0; j < cmdbuf.num_fences; j++) {
+			u32 flags;
+
+			err = get_user(flags, &fences[j].flags);
+			if (err < 0)
+				return -EFAULT;
+
+			if (flags & DRM_TEGRA_FENCE_WAIT)
+				num_fences++;
+		}
+	}
+
+	job = host1x_job_alloc(context->channel, args->num_buffers,
+			       args->num_cmdbufs, args->num_relocs,
+			       client->num_syncpts, num_fences);
+	if (!job)
 		return -ENOMEM;
 
-	job = host1x_job_alloc(context->channel, args->num_cmdbufs,
-			       args->num_relocs, client->num_syncpts);
-	if (!job) {
-		err = -ENOMEM;
-		goto free;
-	}
+	err = host1x_job_get_buffers(job, file, user_buffers, num_buffers);
+	if (err < 0)
+		goto put;
+
+	fences = job->fences;
 
 	/* XXX what is this used for? */
 	job->client = (u32)args->context;
 	job->class = context->client->base.class;
 	job->serialize = true;
 
-	/*
-	 * Track referenced BOs so that they can be unreferenced after the
-	 * submission is complete.
-	 */
-	num_refs = num_cmdbufs + num_relocs * 2;
-
-	refs = kmalloc_array(num_refs, sizeof(*refs), GFP_KERNEL);
-	if (!refs) {
-		err = -ENOMEM;
-		goto put;
-	}
-
-	/* reuse as an iterator later */
-	num_refs = 0;
-
 	for (i = 0; i < num_cmdbufs; i++) {
+		struct drm_tegra_cmdbuf __user *user = &user_cmdbufs[i];
 		struct drm_tegra_cmdbuf cmdbuf;
+		struct drm_gem_object *obj;
+		struct host1x_bo *bo;
+		u64 limit;
 
-		if (copy_from_user(&cmdbuf, &user_cmdbufs[i], sizeof(cmdbuf))) {
+		if (copy_from_user(&cmdbuf, user, sizeof(cmdbuf))) {
 			err = -EFAULT;
-			goto put_bos;
+			goto put;
 		}
 
-		err = tegra_drm_submit_cmdbuf(file, host1x, job, &cmdbuf, refs,
-					      &num_refs);
-		if (err < 0)
-			goto put_bos;
+		if (cmdbuf.index > job->num_buffers) {
+			err = -EINVAL;
+			goto put;
+		}
+
+		bo = job->buffers[cmdbuf.index];
+
+		/*
+		 * The maximum number of CDMA gather fetches is 16383, a
+		 * higher value means the words count is malformed.
+		 */
+		if (cmdbuf.words > CDMA_GATHER_FETCHES_MAX_NB) {
+			err = -EINVAL;
+			goto put;
+		}
+
+		limit = (u64)cmdbuf.offset + (u64)cmdbuf.words * sizeof(u32);
+		obj = &host1x_to_tegra_bo(bo)->gem;
+
+		/*
+		 * Gather buffer base address must be 4-bytes aligned,
+		 * unaligned offset is malformed and cause commands stream
+		 * corruption on the buffer address relocation.
+		 */
+		if (limit & 3 || limit >= obj->size) {
+			err = -EINVAL;
+			goto put;
+		}
+
+		fences = host1x_job_get_fences(job, file, &cmdbuf, fences,
+					       &num_fences);
+		if (IS_ERR(fences)) {
+			err = PTR_ERR(fences);
+			goto put;
+		}
+
+		host1x_job_add_gather(job, bo, cmdbuf.words, cmdbuf.offset,
+				      fences, num_fences);
+
+		fences += num_fences;
 	}
 
 	/* copy and resolve relocations from submit */
-	while (num_relocs--) {
-		struct host1x_reloc *reloc = &job->relocarray[num_relocs];
+	for (i = 0; i < num_relocs; i++) {
+		struct drm_tegra_reloc __user *user = &user_relocs[i];
+		struct host1x_reloc *reloc = &job->relocs[i];
 		struct tegra_bo *obj;
 
-		err = host1x_reloc_copy_from_user(&job->relocarray[num_relocs],
-						  &user_relocs[num_relocs], drm,
-						  file);
+		err = host1x_reloc_copy_from_user(job, reloc, user, drm, file);
 		if (err < 0)
-			goto put_bos;
+			goto put;
 
 		obj = host1x_to_tegra_bo(reloc->cmdbuf.bo);
-		refs[num_refs++] = reloc->cmdbuf.bo;
 
 		/*
 		 * The unaligned cmdbuf offset will cause an unaligned write
@@ -678,15 +644,14 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		if (reloc->cmdbuf.offset & 3 ||
 		    reloc->cmdbuf.offset >= obj->gem.size) {
 			err = -EINVAL;
-			goto put_bos;
+			goto put;
 		}
 
 		obj = host1x_to_tegra_bo(reloc->target.bo);
-		refs[num_refs++] = reloc->target.bo;
 
 		if (reloc->target.offset >= obj->gem.size) {
 			err = -EINVAL;
-			goto put_bos;
+			goto put;
 		}
 	}
 
@@ -699,40 +664,32 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 
 	err = host1x_job_pin(job, context->client->base.dev);
 	if (err)
-		goto put_bos;
+		goto put;
 
 	err = host1x_job_submit(job);
 	if (err) {
 		host1x_job_unpin(job);
-		goto put_bos;
+		goto put;
 	}
 
 	/* create fences and copy them back to userspace */
 	for (i = 0; i < num_cmdbufs; i++) {
+		struct drm_tegra_cmdbuf __user *user = &user_cmdbufs[i];
 		struct host1x_client *client = &context->client->base;
 		struct drm_tegra_cmdbuf cmdbuf;
 
-		if (copy_from_user(&cmdbuf, &user_cmdbufs[i], sizeof(cmdbuf))) {
+		if (copy_from_user(&cmdbuf, user, sizeof(cmdbuf))) {
 			err = -EFAULT;
-			goto put_bos;
+			goto put;
 		}
 
 		err = tegra_drm_put_fences(file, client, job, &cmdbuf);
 		if (err < 0)
-			goto put_bos;
+			goto put;
 	}
-
-put_bos:
-	while (num_refs--)
-		host1x_bo_put(refs[num_refs]);
-
-	kfree(refs);
 
 put:
 	host1x_job_put(job);
-
-free:
-	kfree(buffers);
 	return err;
 }
 
@@ -816,6 +773,7 @@ static int tegra_open_channel(struct drm_device *drm, void *data,
 			if (err < 0)
 				break;
 
+			args->syncpts = client->base.num_syncpts;
 			args->context = context->id;
 			break;
 		}

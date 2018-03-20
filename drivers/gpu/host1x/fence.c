@@ -188,7 +188,7 @@ struct dma_fence *host1x_fence_create(struct host1x *host,
 	dma_fence_init(&f->base, &host1x_fence_ops, &f->lock,
 		       host->fence_ctx_base + syncpt->id, threshold);
 
-	err = host1x_intr_add_action(f->host, f->syncpt->id, f->threshold,
+	err = host1x_intr_add_action(f->host, f->syncpt, f->threshold,
 				     HOST1X_INTR_ACTION_SIGNAL_FENCE, f,
 				     waiter, &f->waiter);
 	if (err) {

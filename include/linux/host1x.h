@@ -210,6 +210,9 @@ struct host1x_job {
 
 	u32 client;
 
+	struct host1x_bo **buffers;
+	unsigned int num_buffers;
+
 	/* Gathers and their memory */
 	struct host1x_job_gather *gathers;
 	unsigned int num_gathers;
@@ -217,8 +220,11 @@ struct host1x_job {
 	struct host1x_checkpoint *checkpoints;
 	unsigned int num_checkpoints;
 
+	struct dma_fence **fences;
+	unsigned int num_fences;
+
 	/* Array of handles to be pinned & unpinned */
-	struct host1x_reloc *relocarray;
+	struct host1x_reloc *relocs;
 	unsigned int num_relocs;
 	struct host1x_job_unpin_data *unpins;
 	unsigned int num_unpins;
@@ -253,9 +259,11 @@ struct host1x_job {
 };
 
 struct host1x_job *host1x_job_alloc(struct host1x_channel *channel,
+				    unsigned int num_buffers,
 				    unsigned int num_cmdbufs,
 				    unsigned int num_relocs,
-				    unsigned int num_syncpts);
+				    unsigned int num_syncpts,
+				    unsigned int num_fences);
 void host1x_job_add_gather(struct host1x_job *job, struct host1x_bo *bo,
 			   unsigned int words, unsigned int offset,
 			   struct dma_fence **fences, unsigned int num_fences);

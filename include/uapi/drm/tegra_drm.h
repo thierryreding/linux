@@ -44,10 +44,15 @@ struct drm_tegra_gem_mmap {
 	__u64 offset;
 };
 
+#define DRM_TEGRA_CHANNEL_FLAGS (0)
+
 struct drm_tegra_open_channel {
 	__u32 client;
-	__u32 pad;
+	__u32 syncpts;
 	__u64 context;
+	__u32 flags;
+	__u32 pad;
+	__u64 reserved;
 };
 
 struct drm_tegra_close_channel {
@@ -61,30 +66,35 @@ struct drm_tegra_close_channel {
 				 DRM_TEGRA_FENCE_EMIT | \
 				 DRM_TEGRA_FENCE_FD)
 
+#define DRM_TEGRA_BUFFER_FLAGS	(0)
+
+struct drm_tegra_buffer {
+	__u32 handle;
+	__u32 flags;
+};
+
 struct drm_tegra_fence {
 	__u32 handle;
 	__u32 flags;
+	struct {
+		__u32 index;
+		__u32 offset;
+	} cmdbuf;
 	__u32 index;
 	__u32 value;
+	__u64 pad;
 };
 
 #define DRM_TEGRA_CMDBUF_FLAGS	(0)
 
 struct drm_tegra_cmdbuf {
-	__u32 handle;
+	__u32 index;
 	__u32 offset;
 	__u32 words;
 	__u32 flags;
 	__u32 pad;
 	__u32 num_fences;
 	__u64 fences;
-};
-
-#define DRM_TEGRA_BUFFER_FLAGS	(0)
-
-struct drm_tegra_buffer {
-	__u32 handle;
-	__u32 flags;
 };
 
 #define DRM_TEGRA_RELOC_FLAGS	(0)
@@ -107,12 +117,12 @@ struct drm_tegra_reloc {
 
 struct drm_tegra_submit {
 	__u64 context;
-	__u32 num_cmdbufs;
 	__u32 num_buffers;
+	__u32 num_cmdbufs;
 	__u32 num_relocs;
 	__u32 timeout;
-	__u64 cmdbufs;
 	__u64 buffers;
+	__u64 cmdbufs;
 	__u64 relocs;
 	__u32 flags;
 	__u32 pad;
