@@ -26,7 +26,7 @@ struct host1x_job_gather {
 	unsigned int offset;
 
 	/* Wait for fences to complete before submitting */
-	struct dma_fence **fences;
+	struct host1x_job_fence *fences;
 	unsigned int num_fences;
 
 	bool handled;

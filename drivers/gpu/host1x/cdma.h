@@ -61,7 +61,7 @@ struct buffer_timeout {
 	unsigned int num_checkpoints;
 	ktime_t start_ktime;		/* starting time */
 	/* context timeout information */
-	int client;
+	struct host1x_client *client;
 };
 
 enum cdma_event {

@@ -225,12 +225,17 @@ static int host1x_probe(struct platform_device *pdev)
 
 		host->domain = iommu_domain_alloc(&platform_bus_type);
 		if (!host->domain) {
+			dev_info(&pdev->dev, "failed to allocate IOMMU domain\n");
 			err = -ENOMEM;
 			goto put_group;
 		}
 
+		dev_info(&pdev->dev, "allocated IOMMU domain %px\n", host->domain);
+
 		err = iommu_attach_group(host->domain, host->group);
 		if (err) {
+			dev_info(&pdev->dev, "failed to attach to IOMMU domain: %d\n", err);
+
 			if (err == -ENODEV) {
 				iommu_domain_free(host->domain);
 				host->domain = NULL;
@@ -242,12 +247,15 @@ static int host1x_probe(struct platform_device *pdev)
 			goto fail_free_domain;
 		}
 
+		dev_info(&pdev->dev, "using IOMMU domain %px\n", host->domain);
 		geometry = &host->domain->geometry;
 
 		order = __ffs(host->domain->pgsize_bitmap);
 		init_iova_domain(&host->iova, 1UL << order,
 				 geometry->aperture_start >> order);
 		host->iova_end = geometry->aperture_end;
+	} else {
+		dev_info(&pdev->dev, "not in an IOMMU group\n");
 	}
 
 skip_iommu:
