@@ -181,6 +181,33 @@ int host1x_job_submit(struct host1x_job *job);
  * host1x job
  */
 
+/**
+ * struct host1x_checkpoint - keep track of syncpoint increments
+ * @syncpt: host1x syncpoint to keep track of
+ * @value: threshold for the syncpoint
+ */
+struct host1x_checkpoint {
+	struct host1x_syncpt *syncpt;
+	u32 value;
+};
+
+/**
+ * struct host1x_job_fence - host1x job submission fence tracking
+ * @syncpt: host1x syncpoint associated with this fence, may be NULL if the
+ *          fence is not a host1x syncpoint based fence
+ * @fence: DMA fence for this fence
+ * @offset: offset into command buffer of location to patch with a syncpoint
+ *          increment
+ * @value: number of times to increment the syncpoint
+ */
+struct host1x_job_fence {
+	struct host1x_syncpt *syncpt;
+	struct dma_fence *fence;
+	struct host1x_bo *bo;
+	unsigned int offset;
+	unsigned int value;
+};
+
 struct host1x_reloc {
 	struct {
 		struct host1x_bo *bo;
@@ -193,11 +220,6 @@ struct host1x_reloc {
 	unsigned long shift;
 };
 
-struct host1x_checkpoint {
-	struct host1x_syncpt *syncpt;
-	u32 value;
-};
-
 struct host1x_job {
 	/* When refcount goes to zero, job can be freed */
 	struct kref ref;
@@ -208,7 +230,8 @@ struct host1x_job {
 	/* Channel where job is submitted to */
 	struct host1x_channel *channel;
 
-	u32 client;
+	/* client where the job originated */
+	struct host1x_client *client;
 
 	struct host1x_bo **buffers;
 	unsigned int num_buffers;
@@ -220,7 +243,7 @@ struct host1x_job {
 	struct host1x_checkpoint *checkpoints;
 	unsigned int num_checkpoints;
 
-	struct dma_fence **fences;
+	struct host1x_job_fence *fences;
 	unsigned int num_fences;
 
 	/* Array of handles to be pinned & unpinned */
@@ -263,10 +286,12 @@ struct host1x_job *host1x_job_alloc(struct host1x_channel *channel,
 				    unsigned int num_cmdbufs,
 				    unsigned int num_relocs,
 				    unsigned int num_syncpts,
-				    unsigned int num_fences);
+				    unsigned int num_fences,
+				    size_t extra, void **priv);
 void host1x_job_add_gather(struct host1x_job *job, struct host1x_bo *bo,
 			   unsigned int words, unsigned int offset,
-			   struct dma_fence **fences, unsigned int num_fences);
+			   struct host1x_job_fence *fences,
+			   unsigned int num_fences);
 struct host1x_job *host1x_job_get(struct host1x_job *job);
 void host1x_job_put(struct host1x_job *job);
 int host1x_job_pin(struct host1x_job *job, struct device *dev);
@@ -347,8 +372,7 @@ int tegra_mipi_calibrate(struct tegra_mipi_device *device);
 
 struct host1x_fence;
 
-struct dma_fence *host1x_fence_create(struct host1x *host,
-				      struct host1x_syncpt *syncpt,
+struct dma_fence *host1x_fence_create(struct host1x_syncpt *syncpt,
 				      u32 threshold);
 
 #endif

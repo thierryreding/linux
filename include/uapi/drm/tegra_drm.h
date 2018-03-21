@@ -59,13 +59,6 @@ struct drm_tegra_close_channel {
 	__u64 context;
 };
 
-#define DRM_TEGRA_FENCE_WAIT	(1 << 0)
-#define DRM_TEGRA_FENCE_EMIT	(1 << 1)
-#define DRM_TEGRA_FENCE_FD	(1 << 2)
-#define DRM_TEGRA_FENCE_FLAGS	(DRM_TEGRA_FENCE_WAIT | \
-				 DRM_TEGRA_FENCE_EMIT | \
-				 DRM_TEGRA_FENCE_FD)
-
 #define DRM_TEGRA_BUFFER_FLAGS	(0)
 
 struct drm_tegra_buffer {
@@ -73,16 +66,59 @@ struct drm_tegra_buffer {
 	__u32 flags;
 };
 
+#define DRM_TEGRA_FENCE_WAIT	(1 << 0)
+#define DRM_TEGRA_FENCE_EMIT	(1 << 1)
+#define DRM_TEGRA_FENCE_FD	(1 << 2)
+#define DRM_TEGRA_FENCE_FLAGS	(DRM_TEGRA_FENCE_WAIT | \
+				 DRM_TEGRA_FENCE_EMIT | \
+				 DRM_TEGRA_FENCE_FD)
+
 struct drm_tegra_fence {
+	/**
+	 * @handle:
+	 *
+	 * Handle (syncobj) or file descriptor (sync FD) of the fence. It is
+	 * interpreted based on the DRM_TEGRA_FENCE_FD flag (see below).
+	 */
 	__u32 handle;
+
+	/**
+	 * @flags:
+	 *
+	 * DRM_TEGRA_FENCE_WAIT - Wait for this fence before the new command
+	 *	buffer is submitted.
+	 * DRM_TEGRA_FENCE_EMIT - Emit this fence when the command buffer is
+	 *	done being processed.
+	 * DRM_TEGRA_FENCE_FD - This fence is a sync FD. If not specified, a
+	 *	syncobj will be used.
+	 */
 	__u32 flags;
-	struct {
-		__u32 index;
-		__u32 offset;
-	} cmdbuf;
+
+	/**
+	 * @offset:
+	 *
+	 * Offset in the command stream for this fence. This is used to patch
+	 * the command stream with the resolved syncpoint ID.
+	 */
+	__u32 offset;
+
+	/**
+	 * @index:
+	 *
+	 * Syncpoint to use for this fence. This is an index into the list of
+	 * syncpoints of the channel. It will be resolved to a real syncpoint
+	 * ID upon job submission.
+	 */
 	__u32 index;
+
+	/**
+	 * @value:
+	 *
+	 * Number of times to increment the syncpoint.
+	 */
 	__u32 value;
-	__u64 pad;
+
+	__u32 pad[3];
 };
 
 #define DRM_TEGRA_CMDBUF_FLAGS	(0)

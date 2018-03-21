@@ -138,6 +138,7 @@ static void action_signal_fence(struct host1x_waitlist *waiter)
 {
 	struct dma_fence *fence = waiter->data;
 
+	pr_info("signalling fence %px\n", fence);
 	dma_fence_signal(fence);
 }
 
@@ -254,8 +255,10 @@ int host1x_intr_add_action(struct host1x *host, struct host1x_syncpt *syncpt,
 		host1x_hw_intr_set_syncpt_threshold(host, syncpt->id, threshold);
 
 		/* added as first waiter - enable interrupt */
-		if (queue_was_empty)
+		if (queue_was_empty) {
 			host1x_hw_intr_enable_syncpt_intr(host, syncpt->id);
+			pr_info("enabling interrupt for syncpoint %u\n", syncpt->id);
+		}
 	}
 
 	spin_unlock(&syncpt->intr.lock);

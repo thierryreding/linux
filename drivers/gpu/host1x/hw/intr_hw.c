@@ -47,6 +47,8 @@ static irqreturn_t syncpt_thresh_isr(int irq, void *dev_id)
 	unsigned long reg;
 	unsigned int i, id;
 
+	pr_info("> %s(irq=%d, dev_id=%px)\n", __func__, irq, dev_id);
+
 	for (i = 0; i < DIV_ROUND_UP(host->info->nb_pts, 32); i++) {
 		reg = host1x_sync_readl(host,
 			HOST1X_SYNC_SYNCPT_THRESH_CPU0_INT_STATUS(i));
@@ -57,6 +59,7 @@ static irqreturn_t syncpt_thresh_isr(int irq, void *dev_id)
 		}
 	}
 
+	pr_info("< %s()\n", __func__);
 	return IRQ_HANDLED;
 }
 

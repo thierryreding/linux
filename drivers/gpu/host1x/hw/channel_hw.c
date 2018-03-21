@@ -42,23 +42,17 @@ static int host1x_job_gather_wait_fences(struct host1x_job *job,
 		return 0;
 
 	for (i = 0; i < gather->num_fences; i++) {
-		if (host1x_fence_is_waitable(gather->fences[i])) {
-			err = host1x_fence_wait(gather->fences[i], host,
-						job->channel);
-		} else {
-			err = dma_fence_wait(gather->fences[i], true);
-		}
+		struct dma_fence *fence = gather->fences[i].fence;
 
-		dma_fence_put(gather->fences[i]);
+		if (host1x_fence_is_waitable(fence)) {
+			err = host1x_fence_wait(fence, host, job->channel);
+		} else {
+			err = dma_fence_wait(fence, true);
+		}
 
 		if (err < 0)
 			break;
 	}
-
-	for (i = i; i < gather->num_fences; i++)
-		dma_fence_put(gather->fences[i]);
-
-	kfree(gather->fences);
 
 	return err;
 }
