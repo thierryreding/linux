@@ -184,10 +184,12 @@ int host1x_job_submit(struct host1x_job *job);
 /**
  * struct host1x_checkpoint - keep track of syncpoint increments
  * @syncpt: host1x syncpoint to keep track of
- * @value: threshold for the syncpoint
+ * @threshold: threshold for the syncpoint
+ * @value: current syncpoint value
  */
 struct host1x_checkpoint {
 	struct host1x_syncpt *syncpt;
+	u32 threshold;
 	u32 value;
 };
 
@@ -235,6 +237,8 @@ struct host1x_job {
 
 	struct host1x_bo **buffers;
 	unsigned int num_buffers;
+
+	unsigned int num_cmdbufs;
 
 	/* Gathers and their memory */
 	struct host1x_job_gather *gathers;

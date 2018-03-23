@@ -266,9 +266,7 @@ host1x_bo_lookup(struct drm_file *file, u32 handle)
 
 static int host1x_reloc_copy_from_user(struct host1x_job *job,
 				       struct host1x_reloc *dest,
-				       struct drm_tegra_reloc __user *src,
-				       struct drm_device *drm,
-				       struct drm_file *file)
+				       struct drm_tegra_reloc __user *src)
 {
 	u32 cmdbuf, target;
 	int err;
@@ -282,7 +280,7 @@ static int host1x_reloc_copy_from_user(struct host1x_job *job,
 		return err;
 
 	if (cmdbuf >= job->num_buffers || target >= job->num_buffers)
-		return -ENOENT;
+		return -EINVAL;
 
 	dest->cmdbuf.bo = job->buffers[cmdbuf];
 	dest->target.bo = job->buffers[target];
@@ -311,35 +309,25 @@ static int host1x_job_get_buffers(struct host1x_job *job,
 	unsigned int i;
 	int err;
 
-	pr_info("> %s(job=%px, file=%px, buffers=%px, count=%u)\n", __func__,
-		job, file, buffers, count);
-
 	for (i = 0; i < count; i++) {
-		pr_info("  %u: %px\n", i, &buffers[i]);
-
 		if (copy_from_user(&buffer, &buffers[i], sizeof(buffer))) {
 			err = -EFAULT;
 			goto put;
 		}
 
-		pr_info("    handle: %u\n", buffer.handle);
-
 		job->buffers[i] = host1x_bo_lookup(file, buffer.handle);
-		pr_info("    bo: %px\n", job->buffers[i]);
 		if (!job->buffers[i]) {
 			err = -ENOENT;
 			goto put;
 		}
 	}
 
-	pr_info("< %s()\n", __func__);
 	return 0;
 
 put:
 	while (i--)
 		host1x_bo_put(job->buffers[i]);
 
-	pr_info("< %s() = %d\n", __func__, err);
 	return err;
 }
 
@@ -428,8 +416,6 @@ static int host1x_job_get_fences(struct host1x_job *job, struct drm_file *file,
 	size_t size;
 	int err;
 
-	pr_info("> %s(job=%px, file=%px, cmdbuf=%px, user_fences=%px, fences=%px, num_fences=%u, count=%px)\n", __func__, job, file, cmdbuf, user_fences, fences, num_fences, count);
-
 	if (cmdbuf->num_fences > num_fences)
 		return -ENOSPC;
 
@@ -442,15 +428,12 @@ static int host1x_job_get_fences(struct host1x_job *job, struct drm_file *file,
 	for (i = 0; i < cmdbuf->num_fences; i++) {
 		struct drm_tegra_fence *fence = &user_fences[i];
 
-		pr_info("  fence: %px\n", fence);
-
 		/*
 		 * A fence can only be pre- or post-fence, never both at the
 		 * same time.
 		 */
 		if ((fence->flags & DRM_TEGRA_FENCE_WAIT) &&
 		    (fence->flags & DRM_TEGRA_FENCE_EMIT)) {
-			pr_info("invalid flags for fence: %x\n", fence->flags);
 			err = -EINVAL;
 			goto put;
 		}
@@ -461,15 +444,6 @@ static int host1x_job_get_fences(struct host1x_job *job, struct drm_file *file,
 			 * supported for pre-fences.
 			 */
 			if (fence->offset || fence->index || fence->value) {
-				if (fence->offset)
-					pr_info("    offset (%u) invalid\n", fence->offset);
-
-				if (fence->index)
-					pr_info("    index (%u) invalid\n", fence->index);
-
-				if (fence->value)
-					pr_info("    value (%u) invalid\n", fence->value);
-
 				err = -EINVAL;
 				goto put;
 			}
@@ -490,8 +464,12 @@ static int host1x_job_get_fences(struct host1x_job *job, struct drm_file *file,
 			struct host1x_syncpt *syncpt;
 
 			/* ensure that the syncpoint index is within range */
-			if (fence->index > job->client->num_syncpts) {
-				pr_info("    syncpt index %u out of range (%u)\n", fence->index, job->client->num_syncpts);
+			if (fence->index >= job->client->num_syncpts) {
+				err = -EINVAL;
+				goto put;
+			}
+
+			if (fence->value != 1) {
 				err = -EINVAL;
 				goto put;
 			}
@@ -515,14 +493,12 @@ static int host1x_job_get_fences(struct host1x_job *job, struct drm_file *file,
 	if (count)
 		*count = cmdbuf->num_fences;
 
-	pr_info("< %s()\n", __func__);
 	return 0;
 
 put:
 	while (i--)
 		dma_fence_put(fences[i].fence);
 
-	pr_info("< %s() = %d\n", __func__, err);
 	return err;
 }
 
@@ -568,22 +544,13 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 	unsigned int i;
 	int err;
 
-	pr_info("> %s(context=%p, args=%px, drm=%px, file=%px)\n", __func__,
-		context, args, drm, file);
-
 	user_buffers = u64_to_user_ptr(args->buffers);
 	user_cmdbufs = u64_to_user_ptr(args->cmdbufs);
 	user_relocs = u64_to_user_ptr(args->relocs);
 
-	pr_info("  buffers: %px (%u) cmdbufs: %px (%u) relocs: %px (%u)\n",
-		user_buffers, num_buffers, user_cmdbufs, num_cmdbufs,
-		user_relocs, num_relocs);
-
 	/* Check for unrecognized flags */
 	if (args->flags & ~DRM_TEGRA_SUBMIT_FLAGS)
 		return -EINVAL;
-
-	pr_info("  cmdbufs:\n");
 
 	/* count the number of fences */
 	for (i = 0; i < num_cmdbufs; i++) {
@@ -593,19 +560,15 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		if (err < 0)
 			return err;
 
-		pr_info("    %u: fences: %u\n", i, count);
 		num_fences += count;
 	}
 
-	job = host1x_job_alloc(context->channel, args->num_buffers,
-			       args->num_cmdbufs, args->num_relocs,
-			       client->num_syncpts, num_fences,
+	job = host1x_job_alloc(context->channel, num_buffers, num_cmdbufs,
+			       num_relocs, client->num_syncpts, num_fences,
 			       num_fences * sizeof(*user_fences),
 			       (void **)&user_fences);
 	if (!job)
 		return -ENOMEM;
-
-	pr_info("  job: %px\n", job);
 
 	job->client = client;
 	job->class = client->class;
@@ -635,7 +598,6 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		}
 
 		if (cmdbuf.index > job->num_buffers) {
-			pr_info("command buffer index %u exceeds buffer count %u\n", cmdbuf.index, job->num_buffers);
 			err = -EINVAL;
 			goto put;
 		}
@@ -647,7 +609,6 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		 * higher value means the words count is malformed.
 		 */
 		if (cmdbuf.words > CDMA_GATHER_FETCHES_MAX_NB) {
-			pr_info("command buffer size %u exceeds limit %u\n", cmdbuf.words, CDMA_GATHER_FETCHES_MAX_NB);
 			err = -EINVAL;
 			goto put;
 		}
@@ -661,17 +622,14 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		 * corruption on the buffer address relocation.
 		 */
 		if (limit & 3 || limit >= obj->size) {
-			pr_info("badly aligned buffer: %llx\n", limit);
 			err = -EINVAL;
 			goto put;
 		}
 
 		err = host1x_job_get_fences(job, file, &cmdbuf, out, fences,
 					    num_fences, &count);
-		if (err < 0) {
-			pr_info("failed to get fences: %d\n", err);
+		if (err < 0)
 			goto put;
-		}
 
 		host1x_job_add_gather(job, bo, cmdbuf.words, cmdbuf.offset,
 				      fences, count);
@@ -694,11 +652,9 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		struct host1x_reloc *reloc = &job->relocs[i];
 		struct tegra_bo *obj;
 
-		err = host1x_reloc_copy_from_user(job, reloc, user, drm, file);
-		if (err < 0) {
-			pr_info("failed to copy relocation %u from userspace\n", i);
+		err = host1x_reloc_copy_from_user(job, reloc, user);
+		if (err < 0)
 			goto put;
-		}
 
 		obj = host1x_to_tegra_bo(reloc->cmdbuf.bo);
 
@@ -709,7 +665,6 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		 */
 		if (reloc->cmdbuf.offset & 3 ||
 		    reloc->cmdbuf.offset >= obj->gem.size) {
-			pr_info("badly aligned relocation: %lx\n", reloc->cmdbuf.offset);
 			err = -EINVAL;
 			goto put;
 		}
@@ -717,7 +672,6 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		obj = host1x_to_tegra_bo(reloc->target.bo);
 
 		if (reloc->target.offset >= obj->gem.size) {
-			pr_info("badly aligned target: %lx\n", reloc->target.offset);
 			err = -EINVAL;
 			goto put;
 		}
@@ -731,14 +685,11 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		job->timeout = args->timeout;
 
 	err = host1x_job_pin(job, context->client->base.dev);
-	if (err) {
-		pr_info("failed to pin job: %d\n", err);
+	if (err)
 		goto put;
-	}
 
 	err = host1x_job_submit(job);
 	if (err) {
-		pr_info("failed to submit job: %d\n", err);
 		host1x_job_unpin(job);
 		goto put;
 	}

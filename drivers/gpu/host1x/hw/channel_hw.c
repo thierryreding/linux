@@ -44,6 +44,10 @@ static int host1x_job_gather_wait_fences(struct host1x_job *job,
 	for (i = 0; i < gather->num_fences; i++) {
 		struct dma_fence *fence = gather->fences[i].fence;
 
+		/* skip emit fences */
+		if (gather->fences[i].syncpt)
+			continue;
+
 		if (host1x_fence_is_waitable(fence)) {
 			err = host1x_fence_wait(fence, host, job->channel);
 		} else {
@@ -98,17 +102,17 @@ static void submit_gathers(struct host1x_job *job)
 		u32 op2 = g->base + g->offset;
 		int err;
 
-		/* add a setclass for modules that require it */
-		if (job->class)
-			host1x_cdma_push(cdma,
-				 host1x_opcode_setclass(job->class, 0, 0),
-				 HOST1X_OPCODE_NOP);
-
 		err = host1x_job_gather_wait_fences(job, g);
 		if (err < 0) {
 			dev_err(dev, "failed to wait for fences: %d\n", err);
 			continue;
 		}
+
+		/* add a setclass for modules that require it */
+		if (job->class)
+			host1x_cdma_push(cdma,
+				 host1x_opcode_setclass(job->class, 0, 0),
+				 HOST1X_OPCODE_NOP);
 
 		trace_write_gather(cdma, g->bo, g->offset, op1 & 0xffff);
 		host1x_cdma_push(cdma, op1, op2);
@@ -204,7 +208,7 @@ static int submit_waiters(struct host1x_job *job,
 		struct host1x_checkpoint *cp = &job->checkpoints[i];
 
 		/* schedule a submit complete interrupt */
-		err = host1x_intr_add_action(host, cp->syncpt, cp->value,
+		err = host1x_intr_add_action(host, cp->syncpt, cp->threshold,
 					     HOST1X_INTR_ACTION_SUBMIT_COMPLETE,
 					     job->channel, waiters[i], NULL);
 		WARN(err < 0, "failed to set submit complete interrupt: %d\n",
@@ -255,7 +259,7 @@ static int channel_submit(struct host1x_job *job)
 
 	for (i = 0; i < job->num_checkpoints; i++) {
 		struct host1x_syncpt *syncpt = job->checkpoints[i].syncpt;
-		u32 value = job->checkpoints[i].value;
+		u32 value = job->checkpoints[i].threshold;
 
 		/*
 		 * Synchronize base register to allow using it for relative

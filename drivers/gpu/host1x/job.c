@@ -67,6 +67,8 @@ struct host1x_job *host1x_job_alloc(struct host1x_channel *channel,
 
 	kref_init(&job->ref);
 	job->channel = channel;
+	job->num_buffers = num_buffers;
+	job->num_cmdbufs = num_cmdbufs;
 	job->num_relocs = num_relocs;
 	job->num_checkpoints = num_syncpts;
 	job->num_fences = num_fences;
@@ -142,6 +144,8 @@ void host1x_job_add_gather(struct host1x_job *job, struct host1x_bo *bo,
 {
 	struct host1x_job_gather *gather = &job->gathers[job->num_gathers];
 
+	WARN_ON(job->num_gathers >= job->num_cmdbufs);
+
 	gather->words = words;
 	gather->bo = bo;
 	gather->offset = offset;
@@ -156,8 +160,6 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 {
 	unsigned int i;
 	int err;
-
-	pr_info("> %s(host=%px, job=%px)\n", __func__, host, job);
 
 	job->num_unpins = 0;
 
@@ -180,8 +182,6 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 		job->num_unpins++;
 	}
 
-	pr_info("  gathers: %u\n", job->num_gathers);
-
 	for (i = 0; i < job->num_gathers; i++) {
 		struct host1x_job_gather *g = &job->gathers[i];
 		size_t gather_size = 0;
@@ -198,10 +198,7 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 			goto unpin;
 		}
 
-		pr_info("    %u: bo: %px\n", i, g->bo);
-
 		phys_addr = host1x_bo_pin(g->bo, &sgt);
-		pr_info("      %pad\n", &phys_addr);
 
 		if (!IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL) && host->domain) {
 			for_each_sg(sgt->sgl, sg, sgt->nents, j)
@@ -229,11 +226,8 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 				iova_dma_addr(&host->iova, alloc);
 			job->unpins[job->num_unpins].size = gather_size;
 		} else {
-			pr_info("not using IOMMU\n");
 			job->addr_phys[job->num_unpins] = phys_addr;
 		}
-
-		pr_info("      %pad\n", &job->addr_phys[job->num_unpins]);
 
 		job->gather_addr_phys[i] = job->addr_phys[job->num_unpins];
 
@@ -242,12 +236,10 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 		job->num_unpins++;
 	}
 
-	pr_info("< %s()\n", __func__);
 	return 0;
 
 unpin:
 	host1x_job_unpin(job);
-	pr_info("< %s() = %d\n", __func__, err);
 	return err;
 }
 
@@ -325,8 +317,8 @@ static int do_fences(struct host1x_job *job, struct host1x_job_gather *gather)
 	void *virt = NULL;
 
 	/* patch the fences for one gather */
-	for (i = 0; i < job->num_fences; i++) {
-		struct host1x_job_fence *fence = &job->fences[i];
+	for (i = 0; i < gather->num_fences; i++) {
+		struct host1x_job_fence *fence = &gather->fences[i];
 		u32 *target;
 
 		if (!fence->syncpt)
@@ -348,10 +340,8 @@ static int do_fences(struct host1x_job *job, struct host1x_job_gather *gather)
 				last_page = offset;
 			}
 
-			if (unlikely(!virt)) {
-				pr_err("failed to map command buffer for syncpoint patching\n");
+			if (unlikely(!virt))
 				return -ENOMEM;
-			}
 
 			target = virt + (fence->offset & ~PAGE_MASK);
 		}
@@ -360,7 +350,7 @@ static int do_fences(struct host1x_job *job, struct host1x_job_gather *gather)
 
 		for (i = 0; i < job->num_checkpoints; i++) {
 			if (job->checkpoints[i].syncpt == fence->syncpt)
-				job->checkpoints[i].value += fence->value;
+				job->checkpoints[i].threshold += fence->value;
 		}
 	}
 
@@ -626,8 +616,6 @@ int host1x_job_pin(struct host1x_job *job, struct device *dev)
 	unsigned int i, j;
 	int err;
 
-	pr_info("> %s(job=%px, dev=%px)\n", __func__, job, dev);
-
 	/* pin memory */
 	err = pin_job(host, job);
 	if (err)
@@ -648,10 +636,8 @@ int host1x_job_pin(struct host1x_job *job, struct device *dev)
 			continue;
 
 		/* copy_gathers() sets gathers base if firewall is enabled */
-		if (!IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL)) {
+		if (!IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL))
 			g->base = job->gather_addr_phys[i];
-			pr_info("base: %pad\n", &g->base);
-		}
 
 		for (j = i + 1; j < job->num_gathers; j++) {
 			if (job->gathers[j].bo == g->bo) {
@@ -674,7 +660,6 @@ out:
 		host1x_job_unpin(job);
 	wmb();
 
-	pr_info("< %s() = %d\n", __func__, err);
 	return err;
 }
 EXPORT_SYMBOL(host1x_job_pin);
