@@ -185,7 +185,7 @@ int host1x_job_submit(struct host1x_job *job);
  * struct host1x_checkpoint - keep track of syncpoint increments
  * @syncpt: host1x syncpoint to keep track of
  * @threshold: threshold for the syncpoint
- * @value: current syncpoint value
+ * @value: number of increments for the syncpoint
  */
 struct host1x_checkpoint {
 	struct host1x_syncpt *syncpt;

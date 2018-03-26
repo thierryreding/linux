@@ -50,9 +50,9 @@ static void cdma_timeout_cpu_incr(struct host1x_cdma *cdma, u32 getptr,
 		struct host1x_checkpoint *cp = &cdma->timeout.checkpoints[i];
 		u32 value = host1x_syncpt_load(cp->syncpt);
 
-		pr_info("    %u: value: %u target: %u\n", i, value, cp->value);
+		pr_info("    %u: value: %u target: %u\n", i, value, cp->threshold);
 
-		for (j = value; j < cp->value; j++)
+		for (j = value; j < cp->threshold; j++)
 			host1x_syncpt_incr(cp->syncpt);
 
 		/* after CPU incr, ensure shadow is up to date */
@@ -290,7 +290,7 @@ static void cdma_timeout_handler(struct work_struct *work)
 		u32 value = host1x_syncpt_load(cp->syncpt);
 
 		/* has buffer actually completed? */
-		if ((s32)(value - cp->value) >= 0) {
+		if ((s32)(value - cp->threshold) >= 0) {
 			dev_dbg(host1x->dev,
 				"cdma_timeout: expired, but buffer had completed\n");
 			/* restore */
@@ -301,7 +301,7 @@ static void cdma_timeout_handler(struct work_struct *work)
 		dev_warn(host1x->dev,
 			"%s: timeout: %u (%s), HW thresh %d, done %d\n",
 			 __func__, cp->syncpt->id, cp->syncpt->name,
-			 value, cp->value);
+			 value, cp->threshold);
 		completed = false;
 	}
 

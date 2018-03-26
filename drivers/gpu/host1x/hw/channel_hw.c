@@ -232,7 +232,7 @@ static int channel_submit(struct host1x_job *job)
 	struct host1x *host = dev_get_drvdata(job->channel->dev->parent);
 	struct host1x_channel *channel = job->channel;
 	struct host1x_waitlist **waiters;
-	unsigned int i;
+	unsigned int i, j;
 	int err;
 
 	pr_info("> %s(job=%px)\n", __func__, job);
@@ -247,12 +247,14 @@ static int channel_submit(struct host1x_job *job)
 		struct host1x_checkpoint *cp = &job->checkpoints[i];
 
 		/* before error checks, return current max */
-		cp->value = host1x_syncpt_read_max(cp->syncpt);
+		cp->threshold = host1x_syncpt_read_max(cp->syncpt);
 		pr_info("    %u: %u / %u\n", i, cp->threshold, cp->value);
 	}
 
 	/* get submit lock */
+	pr_info("  acquiring submit lock...\n");
 	err = mutex_lock_interruptible(&channel->submitlock);
+	pr_info("  done\n");
 	if (err)
 		return err;
 
@@ -269,23 +271,38 @@ static int channel_submit(struct host1x_job *job)
 		goto free;
 	}
 
+	pr_info("  serializing channel...\n");
 	channel_serialize(job);
+	pr_info("  done\n");
 
+	/* rebase fences on current threshold */
+	for (i = 0; i < job->num_fences; i++) {
+		struct host1x_job_fence *fence = &job->fences[i];
+
+		for (j = 0; j < job->num_checkpoints; j++) {
+			if (job->checkpoints[j].syncpt == fence->syncpt)
+				fence->value += job->checkpoints[j].threshold;
+		}
+	}
+
+	pr_info("  fences rebased\n");
+
+	/* bump threshold */
 	for (i = 0; i < job->num_checkpoints; i++) {
-		struct host1x_syncpt *syncpt = job->checkpoints[i].syncpt;
-		u32 value = job->checkpoints[i].threshold;
+		struct host1x_checkpoint *cp = &job->checkpoints[i];
 
 		/*
 		 * Synchronize base register to allow using it for relative
 		 * waiting.
 		 */
-		host1x_syncpt_sync_base(syncpt, &channel->cdma);
+		host1x_syncpt_sync_base(cp->syncpt, &channel->cdma);
 
-		job->checkpoints[i].value = host1x_syncpt_incr_max(syncpt,
-								   value);
-		pr_info("    %u: %u\n", i, job->checkpoints[i].value);
-		host1x_hw_syncpt_assign_to_channel(host, syncpt, channel);
+		cp->threshold = host1x_syncpt_incr_max(cp->syncpt, cp->value);
+		pr_info("    %u: %u\n", i, cp->threshold);
+		host1x_hw_syncpt_assign_to_channel(host, cp->syncpt, channel);
 	}
+
+	pr_info("  threshold bumped\n");
 
 	submit_gathers(job);
 

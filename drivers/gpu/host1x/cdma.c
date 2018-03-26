@@ -285,7 +285,7 @@ static void update_cdma_locked(struct host1x_cdma *cdma)
 			struct host1x_checkpoint *cp = &job->checkpoints[i];
 
 			/* Check whether this syncpt has completed, and bail if not */
-			if (!host1x_syncpt_is_expired(cp->syncpt, cp->value)) {
+			if (!host1x_syncpt_is_expired(cp->syncpt, cp->threshold)) {
 				expired = false;
 				break;
 			}
@@ -353,7 +353,7 @@ static bool host1x_job_completed(struct host1x_job *job)
 		struct host1x_syncpt *syncpt = job->checkpoints[i].syncpt;
 		u32 threshold = host1x_syncpt_load(syncpt);
 
-		if (threshold < job->checkpoints[i].value)
+		if (threshold < job->checkpoints[i].threshold)
 			return false;
 	}
 

@@ -593,6 +593,10 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 	job->class = client->class;
 	job->serialize = true;
 
+	/*
+	 * XXX move this into host1x_job_alloc(), there should be no need for
+	 * Tegra DRM to know about checkpoints.
+	 */
 	for (i = 0; i < client->num_syncpts; i++)
 		job->checkpoints[i].syncpt = client->syncpts[i];
 

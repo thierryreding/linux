@@ -320,16 +320,6 @@ static bool check_reloc(struct host1x_reloc *reloc, struct host1x_bo *cmdbuf,
 	return true;
 }
 
-static u32 host1x_checkpoint_update(struct host1x_checkpoint *checkpoint,
-				    const struct host1x_job_fence *fence)
-{
-	if (checkpoint->syncpt != fence->syncpt)
-		return fence->value;
-
-	checkpoint->threshold += fence->value;
-	return checkpoint->threshold;
-}
-
 static int do_fences(struct host1x_job *job, struct host1x_job_gather *gather)
 {
 	struct host1x_bo *cmdbuf = gather->bo;
@@ -348,6 +338,13 @@ static int do_fences(struct host1x_job *job, struct host1x_job_gather *gather)
 
 		if (!fence->syncpt)
 			continue;
+
+		for (j = 0; j < job->num_checkpoints; j++) {
+			struct host1x_checkpoint *cp = &job->checkpoints[j];
+
+			if (cp->syncpt == fence->syncpt)
+				cp->value += fence->value;
+		}
 
 		if (IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL)) {
 			target = (u32 *)job->gather_copy_mapped +
@@ -372,15 +369,6 @@ static int do_fences(struct host1x_job *job, struct host1x_job_gather *gather)
 		}
 
 		*target = *target << 8 | fence->syncpt->id;
-
-		pr_info("    updating checkpoints: %u\n", job->num_checkpoints);
-
-		for (j = 0; j < job->num_checkpoints; j++) {
-			struct host1x_checkpoint *cp = &job->checkpoints[j];
-
-			fence->value = host1x_checkpoint_update(cp, fence);
-			pr_info("      %u: %u/%u -> %u\n", j, cp->threshold, cp->value, fence->value);
-		}
 	}
 
 	if (virt)
