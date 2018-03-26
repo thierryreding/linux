@@ -54,8 +54,14 @@ void host1x_channel_list_free(struct host1x_channel_list *chlist)
 int host1x_job_submit(struct host1x_job *job)
 {
 	struct host1x *host = dev_get_drvdata(job->channel->dev->parent);
+	int err;
 
-	return host1x_hw_channel_submit(host, job);
+	pr_info("> %s(job=%px)\n", __func__, job);
+
+	err = host1x_hw_channel_submit(host, job);
+
+	pr_info("< %s() = %d\n", __func__, err);
+	return err;
 }
 EXPORT_SYMBOL(host1x_job_submit);
 

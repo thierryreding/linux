@@ -43,9 +43,14 @@ static void cdma_timeout_cpu_incr(struct host1x_cdma *cdma, u32 getptr,
 	struct push_buffer *pb = &cdma->push_buffer;
 	unsigned int i, j;
 
+	pr_info("> %s(cdma=%px, getptr=%08x, nr_slots=%u)\n", __func__, cdma, getptr, nr_slots);
+	pr_info("  rolling forward checkpoints: %u\n", cdma->timeout.num_checkpoints);
+
 	for (i = 0; i < cdma->timeout.num_checkpoints; i++) {
 		struct host1x_checkpoint *cp = &cdma->timeout.checkpoints[i];
 		u32 value = host1x_syncpt_load(cp->syncpt);
+
+		pr_info("    %u: value: %u target: %u\n", i, value, cp->value);
 
 		for (j = value; j < cp->value; j++)
 			host1x_syncpt_incr(cp->syncpt);

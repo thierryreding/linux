@@ -96,6 +96,9 @@ static void submit_gathers(struct host1x_job *job)
 	struct device *dev = job->channel->dev;
 	unsigned int i;
 
+	pr_info("> %s(job=%px)\n", __func__, job);
+	pr_info("  gathers: %u\n", job->num_gathers);
+
 	for (i = 0; i < job->num_gathers; i++) {
 		struct host1x_job_gather *g = &job->gathers[i];
 		u32 op1 = host1x_opcode_gather(g->words);
@@ -115,8 +118,11 @@ static void submit_gathers(struct host1x_job *job)
 				 HOST1X_OPCODE_NOP);
 
 		trace_write_gather(cdma, g->bo, g->offset, op1 & 0xffff);
+		pr_info("    %u: %08x %08x\n", i, op1, op2);
 		host1x_cdma_push(cdma, op1, op2);
 	}
+
+	pr_info("< %s()\n", __func__);
 }
 
 static void channel_push_wait(struct host1x_channel *channel,
@@ -204,6 +210,8 @@ static int submit_waiters(struct host1x_job *job,
 	unsigned int i;
 	int err;
 
+	pr_info("> %s(job=%px, waiters=%px, count=%u)\n", __func__, job, waiters, count);
+
 	for (i = 0; i < job->num_checkpoints; i++) {
 		struct host1x_checkpoint *cp = &job->checkpoints[i];
 
@@ -215,6 +223,7 @@ static int submit_waiters(struct host1x_job *job,
 		     err);
 	}
 
+	pr_info("< %s()\n", __func__);
 	return 0;
 }
 
@@ -226,15 +235,20 @@ static int channel_submit(struct host1x_job *job)
 	unsigned int i;
 	int err;
 
+	pr_info("> %s(job=%px)\n", __func__, job);
+
 	trace_host1x_channel_submit(dev_name(channel->dev),
 				    job->num_gathers, job->num_relocs,
 				    job->num_checkpoints);
+
+	pr_info("  checkpoints: %u\n", job->num_checkpoints);
 
 	for (i = 0; i < job->num_checkpoints; i++) {
 		struct host1x_checkpoint *cp = &job->checkpoints[i];
 
 		/* before error checks, return current max */
 		cp->value = host1x_syncpt_read_max(cp->syncpt);
+		pr_info("    %u: %u / %u\n", i, cp->threshold, cp->value);
 	}
 
 	/* get submit lock */
@@ -269,6 +283,7 @@ static int channel_submit(struct host1x_job *job)
 
 		job->checkpoints[i].value = host1x_syncpt_incr_max(syncpt,
 								   value);
+		pr_info("    %u: %u\n", i, job->checkpoints[i].value);
 		host1x_hw_syncpt_assign_to_channel(host, syncpt, channel);
 	}
 
@@ -282,6 +297,7 @@ static int channel_submit(struct host1x_job *job)
 
 	mutex_unlock(&channel->submitlock);
 
+	pr_info("< %s()\n", __func__);
 	return 0;
 
 free:
@@ -289,6 +305,7 @@ free:
 		kfree(waiters[i]);
 
 	kfree(waiters[i]);
+	pr_info("< %s() = %d\n", __func__, err);
 	return err;
 }
 
