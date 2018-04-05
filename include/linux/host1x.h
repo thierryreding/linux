@@ -61,6 +61,8 @@ struct host1x_client {
 	const struct host1x_client_ops *ops;
 
 	enum host1x_class class;
+	unsigned int version;
+
 	struct host1x_channel *channel;
 
 	struct host1x_syncpt **syncpts;
