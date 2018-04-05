@@ -341,6 +341,7 @@ static int vic_probe(struct platform_device *pdev)
 	vic->client.base.ops = &vic_client_ops;
 	vic->client.base.dev = dev;
 	vic->client.base.class = HOST1X_CLASS_VIC;
+	vic->client.base.version = vic->config->version;
 	vic->client.base.syncpts = syncpts;
 	vic->client.base.num_syncpts = 1;
 	vic->dev = dev;
