@@ -32,37 +32,136 @@ extern "C" {
 #define DRM_TEGRA_GEM_CREATE_CONTIGUOUS	(1 << 0)
 #define DRM_TEGRA_GEM_CREATE_FLAGS	(DRM_TEGRA_GEM_CREATE_CONTIGUOUS)
 
+/**
+ * struct drm_tegra_gem_create - parameters for the GEM object creation IOCTL
+ */
 struct drm_tegra_gem_create {
+	/**
+	 * @size:
+	 *
+	 * The size, in bytes, of the buffer object to be created.
+	 */
 	__u64 size;
+
+	/**
+	 * @flags:
+	 *
+	 * A bitmask of flags that influence the creation of GEM objects:
+	 *
+	 * DRM_TEGRA_GEM_CREATE_CONTIGUOUS - The buffer is to be backed by
+	 *	physically contiguous memory.
+	 */
 	__u32 flags;
+
+	/**
+	 * @handle:
+	 *
+	 * Return location for the handle of the created GEM object.
+	 */
 	__u32 handle;
 };
 
+/**
+ * struct drm_tegra_gem_mmap - parameters for the GEM mmap IOCTL
+ */
 struct drm_tegra_gem_mmap {
+	/**
+	 * @handle:
+	 *
+	 * Handle of the GEM object to obtain an mmap offset for.
+	 */
 	__u32 handle;
+
+	/**
+	 * @pad:
+	 *
+	 * Structure padding that may be used in the future. Must be 0.
+	 */
 	__u32 pad;
+
+	/**
+	 * @offset:
+	 *
+	 * Return location for the mmap offset for the given GEM object.
+	 */
 	__u64 offset;
 };
 
 #define DRM_TEGRA_CHANNEL_FLAGS (0)
 
 struct drm_tegra_open_channel {
+	/**
+	 * @client:
+	 *
+	 * The client ID for this channel.
+	 */
 	__u32 client;
-	__u32 syncpts;
-	__u64 context;
+
+	/**
+	 * @flags:
+	 *
+	 * A bitmask of flags that influence the channel creation. Currently
+	 * no flags are defined, so this must be 0.
+	 */
 	__u32 flags;
-	__u32 pad;
+
+	/**
+	 * @syncpts:
+	 *
+	 * Return location for the number of syncpoints used by this channel.
+	 */
+	__u32 syncpts;
+
+	/**
+	 * @version:
+	 *
+	 * Return location for the implementation version of this channel.
+	 */
+	__u32 version;
+
+	/**
+	 * @context:
+	 *
+	 * Return location for the application context of this channel. This
+	 * context needs to be passed to the DRM_TEGRA_CHANNEL_CLOSE or the
+	 * DRM_TEGRA_SUBMIT IOCTLs.
+	 */
+	__u64 context;
+
+	/**
+	 * @reserved:
+	 *
+	 * This field is reserved for future use. Must be 0.
+	 */
 	__u64 reserved;
 };
 
 struct drm_tegra_close_channel {
+	/**
+	 * @context:
+	 *
+	 * The application context of this channel. This is obtained from the
+	 * DRM_TEGRA_OPEN_CHANNEL IOCTL.
+	 */
 	__u64 context;
 };
 
 #define DRM_TEGRA_BUFFER_FLAGS	(0)
 
 struct drm_tegra_buffer {
+	/**
+	 * @handle:
+	 *
+	 * Handle of the buffer.
+	 */
 	__u32 handle;
+
+	/**
+	 * @flags:
+	 *
+	 * A bitmask of flags specifying the usage of the buffer. Currently no
+	 * flags are defined, so this must be 0.
+	 */
 	__u32 flags;
 };
 
@@ -84,6 +183,8 @@ struct drm_tegra_fence {
 
 	/**
 	 * @flags:
+	 *
+	 * A bitmask of flags that specify this fence.
 	 *
 	 * DRM_TEGRA_FENCE_WAIT - Wait for this fence before the new command
 	 *	buffer is submitted.
@@ -118,50 +219,227 @@ struct drm_tegra_fence {
 	 */
 	__u32 value;
 
-	__u32 pad[3];
+	/**
+	 * @reserved:
+	 *
+	 * This field is reserved for future use. Must be 0.
+	 */
+	__u32 reserved[3];
 };
 
 #define DRM_TEGRA_CMDBUF_FLAGS	(0)
 
+/**
+ * struct drm_tegra_cmdbuf - structure describing a command buffer
+ */
 struct drm_tegra_cmdbuf {
+	/**
+	 * @index:
+	 *
+	 * Index into the job's buffer handle list, pointing to the handle of
+	 * the GEM object that contains this command buffer.
+	 */
 	__u32 index;
+
+	/**
+	 * @offset:
+	 *
+	 * Offset, in bytes, into the GEM object at which the command buffer
+	 * starts. Needs to be a multiple of 4.
+	 */
 	__u32 offset;
+
+	/**
+	 * @words:
+	 *
+	 * Number of 32-bit words in this command buffer.
+	 */
 	__u32 words;
+
+	/**
+	 * @flags:
+	 *
+	 * A bitmask of flags that influence the processing of this command
+	 * buffer. Currently no flags are defined, so this must be 0.
+	 */
 	__u32 flags;
+
+	/**
+	 * @pad:
+	 *
+	 * Structure padding that may be used in the future. Must be 0.
+	 */
 	__u32 pad;
+
+	/**
+	 * @num_fences:
+	 *
+	 * The number of fences attached to this command buffer.
+	 */
 	__u32 num_fences;
+
+	/**
+	 * @fences:
+	 *
+	 * Pointer to an array of @num_fences &struct drm_tegra_fence objects.
+	 */
 	__u64 fences;
 };
 
 #define DRM_TEGRA_RELOC_FLAGS	(0)
 
+/**
+ * struct drm_tegra_reloc - GEM object relocation structure
+ */
 struct drm_tegra_reloc {
 	struct {
+		/**
+		 * @cmdbuf.index:
+		 *
+		 * Index into the job's buffer handle list pointing to the
+		 * handle of the GEM object containing the command buffer for
+		 * which to perform this GEM object relocation.
+		 */
 		__u32 index;
+
+		/**
+		 * @cmdbuf.offset:
+		 *
+		 * Offset into the command buffer at which to insert the the
+		 * relocated address.
+		 */
 		__u32 offset;
 	} cmdbuf;
+
 	struct {
+		/**
+		 * @target.index:
+		 *
+		 * Index into the job's buffer handle list pointing to the
+		 * handle of the GEM object to be relocated.
+		 */
 		__u32 index;
+
+		/**
+		 * @target.offset:
+		 *
+		 * Offset into the target GEM object at which the relocated
+		 * data starts.
+		 */
 		__u32 offset;
 	} target;
+
+	/**
+	 * @shift:
+	 *
+	 * The number of bits by which to shift relocated addresses.
+	 */
 	__u32 shift;
+
+	/**
+	 * @flags:
+	 *
+	 * A bitmask of flags that determine how the GEM object should be
+	 * relocated.
+	 */
 	__u32 flags;
-	__u64 pad;
+
+	/**
+	 * @reserved:
+	 *
+	 * This field is reserved for future use. Must be 0.
+	 */
+	__u64 reserved;
 };
 
 #define DRM_TEGRA_SUBMIT_FLAGS	(0)
 
+/**
+ * struct drm_tegra_submit - job submission structure
+ */
 struct drm_tegra_submit {
+	/**
+	 * @context:
+	 *
+	 * The application context identifying the channel to use for the
+	 * execution of this job.
+	 */
 	__u64 context;
+
+	/**
+	 * @num_buffers:
+	 *
+	 * The number of GEM objects used during the execution of this job.
+	 */
 	__u32 num_buffers;
+
+	/**
+	 * @num_cmdbufs:
+	 *
+	 * The number of command buffers to execute as part of this job.
+	 */
 	__u32 num_cmdbufs;
+
+	/**
+	 * @num_relocs:
+	 *
+	 * The number of relocations to perform before executing this job.
+	 */
 	__u32 num_relocs;
+
+	/**
+	 * @timeout:
+	 *
+	 * The maximum amount of time, in milliseconds, to allow for the
+	 * execution of this job.
+	 */
 	__u32 timeout;
+
+	/**
+	 * @buffers:
+	 *
+	 * A pointer to @num_buffers &struct drm_tegra_buffer structures that
+	 * specify the GEM objects used during the execution of this job.
+	 */
 	__u64 buffers;
+
+	/**
+	 * @cmdbufs:
+	 *
+	 * A pointer to @num_cmdbufs &struct drm_tegra_cmdbuf structures that
+	 * define the command buffers to execute as part of this job.
+	 */
 	__u64 cmdbufs;
+
+	/**
+	 * @relocs:
+	 *
+	 * A pointer to @num_relocs &struct drm_tegra_reloc structures that
+	 * specify the relocations that need to be performed before executing
+	 * this job.
+	 */
 	__u64 relocs;
+
+	/**
+	 * @flags:
+	 *
+	 * A bitmask of flags that specify how to execute this job. Currently
+	 * no flags are defined, so this must be 0.
+	 */
 	__u32 flags;
+
+	/**
+	 * @pad:
+	 *
+	 * Structure padding that may be used in the future. Must be 0.
+	 */
 	__u32 pad;
+
+	/**
+	 * @reserved:
+	 *
+	 * This field is reserved for future use. Must be 0.
+	 */
 	__u64 reserved[9]; /* future expansion */
 };
 
@@ -174,7 +452,7 @@ struct drm_tegra_submit {
 #define DRM_IOCTL_TEGRA_GEM_CREATE DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_GEM_CREATE, struct drm_tegra_gem_create)
 #define DRM_IOCTL_TEGRA_GEM_MMAP DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_GEM_MMAP, struct drm_tegra_gem_mmap)
 #define DRM_IOCTL_TEGRA_OPEN_CHANNEL DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_OPEN_CHANNEL, struct drm_tegra_open_channel)
-#define DRM_IOCTL_TEGRA_CLOSE_CHANNEL DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_CLOSE_CHANNEL, struct drm_tegra_open_channel)
+#define DRM_IOCTL_TEGRA_CLOSE_CHANNEL DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_CLOSE_CHANNEL, struct drm_tegra_close_channel)
 #define DRM_IOCTL_TEGRA_SUBMIT DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_SUBMIT, struct drm_tegra_submit)
 
 #if defined(__cplusplus)

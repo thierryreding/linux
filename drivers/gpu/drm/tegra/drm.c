@@ -859,6 +859,7 @@ static int tegra_open_channel(struct drm_device *drm, void *data,
 				break;
 
 			args->syncpts = client->base.num_syncpts;
+			args->version = client->base.version;
 			args->context = context->id;
 			break;
 		}
