@@ -222,6 +222,7 @@ static int gr2d_probe(struct platform_device *pdev)
 	gr2d->client.base.ops = &gr2d_client_ops;
 	gr2d->client.base.dev = dev;
 	gr2d->client.base.class = HOST1X_CLASS_GR2D;
+	gr2d->client.base.version = gr2d->soc->version;
 	gr2d->client.base.syncpts = syncpts;
 	gr2d->client.base.num_syncpts = 1;
 
