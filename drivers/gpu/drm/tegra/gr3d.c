@@ -350,6 +350,7 @@ static int gr3d_probe(struct platform_device *pdev)
 	gr3d->client.base.ops = &gr3d_client_ops;
 	gr3d->client.base.dev = &pdev->dev;
 	gr3d->client.base.class = HOST1X_CLASS_GR3D;
+	gr3d->client.base.version = gr3d->soc->version;
 	gr3d->client.base.syncpts = syncpts;
 	gr3d->client.base.num_syncpts = 1;
 
