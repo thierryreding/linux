@@ -1641,11 +1641,6 @@ nouveau_ttm_tt_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 			return -EFAULT;
 		}
 
-#if IS_ENABLED(CONFIG_ARM_DMA_USE_IOMMU)
-		if (dev->archdata.mapping)
-			addr |= BIT_ULL(34);
-#endif
-
 		ttm_dma->dma_address[i] = addr;
 	}
 	return 0;
@@ -1682,11 +1677,6 @@ nouveau_ttm_tt_unpopulate(struct ttm_tt *ttm)
 
 	for (i = 0; i < ttm->num_pages; i++) {
 		if (ttm_dma->dma_address[i]) {
-#if IS_ENABLED(CONFIG_ARM_DMA_USE_IOMMU)
-			if (dev->archdata.mapping)
-				ttm_dma->dma_address[i] &= ~BIT_ULL(34);
-#endif
-
 			dma_unmap_page(dev, ttm_dma->dma_address[i], PAGE_SIZE,
 				       DMA_BIDIRECTIONAL);
 		}
