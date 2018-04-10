@@ -413,6 +413,11 @@ gk20a_instobj_ctor_dma(struct gk20a_instmem *imem, u32 npages, u32 align,
 	node->r.offset = node->handle >> 12;
 	node->r.length = (npages << PAGE_SHIFT) >> 12;
 
+	if (imem->iommu_bit) {
+		/* IOMMU bit tells that an address is to be resolved through the IOMMU */
+		node->r.offset |= BIT(imem->iommu_bit - imem->iommu_pgshift);
+	}
+
 	node->base.mn = &node->r;
 	return 0;
 }
@@ -597,6 +602,13 @@ gk20a_instmem_new(struct nvkm_device *device, int index,
 		imem->attrs = DMA_ATTR_NON_CONSISTENT |
 			      DMA_ATTR_WEAK_ORDERING |
 			      DMA_ATTR_WRITE_COMBINE;
+
+#if IS_ENABLED(CONFIG_ARM_DMA_USE_IOMMU)
+		if (tdev->pdev->dev.archdata.mapping) {
+			imem->iommu_bit = tdev->func->iommu_bit;
+			imem->iommu_pgshift = PAGE_SHIFT;
+		}
+#endif
 
 		nvkm_info(&imem->base.subdev, "using DMA API\n");
 	}
