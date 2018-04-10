@@ -110,12 +110,8 @@ nvkm_device_tegra_probe_iommu(struct nvkm_device_tegra *tdev)
 	int ret;
 
 #if IS_ENABLED(CONFIG_ARM_DMA_USE_IOMMU)
-	if (dev->archdata.mapping) {
-		struct dma_iommu_mapping *mapping = to_dma_iommu_mapping(dev);
-
-		arm_iommu_detach_device(dev);
-		arm_iommu_release_mapping(mapping);
-	}
+	if (dev->archdata.mapping)
+		return;
 #endif
 
 	if (!tdev->func->iommu_bit)
