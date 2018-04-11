@@ -19,6 +19,11 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
+#if IS_ENABLED(CONFIG_ARM_DMA_USE_IOMMU)
+#include <asm/dma-iommu.h>
+#endif
+
 #include <core/tegra.h>
 #ifdef CONFIG_NOUVEAU_PLATFORM_DRIVER
 #include "priv.h"
@@ -104,6 +109,20 @@ nvkm_device_tegra_probe_iommu(struct nvkm_device_tegra *tdev)
 	struct device *dev = &tdev->pdev->dev;
 	unsigned long pgsize_bitmap;
 	int ret;
+
+#if IS_ENABLED(CONFIG_ARM_DMA_USE_IOMMU)
+	if (dev->archdata.mapping) {
+		struct dma_iommu_mapping *mapping = to_dma_iommu_mapping(dev);
+
+		arm_iommu_release_mapping(mapping);
+		arm_iommu_detach_device(dev);
+
+		if (dev->archdata.dma_coherent)
+			set_dma_ops(dev, &arm_coherent_dma_ops);
+		else
+			set_dma_ops(dev, &arm_dma_ops);
+	}
+#endif
 
 	if (!tdev->func->iommu_bit)
 		return;
