@@ -66,9 +66,11 @@ struct tegra_vde {
 	struct miscdevice miscdev;
 	struct reset_control *rst;
 	struct reset_control *rst_mc;
+	struct reset_control *rst_bsev;
 	struct gen_pool *iram_pool;
 	struct completion decode_completion;
 	struct clk *clk;
+	struct clk *clk_bsev;
 	dma_addr_t iram_lists_addr;
 	u32 *iram;
 };
@@ -1011,6 +1013,11 @@ static int tegra_vde_runtime_suspend(struct device *dev)
 		return err;
 	}
 
+	reset_control_assert(vde->rst_bsev);
+
+	usleep_range(2000, 4000);
+
+	clk_disable_unprepare(vde->clk_bsev);
 	clk_disable_unprepare(vde->clk);
 
 	return 0;
@@ -1027,6 +1034,16 @@ static int tegra_vde_runtime_resume(struct device *dev)
 		dev_err(dev, "Failed to power up HW : %d\n", err);
 		return err;
 	}
+
+	err = clk_prepare_enable(vde->clk_bsev);
+	if (err < 0)
+		return err;
+
+	err = reset_control_deassert(vde->rst_bsev);
+	if (err < 0)
+		return err;
+
+	usleep_range(2000, 4000);
 
 	return 0;
 }
@@ -1116,14 +1133,21 @@ static int tegra_vde_probe(struct platform_device *pdev)
 	if (IS_ERR(vde->frameid))
 		return PTR_ERR(vde->frameid);
 
-	vde->clk = devm_clk_get(dev, NULL);
+	vde->clk = devm_clk_get(dev, "vde");
 	if (IS_ERR(vde->clk)) {
 		err = PTR_ERR(vde->clk);
 		dev_err(dev, "Could not get VDE clk %d\n", err);
 		return err;
 	}
 
-	vde->rst = devm_reset_control_get(dev, NULL);
+	vde->clk_bsev = devm_clk_get(dev, "bsev");
+	if (IS_ERR(vde->clk_bsev)) {
+		err = PTR_ERR(vde->clk_bsev);
+		dev_err(dev, "failed to get BSEV clock: %d\n", err);
+		return err;
+	}
+
+	vde->rst = devm_reset_control_get(dev, "vde");
 	if (IS_ERR(vde->rst)) {
 		err = PTR_ERR(vde->rst);
 		dev_err(dev, "Could not get VDE reset %d\n", err);
@@ -1134,6 +1158,13 @@ static int tegra_vde_probe(struct platform_device *pdev)
 	if (IS_ERR(vde->rst_mc)) {
 		err = PTR_ERR(vde->rst_mc);
 		dev_err(dev, "Could not get MC reset %d\n", err);
+		return err;
+	}
+
+	vde->rst_bsev = devm_reset_control_get(dev, "bsev");
+	if (IS_ERR(vde->rst_bsev)) {
+		err = PTR_ERR(vde->rst_bsev);
+		dev_err(dev, "failed to get BSEV reset: %d\n", err);
 		return err;
 	}
 
