@@ -27,8 +27,9 @@ struct tegra_vde_h264_frame {
 	__u32 aux_offset;
 	__u32 frame_num;
 	__u32 flags;
+	__u64 modifier;
 
-	__u32 reserved;
+	__u32 reserved[4];
 } __attribute__((packed));
 
 struct tegra_vde_h264_decoder_ctx {
