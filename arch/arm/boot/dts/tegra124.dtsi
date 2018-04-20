@@ -83,6 +83,19 @@
 		};
 	};
 
+	iram@40000000 {
+		compatible = "mmio-sram";
+		reg = <0x0 0x40000000 0x0 0x40000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x0 0x40000000 0x40000>;
+
+		vde_pool: pool@400 {
+			reg = <0x400 0x3fc00>;
+			pool;
+		};
+	};
+
 	host1x@50000000 {
 		compatible = "nvidia,tegra124-host1x", "simple-bus";
 		reg = <0x0 0x50000000 0x0 0x00034000>;
@@ -281,6 +294,33 @@
 		/*
 		gpio-ranges = <&pinmux 0 0 251>;
 		*/
+	};
+
+	vde@60030000 {
+		compatible = "nvidia,tegra124-vde", "nvidia,tegra30-vde",
+			     "nvidia,tegra20-vde";
+		reg = <0x0 0x60030000 0x0 0x1000   /* Syntax Engine */
+		       0x0 0x60031000 0x0 0x1000   /* Video Bitstream Engine */
+		       0x0 0x60032000 0x0 0x0100   /* Macroblock Engine */
+		       0x0 0x60032200 0x0 0x0100   /* Post-processing Engine */
+		       0x0 0x60032400 0x0 0x0100   /* Motion Compensation Engine */
+		       0x0 0x60032600 0x0 0x0100   /* Transform Engine */
+		       0x0 0x60032800 0x0 0x0100   /* Pixel prediction block */
+		       0x0 0x60032a00 0x0 0x0100   /* Video DMA */
+		       0x0 0x60033800 0x0 0x0400>; /* Video frame controls */
+		reg-names = "sxe", "bsev", "mbe", "ppe", "mce",
+			    "tfe", "ppb", "vdma", "frameid";
+		iram = <&vde_pool>; /* IRAM region */
+		interrupts = <GIC_SPI  9 IRQ_TYPE_LEVEL_HIGH>, /* Sync token interrupt */
+			     <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>, /* BSE-V interrupt */
+			     <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>; /* SXE interrupt */
+		interrupt-names = "sync-token", "bsev", "sxe";
+		clocks = <&tegra_car TEGRA124_CLK_VDE>,
+			 <&tegra_car TEGRA124_CLK_BSEV>;
+		clock-names = "vde", "bsev";
+		resets = <&tegra_car 61>,
+			 <&tegra_car 63>;
+		reset-names = "vde", "bsev";
 	};
 
 	apbdma: dma@60020000 {
