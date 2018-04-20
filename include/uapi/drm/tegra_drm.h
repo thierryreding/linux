@@ -29,8 +29,8 @@
 extern "C" {
 #endif
 
-#define DRM_TEGRA_GEM_CREATE_CONTIGUOUS	(1 << 0)
-#define DRM_TEGRA_GEM_CREATE_FLAGS	(DRM_TEGRA_GEM_CREATE_CONTIGUOUS)
+#define DRM_TEGRA_GEM_CONTIGUOUS	(1 << 0)
+#define DRM_TEGRA_GEM_FLAGS		(DRM_TEGRA_GEM_CONTIGUOUS)
 
 /**
  * struct drm_tegra_gem_create - parameters for the GEM object creation IOCTL
@@ -48,8 +48,8 @@ struct drm_tegra_gem_create {
 	 *
 	 * A bitmask of flags that influence the creation of GEM objects:
 	 *
-	 * DRM_TEGRA_GEM_CREATE_CONTIGUOUS - The buffer is to be backed by
-	 *	physically contiguous memory.
+	 * DRM_TEGRA_GEM_CONTIGUOUS - The buffer is to be backed by physically
+	 *	contiguous memory.
 	 */
 	__u32 flags;
 
