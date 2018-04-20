@@ -287,9 +287,13 @@
 			     <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>, /* BSE-V interrupt */
 			     <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>; /* SXE interrupt */
 		interrupt-names = "sync-token", "bsev", "sxe";
-		clocks = <&tegra_car TEGRA20_CLK_VDE>;
-		reset-names = "vde", "mc";
-		resets = <&tegra_car 61>, <&mc TEGRA20_MC_RESET_VDE>;
+		clocks = <&tegra_car TEGRA20_CLK_VDE>,
+			 <&tegra_car TEGRA20_CLK_BSEV>;
+		clock-names = "vde", "bsev";
+		resets = <&tegra_car 61>,
+			 <&tegra_car 63>,
+			 <&mc TEGRA20_MC_RESET_VDE>;
+		reset-names = "vde", "bsev", "mc";
 	};
 
 	apbmisc@70000800 {
