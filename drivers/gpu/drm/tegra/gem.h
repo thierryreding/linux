@@ -42,6 +42,7 @@ struct tegra_bo {
 	struct drm_mm_node *mm;
 	unsigned long num_pages;
 	struct page **pages;
+	bool contiguous;
 	/* size of IOMMU mapping */
 	size_t size;
 
