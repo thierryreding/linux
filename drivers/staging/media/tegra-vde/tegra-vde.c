@@ -60,7 +60,12 @@ struct video_frame {
 	u32 flags;
 };
 
+struct tegra_vde_soc {
+	bool supports_ref_pic_marking;
+};
+
 struct tegra_vde {
+	const struct tegra_vde_soc *soc;
 	void __iomem *sxe;
 	void __iomem *bsev;
 	void __iomem *mbe;
@@ -330,6 +335,7 @@ static int tegra_vde_setup_hw_context(struct tegra_vde *vde,
 				      struct video_frame *dpb_frames,
 				      dma_addr_t bitstream_data_addr,
 				      size_t bitstream_data_size,
+				      dma_addr_t secure_addr,
 				      unsigned int macroblocks_nb)
 {
 	struct device *dev = vde->miscdev.parent;
@@ -453,6 +459,9 @@ static int tegra_vde_setup_hw_context(struct tegra_vde *vde,
 	VDE_WR(value, vde->sxe + 0x68);
 
 	VDE_WR(bitstream_data_addr, vde->sxe + 0x6C);
+
+	if (vde->soc->supports_ref_pic_marking)
+		VDE_WR(secure_addr, vde->sxe + 0x7c);
 
 	value = 0x10000005;
 	value |= ctx->pic_width_in_mbs << 11;
@@ -772,12 +781,15 @@ static int tegra_vde_ioctl_decode_h264(struct tegra_vde *vde,
 	struct tegra_vde_h264_frame __user *frames_user;
 	struct video_frame *dpb_frames;
 	struct dma_buf_attachment *bitstream_data_dmabuf_attachment;
-	struct sg_table *bitstream_sgt;
+	struct dma_buf_attachment *secure_attachment = NULL;
+	struct sg_table *bitstream_sgt, *secure_sgt;
 	enum dma_data_direction dma_dir;
 	dma_addr_t bitstream_data_addr;
+	dma_addr_t secure_addr;
 	dma_addr_t bsev_ptr;
 	size_t lsize, csize;
 	size_t bitstream_data_size;
+	size_t secure_size;
 	unsigned int macroblocks_nb;
 	unsigned int read_bytes;
 	unsigned int cstride;
@@ -802,6 +814,18 @@ static int tegra_vde_ioctl_decode_h264(struct tegra_vde *vde,
 				      DMA_TO_DEVICE);
 	if (ret)
 		return ret;
+
+	if (vde->soc->supports_ref_pic_marking) {
+		ret = tegra_vde_attach_dmabuf(dev, ctx.secure_fd,
+					      ctx.secure_offset, 0,
+					      &secure_attachment,
+					      &secure_addr,
+					      &secure_sgt,
+					      &secure_size,
+					      DMA_TO_DEVICE);
+		if (ret)
+			goto release_bitstream_dmabuf;
+	}
 
 	dpb_frames = kcalloc(ctx.dpb_frames_nb, sizeof(*dpb_frames),
 			     GFP_KERNEL);
@@ -876,6 +900,7 @@ static int tegra_vde_ioctl_decode_h264(struct tegra_vde *vde,
 	ret = tegra_vde_setup_hw_context(vde, &ctx, dpb_frames,
 					 bitstream_data_addr,
 					 bitstream_data_size,
+					 secure_addr,
 					 macroblocks_nb);
 	if (ret)
 		goto put_runtime_pm;
@@ -929,6 +954,10 @@ free_dpb_frames:
 	kfree(dpb_frames);
 
 release_bitstream_dmabuf:
+	if (secure_attachment)
+		tegra_vde_detach_and_put_dmabuf(secure_attachment, secure_sgt,
+						DMA_TO_DEVICE);
+
 	tegra_vde_detach_and_put_dmabuf(bitstream_data_dmabuf_attachment,
 					bitstream_sgt, DMA_TO_DEVICE);
 
@@ -1028,6 +1057,8 @@ static int tegra_vde_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, vde);
+
+	vde->soc = of_device_get_match_data(&pdev->dev);
 
 	regs = platform_get_resource_byname(pdev, IORESOURCE_MEM, "sxe");
 	if (!regs)
@@ -1258,8 +1289,27 @@ static const struct dev_pm_ops tegra_vde_pm_ops = {
 				tegra_vde_pm_resume)
 };
 
+static const struct tegra_vde_soc tegra20_vde_soc = {
+	.supports_ref_pic_marking = false,
+};
+
+static const struct tegra_vde_soc tegra30_vde_soc = {
+	.supports_ref_pic_marking = false,
+};
+
+static const struct tegra_vde_soc tegra114_vde_soc = {
+	.supports_ref_pic_marking = true,
+};
+
+static const struct tegra_vde_soc tegra124_vde_soc = {
+	.supports_ref_pic_marking = true,
+};
+
 static const struct of_device_id tegra_vde_of_match[] = {
-	{ .compatible = "nvidia,tegra20-vde", },
+	{ .compatible = "nvidia,tegra124-vde", .data = &tegra124_vde_soc },
+	{ .compatible = "nvidia,tegra114-vde", .data = &tegra114_vde_soc },
+	{ .compatible = "nvidia,tegra30-vde", .data = &tegra30_vde_soc },
+	{ .compatible = "nvidia,tegra20-vde", .data = &tegra20_vde_soc },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, tegra_vde_of_match);
