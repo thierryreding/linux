@@ -58,12 +58,14 @@ struct video_frame {
 	dma_addr_t aux_addr;
 	u32 frame_num;
 	u32 flags;
+	unsigned int block_height;
 };
 
 struct tegra_vde_soc {
 	unsigned int num_ref_pics;
 	bool supports_ref_pic_marking;
 	bool supports_interlacing;
+	bool supports_block_linear;
 };
 
 struct tegra_vde {
@@ -383,7 +385,13 @@ static int tegra_vde_setup_hw_context(struct tegra_vde *vde,
 	tegra_vde_set_bits(vde, 0x0005, vde->vdma + 0x04);
 
 	VDE_WR(0x00000000, vde->vdma + 0x1C);
-	VDE_WR(0x00000000, vde->vdma + 0x00);
+
+	value = 0x00000000;
+
+	if (vde->soc->supports_block_linear)
+		value |= (dpb_frames[0].block_height << 10);
+
+	VDE_WR(value, vde->vdma + 0x00);
 	VDE_WR(0x00000007, vde->vdma + 0x04);
 	VDE_WR(0x00000007, vde->frameid + 0x200);
 	VDE_WR(0x00000005, vde->tfe + 0x04);
@@ -889,6 +897,7 @@ static int tegra_vde_ioctl_decode_h264(struct tegra_vde *vde,
 
 		dpb_frames[i].flags = frames[i].flags;
 		dpb_frames[i].frame_num = frames[i].frame_num;
+		dpb_frames[i].block_height = frames[i].block_height;
 
 		dma_dir = (i == 0) ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
 
@@ -1328,24 +1337,28 @@ static const struct tegra_vde_soc tegra20_vde_soc = {
 	.num_ref_pics = 16,
 	.supports_ref_pic_marking = false,
 	.supports_interlacing = false,
+	.supports_block_linear = false,
 };
 
 static const struct tegra_vde_soc tegra30_vde_soc = {
 	.num_ref_pics = 32,
 	.supports_ref_pic_marking = false,
 	.supports_interlacing = false,
+	.supports_block_linear = false,
 };
 
 static const struct tegra_vde_soc tegra114_vde_soc = {
 	.num_ref_pics = 32,
 	.supports_ref_pic_marking = true,
 	.supports_interlacing = false,
+	.supports_block_linear = false,
 };
 
 static const struct tegra_vde_soc tegra124_vde_soc = {
 	.num_ref_pics = 32,
 	.supports_ref_pic_marking = true,
 	.supports_interlacing = true,
+	.supports_block_linear = true,
 };
 
 static const struct of_device_id tegra_vde_of_match[] = {
