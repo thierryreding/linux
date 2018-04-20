@@ -289,7 +289,7 @@ static void tegra_vde_setup_iram_tables(struct tegra_vde *vde,
 				(frame->flags & FLAG_B_FRAME));
 		} else {
 			aux_addr = 0x6ADEAD00;
-			value = 0;
+			value = 0x3f;
 		}
 
 		tegra_vde_setup_iram_entry(vde, num_ref_pics, 0, i, value,
