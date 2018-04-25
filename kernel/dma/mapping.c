@@ -343,3 +343,11 @@ void dma_deconfigure(struct device *dev)
 	of_dma_deconfigure(dev);
 	acpi_dma_deconfigure(dev);
 }
+
+void dma_iommu_detach_device(struct device *dev)
+{
+#ifdef arch_iommu_detach_device
+	arch_iommu_detach_device(dev);
+#endif
+}
+EXPORT_SYMBOL(dma_iommu_detach_device);

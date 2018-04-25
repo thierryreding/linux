@@ -667,6 +667,8 @@ static inline void arch_setup_dma_ops(struct device *dev, u64 dma_base,
 static inline void arch_teardown_dma_ops(struct device *dev) { }
 #endif
 
+extern void dma_iommu_detach_device(struct device *dev);
+
 static inline unsigned int dma_get_max_seg_size(struct device *dev)
 {
 	if (dev->dma_parms && dev->dma_parms->max_segment_size)
