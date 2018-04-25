@@ -242,6 +242,10 @@ void arch_teardown_dma_ops(struct device *dev)
 {
 }
 
+void arch_iommu_detach_device(struct device *dev)
+{
+}
+
 #define PREALLOC_DMA_DEBUG_ENTRIES	4096
 
 static int __init dma_debug_do_init(void)
