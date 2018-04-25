@@ -1174,8 +1174,6 @@ static int __init dma_debug_do_init(void)
 }
 core_initcall(dma_debug_do_init);
 
-#ifdef CONFIG_ARM_DMA_USE_IOMMU
-
 static int __dma_info_to_prot(enum dma_data_direction dir, unsigned long attrs)
 {
 	int prot = 0;
@@ -2366,20 +2364,6 @@ static void arm_teardown_iommu_dma_ops(struct device *dev)
 	arm_iommu_release_mapping(mapping);
 }
 
-#else
-
-static bool arm_setup_iommu_dma_ops(struct device *dev, u64 dma_base, u64 size,
-				    const struct iommu_ops *iommu)
-{
-	return false;
-}
-
-static void arm_teardown_iommu_dma_ops(struct device *dev) { }
-
-#define arm_get_iommu_dma_map_ops arm_get_dma_map_ops
-
-#endif	/* CONFIG_ARM_DMA_USE_IOMMU */
-
 static const struct dma_map_ops *arm_get_dma_map_ops(bool coherent)
 {
 	return coherent ? &arm_coherent_dma_ops : &arm_dma_ops;
@@ -2426,7 +2410,6 @@ void arch_teardown_dma_ops(struct device *dev)
 
 void arch_iommu_detach_device(struct device *dev)
 {
-#ifdef CONFIG_ARM_DMA_USE_IOMMU
 	struct dma_iommu_mapping *mapping = to_dma_iommu_mapping(dev);
 	const struct dma_map_ops *dma_ops;
 
@@ -2438,5 +2421,4 @@ void arch_iommu_detach_device(struct device *dev)
 
 	dma_ops = arm_get_dma_map_ops(dev->archdata.dma_coherent);
 	set_dma_ops(dev, dma_ops);
-#endif
 }
