@@ -124,7 +124,7 @@ config ARM_HAS_SG_CHAIN
 	bool
 
 config ARM_DMA_USE_IOMMU
-	bool
+	def_bool y
 	select ARM_HAS_SG_CHAIN
 	select NEED_SG_DMA_LENGTH
 
