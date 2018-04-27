@@ -221,6 +221,8 @@ static int host1x_probe(struct platform_device *pdev)
 	if (IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL))
 		goto skip_iommu;
 
+	dma_iommu_detach_device(&pdev->dev);
+
 	host->group = iommu_group_get(&pdev->dev);
 	if (host->group) {
 		struct iommu_domain_geometry *geometry;
