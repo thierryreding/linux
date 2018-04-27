@@ -218,6 +218,8 @@ static int host1x_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	dma_iommu_detach_device(&pdev->dev);
+
 	host->group = iommu_group_get(&pdev->dev);
 	if (host->group) {
 		struct iommu_domain_geometry *geometry;
