@@ -2411,7 +2411,6 @@ void arch_teardown_dma_ops(struct device *dev)
 void arch_iommu_detach_device(struct device *dev)
 {
 	struct dma_iommu_mapping *mapping = to_dma_iommu_mapping(dev);
-	const struct dma_map_ops *dma_ops;
 
 	if (!mapping)
 		return;
@@ -2419,6 +2418,5 @@ void arch_iommu_detach_device(struct device *dev)
 	arm_iommu_release_mapping(mapping);
 	arm_iommu_detach_device(dev);
 
-	dma_ops = arm_get_dma_map_ops(dev->archdata.dma_coherent);
-	set_dma_ops(dev, dma_ops);
+	set_dma_ops(dev, arm_get_dma_map_ops(dev->archdata.dma_coherent));
 }
