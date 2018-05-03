@@ -483,6 +483,24 @@ static int host1x_job_get_fences(struct host1x_job *job, struct drm_file *file,
 			fences[i].offset = fence->offset;
 			fences[i].value = fence->value;
 		}
+
+		if (!fences[i].fence && !fences[i].syncpt) {
+			/* ensure that the syncpoint index is within range */
+			if (fence->index >= job->client->num_syncpts) {
+				err = -EINVAL;
+				goto put;
+			}
+
+			if (fence->value != 1) {
+				err = -EINVAL;
+				goto put;
+			}
+
+			fences[i].syncpt = job->client->syncpts[fence->index];
+			fences[i].bo = job->buffers[cmdbuf->index];
+			fences[i].offset = fence->offset;
+			fences[i].value = fence->value;
+		}
 	}
 
 	if (count)
@@ -567,8 +585,6 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 	unsigned int i;
 	int err;
 
-	pr_info("> %s(context=%px, args=%px, drm=%px, file=%px)\n", __func__, context, args, drm, file);
-
 	user_buffers = u64_to_user_ptr(args->buffers);
 	user_cmdbufs = u64_to_user_ptr(args->cmdbufs);
 	user_relocs = u64_to_user_ptr(args->relocs);
@@ -610,15 +626,8 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 	if (err < 0)
 		goto put;
 
-	pr_info("  buffers: %u\n", num_buffers);
-
-	for (i = 0; i < num_buffers; i++)
-		pr_info("    %u: bo: %px\n", i, job->buffers[i]);
-
 	fences = job->fences;
 	out = user_fences;
-
-	pr_info("  command buffers: %u\n", num_cmdbufs);
 
 	for (i = 0; i < num_cmdbufs; i++) {
 		struct drm_tegra_cmdbuf __user *user = &user_cmdbufs[i];
@@ -632,10 +641,6 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 			err = -EFAULT;
 			goto put;
 		}
-
-		pr_info("    %u: index: %u offset: %x words: %u flags: %x\n",
-			i, cmdbuf.index, cmdbuf.offset, cmdbuf.words,
-			cmdbuf.flags);
 
 		if (cmdbuf.index > job->num_buffers) {
 			err = -EINVAL;
@@ -655,13 +660,6 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 
 		limit = (u64)cmdbuf.offset + (u64)cmdbuf.words * sizeof(u32);
 		obj = &host1x_to_tegra_bo(bo)->gem;
-
-		if (1) {
-			struct tegra_bo *tegra = host1x_to_tegra_bo(bo);
-
-			pr_info("      phys: %pad size: %zu\n", &tegra->paddr,
-				obj->size);
-		}
 
 		/*
 		 * Gather buffer base address must be 4-bytes aligned,
@@ -694,8 +692,6 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 	fences = job->fences;
 	out = user_fences;
 
-	pr_info("  relocs: %u\n", num_relocs);
-
 	/* copy and resolve relocations from submit */
 	for (i = 0; i < num_relocs; i++) {
 		struct drm_tegra_reloc __user *user = &user_relocs[i];
@@ -725,10 +721,6 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 			err = -EINVAL;
 			goto put;
 		}
-
-		pr_info("    %u:\n", i);
-		pr_info("      cmdbuf: bo: %px offset: %lx\n", reloc->cmdbuf.bo, reloc->cmdbuf.offset);
-		pr_info("      target: bo: %px offset: %lx\n", reloc->target.bo, reloc->target.offset);
 	}
 
 	job->is_addr_reg = context->client->ops->is_addr_reg;
@@ -739,11 +731,14 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		job->timeout = args->timeout;
 
 	err = host1x_job_pin(job, context->client->base.dev);
-	if (err)
+	if (err) {
+		dev_dbg(client->dev, "failed to pin job: %d\n", err);
 		goto put;
+	}
 
 	err = host1x_job_submit(job);
 	if (err) {
+		dev_dbg(client->dev, "failed to submit job: %d\n", err);
 		host1x_job_unpin(job);
 		goto put;
 	}
@@ -765,8 +760,10 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 
 		err = host1x_job_put_fences(job, file, &cmdbuf, out, fences,
 					    num_fences, &count);
-		if (err < 0)
+		if (err < 0) {
+			dev_dbg(client->dev, "failed to put fences: %d\n", err);
 			goto put;
+		}
 
 		num_fences -= count;
 		fences += count;
@@ -775,7 +772,6 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 
 put:
 	host1x_job_put(job);
-	pr_info("< %s() = %d\n", __func__, err);
 	return err;
 }
 
