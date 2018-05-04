@@ -155,7 +155,7 @@ static void run_handlers(struct list_head completed[HOST1X_INTR_ACTION_COUNT])
 	struct list_head *head = completed;
 	unsigned int i;
 
-	pr_info("> %s(...)\n", __func__);
+	//pr_info("> %s(...)\n", __func__);
 
 	for (i = 0; i < HOST1X_INTR_ACTION_COUNT; ++i, ++head) {
 		action_handler handler = action_handlers[i];
@@ -163,7 +163,7 @@ static void run_handlers(struct list_head completed[HOST1X_INTR_ACTION_COUNT])
 
 		list_for_each_entry_safe(waiter, next, head, list) {
 			list_del(&waiter->list);
-			pr_info("  running %ps for waiter %px\n", handler, waiter);
+			//pr_info("  running %ps for waiter %px\n", handler, waiter);
 			handler(waiter);
 			WARN_ON(atomic_xchg(&waiter->state, WLS_HANDLED) !=
 				WLS_REMOVED);
@@ -171,7 +171,7 @@ static void run_handlers(struct list_head completed[HOST1X_INTR_ACTION_COUNT])
 		}
 	}
 
-	pr_info("< %s()\n", __func__);
+	//pr_info("< %s()\n", __func__);
 }
 
 /*
@@ -185,8 +185,8 @@ static int process_wait_list(struct host1x *host,
 	unsigned int i;
 	int empty;
 
-	pr_info("> %s(host=%px, syncpt=%px, threshold=%u)\n", __func__,
-		host, syncpt, threshold);
+	//pr_info("> %s(host=%px, syncpt=%px, threshold=%u)\n", __func__,
+	//	host, syncpt, threshold);
 
 	for (i = 0; i < HOST1X_INTR_ACTION_COUNT; ++i)
 		INIT_LIST_HEAD(completed + i);
@@ -207,7 +207,7 @@ static int process_wait_list(struct host1x *host,
 
 	run_handlers(completed);
 
-	pr_info("< %s() = %d\n", __func__, empty);
+	//pr_info("< %s() = %d\n", __func__, empty);
 	return empty;
 }
 
@@ -225,12 +225,12 @@ static void syncpt_thresh_work(struct work_struct *work)
 	unsigned int id = syncpt->id;
 	struct host1x *host = syncpt->host;
 
-	pr_info("> %s(work=%px)\n", __func__, work);
+	//pr_info("> %s(work=%px)\n", __func__, work);
 
 	(void)process_wait_list(host, syncpt,
 				host1x_syncpt_load(host->syncpt + id));
 
-	pr_info("< %s()\n", __func__);
+	//pr_info("< %s()\n", __func__);
 }
 
 int host1x_intr_add_action(struct host1x *host, struct host1x_syncpt *syncpt,
@@ -240,9 +240,9 @@ int host1x_intr_add_action(struct host1x *host, struct host1x_syncpt *syncpt,
 {
 	int queue_was_empty;
 
-	pr_info("> %s(host=%px, syncpt=%px, threshold=%u, action=%d, data=%px, waiter=%px, ref=%px)\n", __func__, host, syncpt, threshold, action, data, waiter, ref);
-	pr_info("  syncpt: %u\n", syncpt->id);
-	pr_info("    value: %u/%u/%u\n", host1x_syncpt_read_min(syncpt), host1x_syncpt_read(syncpt), host1x_syncpt_read_max(syncpt));
+	//pr_info("> %s(host=%px, syncpt=%px, threshold=%u, action=%d, data=%px, waiter=%px, ref=%px)\n", __func__, host, syncpt, threshold, action, data, waiter, ref);
+	//pr_info("  syncpt: %u\n", syncpt->id);
+	//pr_info("    value: %u/%u/%u\n", host1x_syncpt_read_min(syncpt), host1x_syncpt_read(syncpt), host1x_syncpt_read_max(syncpt));
 
 	if (waiter == NULL) {
 		pr_warn("%s: NULL waiter\n", __func__);
@@ -280,14 +280,22 @@ int host1x_intr_add_action(struct host1x *host, struct host1x_syncpt *syncpt,
 	if (ref)
 		*ref = waiter;
 
-	pr_info("< %s()\n", __func__);
+	//pr_info("< %s()\n", __func__);
 	return 0;
 }
 
 void host1x_intr_put_ref(struct host1x *host, unsigned int id, void *ref)
 {
+	struct host1x_syncpt *syncpt = &host->syncpt[id];
 	struct host1x_waitlist *waiter = ref;
-	struct host1x_syncpt *syncpt;
+
+	process_wait_list(host, syncpt, host1x_syncpt_load(syncpt));
+	kref_put(&waiter->refcount, waiter_release);
+}
+
+void host1x_intr_put_ref_sync(struct host1x *host, unsigned int id, void *ref)
+{
+	struct host1x_waitlist *waiter = ref;
 
 	pr_info("> %s(host=%px, id=%u, ref=%px)\n", __func__, host, id, ref);
 	pr_info("  waiter->state: %u\n", atomic_read(&waiter->state));
@@ -298,11 +306,7 @@ void host1x_intr_put_ref(struct host1x *host, unsigned int id, void *ref)
 
 	pr_info("  waiter->state: %u\n", atomic_read(&waiter->state));
 
-	syncpt = host->syncpt + id;
-	(void)process_wait_list(host, syncpt,
-				host1x_syncpt_load(host->syncpt + id));
-
-	kref_put(&waiter->refcount, waiter_release);
+	host1x_intr_put_ref(host, id, ref);
 	pr_info("< %s()\n", __func__);
 }
 

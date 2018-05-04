@@ -11,6 +11,7 @@
 #include <linux/host1x.h>
 #include <linux/idr.h>
 #include <linux/iommu.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/sync_file.h>
 
 #include <drm/drm_atomic.h>
@@ -1154,6 +1155,15 @@ static int host1x_drm_probe(struct host1x_device *dev)
 	struct drm_device *drm;
 	int err;
 
+	/*
+	err = of_reserved_mem_device_init_by_idx(&dev->dev, dev->dev.of_node,
+						 0);
+	if (err < 0)
+		dev_err(&dev->dev, "failed to setup reserved memory: %d\n", err);
+	else
+		dev_info(&dev->dev, "reserved memory set up: %px/%px\n", dev->dev.cma_area, dev->dev.dma_mem);
+	*/
+
 	drm = drm_dev_alloc(driver, &dev->dev);
 	if (IS_ERR(drm))
 		return PTR_ERR(drm);
@@ -1177,6 +1187,10 @@ static int host1x_drm_remove(struct host1x_device *dev)
 
 	drm_dev_unregister(drm);
 	drm_dev_unref(drm);
+
+	/*
+	of_reserved_mem_device_release(&dev->dev);
+	*/
 
 	return 0;
 }

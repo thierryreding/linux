@@ -84,7 +84,8 @@ struct nvkm_mmu {
 	const struct nvkm_mmu_func *func;
 	struct nvkm_subdev subdev;
 
-	u8  dma_bits;
+	u8 iommu_bit;
+	u8 dma_bits;
 
 	int heap_nr;
 	struct {

@@ -117,6 +117,7 @@
 		#size-cells = <1>;
 
 		ranges = <0x54000000 0x54000000 0x04000000>;
+		iommus = <&mc TEGRA_SWGROUP_HC>;
 
 		mpe@54040000 {
 			compatible = "nvidia,tegra30-mpe";
@@ -161,6 +162,8 @@
 			clocks = <&tegra_car TEGRA30_CLK_GR2D>;
 			resets = <&tegra_car 21>;
 			reset-names = "2d";
+
+			iommus = <&mc TEGRA_SWGROUP_G2>;
 		};
 
 		gr3d@54180000 {

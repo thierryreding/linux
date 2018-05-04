@@ -76,14 +76,14 @@ static void host1x_fence_release(struct dma_fence *fence)
 {
 	struct host1x_fence *f = to_host1x_fence(fence);
 
-	pr_info("> %s(fence=%px)\n", __func__, fence);
+	//pr_info("> %s(fence=%px)\n", __func__, fence);
 
 	if (f->waiter)
 		host1x_intr_put_ref(f->host, f->syncpt->id, f->waiter);
 
 	kfree(f);
 
-	pr_info("< %s()\n", __func__);
+	//pr_info("< %s()\n", __func__);
 }
 
 const struct dma_fence_ops host1x_fence_ops = {

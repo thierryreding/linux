@@ -38,6 +38,8 @@ static int host1x_job_gather_wait_fences(struct host1x_job *job,
 	unsigned int i;
 	int err = 0;
 
+	//pr_info("> %s(job=%px, gather=%px)\n", __func__, job, gather);
+
 	if (gather->num_fences == 0)
 		return 0;
 
@@ -58,6 +60,7 @@ static int host1x_job_gather_wait_fences(struct host1x_job *job,
 			break;
 	}
 
+	//pr_info("< %s() = %d\n", __func__, err);
 	return err;
 }
 
@@ -96,8 +99,8 @@ static void submit_gathers(struct host1x_job *job)
 	struct device *dev = job->channel->dev;
 	unsigned int i;
 
-	pr_info("> %s(job=%px)\n", __func__, job);
-	pr_info("  gathers: %u\n", job->num_gathers);
+	//pr_info("> %s(job=%px)\n", __func__, job);
+	//pr_info("  gathers: %u\n", job->num_gathers);
 
 	for (i = 0; i < job->num_gathers; i++) {
 		struct host1x_job_gather *g = &job->gathers[i];
@@ -118,11 +121,11 @@ static void submit_gathers(struct host1x_job *job)
 				 HOST1X_OPCODE_NOP);
 
 		trace_write_gather(cdma, g->bo, g->offset, op1 & 0xffff);
-		pr_info("    %u: %08x %08x\n", i, op1, op2);
+		//pr_info("    %u: %08x %08x\n", i, op1, op2);
 		host1x_cdma_push(cdma, op1, op2);
 	}
 
-	pr_info("< %s()\n", __func__);
+	//pr_info("< %s()\n", __func__);
 }
 
 static void channel_push_wait(struct host1x_channel *channel,
@@ -210,7 +213,7 @@ static int submit_waiters(struct host1x_job *job,
 	unsigned int i;
 	int err;
 
-	pr_info("> %s(job=%px, waiters=%px, count=%u)\n", __func__, job, waiters, count);
+	//pr_info("> %s(job=%px, waiters=%px, count=%u)\n", __func__, job, waiters, count);
 
 	for (i = 0; i < job->num_checkpoints; i++) {
 		struct host1x_checkpoint *cp = &job->checkpoints[i];
@@ -223,7 +226,7 @@ static int submit_waiters(struct host1x_job *job,
 		     err);
 	}
 
-	pr_info("< %s()\n", __func__);
+	//pr_info("< %s()\n", __func__);
 	return 0;
 }
 
@@ -235,26 +238,26 @@ static int channel_submit(struct host1x_job *job)
 	unsigned int i, j;
 	int err;
 
-	pr_info("> %s(job=%px)\n", __func__, job);
+	//pr_info("> %s(job=%px)\n", __func__, job);
 
 	trace_host1x_channel_submit(dev_name(channel->dev),
 				    job->num_gathers, job->num_relocs,
 				    job->num_checkpoints);
 
-	pr_info("  checkpoints: %u\n", job->num_checkpoints);
+	//pr_info("  checkpoints: %u\n", job->num_checkpoints);
 
 	for (i = 0; i < job->num_checkpoints; i++) {
 		struct host1x_checkpoint *cp = &job->checkpoints[i];
 
 		/* before error checks, return current max */
 		cp->threshold = host1x_syncpt_read_max(cp->syncpt);
-		pr_info("    %u: %u / %u\n", i, cp->threshold, cp->value);
+		//pr_info("    %u: %u / %u\n", i, cp->threshold, cp->value);
 	}
 
 	/* get submit lock */
-	pr_info("  acquiring submit lock...\n");
+	//pr_info("  acquiring submit lock...\n");
 	err = mutex_lock_interruptible(&channel->submitlock);
-	pr_info("  done\n");
+	//pr_info("  done\n");
 	if (err)
 		return err;
 
@@ -271,9 +274,9 @@ static int channel_submit(struct host1x_job *job)
 		goto free;
 	}
 
-	pr_info("  serializing channel...\n");
+	//pr_info("  serializing channel...\n");
 	channel_serialize(job);
-	pr_info("  done\n");
+	//pr_info("  done\n");
 
 	/* rebase fences on current threshold */
 	for (i = 0; i < job->num_fences; i++) {
@@ -285,7 +288,7 @@ static int channel_submit(struct host1x_job *job)
 		}
 	}
 
-	pr_info("  fences rebased\n");
+	//pr_info("  fences rebased\n");
 
 	/* bump threshold */
 	for (i = 0; i < job->num_checkpoints; i++) {
@@ -298,11 +301,11 @@ static int channel_submit(struct host1x_job *job)
 		host1x_syncpt_sync_base(cp->syncpt, &channel->cdma);
 
 		cp->threshold = host1x_syncpt_incr_max(cp->syncpt, cp->value);
-		pr_info("    %u: %u\n", i, cp->threshold);
+		//pr_info("    %u: %u\n", i, cp->threshold);
 		host1x_hw_syncpt_assign_to_channel(host, cp->syncpt, channel);
 	}
 
-	pr_info("  threshold bumped\n");
+	//pr_info("  threshold bumped\n");
 
 	submit_gathers(job);
 
@@ -314,7 +317,7 @@ static int channel_submit(struct host1x_job *job)
 
 	mutex_unlock(&channel->submitlock);
 
-	pr_info("< %s()\n", __func__);
+	//pr_info("< %s()\n", __func__);
 	return 0;
 
 free:
@@ -322,7 +325,7 @@ free:
 		kfree(waiters[i]);
 
 	kfree(waiters[i]);
-	pr_info("< %s() = %d\n", __func__, err);
+	//pr_info("< %s() = %d\n", __func__, err);
 	return err;
 }
 

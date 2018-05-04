@@ -47,7 +47,7 @@ struct host1x_job *host1x_job_alloc(struct host1x_channel *channel,
 	u64 total;
 	void *mem;
 
-	pr_info("> %s(channel=%px, num_buffers=%u, num_cmdbufs=%u, num_relocs=%u, num_syncpts=%u, num_fences=%u, extra=%zu, priv=%px)\n", __func__, channel, num_buffers, num_cmdbufs, num_relocs, num_syncpts, num_fences, extra, priv);
+	//pr_info("> %s(channel=%px, num_buffers=%u, num_cmdbufs=%u, num_relocs=%u, num_syncpts=%u, num_fences=%u, extra=%zu, priv=%px)\n", __func__, channel, num_buffers, num_cmdbufs, num_relocs, num_syncpts, num_fences, extra, priv);
 
 	/* Check that we're not going to overflow */
 	total = sizeof(struct host1x_job) +
@@ -107,7 +107,7 @@ struct host1x_job *host1x_job_alloc(struct host1x_channel *channel,
 	if (priv)
 		*priv = extra ? mem : NULL;
 
-	pr_info("< %s() = %px\n", __func__, job);
+	//pr_info("< %s() = %px\n", __func__, job);
 	return job;
 }
 EXPORT_SYMBOL(host1x_job_alloc);
@@ -124,27 +124,27 @@ static void job_free(struct kref *ref)
 	struct host1x_job *job = container_of(ref, struct host1x_job, ref);
 	unsigned int i, j;
 
-	pr_info("> %s(ref=%px)\n", __func__, ref);
-	pr_info("  gathers: %u\n", job->num_gathers);
+	//pr_info("> %s(ref=%px)\n", __func__, ref);
+	//pr_info("  gathers: %u\n", job->num_gathers);
 
 	for (i = 0; i < job->num_gathers; i++) {
 		struct host1x_job_gather *gather = &job->gathers[i];
 
-		pr_info("    %u: %u fences\n", i, gather->num_fences);
+		//pr_info("    %u: %u fences\n", i, gather->num_fences);
 
 		for (j = 0; j < gather->num_fences; j++)
 			dma_fence_put(gather->fences[j].fence);
 	}
 
 	kfree(job);
-	pr_info("< %s()\n", __func__);
+	//pr_info("< %s()\n", __func__);
 }
 
 void host1x_job_put(struct host1x_job *job)
 {
-	pr_info("> %s(job=%px)\n", __func__, job);
+	//pr_info("> %s(job=%px)\n", __func__, job);
 	kref_put(&job->ref, job_free);
-	pr_info("< %s()\n", __func__);
+	//pr_info("< %s()\n", __func__);
 }
 EXPORT_SYMBOL(host1x_job_put);
 
@@ -322,19 +322,21 @@ static bool check_reloc(struct host1x_reloc *reloc, struct host1x_bo *cmdbuf,
 
 static int do_fences(struct host1x_job *job, struct host1x_job_gather *gather)
 {
+	struct host1x *host1x = dev_get_drvdata(job->channel->dev->parent);
+	const struct host1x_info *info = host1x->info;
 	struct host1x_bo *cmdbuf = gather->bo;
 	unsigned int last_page = ~0;
 	unsigned int i, j;
 	void *virt = NULL;
 
-	pr_info("> %s(job=%px, gather=%px)\n", __func__, job, gather);
+	//pr_info("> %s(job=%px, gather=%px)\n", __func__, job, gather);
 
 	/* patch the fences for one gather */
 	for (i = 0; i < gather->num_fences; i++) {
 		struct host1x_job_fence *fence = &gather->fences[i];
 		u32 *target;
 
-		pr_info("  %u: %px\n", i, fence);
+		//pr_info("  %u: %px\n", i, fence);
 
 		if (!fence->syncpt)
 			continue;
@@ -368,12 +370,13 @@ static int do_fences(struct host1x_job *job, struct host1x_job_gather *gather)
 			target = virt + (fence->offset & ~PAGE_MASK);
 		}
 
-		*target = *target << 8 | fence->syncpt->id;
+		*target = *target << info->syncpt_bits | fence->syncpt->id;
 	}
 
 	if (virt)
 		host1x_bo_kunmap(cmdbuf, last_page, virt);
 
+	//pr_info("< %s()\n", __func__);
 	return 0;
 }
 

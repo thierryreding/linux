@@ -43,14 +43,14 @@ static void cdma_timeout_cpu_incr(struct host1x_cdma *cdma, u32 getptr,
 	struct push_buffer *pb = &cdma->push_buffer;
 	unsigned int i, j;
 
-	pr_info("> %s(cdma=%px, getptr=%08x, nr_slots=%u)\n", __func__, cdma, getptr, nr_slots);
-	pr_info("  rolling forward checkpoints: %u\n", cdma->timeout.num_checkpoints);
+	//pr_info("> %s(cdma=%px, getptr=%08x, nr_slots=%u)\n", __func__, cdma, getptr, nr_slots);
+	//pr_info("  rolling forward checkpoints: %u\n", cdma->timeout.num_checkpoints);
 
 	for (i = 0; i < cdma->timeout.num_checkpoints; i++) {
 		struct host1x_checkpoint *cp = &cdma->timeout.checkpoints[i];
 		u32 value = host1x_syncpt_load(cp->syncpt);
 
-		pr_info("    %u: value: %u target: %u\n", i, value, cp->threshold);
+		//pr_info("    %u: value: %u target: %u\n", i, value, cp->threshold);
 
 		for (j = value; j < cp->threshold; j++)
 			host1x_syncpt_incr(cp->syncpt);
@@ -70,6 +70,7 @@ static void cdma_timeout_cpu_incr(struct host1x_cdma *cdma, u32 getptr,
 	}
 
 	wmb();
+	//pr_info("< %s()\n", __func__);
 }
 
 /*
@@ -170,7 +171,7 @@ static void cdma_stop(struct host1x_cdma *cdma)
 {
 	struct host1x_channel *ch = cdma_to_channel(cdma);
 
-	mutex_lock(&cdma->lock);
+	host1x_cdma_lock(cdma);
 
 	if (cdma->running) {
 		host1x_cdma_wait_locked(cdma, CDMA_EVENT_SYNC_QUEUE_EMPTY);
@@ -179,7 +180,7 @@ static void cdma_stop(struct host1x_cdma *cdma)
 		cdma->running = false;
 	}
 
-	mutex_unlock(&cdma->lock);
+	host1x_cdma_unlock(cdma);
 }
 
 static void cdma_hw_cmdproc_stop(struct host1x *host, struct host1x_channel *ch,
@@ -273,12 +274,12 @@ static void cdma_timeout_handler(struct work_struct *work)
 
 	host1x_debug_dump(cdma_to_host1x(cdma));
 
-	mutex_lock(&cdma->lock);
+	host1x_cdma_lock(cdma);
 
 	if (!cdma->timeout.client) {
 		dev_dbg(host1x->dev,
 			"cdma_timeout: expired, but has no clientid\n");
-		mutex_unlock(&cdma->lock);
+		host1x_cdma_unlock(cdma);
 		return;
 	}
 
@@ -306,7 +307,7 @@ static void cdma_timeout_handler(struct work_struct *work)
 	}
 
 	if (completed) {
-		mutex_unlock(&cdma->lock);
+		host1x_cdma_unlock(cdma);
 		return;
 	}
 
@@ -314,7 +315,7 @@ static void cdma_timeout_handler(struct work_struct *work)
 	host1x_hw_cdma_freeze(host1x, cdma);
 
 	host1x_cdma_update_sync_queue(cdma, ch->dev);
-	mutex_unlock(&cdma->lock);
+	host1x_cdma_unlock(cdma);
 }
 
 /*

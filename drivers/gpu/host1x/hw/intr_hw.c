@@ -33,8 +33,8 @@ static void host1x_intr_syncpt_handle(struct host1x_syncpt *syncpt)
 	unsigned int id = syncpt->id;
 	struct host1x *host = syncpt->host;
 
-	pr_info("> %s(syncpt=%px)\n", __func__, syncpt);
-	pr_info("  ID: %u\n", syncpt->id);
+	//pr_info("> %s(syncpt=%px)\n", __func__, syncpt);
+	//pr_info("  ID: %u\n", syncpt->id);
 
 	host1x_sync_writel(host, BIT(id % 32),
 		HOST1X_SYNC_SYNCPT_THRESH_INT_DISABLE(id / 32));
@@ -42,7 +42,7 @@ static void host1x_intr_syncpt_handle(struct host1x_syncpt *syncpt)
 		HOST1X_SYNC_SYNCPT_THRESH_CPU0_INT_STATUS(id / 32));
 
 	schedule_work(&syncpt->intr.work);
-	pr_info("< %s()\n", __func__);
+	//pr_info("< %s()\n", __func__);
 }
 
 static irqreturn_t syncpt_thresh_isr(int irq, void *dev_id)
@@ -57,7 +57,7 @@ static irqreturn_t syncpt_thresh_isr(int irq, void *dev_id)
 		for_each_set_bit(id, &reg, 32) {
 			struct host1x_syncpt *syncpt =
 				host->syncpt + (i * 32 + id);
-			pr_info("%s(): handling IRQ for %u\n", __func__, i * 32 + id);
+			//pr_info("%s(): handling IRQ for %u\n", __func__, i * 32 + id);
 			host1x_intr_syncpt_handle(syncpt);
 		}
 	}
