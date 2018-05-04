@@ -321,6 +321,8 @@
 		resets = <&tegra_car 61>,
 			 <&tegra_car 63>;
 		reset-names = "vde", "bsev";
+
+		iommus = <&mc TEGRA_SWGROUP_VDE>;
 	};
 
 	apbdma: dma@60020000 {
