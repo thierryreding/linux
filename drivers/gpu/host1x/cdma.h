@@ -71,6 +71,49 @@ struct host1x_cdma {
 	bool torndown;
 };
 
+#undef HOST1X_CDMA_DEBUG
+
+#ifdef HOST1X_CDMA_DEBUG
+static const char *lock_file = NULL;
+static int lock_line = 0;
+
+static inline void __host1x_cdma_lock(struct host1x_cdma *cdma, const char *file, int line)
+{
+	pr_info("%s:%d: acquiring lock for CDMA %px\n", file, line, cdma);
+
+	if (mutex_is_locked(&cdma->lock))
+		pr_info("  already holding lock @%s:%d\n", lock_file, lock_line);
+
+	mutex_lock(&cdma->lock);
+
+	lock_file = file;
+	lock_line = line;
+}
+
+static inline void __host1x_cdma_unlock(struct host1x_cdma *cdma, const char *file, int line)
+{
+	pr_info("%s:%d: releasing lock for CDMA %px\n", file, line, cdma);
+	lock_file = NULL;
+	lock_line = 0;
+	mutex_unlock(&cdma->lock);
+}
+
+#define host1x_cdma_lock(cdma) \
+	__host1x_cdma_lock(cdma, __FILE__, __LINE__)
+
+#define host1x_cdma_unlock(cdma) \
+	__host1x_cdma_unlock(cdma, __FILE__, __LINE__)
+#else
+#define host1x_cdma_lock(cdma) \
+	mutex_lock(&(cdma)->lock);
+
+#define host1x_cdma_unlock(cdma) \
+	mutex_unlock(&(cdma)->lock)
+#endif
+
+#define host1x_cdma_lock_init(cdma) \
+	mutex_init(&(cdma)->lock)
+
 #define cdma_to_channel(cdma) container_of(cdma, struct host1x_channel, cdma)
 #define cdma_to_host1x(cdma) dev_get_drvdata(cdma_to_channel(cdma)->dev->parent)
 #define pb_to_cdma(pb) container_of(pb, struct host1x_cdma, push_buffer)
