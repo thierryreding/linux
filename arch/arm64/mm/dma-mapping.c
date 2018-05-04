@@ -891,3 +891,15 @@ void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 	}
 #endif
 }
+
+void arch_iommu_detach_device(struct device *dev)
+{
+#ifdef CONFIG_IOMMU_DMA
+	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
+
+	if (domain)
+		iommu_put_dma_cookie(domain);
+
+	dev->dma_ops = &arm64_swiotlb_dma_ops;
+#endif
+}

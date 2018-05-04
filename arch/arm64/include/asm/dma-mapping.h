@@ -44,6 +44,9 @@ void arch_teardown_dma_ops(struct device *dev);
 #define arch_teardown_dma_ops	arch_teardown_dma_ops
 #endif
 
+#define arch_iommu_detach_device arch_iommu_detach_device
+extern void arch_iommu_detach_device(struct device *dev);
+
 /* do not use this function in a driver */
 static inline bool is_device_dma_coherent(struct device *dev)
 {
