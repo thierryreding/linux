@@ -22,11 +22,12 @@
 #include "mem.h"
 #include "vmm.h"
 
+#include <core/tegra.h>
 #include <nvif/class.h>
 
 static const struct nvkm_mmu_func
 gk20a_mmu = {
-	.dma_bits = 40,
+	.dma_bits = 34,
 	.mmu = {{ -1, -1, NVIF_CLASS_MMU_GF100}},
 	.mem = {{ -1, -1, NVIF_CLASS_MEM_GF100}, .umap = gf100_mem_map },
 	.vmm = {{ -1, -1, NVIF_CLASS_VMM_GF100}, gk20a_vmm_new },
@@ -37,5 +38,18 @@ gk20a_mmu = {
 int
 gk20a_mmu_new(struct nvkm_device *device, int index, struct nvkm_mmu **pmmu)
 {
-	return nvkm_mmu_new_(&gk20a_mmu, device, index, pmmu);
+	struct nvkm_device_tegra *tegra = device->func->tegra(device);
+	struct device *dev = &tegra->pdev->dev;
+	int ret;
+
+	ret = nvkm_mmu_new_(&gk20a_mmu, device, index, pmmu);
+	if (ret < 0)
+		return ret;
+
+#if IS_ENABLED(CONFIG_ARM_DMA_USE_IOMMU)
+	if (dev->archdata.mapping)
+		(*pmmu)->iommu_bit = gk20a_mmu.dma_bits;
+#endif
+
+	return 0;
 }
