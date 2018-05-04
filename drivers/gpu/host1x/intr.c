@@ -254,18 +254,22 @@ int host1x_intr_add_action(struct host1x *host, struct host1x_syncpt *syncpt,
 
 void host1x_intr_put_ref(struct host1x *host, unsigned int id, void *ref)
 {
+	struct host1x_syncpt *syncpt = &host->syncpt[id];
 	struct host1x_waitlist *waiter = ref;
-	struct host1x_syncpt *syncpt;
+
+	process_wait_list(host, syncpt, host1x_syncpt_load(syncpt));
+	kref_put(&waiter->refcount, waiter_release);
+}
+
+void host1x_intr_put_ref_sync(struct host1x *host, unsigned int id, void *ref)
+{
+	struct host1x_waitlist *waiter = ref;
 
 	while (atomic_cmpxchg(&waiter->state, WLS_PENDING, WLS_CANCELLED) ==
 	       WLS_REMOVED)
 		schedule();
 
-	syncpt = host->syncpt + id;
-	(void)process_wait_list(host, syncpt,
-				host1x_syncpt_load(host->syncpt + id));
-
-	kref_put(&waiter->refcount, waiter_release);
+	host1x_intr_put_ref(host, id, ref);
 }
 
 int host1x_intr_init(struct host1x *host, unsigned int irq_sync)

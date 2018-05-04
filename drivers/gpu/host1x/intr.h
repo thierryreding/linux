@@ -82,6 +82,7 @@ int host1x_intr_add_action(struct host1x *host, struct host1x_syncpt *syncpt,
  * @ref the ref returned from host1x_intr_add_action()
  */
 void host1x_intr_put_ref(struct host1x *host, unsigned int id, void *ref);
+void host1x_intr_put_ref_sync(struct host1x *host, unsigned int id, void *ref);
 
 /* Initialize host1x sync point interrupt */
 int host1x_intr_init(struct host1x *host, unsigned int irq_sync);
