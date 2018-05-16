@@ -29,146 +29,598 @@
 extern "C" {
 #endif
 
-#define DRM_TEGRA_GEM_CREATE_TILED     (1 << 0)
-#define DRM_TEGRA_GEM_CREATE_BOTTOM_UP (1 << 1)
+#define DRM_TEGRA_GEM_TILED		(1 << 0)
+#define DRM_TEGRA_GEM_BOTTOM_UP		(1 << 1)
+#define DRM_TEGRA_GEM_FLAGS		(DRM_TEGRA_GEM_TILED | \
+					 DRM_TEGRA_GEM_BOTTOM_UP)
 
+/**
+ * struct drm_tegra_gem_create - parameters for the GEM object creation IOCTL
+ */
 struct drm_tegra_gem_create {
+	/**
+	 * @size:
+	 *
+	 * The size, in bytes, of the buffer object to be created.
+	 */
 	__u64 size;
+
+	/**
+	 * @flags:
+	 *
+	 * A bitmask of flags that influence the creation of GEM objects:
+	 *
+	 * DRM_TEGRA_GEM_TILED
+	 *   Use the 16x16 tiling format for this buffer.
+	 *
+	 * DRM_TEGRA_GEM_BOTTOM_UP
+	 *   The buffer has a bottom-up layout.
+	 */
 	__u32 flags;
+
+	/**
+	 * @handle:
+	 *
+	 * Return location for the handle of the created GEM object.
+	 */
 	__u32 handle;
 };
 
+/**
+ * struct drm_tegra_gem_mmap - parameters for the GEM mmap IOCTL
+ */
 struct drm_tegra_gem_mmap {
+	/**
+	 * @handle:
+	 *
+	 * Handle of the GEM object to obtain an mmap offset for.
+	 */
 	__u32 handle;
+
+	/**
+	 * @pad:
+	 *
+	 * Structure padding that may be used in the future. Must be 0.
+	 */
 	__u32 pad;
+
+	/**
+	 * @offset:
+	 *
+	 * Return location for the mmap offset for the given GEM object.
+	 */
 	__u64 offset;
 };
 
+/**
+ * struct drm_tegra_syncpt_read - parameters for the read syncpoint IOCTL
+ */
 struct drm_tegra_syncpt_read {
+	/**
+	 * @id:
+	 *
+	 * ID of the syncpoint to read the current value from.
+	 */
 	__u32 id;
+
+	/**
+	 * @value:
+	 *
+	 * Return location for the current syncpoint value.
+	 */
 	__u32 value;
 };
 
+/**
+ * struct drm_tegra_syncpt_incr - parameters for the increment syncpoint IOCTL
+ */
 struct drm_tegra_syncpt_incr {
+	/**
+	 * @id:
+	 *
+	 * ID of the syncpoint to read the current value from.
+	 */
 	__u32 id;
+
+	/**
+	 * @pad:
+	 *
+	 * Structure padding that may be used in the future. Must be 0.
+	 */
 	__u32 pad;
 };
 
+/**
+ * struct drm_tegra_syncpt_wait - parameters for the wait syncpoint IOCTL
+ */
 struct drm_tegra_syncpt_wait {
+	/**
+	 * @id:
+	 *
+	 * ID of the syncpoint to wait on.
+	 */
 	__u32 id;
+
+	/**
+	 * @thresh:
+	 *
+	 * Threshold value for which to wait.
+	 */
 	__u32 thresh;
+
+	/**
+	 * @timeout:
+	 *
+	 * Timeout, in milliseconds, to wait.
+	 */
 	__u32 timeout;
+
+	/**
+	 * @value:
+	 *
+	 * Return value for the current syncpoint value.
+	 */
 	__u32 value;
 };
 
 #define DRM_TEGRA_NO_TIMEOUT	(0xffffffff)
 
+/**
+ * struct drm_tegra_open_channel - parameters for the open channel IOCTL
+ */
 struct drm_tegra_open_channel {
+	/**
+	 * @client:
+	 *
+	 * The client ID for this channel.
+	 */
 	__u32 client;
+
+	/**
+	 * @pad:
+	 *
+	 * Structure padding that may be used in the future. Must be 0.
+	 */
 	__u32 pad;
+
+	/**
+	 * @context:
+	 *
+	 * Return location for the application context of this channel. This
+	 * context needs to be passed to the DRM_TEGRA_CHANNEL_CLOSE or the
+	 * DRM_TEGRA_SUBMIT IOCTLs.
+	 */
 	__u64 context;
 };
 
+/**
+ * struct drm_tegra_close_channel - parameters for the close channel IOCTL
+ */
 struct drm_tegra_close_channel {
+	/**
+	 * @context:
+	 *
+	 * The application context of this channel. This is obtained from the
+	 * DRM_TEGRA_OPEN_CHANNEL IOCTL.
+	 */
 	__u64 context;
 };
 
+/**
+ * struct drm_tegra_get_syncpt - parameters for the get syncpoint IOCTL
+ */
 struct drm_tegra_get_syncpt {
+	/**
+	 * @context:
+	 *
+	 * The application context identifying the channel for which to obtain
+	 * the syncpoint ID.
+	 */
 	__u64 context;
+
+	/**
+	 * @index:
+	 *
+	 * Channel-relative index of the syncpoint for which to obtain the ID.
+	 */
 	__u32 index;
+
+	/**
+	 * @id:
+	 *
+	 * Return location for the ID of the given syncpoint.
+	 */
 	__u32 id;
 };
 
+/**
+ * struct drm_tegra_get_syncpt_base - parameters for the get wait base IOCTL
+ */
 struct drm_tegra_get_syncpt_base {
+	/**
+	 * @context:
+	 *
+	 * The application context identifying for which channel to obtain the
+	 * wait base.
+	 */
 	__u64 context;
+
+	/**
+	 * @syncpt:
+	 *
+	 * ID of the syncpoint for which to obtain the wait base.
+	 */
 	__u32 syncpt;
+
+	/**
+	 * @id:
+	 *
+	 * Return location for the ID of the wait base.
+	 */
 	__u32 id;
 };
 
+/**
+ * struct drm_tegra_syncpt - syncpoint increment operation
+ */
 struct drm_tegra_syncpt {
+	/**
+	 * @id:
+	 *
+	 * ID of the syncpoint to operate on.
+	 */
 	__u32 id;
+
+	/**
+	 * @incrs:
+	 *
+	 * Number of increments to perform for the syncpoint.
+	 */
 	__u32 incrs;
 };
 
+/**
+ * struct drm_tegra_cmdbuf - structure describing a command buffer
+ */
 struct drm_tegra_cmdbuf {
+	/**
+	 * @handle:
+	 *
+	 * Handle to a GEM object containing the command buffer.
+	 */
 	__u32 handle;
+
+	/**
+	 * @offset:
+	 *
+	 * Offset, in bytes, into the GEM object identified by @handle at
+	 * which the command buffer starts.
+	 */
 	__u32 offset;
+
+	/**
+	 * @words:
+	 *
+	 * Number of 32-bit words in this command buffer.
+	 */
 	__u32 words;
+
+	/**
+	 * @pad:
+	 *
+	 * Structure padding that may be used in the future. Must be 0.
+	 */
 	__u32 pad;
 };
 
+/**
+ * struct drm_tegra_reloc - GEM object relocation structure
+ */
 struct drm_tegra_reloc {
 	struct {
+		/**
+		 * @cmdbuf.handle:
+		 *
+		 * Handle to the GEM object containing the command buffer for
+		 * which to perform this GEM object relocation.
+		 */
 		__u32 handle;
+
+		/**
+		 * @cmdbuf.offset:
+		 *
+		 * Offset into the command buffer at which to insert the the
+		 * relocated address.
+		 */
 		__u32 offset;
 	} cmdbuf;
 	struct {
+		/**
+		 * @target.handle:
+		 *
+		 * Handle to the GEM object to be relocated.
+		 */
 		__u32 handle;
+
+		/**
+		 * @target.offset:
+		 *
+		 * Offset into the target GEM object at which the relocated
+		 * data starts.
+		 */
 		__u32 offset;
 	} target;
+
+	/**
+	 * @shift:
+	 *
+	 * The number of bits by which to shift relocated addresses.
+	 */
 	__u32 shift;
+
+	/**
+	 * @pad:
+	 *
+	 * Structure padding that may be used in the future. Must be 0.
+	 */
 	__u32 pad;
 };
 
+/**
+ * struct drm_tegra_waitchk - wait check structure
+ */
 struct drm_tegra_waitchk {
+	/**
+	 * @handle:
+	 *
+	 * Handle to the GEM object containing a command stream on which to
+	 * perform the wait check.
+	 */
 	__u32 handle;
+
+	/**
+	 * @offset:
+	 *
+	 * Offset, in bytes, of the location in the command stream to perform
+	 * the wait check on.
+	 */
 	__u32 offset;
+
+	/**
+	 * @syncpt:
+	 *
+	 * ID of the syncpoint to wait check.
+	 */
 	__u32 syncpt;
+
+	/**
+	 * @thresh:
+	 *
+	 * Threshold value for which to check.
+	 */
 	__u32 thresh;
 };
 
+/**
+ * struct drm_tegra_submit - job submission structure
+ */
 struct drm_tegra_submit {
+	/**
+	 * @context:
+	 *
+	 * The application context identifying the channel to use for the
+	 * execution of this job.
+	 */
 	__u64 context;
-	__u32 num_syncpts;
-	__u32 num_cmdbufs;
-	__u32 num_relocs;
-	__u32 num_waitchks;
-	__u32 waitchk_mask;
-	__u32 timeout;
-	__u64 syncpts;
-	__u64 cmdbufs;
-	__u64 relocs;
-	__u64 waitchks;
-	__u32 fence;		/* Return value */
 
-	__u32 reserved[5];	/* future expansion */
+	/**
+	 * @num_syncpts:
+	 *
+	 * The number of syncpoints operated on by this job.
+	 */
+	__u32 num_syncpts;
+
+	/**
+	 * @num_cmdbufs:
+	 *
+	 * The number of command buffers to execute as part of this job.
+	 */
+	__u32 num_cmdbufs;
+
+	/**
+	 * @num_relocs:
+	 *
+	 * The number of relocations to perform before executing this job.
+	 */
+	__u32 num_relocs;
+
+	/**
+	 * @num_waitchks:
+	 *
+	 * The number of wait checks to perform as part of this job.
+	 */
+	__u32 num_waitchks;
+
+	/**
+	 * @waitchk_mask:
+	 *
+	 * Bitmask of valid wait checks.
+	 */
+	__u32 waitchk_mask;
+
+	/**
+	 * @timeout:
+	 *
+	 * Timeout, in milliseconds, before this job is cancelled.
+	 */
+	__u32 timeout;
+
+	/**
+	 * @syncpts:
+	 *
+	 * A pointer to @num_syncpts &struct drm_tegra_syncpt structures that
+	 * specify the syncpoint operations performed as part of this job.
+	 */
+	__u64 syncpts;
+
+	/**
+	 * @cmdbufs:
+	 *
+	 * A pointer to @num_cmdbufs &struct drm_tegra_cmdbuf_legacy
+	 * structures that define the command buffers to execute as part of
+	 * this job.
+	 */
+	__u64 cmdbufs;
+
+	/**
+	 * @relocs:
+	 *
+	 * A pointer to @num_relocs &struct drm_tegra_reloc_legacy structures
+	 * that specify the relocations that need to be performed before
+	 * executing this job.
+	 */
+	__u64 relocs;
+
+	/**
+	 * @waitchks:
+	 *
+	 * A pointer to @num_waitchks &struct drm_tegra_waitchk structures
+	 * that specify the wait checks to be performed while executing this
+	 * job.
+	 */
+	__u64 waitchks;
+
+	/**
+	 * @fence:
+	 *
+	 * Return location for the threshold of the syncpoint associated with
+	 * this job. This can be used with the DRM_TEGRA_SYNCPT_WAIT IOCTL to
+	 * wait for this job to be finished.
+	 */
+	__u32 fence;
+
+	/**
+	 * @reserved:
+	 *
+	 * This field is reserved for future use. Must be 0.
+	 */
+	__u32 reserved[5];
 };
 
 #define DRM_TEGRA_GEM_TILING_MODE_PITCH 0
 #define DRM_TEGRA_GEM_TILING_MODE_TILED 1
 #define DRM_TEGRA_GEM_TILING_MODE_BLOCK 2
 
+/**
+ * struct drm_tegra_gem_set_tiling - parameters for the set tiling IOCTL
+ */
 struct drm_tegra_gem_set_tiling {
-	/* input */
+	/**
+	 * @handle:
+	 *
+	 * Handle to the GEM object for which to set the tiling parameters.
+	 */
 	__u32 handle;
+
+	/**
+	 * @mode:
+	 *
+	 * The tiling mode to set. Must be one of:
+	 *
+	 * DRM_TEGRA_GEM_TILING_MODE_PITCH
+	 *   pitch linear format
+	 *
+	 * DRM_TEGRA_GEM_TILING_MODE_TILED
+	 *   16x16 tiling format
+	 *
+	 * DRM_TEGRA_GEM_TILING_MODE_BLOCK
+	 *   16Bx2 tiling format
+	 */
 	__u32 mode;
+
+	/**
+	 * @value:
+	 *
+	 * The value to set for the tiling mode parameter.
+	 */
 	__u32 value;
+
+	/**
+	 * @pad:
+	 *
+	 * Structure padding that may be used in the future. Must be 0.
+	 */
 	__u32 pad;
 };
 
+/**
+ * struct drm_tegra_gem_get_tiling - parameters for the get tiling IOCTL
+ */
 struct drm_tegra_gem_get_tiling {
-	/* input */
+	/**
+	 * @handle:
+	 *
+	 * Handle to the GEM object for which to query the tiling parameters.
+	 */
 	__u32 handle;
-	/* output */
+
+	/**
+	 * @mode:
+	 *
+	 * Return location for the tiling mode.
+	 */
 	__u32 mode;
+
+	/**
+	 * @value:
+	 *
+	 * Return location for the tiling mode parameter.
+	 */
 	__u32 value;
+
+	/**
+	 * @pad:
+	 *
+	 * Structure padding that may be used in the future. Must be 0.
+	 */
 	__u32 pad;
 };
 
-#define DRM_TEGRA_GEM_BOTTOM_UP		(1 << 0)
-#define DRM_TEGRA_GEM_FLAGS		(DRM_TEGRA_GEM_BOTTOM_UP)
-
+/**
+ * struct drm_tegra_gem_set_flags - parameters for the set flags IOCTL
+ */
 struct drm_tegra_gem_set_flags {
-	/* input */
+	/**
+	 * @handle:
+	 *
+	 * Handle to the GEM object for which to set the flags.
+	 */
 	__u32 handle;
-	/* output */
+
+	/**
+	 * @flags:
+	 *
+	 * The flags to set for the GEM object.
+	 */
 	__u32 flags;
 };
 
+/**
+ * struct drm_tegra_gem_get_flags - parameters for the get flags IOCTL
+ */
 struct drm_tegra_gem_get_flags {
-	/* input */
+	/**
+	 * @handle:
+	 *
+	 * Handle to the GEM object for which to query the flags.
+	 */
 	__u32 handle;
-	/* output */
+
+	/**
+	 * @flags:
+	 *
+	 * Return location for the flags queried from the GEM object.
+	 */
 	__u32 flags;
 };
 
