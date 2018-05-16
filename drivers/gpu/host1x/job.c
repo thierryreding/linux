@@ -34,6 +34,7 @@
 #define HOST1X_WAIT_SYNCPT_OFFSET 0x8
 
 struct host1x_job *host1x_job_alloc(struct host1x_channel *channel,
+				    unsigned int num_buffers,
 				    unsigned int num_cmdbufs,
 				    unsigned int num_relocs,
 				    unsigned int num_syncpts)
@@ -45,9 +46,10 @@ struct host1x_job *host1x_job_alloc(struct host1x_channel *channel,
 
 	/* Check that we're not going to overflow */
 	total = sizeof(struct host1x_job) +
+		(u64)num_buffers * sizeof(struct host1x_bo *) +
+		(u64)num_cmdbufs * sizeof(struct host1x_job_gather) +
 		(u64)num_relocs * sizeof(struct host1x_reloc) +
 		(u64)num_unpins * sizeof(struct host1x_job_unpin_data) +
-		(u64)num_cmdbufs * sizeof(struct host1x_job_gather) +
 		(u64)num_syncpts * sizeof(struct host1x_checkpoint) +
 		(u64)num_unpins * sizeof(dma_addr_t) +
 		(u64)num_unpins * sizeof(u32 *);
@@ -60,24 +62,35 @@ struct host1x_job *host1x_job_alloc(struct host1x_channel *channel,
 
 	kref_init(&job->ref);
 	job->channel = channel;
+	job->num_buffers = num_buffers;
+	job->num_cmdbufs = num_cmdbufs;
+	job->num_relocs = num_relocs;
 	job->num_checkpoints = num_syncpts;
 
 	/* Redistribute memory to the structs  */
 	mem += sizeof(struct host1x_job);
+
+	job->buffers = num_buffers ? mem : NULL;
+	mem += num_buffers * sizeof(struct host1x_bo *);
+
 	job->relocs = num_relocs ? mem : NULL;
 	mem += num_relocs * sizeof(struct host1x_reloc);
-	job->unpins = num_unpins ? mem : NULL;
-	mem += num_unpins * sizeof(struct host1x_job_unpin_data);
+
 	job->gathers = num_cmdbufs ? mem : NULL;
 	mem += num_cmdbufs * sizeof(struct host1x_job_gather);
+
+	job->unpins = num_unpins ? mem : NULL;
+	mem += num_unpins * sizeof(struct host1x_job_unpin_data);
 
 	job->checkpoints = num_syncpts ? mem : NULL;
 	mem += num_syncpts * sizeof(struct host1x_checkpoint);
 
 	job->addr_phys = num_unpins ? mem : NULL;
+	mem += num_relocs * sizeof(dma_addr_t);
+
+	job->gather_addr_phys = mem;
 
 	job->reloc_addr_phys = job->addr_phys;
-	job->gather_addr_phys = &job->addr_phys[num_relocs];
 
 	return job;
 }

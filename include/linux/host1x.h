@@ -221,6 +221,11 @@ struct host1x_job {
 	/* client where the job originated */
 	struct host1x_client *client;
 
+	struct host1x_bo **buffers;
+	unsigned int num_buffers;
+
+	unsigned int num_cmdbufs;
+
 	/* Gathers and their memory */
 	struct host1x_job_gather *gathers;
 	unsigned int num_gathers;
@@ -264,6 +269,7 @@ struct host1x_job {
 };
 
 struct host1x_job *host1x_job_alloc(struct host1x_channel *channel,
+				    unsigned int num_buffers,
 				    unsigned int num_cmdbufs,
 				    unsigned int num_relocs,
 				    unsigned int num_syncpts);
