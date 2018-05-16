@@ -189,12 +189,11 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 	if (args->num_waitchks != 0)
 		return -EINVAL;
 
-	job = host1x_job_alloc(context->channel, args->num_cmdbufs,
+	job = host1x_job_alloc(context->channel, 0, args->num_cmdbufs,
 			       args->num_relocs, 1);
 	if (!job)
 		return -ENOMEM;
 
-	job->num_relocs = args->num_relocs;
 	job->serialize = true;
 
 	/*
