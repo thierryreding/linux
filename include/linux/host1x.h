@@ -337,8 +337,7 @@ int tegra_mipi_calibrate(struct tegra_mipi_device *device);
 
 struct host1x_fence;
 
-struct dma_fence *host1x_fence_create(struct host1x *host,
-				      struct host1x_syncpt *syncpt,
+struct dma_fence *host1x_fence_create(struct host1x_syncpt *syncpt,
 				      u32 threshold);
 
 #endif

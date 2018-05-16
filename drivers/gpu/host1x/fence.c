@@ -159,8 +159,7 @@ int host1x_fence_wait(struct dma_fence *fence, struct host1x *host,
 	return 0;
 }
 
-struct dma_fence *host1x_fence_create(struct host1x *host,
-				      struct host1x_syncpt *syncpt,
+struct dma_fence *host1x_fence_create(struct host1x_syncpt *syncpt,
 				      u32 threshold)
 {
 	struct host1x_waitlist *waiter;
@@ -177,7 +176,7 @@ struct dma_fence *host1x_fence_create(struct host1x *host,
 		return NULL;
 	}
 
-	f->host = host;
+	f->host = syncpt->host;
 	f->syncpt = syncpt;
 	f->threshold = threshold;
 	f->waiter = NULL;
@@ -186,9 +185,9 @@ struct dma_fence *host1x_fence_create(struct host1x *host,
 
 	spin_lock_init(&f->lock);
 	dma_fence_init(&f->base, &host1x_fence_ops, &f->lock,
-		       host->fence_ctx_base + syncpt->id, threshold);
+		       f->host->fence_ctx_base + syncpt->id, threshold);
 
-	err = host1x_intr_add_action(f->host, f->syncpt->id, f->threshold,
+	err = host1x_intr_add_action(f->host, f->syncpt, f->threshold,
 				     HOST1X_INTR_ACTION_SIGNAL_FENCE, f,
 				     waiter, &f->waiter);
 	if (err) {
