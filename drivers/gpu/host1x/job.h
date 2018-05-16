@@ -15,6 +15,11 @@ struct host1x_job_gather {
 	dma_addr_t base;
 	struct host1x_bo *bo;
 	unsigned int offset;
+
+	/* Wait for fences to complete before submitting */
+	struct host1x_job_fence *fences;
+	unsigned int num_fences;
+
 	bool handled;
 };
 

@@ -20,6 +20,36 @@
 
 #define TRACE_MAX_LENGTH 128U
 
+static int host1x_job_gather_wait_fences(struct host1x_job *job,
+					 struct host1x_job_gather *gather)
+{
+	struct host1x *host = dev_get_drvdata(job->channel->dev->parent);
+	unsigned int i;
+	int err = 0;
+
+	if (gather->num_fences == 0)
+		return 0;
+
+	for (i = 0; i < gather->num_fences; i++) {
+		struct dma_fence *fence = gather->fences[i].fence;
+
+		/* skip emit fences */
+		if (gather->fences[i].syncpt)
+			continue;
+
+		if (host1x_fence_is_waitable(fence)) {
+			err = host1x_fence_wait(fence, host, job->channel);
+		} else {
+			err = dma_fence_wait(fence, true);
+		}
+
+		if (err < 0)
+			break;
+	}
+
+	return err;
+}
+
 static void trace_write_gather(struct host1x_cdma *cdma, struct host1x_bo *bo,
 			       u32 offset, u32 words)
 {
@@ -52,18 +82,23 @@ static void trace_write_gather(struct host1x_cdma *cdma, struct host1x_bo *bo,
 static void submit_gathers(struct host1x_job *job)
 {
 	struct host1x_cdma *cdma = &job->channel->cdma;
-#if HOST1X_HW < 6
 	struct device *dev = job->channel->dev;
-#endif
 	unsigned int i;
 
 	for (i = 0; i < job->num_gathers; i++) {
 		struct host1x_job_gather *g = &job->gathers[i];
 		dma_addr_t addr = g->base + g->offset;
 		u32 op2, op3;
+		int err;
 
 		op2 = lower_32_bits(addr);
 		op3 = upper_32_bits(addr);
+
+		err = host1x_job_gather_wait_fences(job, g);
+		if (err < 0) {
+			dev_err(dev, "failed to wait for fences: %d\n", err);
+			continue;
+		}
 
 		/* add a setclass for modules that require it */
 		if (job->class)
@@ -210,7 +245,7 @@ static int channel_submit(struct host1x_job *job)
 	struct host1x *host = dev_get_drvdata(job->channel->dev->parent);
 	struct host1x_channel *channel = job->channel;
 	struct host1x_waitlist **waiters;
-	unsigned int i;
+	unsigned int i, j;
 	int err;
 
 	trace_host1x_channel_submit(dev_name(channel->dev),
@@ -245,6 +280,16 @@ static int channel_submit(struct host1x_job *job)
 	}
 
 	channel_serialize(job);
+
+	/* rebase fences on current threshold */
+	for (i = 0; i < job->num_fences; i++) {
+		struct host1x_job_fence *fence = &job->fences[i];
+
+		for (j = 0; j < job->num_checkpoints; j++) {
+			if (job->checkpoints[j].syncpt == fence->syncpt)
+				fence->value += job->checkpoints[j].threshold;
+		}
+	}
 
 	/* bump threshold */
 	for (i = 0; i < job->num_checkpoints; i++) {

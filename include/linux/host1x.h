@@ -186,6 +186,23 @@ struct host1x_checkpoint {
 	u32 value;
 };
 
+/**
+ * struct host1x_job_fence - host1x job submission fence tracking
+ * @syncpt: host1x syncpoint associated with this fence, may be NULL if the
+ *          fence is not a host1x syncpoint based fence
+ * @fence: DMA fence for this fence
+ * @offset: offset into command buffer of location to patch with a syncpoint
+ *          increment
+ * @value: number of times to increment the syncpoint
+ */
+struct host1x_job_fence {
+	struct host1x_syncpt *syncpt;
+	struct dma_fence *fence;
+	struct host1x_bo *bo;
+	unsigned int offset;
+	unsigned int value;
+};
+
 #define HOST1X_RELOC_READ	(1 << 0)
 #define HOST1X_RELOC_WRITE	(1 << 1)
 
@@ -227,6 +244,9 @@ struct host1x_job {
 	struct host1x_checkpoint *checkpoints;
 	unsigned int num_checkpoints;
 
+	struct host1x_job_fence *fences;
+	unsigned int num_fences;
+
 	/* Array of handles to be pinned & unpinned */
 	struct host1x_reloc *relocs;
 	unsigned int num_relocs;
@@ -266,9 +286,12 @@ struct host1x_job *host1x_job_alloc(struct host1x_channel *channel,
 				    unsigned int num_buffers,
 				    unsigned int num_cmdbufs,
 				    unsigned int num_relocs,
-				    unsigned int num_syncpts);
+				    unsigned int num_syncpts,
+				    unsigned int num_fences);
 void host1x_job_add_gather(struct host1x_job *job, struct host1x_bo *bo,
-			   unsigned int words, unsigned int offset);
+			   unsigned int words, unsigned int offset,
+			   struct host1x_job_fence *fences,
+			   unsigned int num_fences);
 struct host1x_job *host1x_job_get(struct host1x_job *job);
 void host1x_job_put(struct host1x_job *job);
 int host1x_job_pin(struct host1x_job *job, struct device *dev);

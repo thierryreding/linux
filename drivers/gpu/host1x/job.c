@@ -5,6 +5,7 @@
  * Copyright (c) 2010-2015, NVIDIA Corporation.
  */
 
+#include <linux/dma-fence.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/host1x.h>
@@ -26,7 +27,8 @@ struct host1x_job *host1x_job_alloc(struct host1x_channel *channel,
 				    unsigned int num_buffers,
 				    unsigned int num_cmdbufs,
 				    unsigned int num_relocs,
-				    unsigned int num_syncpts)
+				    unsigned int num_syncpts,
+				    unsigned int num_fences)
 {
 	struct host1x_job *job = NULL;
 	unsigned int num_unpins = num_cmdbufs + num_relocs, i;
@@ -40,6 +42,7 @@ struct host1x_job *host1x_job_alloc(struct host1x_channel *channel,
 		(u64)num_relocs * sizeof(struct host1x_reloc) +
 		(u64)num_unpins * sizeof(struct host1x_job_unpin_data) +
 		(u64)num_syncpts * sizeof(struct host1x_checkpoint) +
+		(u64)num_fences * sizeof(struct host1x_job_fence) +
 		(u64)num_unpins * sizeof(dma_addr_t) +
 		(u64)num_unpins * sizeof(u32 *);
 	if (total > ULONG_MAX)
@@ -55,6 +58,7 @@ struct host1x_job *host1x_job_alloc(struct host1x_channel *channel,
 	job->num_cmdbufs = num_cmdbufs;
 	job->num_relocs = num_relocs;
 	job->num_checkpoints = num_syncpts;
+	job->num_fences = num_fences;
 
 	/* Redistribute memory to the structs  */
 	mem += sizeof(struct host1x_job);
@@ -73,6 +77,9 @@ struct host1x_job *host1x_job_alloc(struct host1x_channel *channel,
 
 	job->checkpoints = num_syncpts ? mem : NULL;
 	mem += num_syncpts * sizeof(struct host1x_checkpoint);
+
+	job->fences = num_fences ? mem : NULL;
+	mem += num_fences * sizeof(struct host1x_job_fence);
 
 	job->addr_phys = num_unpins ? mem : NULL;
 	mem += num_relocs * sizeof(dma_addr_t);
@@ -101,6 +108,14 @@ EXPORT_SYMBOL(host1x_job_get);
 static void job_free(struct kref *ref)
 {
 	struct host1x_job *job = container_of(ref, struct host1x_job, ref);
+	unsigned int i, j;
+
+	for (i = 0; i < job->num_gathers; i++) {
+		struct host1x_job_gather *gather = &job->gathers[i];
+
+		for (j = 0; j < gather->num_fences; j++)
+			dma_fence_put(gather->fences[j].fence);
+	}
 
 	kfree(job);
 }
@@ -112,7 +127,9 @@ void host1x_job_put(struct host1x_job *job)
 EXPORT_SYMBOL(host1x_job_put);
 
 void host1x_job_add_gather(struct host1x_job *job, struct host1x_bo *bo,
-			   unsigned int words, unsigned int offset)
+			   unsigned int words, unsigned int offset,
+			   struct host1x_job_fence *fences,
+			   unsigned int num_fences)
 {
 	struct host1x_job_gather *gather = &job->gathers[job->num_gathers];
 
@@ -121,6 +138,8 @@ void host1x_job_add_gather(struct host1x_job *job, struct host1x_bo *bo,
 	gather->words = words;
 	gather->bo = bo;
 	gather->offset = offset;
+	gather->fences = fences;
+	gather->num_fences = num_fences;
 
 	job->num_gathers++;
 }
@@ -335,6 +354,61 @@ static bool check_reloc(struct host1x_reloc *reloc, struct host1x_bo *cmdbuf,
 		return false;
 
 	return true;
+}
+
+static int do_fences(struct host1x_job *job, struct host1x_job_gather *gather)
+{
+	struct host1x *host1x = dev_get_drvdata(job->channel->dev->parent);
+	const struct host1x_info *info = host1x->info;
+	struct host1x_bo *cmdbuf = gather->bo;
+	unsigned int last_page = ~0;
+	unsigned int i, j;
+	void *virt = NULL;
+
+	/* patch the fences for one gather */
+	for (i = 0; i < gather->num_fences; i++) {
+		struct host1x_job_fence *fence = &gather->fences[i];
+		u32 *target;
+
+		if (!fence->syncpt)
+			continue;
+
+		for (j = 0; j < job->num_checkpoints; j++) {
+			struct host1x_checkpoint *cp = &job->checkpoints[j];
+
+			if (cp->syncpt == fence->syncpt)
+				cp->value += fence->value;
+		}
+
+		if (IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL)) {
+			target = (u32 *)job->gather_copy_mapped +
+						gather->offset / sizeof(u32) +
+						fence->offset / sizeof(u32);
+		} else {
+			unsigned int offset = fence->offset >> PAGE_SHIFT;
+
+			if (last_page != offset) {
+				if (virt)
+					host1x_bo_kunmap(cmdbuf, last_page,
+							 virt);
+
+				virt = host1x_bo_kmap(cmdbuf, offset);
+				last_page = offset;
+			}
+
+			if (unlikely(!virt))
+				return -ENOMEM;
+
+			target = virt + (fence->offset & ~PAGE_MASK);
+		}
+
+		*target = *target << info->syncpt_bits | fence->syncpt->id;
+	}
+
+	if (virt)
+		host1x_bo_kunmap(cmdbuf, last_page, virt);
+
+	return 0;
 }
 
 struct host1x_firewall {
@@ -590,9 +664,9 @@ static inline int copy_gathers(struct device *host, struct host1x_job *job,
 
 int host1x_job_pin(struct host1x_job *job, struct device *dev)
 {
-	int err;
-	unsigned int i, j;
 	struct host1x *host = dev_get_drvdata(dev->parent);
+	unsigned int i, j;
+	int err;
 
 	/* pin memory */
 	err = pin_job(host, job);
@@ -625,6 +699,10 @@ int host1x_job_pin(struct host1x_job *job, struct device *dev)
 		}
 
 		err = do_relocs(job, g);
+		if (err)
+			break;
+
+		err = do_fences(job, g);
 		if (err)
 			break;
 	}
