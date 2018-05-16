@@ -213,15 +213,38 @@ static void tegra_bo_free(struct drm_device *drm, struct tegra_bo *bo)
 	}
 }
 
-static int tegra_bo_get_pages(struct drm_device *drm, struct tegra_bo *bo)
+static int tegra_bo_get_pages(struct drm_device *drm, struct tegra_bo *bo,
+			      unsigned long flags)
 {
+	unsigned long order = get_order(bo->gem.size);
+	struct page *pages;
+	unsigned int i;
 	int err;
 
-	bo->pages = drm_gem_get_pages(&bo->gem);
-	if (IS_ERR(bo->pages))
-		return PTR_ERR(bo->pages);
-
+	bo->contiguous = flags & DRM_TEGRA_GEM_CONTIGUOUS;
 	bo->num_pages = bo->gem.size >> PAGE_SHIFT;
+
+	if (bo->contiguous) {
+		bo->pages = kvmalloc_array(bo->num_pages, sizeof(pages),
+					   GFP_KERNEL);
+		if (!bo->pages)
+			return -ENOMEM;
+
+		pages = alloc_pages(GFP_USER, order);
+		if (!pages) {
+			kvfree(bo->pages);
+			return -ENOMEM;
+		}
+
+		split_page(pages, order);
+
+		for (i = 0; i < bo->num_pages; i++)
+			bo->pages[i] = &pages[i];
+	} else {
+		bo->pages = drm_gem_get_pages(&bo->gem);
+		if (IS_ERR(bo->pages))
+			return PTR_ERR(bo->pages);
+	}
 
 	bo->sgt = drm_prime_pages_to_sg(bo->pages, bo->num_pages);
 	if (IS_ERR(bo->sgt)) {
@@ -246,13 +269,14 @@ put_pages:
 	return err;
 }
 
-static int tegra_bo_alloc(struct drm_device *drm, struct tegra_bo *bo)
+static int tegra_bo_alloc(struct drm_device *drm, struct tegra_bo *bo,
+			  unsigned long flags)
 {
 	struct tegra_drm *tegra = drm->dev_private;
 	int err;
 
 	if (tegra->domain) {
-		err = tegra_bo_get_pages(drm, bo);
+		err = tegra_bo_get_pages(drm, bo, flags);
 		if (err < 0)
 			return err;
 
@@ -287,7 +311,7 @@ struct tegra_bo *tegra_bo_create(struct drm_device *drm, size_t size,
 	if (IS_ERR(bo))
 		return bo;
 
-	err = tegra_bo_alloc(drm, bo);
+	err = tegra_bo_alloc(drm, bo, flags);
 	if (err < 0)
 		goto release;
 

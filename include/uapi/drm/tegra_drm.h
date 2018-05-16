@@ -31,8 +31,11 @@ extern "C" {
 
 #define DRM_TEGRA_GEM_TILED		(1 << 0)
 #define DRM_TEGRA_GEM_BOTTOM_UP		(1 << 1)
+#define DRM_TEGRA_GEM_CONTIGUOUS	(1 << 2)
 #define DRM_TEGRA_GEM_FLAGS		(DRM_TEGRA_GEM_TILED | \
-					 DRM_TEGRA_GEM_BOTTOM_UP)
+					 DRM_TEGRA_GEM_BOTTOM_UP | \
+					 DRM_TEGRA_GEM_CONTIGUOUS)
+
 
 /**
  * struct drm_tegra_gem_create - parameters for the GEM object creation IOCTL
@@ -55,6 +58,9 @@ struct drm_tegra_gem_create {
 	 *
 	 * DRM_TEGRA_GEM_BOTTOM_UP
 	 *   The buffer has a bottom-up layout.
+	 *
+	 * DRM_TEGRA_GEM_CONTIGUOUS
+	 *   The buffer is to be backed by physically contiguous memory.
 	 */
 	__u32 flags;
 
