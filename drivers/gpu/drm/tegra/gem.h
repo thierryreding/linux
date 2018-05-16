@@ -17,6 +17,8 @@
 #include <drm/drmP.h>
 #include <drm/drm_gem.h>
 
+#define TEGRA_BO_BOTTOM_UP (1 << 0)
+
 enum tegra_bo_tiling_mode {
 	TEGRA_BO_TILING_MODE_PITCH,
 	TEGRA_BO_TILING_MODE_TILED,
@@ -31,6 +33,7 @@ struct tegra_bo_tiling {
 struct tegra_bo {
 	struct drm_gem_object gem;
 	struct host1x_bo base;
+	unsigned long flags;
 	struct sg_table *sgt;
 	dma_addr_t paddr;
 	void *vaddr;
