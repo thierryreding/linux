@@ -102,6 +102,7 @@ struct host1x_info {
 	unsigned int nb_mlocks; /* host1x: number of mlocks supported */
 	int (*init)(struct host1x *host1x); /* initialize per SoC ops */
 	unsigned int sync_offset; /* offset of syncpoint registers */
+	unsigned int syncpt_bits; /* number of bits used for syncpoint IDs */
 	u64 dma_mask; /* mask of addressable memory */
 	bool has_hypervisor; /* has hypervisor registers */
 };

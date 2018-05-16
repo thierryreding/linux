@@ -86,6 +86,7 @@ static const struct host1x_info host1x01_info = {
 	.nb_bases = 8,
 	.init = host1x01_init,
 	.sync_offset = 0x3000,
+	.syncpt_bits = 8,
 	.dma_mask = DMA_BIT_MASK(32),
 };
 
@@ -96,6 +97,7 @@ static const struct host1x_info host1x02_info = {
 	.nb_bases = 12,
 	.init = host1x02_init,
 	.sync_offset = 0x3000,
+	.syncpt_bits = 8,
 	.dma_mask = DMA_BIT_MASK(32),
 };
 
@@ -106,6 +108,7 @@ static const struct host1x_info host1x04_info = {
 	.nb_bases = 64,
 	.init = host1x04_init,
 	.sync_offset = 0x2100,
+	.syncpt_bits = 8,
 	.dma_mask = DMA_BIT_MASK(34),
 };
 
@@ -116,6 +119,7 @@ static const struct host1x_info host1x05_info = {
 	.nb_bases = 64,
 	.init = host1x05_init,
 	.sync_offset = 0x2100,
+	.syncpt_bits = 8,
 	.dma_mask = DMA_BIT_MASK(34),
 };
 
@@ -126,6 +130,7 @@ static const struct host1x_info host1x06_info = {
 	.nb_bases = 16,
 	.init = host1x06_init,
 	.sync_offset = 0x0,
+	.syncpt_bits = 10,
 	.dma_mask = DMA_BIT_MASK(34),
 	.has_hypervisor = true,
 };
