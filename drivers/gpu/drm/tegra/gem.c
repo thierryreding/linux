@@ -222,6 +222,7 @@ static int tegra_bo_get_pages(struct drm_device *drm, struct tegra_bo *bo,
 	int err;
 
 	bo->contiguous = flags & DRM_TEGRA_GEM_CONTIGUOUS;
+	bo->contiguous = 0;
 	bo->num_pages = bo->gem.size >> PAGE_SHIFT;
 
 	if (bo->contiguous) {
@@ -551,6 +552,15 @@ tegra_gem_prime_map_dma_buf(struct dma_buf_attachment *attach,
 		return NULL;
 
 	if (bo->pages) {
+		dma_addr_t addr;
+		int err;
+
+#if 0
+		/* XXX optimize for bo->contiguous? */
+		if (sg_alloc_table_from_pages(sgt, bo->pages, bo->num_pages,
+					      0, gem->size, GFP_KERNEL))
+			goto free;
+#else
 		struct scatterlist *sg;
 		unsigned int i;
 
@@ -559,9 +569,13 @@ tegra_gem_prime_map_dma_buf(struct dma_buf_attachment *attach,
 
 		for_each_sg(sgt->sgl, sg, bo->num_pages, i)
 			sg_set_page(sg, bo->pages[i], PAGE_SIZE, 0);
+#endif
 
-		if (dma_map_sg(attach->dev, sgt->sgl, sgt->nents, dir) == 0)
+		err = dma_map_sg(attach->dev, sgt->sgl, sgt->nents, dir);
+		if (err == 0)
 			goto free;
+
+		addr = sg_dma_address(sgt->sgl);
 	} else {
 		if (sg_alloc_table(sgt, 1, GFP_KERNEL))
 			goto free;
