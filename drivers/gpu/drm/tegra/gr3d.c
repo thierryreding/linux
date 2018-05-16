@@ -151,6 +151,7 @@ static const struct tegra_drm_client_ops gr3d_ops = {
 	.close_channel = gr3d_close_channel,
 	.is_addr_reg = gr3d_is_addr_reg,
 	.submit_legacy = tegra_drm_submit_legacy,
+	.submit = tegra_drm_submit,
 };
 
 static const struct gr3d_soc tegra20_gr3d_soc = {

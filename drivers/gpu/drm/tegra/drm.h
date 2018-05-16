@@ -76,12 +76,18 @@ struct tegra_drm_client_ops {
 			     struct drm_tegra_submit_legacy *args,
 			     struct drm_device *drm,
 			     struct drm_file *file);
+	int (*submit)(struct tegra_drm_context *context,
+		      struct drm_tegra_submit *args, struct drm_device *drm,
+		      struct drm_file *file);
 };
 
 int tegra_drm_submit_legacy(struct tegra_drm_context *context,
 			    struct drm_tegra_submit_legacy *args,
 			    struct drm_device *drm,
 			    struct drm_file *file);
+int tegra_drm_submit(struct tegra_drm_context *context,
+		     struct drm_tegra_submit *args, struct drm_device *drm,
+		     struct drm_file *file);
 
 struct tegra_drm_client {
 	struct host1x_client base;

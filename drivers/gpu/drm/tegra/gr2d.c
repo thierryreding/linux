@@ -151,6 +151,7 @@ static const struct tegra_drm_client_ops gr2d_ops = {
 	.is_addr_reg = gr2d_is_addr_reg,
 	.is_valid_class = gr2d_is_valid_class,
 	.submit_legacy = tegra_drm_submit_legacy,
+	.submit = tegra_drm_submit,
 };
 
 static const struct gr2d_soc tegra20_gr2d_soc = {

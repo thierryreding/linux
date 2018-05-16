@@ -5,11 +5,13 @@
  */
 
 #include <linux/bitops.h>
+#include <linux/file.h>
 #include <linux/host1x.h>
 #include <linux/idr.h>
 #include <linux/iommu.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/sync_file.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
@@ -18,6 +20,7 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_ioctl.h>
 #include <drm/drm_prime.h>
+#include <drm/drm_syncobj.h>
 #include <drm/drm_vblank.h>
 
 #include "drm.h"
@@ -352,6 +355,512 @@ fail:
 		drm_gem_object_put_unlocked(refs[num_refs]);
 
 	kfree(refs);
+
+put:
+	host1x_job_put(job);
+	return err;
+}
+
+static int host1x_reloc_copy_from_user(struct host1x_job *job,
+				       struct host1x_reloc *dest,
+				       struct drm_tegra_reloc __user *src)
+{
+	u32 cmdbuf, target, flags;
+	int err;
+
+	err = get_user(cmdbuf, &src->cmdbuf.index);
+	if (err < 0)
+		return err;
+
+	err = get_user(target, &src->target.index);
+	if (err < 0)
+		return err;
+
+	if (cmdbuf >= job->num_buffers || target >= job->num_buffers)
+		return -EINVAL;
+
+	dest->cmdbuf.bo = job->buffers[cmdbuf];
+	dest->target.bo = job->buffers[target];
+
+	err = get_user(dest->cmdbuf.offset, &src->cmdbuf.offset);
+	if (err < 0)
+		return err;
+
+	err = get_user(dest->target.offset, &src->target.offset);
+	if (err < 0)
+		return err;
+
+	err = get_user(dest->shift, &src->shift);
+	if (err < 0)
+		return err;
+
+	err = get_user(flags, &src->flags);
+	if (err < 0)
+		return err;
+
+	if (flags & DRM_TEGRA_RELOC_READ)
+		dest->flags |= HOST1X_RELOC_READ;
+
+	if (flags & DRM_TEGRA_RELOC_WRITE)
+		dest->flags |= HOST1X_RELOC_WRITE;
+
+	return 0;
+}
+
+static int host1x_job_get_buffers(struct host1x_job *job,
+				  struct drm_file *file,
+				  struct drm_tegra_buffer __user *buffers,
+				  unsigned int count)
+{
+	struct drm_tegra_buffer buffer;
+	unsigned int i;
+	int err;
+
+	for (i = 0; i < count; i++) {
+		if (copy_from_user(&buffer, &buffers[i], sizeof(buffer))) {
+			err = -EFAULT;
+			goto put;
+		}
+
+		job->buffers[i] = host1x_bo_lookup(file, buffer.handle);
+		if (!job->buffers[i]) {
+			err = -ENOENT;
+			goto put;
+		}
+	}
+
+	return 0;
+
+put:
+	while (i--)
+		host1x_bo_put(job->buffers[i]);
+
+	return err;
+}
+
+/*
+ * Obtain an existing fence to wait upon before submitting a new command
+ * buffer.
+ */
+static struct dma_fence *tegra_drm_get_fence(struct drm_file *file,
+					     struct drm_tegra_fence *fence)
+{
+	struct drm_syncobj *syncobj;
+	struct dma_fence *in_fence;
+
+	if (fence->flags & DRM_TEGRA_FENCE_FD)
+		return sync_file_get_fence(fence->handle);
+
+	syncobj = drm_syncobj_find(file, fence->handle);
+	if (!syncobj)
+		return NULL;
+
+	in_fence = drm_syncobj_fence_get(syncobj);
+
+	drm_syncobj_put(syncobj);
+	return in_fence;
+}
+
+/*
+ * Create a new fence to return to userspace.
+ */
+static struct dma_fence *tegra_drm_add_fence(struct drm_file *file,
+					     struct host1x_syncpt *syncpt,
+					     struct drm_tegra_fence *fence)
+{
+	struct dma_fence *f;
+	int err, fd;
+
+	f = host1x_fence_create(syncpt, fence->value);
+	if (!f)
+		return ERR_PTR(-ENOMEM);
+
+	if (fence->flags & DRM_TEGRA_FENCE_FD) {
+		struct sync_file *file;
+
+		file = sync_file_create(f);
+		if (!file) {
+			err = -ENOMEM;
+			goto put_fence;
+		}
+
+		fd = get_unused_fd_flags(O_CLOEXEC);
+		if (fd < 0) {
+			err = fd;
+			goto put_fence;
+		}
+
+		fd_install(fd, file->file);
+		fence->handle = fd;
+	} else {
+		struct drm_syncobj *syncobj;
+
+		err = drm_syncobj_create(&syncobj, 0, f);
+		if (err < 0)
+			goto put_fence;
+
+		err = drm_syncobj_get_handle(file, syncobj, &fence->handle);
+		drm_syncobj_put(syncobj);
+	}
+
+	return f;
+
+put_fence:
+	dma_fence_put(f);
+
+	return ERR_PTR(err);
+}
+
+static int host1x_job_get_fences(struct host1x_job *job, struct drm_file *file,
+				 struct drm_tegra_cmdbuf *cmdbuf,
+				 struct drm_tegra_fence *user_fences,
+				 struct host1x_job_fence *fences,
+				 unsigned int num_fences,
+				 unsigned int *count)
+{
+	struct drm_tegra_fence __user *user;
+	unsigned int i;
+	size_t size;
+	int err;
+
+	if (cmdbuf->num_fences > num_fences)
+		return -ENOSPC;
+
+	size = cmdbuf->num_fences * sizeof(*user);
+	user = u64_to_user_ptr(cmdbuf->fences);
+
+	if (copy_from_user(user_fences, user, size))
+		return -EFAULT;
+
+	for (i = 0; i < cmdbuf->num_fences; i++) {
+		struct drm_tegra_fence *fence = &user_fences[i];
+
+		/*
+		 * A fence can only be pre- or post-fence, never both at the
+		 * same time.
+		 */
+		if ((fence->flags & DRM_TEGRA_FENCE_WAIT) &&
+		    (fence->flags & DRM_TEGRA_FENCE_EMIT)) {
+			err = -EINVAL;
+			goto put;
+		}
+
+		if (fence->flags & DRM_TEGRA_FENCE_WAIT) {
+			/*
+			 * Patch offset, syncpoint index and value are not
+			 * supported for pre-fences.
+			 */
+			if (fence->offset || fence->index || fence->value) {
+				err = -EINVAL;
+				goto put;
+			}
+
+			fences[i].fence = tegra_drm_get_fence(file, fence);
+			if (!fences[i].fence) {
+				err = -ENOENT;
+				goto put;
+			}
+
+			fences[i].syncpt = NULL;
+			fences[i].bo = NULL;
+			fences[i].offset = 0;
+			fences[i].value = 0;
+		}
+
+		if (fence->flags & DRM_TEGRA_FENCE_EMIT) {
+			/* ensure that the syncpoint index is within range */
+			if (fence->index >= job->client->num_syncpts) {
+				err = -EINVAL;
+				goto put;
+			}
+
+			if (fence->value != 1) {
+				err = -EINVAL;
+				goto put;
+			}
+
+			fences[i].syncpt = job->client->syncpts[fence->index];
+			fences[i].bo = job->buffers[cmdbuf->index];
+			fences[i].offset = fence->offset;
+			fences[i].value = fence->value;
+		}
+
+		if (!fences[i].fence && !fences[i].syncpt) {
+			/* ensure that the syncpoint index is within range */
+			if (fence->index >= job->client->num_syncpts) {
+				err = -EINVAL;
+				goto put;
+			}
+
+			if (fence->value != 1) {
+				err = -EINVAL;
+				goto put;
+			}
+
+			fences[i].syncpt = job->client->syncpts[fence->index];
+			fences[i].bo = job->buffers[cmdbuf->index];
+			fences[i].offset = fence->offset;
+			fences[i].value = fence->value;
+		}
+	}
+
+	if (count)
+		*count = cmdbuf->num_fences;
+
+	return 0;
+
+put:
+	while (i--)
+		dma_fence_put(fences[i].fence);
+
+	return err;
+}
+
+static int host1x_job_put_fences(struct host1x_job *job, struct drm_file *file,
+				 struct drm_tegra_cmdbuf *cmdbuf,
+				 struct drm_tegra_fence *user_fences,
+				 struct host1x_job_fence *fences,
+				 unsigned int num_fences,
+				 unsigned int *count)
+{
+	struct drm_tegra_fence __user *user;
+	unsigned int i;
+	size_t size;
+	int err;
+
+	if (cmdbuf->num_fences > num_fences)
+		return -ENOSPC;
+
+	for (i = 0; i < cmdbuf->num_fences; i++) {
+		struct drm_tegra_fence *fence = &user_fences[i];
+		struct host1x_syncpt *syncpt = fences[i].syncpt;
+
+		if ((fence->flags & DRM_TEGRA_FENCE_EMIT) == 0)
+			continue;
+
+		/* XXX don't leak this to userspace? */
+		fence->value = fences[i].value;
+
+		fences[i].fence = tegra_drm_add_fence(file, syncpt, fence);
+		if (IS_ERR(fences[i].fence)) {
+			err = PTR_ERR(fences[i].fence);
+			goto put;
+		}
+	}
+
+	size = cmdbuf->num_fences * sizeof(*user);
+	user = u64_to_user_ptr(cmdbuf->fences);
+
+	if (copy_to_user(user, user_fences, size)) {
+		err = -EFAULT;
+		goto put;
+	}
+
+	if (count)
+		*count = cmdbuf->num_fences;
+
+	return 0;
+
+put:
+	while (i--)
+		dma_fence_put(fences[i].fence);
+
+	return err;
+}
+
+int tegra_drm_submit(struct tegra_drm_context *context,
+		     struct drm_tegra_submit *args, struct drm_device *drm,
+		     struct drm_file *file)
+{
+	struct host1x_client *client = &context->client->base;
+	unsigned int num_buffers = args->num_buffers;
+	struct drm_tegra_buffer __user *user_buffers;
+	unsigned int num_cmdbufs = args->num_cmdbufs;
+	struct drm_tegra_cmdbuf __user *user_cmdbufs;
+	struct drm_tegra_reloc __user *user_relocs;
+	unsigned int num_relocs = args->num_relocs;
+	struct drm_tegra_fence *user_fences, *out;
+	struct host1x_job_fence *fences;
+	unsigned int num_fences = 0;
+	struct host1x_job *job;
+	unsigned int i;
+	int err;
+
+	user_buffers = u64_to_user_ptr(args->buffers);
+	user_cmdbufs = u64_to_user_ptr(args->cmdbufs);
+	user_relocs = u64_to_user_ptr(args->relocs);
+
+	/* Check for unrecognized flags */
+	if (args->flags & ~DRM_TEGRA_SUBMIT_FLAGS)
+		return -EINVAL;
+
+	/* count the number of fences */
+	for (i = 0; i < num_cmdbufs; i++) {
+		u32 count;
+
+		err = get_user(count, &user_cmdbufs[i].num_fences);
+		if (err < 0)
+			return err;
+
+		num_fences += count;
+	}
+
+	job = host1x_job_alloc(context->channel, num_buffers, num_cmdbufs,
+			       num_relocs, client->num_syncpts, num_fences,
+			       num_fences * sizeof(*user_fences),
+			       (void **)&user_fences);
+	if (!job)
+		return -ENOMEM;
+
+	job->serialize = true;
+
+	err = host1x_job_get_buffers(job, file, user_buffers, num_buffers);
+	if (err < 0)
+		goto put;
+
+	fences = job->fences;
+	out = user_fences;
+
+	for (i = 0; i < num_cmdbufs; i++) {
+		struct drm_tegra_cmdbuf __user *user = &user_cmdbufs[i];
+		struct drm_tegra_cmdbuf cmdbuf;
+		struct drm_gem_object *obj;
+		struct host1x_bo *bo;
+		unsigned int count;
+		u64 limit;
+
+		if (copy_from_user(&cmdbuf, user, sizeof(cmdbuf))) {
+			err = -EFAULT;
+			goto put;
+		}
+
+		if (cmdbuf.index > job->num_buffers) {
+			err = -EINVAL;
+			goto put;
+		}
+
+		bo = job->buffers[cmdbuf.index];
+
+		/*
+		 * The maximum number of CDMA gather fetches is 16383, a
+		 * higher value means the words count is malformed.
+		 */
+		if (cmdbuf.words > CDMA_GATHER_FETCHES_MAX_NB) {
+			err = -EINVAL;
+			goto put;
+		}
+
+		limit = (u64)cmdbuf.offset + (u64)cmdbuf.words * sizeof(u32);
+		obj = &host1x_to_tegra_bo(bo)->gem;
+
+		/*
+		 * Gather buffer base address must be 4-bytes aligned,
+		 * unaligned offset is malformed and cause commands stream
+		 * corruption on the buffer address relocation.
+		 */
+		if (limit & 3 || limit >= obj->size) {
+			err = -EINVAL;
+			goto put;
+		}
+
+		err = host1x_job_get_fences(job, file, &cmdbuf, out, fences,
+					    num_fences, &count);
+		if (err < 0)
+			goto put;
+
+		host1x_job_add_gather(job, bo, cmdbuf.words, cmdbuf.offset,
+				      fences, count);
+
+		num_fences -= count;
+		fences += count;
+		out += count;
+	}
+
+	/*
+	 * Need to reset this for bounds checking when copying fences back
+	 * to userspace later on.
+	 */
+	num_fences = job->num_fences;
+	fences = job->fences;
+	out = user_fences;
+
+	/* copy and resolve relocations from submit */
+	for (i = 0; i < num_relocs; i++) {
+		struct drm_tegra_reloc __user *user = &user_relocs[i];
+		struct host1x_reloc *reloc = &job->relocs[i];
+		struct tegra_bo *obj;
+
+		err = host1x_reloc_copy_from_user(job, reloc, user);
+		if (err < 0)
+			goto put;
+
+		obj = host1x_to_tegra_bo(reloc->cmdbuf.bo);
+
+		/*
+		 * The unaligned cmdbuf offset will cause an unaligned write
+		 * during of the relocations patching, corrupting the commands
+		 * stream.
+		 */
+		if (reloc->cmdbuf.offset & 3 ||
+		    reloc->cmdbuf.offset >= obj->gem.size) {
+			err = -EINVAL;
+			goto put;
+		}
+
+		obj = host1x_to_tegra_bo(reloc->target.bo);
+
+		if (reloc->target.offset >= obj->gem.size) {
+			err = -EINVAL;
+			goto put;
+		}
+	}
+
+	job->is_addr_reg = context->client->ops->is_addr_reg;
+	job->is_valid_class = context->client->ops->is_valid_class;
+	job->timeout = 10000;
+
+	if (args->timeout && args->timeout < 10000)
+		job->timeout = args->timeout;
+
+	err = host1x_job_pin(job, context->client->base.dev);
+	if (err) {
+		dev_dbg(client->dev, "failed to pin job: %d\n", err);
+		goto put;
+	}
+
+	err = host1x_job_submit(job);
+	if (err) {
+		dev_dbg(client->dev, "failed to submit job: %d\n", err);
+		host1x_job_unpin(job);
+		goto put;
+	}
+
+	/* copy fences back to userspace */
+	for (i = 0; i < num_cmdbufs; i++) {
+		struct drm_tegra_cmdbuf __user *user = &user_cmdbufs[i];
+		struct drm_tegra_cmdbuf cmdbuf;
+		/*
+		 * XXX gcc is unable to infer from host1x_job_put_fences()
+		 * that this won't ever be uninitialized.
+		 */
+		unsigned int count = 0;
+
+		if (copy_from_user(&cmdbuf, user, sizeof(cmdbuf))) {
+			err = -EFAULT;
+			goto put;
+		}
+
+		err = host1x_job_put_fences(job, file, &cmdbuf, out, fences,
+					    num_fences, &count);
+		if (err < 0) {
+			dev_dbg(client->dev, "failed to put fences: %d\n", err);
+			goto put;
+		}
+
+		num_fences -= count;
+		fences += count;
+		out += count;
+	}
 
 put:
 	host1x_job_put(job);
@@ -696,7 +1205,64 @@ static int tegra_gem_get_tiling(struct drm_device *drm, void *data,
 	}
 
 	drm_gem_object_put_unlocked(gem);
+	return err;
+}
 
+static int tegra_open_channel(struct drm_device *drm, void *data,
+			      struct drm_file *file)
+{
+	struct tegra_drm_file *fpriv = file->driver_priv;
+	struct tegra_drm *tegra = drm->dev_private;
+	struct drm_tegra_open_channel *args = data;
+	struct tegra_drm_context *context;
+	struct tegra_drm_client *client;
+	int err = -ENODEV;
+
+	context = kzalloc(sizeof(*context), GFP_KERNEL);
+	if (!context)
+		return -ENOMEM;
+
+	mutex_lock(&fpriv->lock);
+
+	list_for_each_entry(client, &tegra->clients, list)
+		if (client->base.class == args->client) {
+			err = tegra_client_open(fpriv, client, context);
+			if (err < 0)
+				break;
+
+			args->syncpts = client->base.num_syncpts;
+			args->version = client->version;
+			args->context = context->id;
+			break;
+		}
+
+	if (err < 0)
+		kfree(context);
+
+	mutex_unlock(&fpriv->lock);
+	return err;
+}
+
+static int tegra_submit(struct drm_device *drm, void *data,
+			struct drm_file *file)
+{
+	struct tegra_drm_file *fpriv = file->driver_priv;
+	struct drm_tegra_submit *args = data;
+	struct tegra_drm_context *context;
+	int err;
+
+	mutex_lock(&fpriv->lock);
+
+	context = idr_find(&fpriv->contexts, args->context);
+	if (!context) {
+		err = -ENODEV;
+		goto unlock;
+	}
+
+	err = context->client->ops->submit(context, args, drm, file);
+
+unlock:
+	mutex_unlock(&fpriv->lock);
 	return err;
 }
 
@@ -777,6 +1343,10 @@ static const struct drm_ioctl_desc tegra_drm_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(TEGRA_GEM_SET_FLAGS, tegra_gem_set_flags,
 			  DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(TEGRA_GEM_GET_FLAGS, tegra_gem_get_flags,
+			  DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(TEGRA_OPEN_CHANNEL, tegra_open_channel,
+			  DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(TEGRA_SUBMIT, tegra_submit,
 			  DRM_RENDER_ALLOW),
 #endif
 };
@@ -867,8 +1437,8 @@ static int tegra_debugfs_init(struct drm_minor *minor)
 #endif
 
 static struct drm_driver tegra_drm_driver = {
-	.driver_features = DRIVER_MODESET | DRIVER_GEM |
-			   DRIVER_ATOMIC | DRIVER_RENDER,
+	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC |
+			   DRIVER_RENDER | DRIVER_SYNCOBJ,
 	.open = tegra_drm_open,
 	.postclose = tegra_drm_postclose,
 	.lastclose = drm_fb_helper_lastclose,
