@@ -117,10 +117,10 @@ host1x_bo_lookup(struct drm_file *file, u32 handle)
 	return &bo->base;
 }
 
-static int host1x_reloc_copy_from_user(struct host1x_reloc *dest,
-				       struct drm_tegra_reloc __user *src,
-				       struct drm_device *drm,
-				       struct drm_file *file)
+static int
+host1x_reloc_legacy_copy_from_user(struct host1x_reloc *dest,
+				   struct drm_tegra_reloc_legacy __user *src,
+				   struct drm_file *file)
 {
 	u32 cmdbuf, target;
 	int err;
@@ -158,18 +158,19 @@ static int host1x_reloc_copy_from_user(struct host1x_reloc *dest,
 	return 0;
 }
 
-int tegra_drm_submit(struct tegra_drm_context *context,
-		     struct drm_tegra_submit *args, struct drm_device *drm,
-		     struct drm_file *file)
+int tegra_drm_submit_legacy(struct tegra_drm_context *context,
+			    struct drm_tegra_submit_legacy *args,
+			    struct drm_device *drm,
+			    struct drm_file *file)
 {
-	struct host1x_client *client = &context->client->base;
-	unsigned int num_cmdbufs = args->num_cmdbufs;
-	unsigned int num_relocs = args->num_relocs;
-	struct drm_tegra_cmdbuf __user *user_cmdbufs;
-	struct drm_tegra_reloc __user *user_relocs;
-	struct drm_tegra_syncpt __user *user_syncpt;
-	struct drm_tegra_syncpt syncpt;
 	struct host1x *host1x = dev_get_drvdata(drm->dev->parent);
+	struct host1x_client *client = &context->client->base;
+	struct drm_tegra_cmdbuf_legacy __user *user_cmdbufs;
+	struct drm_tegra_reloc_legacy __user *user_relocs;
+	unsigned int num_cmdbufs = args->num_cmdbufs;
+	struct drm_tegra_syncpt __user *user_syncpt;
+	unsigned int num_relocs = args->num_relocs;
+	struct drm_tegra_syncpt syncpt;
 	struct drm_gem_object **refs;
 	bool valid_syncpt = false;
 	struct host1x_syncpt *sp;
@@ -188,6 +189,8 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 	/* We don't yet support waitchks */
 	if (args->num_waitchks != 0)
 		return -EINVAL;
+
+	/* XXX determine number of buffers and create indices */
 
 	job = host1x_job_alloc(context->channel, 0, args->num_cmdbufs,
 			       args->num_relocs, 1, 0, 0, NULL);
@@ -212,7 +215,7 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 	num_refs = 0;
 
 	while (num_cmdbufs) {
-		struct drm_tegra_cmdbuf cmdbuf;
+		struct drm_tegra_cmdbuf_legacy cmdbuf;
 		struct host1x_bo *bo;
 		struct tegra_bo *obj;
 		u64 offset;
@@ -262,9 +265,9 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		struct host1x_reloc *reloc;
 		struct tegra_bo *obj;
 
-		err = host1x_reloc_copy_from_user(&job->relocs[num_relocs],
-						  &user_relocs[num_relocs], drm,
-						  file);
+		err = host1x_reloc_legacy_copy_from_user(&job->relocs[num_relocs],
+							 &user_relocs[num_relocs],
+							 file);
 		if (err < 0)
 			goto fail;
 
@@ -457,12 +460,12 @@ static int tegra_client_open(struct tegra_drm_file *fpriv,
 	return 0;
 }
 
-static int tegra_open_channel(struct drm_device *drm, void *data,
-			      struct drm_file *file)
+static int tegra_open_channel_legacy(struct drm_device *drm, void *data,
+				     struct drm_file *file)
 {
+	struct drm_tegra_open_channel_legacy *args = data;
 	struct tegra_drm_file *fpriv = file->driver_priv;
 	struct tegra_drm *tegra = drm->dev_private;
-	struct drm_tegra_open_channel *args = data;
 	struct tegra_drm_context *context;
 	struct tegra_drm_client *client;
 	int err = -ENODEV;
@@ -544,11 +547,10 @@ unlock:
 	return err;
 }
 
-static int tegra_submit(struct drm_device *drm, void *data,
-			struct drm_file *file)
+static int tegra_submit_legacy(struct drm_device *drm, void *data, struct drm_file *file)
 {
 	struct tegra_drm_file *fpriv = file->driver_priv;
-	struct drm_tegra_submit *args = data;
+	struct drm_tegra_submit_legacy *args = data;
 	struct tegra_drm_context *context;
 	int err;
 
@@ -560,7 +562,7 @@ static int tegra_submit(struct drm_device *drm, void *data,
 		goto unlock;
 	}
 
-	err = context->client->ops->submit(context, args, drm, file);
+	err = context->client->ops->submit_legacy(context, args, drm, file);
 
 unlock:
 	mutex_unlock(&fpriv->lock);
@@ -758,13 +760,13 @@ static const struct drm_ioctl_desc tegra_drm_ioctls[] = {
 			  DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(TEGRA_SYNCPT_WAIT, tegra_syncpt_wait,
 			  DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(TEGRA_OPEN_CHANNEL, tegra_open_channel,
+	DRM_IOCTL_DEF_DRV(TEGRA_OPEN_CHANNEL_LEGACY, tegra_open_channel_legacy,
 			  DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(TEGRA_CLOSE_CHANNEL, tegra_close_channel,
 			  DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(TEGRA_GET_SYNCPT, tegra_get_syncpt,
 			  DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(TEGRA_SUBMIT, tegra_submit,
+	DRM_IOCTL_DEF_DRV(TEGRA_SUBMIT_LEGACY, tegra_submit_legacy,
 			  DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(TEGRA_GET_SYNCPT_BASE, tegra_get_syncpt_base,
 			  DRM_RENDER_ALLOW),
