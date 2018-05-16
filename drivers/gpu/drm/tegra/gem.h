@@ -44,6 +44,7 @@ struct tegra_bo {
 	/* size of IOMMU mapping */
 	size_t size;
 
+	struct tegra_bo_tiling tiling;
 };
 
 static inline struct tegra_bo *to_tegra_bo(struct drm_gem_object *gem)
