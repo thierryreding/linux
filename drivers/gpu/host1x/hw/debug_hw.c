@@ -197,9 +197,8 @@ static void show_channel_gathers(struct output *o, struct host1x_cdma *cdma)
 	list_for_each_entry(job, &cdma->sync_queue, list) {
 		unsigned int i;
 
-		host1x_debug_output(o, "\n%p: JOB, syncpt_id=%d, syncpt_val=%d, first_get=%08x, timeout=%d num_slots=%d, num_handles=%d\n",
-				    job, job->syncpt_id, job->syncpt_end,
-				    job->first_get, job->timeout,
+		host1x_debug_output(o, "\n%p: JOB, first_get=%08x, timeout=%d num_slots=%d, num_handles=%d\n",
+				    job, job->first_get, job->timeout,
 				    job->num_slots, job->num_unpins);
 
 		for (i = 0; i < job->num_gathers; i++) {

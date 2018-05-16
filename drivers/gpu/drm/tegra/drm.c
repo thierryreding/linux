@@ -171,9 +171,10 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 	struct drm_tegra_syncpt syncpt;
 	struct host1x *host1x = dev_get_drvdata(drm->dev->parent);
 	struct drm_gem_object **refs;
+	bool valid_syncpt = false;
 	struct host1x_syncpt *sp;
+	unsigned int num_refs, i;
 	struct host1x_job *job;
-	unsigned int num_refs;
 	int err;
 
 	user_cmdbufs = u64_to_user_ptr(args->cmdbufs);
@@ -189,13 +190,11 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		return -EINVAL;
 
 	job = host1x_job_alloc(context->channel, args->num_cmdbufs,
-			       args->num_relocs);
+			       args->num_relocs, 1);
 	if (!job)
 		return -ENOMEM;
 
 	job->num_relocs = args->num_relocs;
-	job->client = client;
-	job->class = client->class;
 	job->serialize = true;
 
 	/*
@@ -305,10 +304,22 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		goto fail;
 	}
 
+	for (i = 0; i < client->num_syncpts; i++) {
+		u32 id = host1x_syncpt_id(client->syncpts[i]);
+
+		if (id == syncpt.id) {
+			job->checkpoints[i].value = syncpt.incrs;
+			valid_syncpt = true;
+		}
+	}
+
+	if (!valid_syncpt) {
+		err = -EINVAL;
+		goto put;
+	}
+
 	job->is_addr_reg = context->client->ops->is_addr_reg;
 	job->is_valid_class = context->client->ops->is_valid_class;
-	job->syncpt_incrs = syncpt.incrs;
-	job->syncpt_id = syncpt.id;
 	job->timeout = 10000;
 
 	if (args->timeout && args->timeout < 10000)
@@ -324,7 +335,14 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		goto fail;
 	}
 
-	args->fence = job->syncpt_end;
+	for (i = 0; i < client->num_syncpts; i++) {
+		u32 id = host1x_syncpt_id(client->syncpts[i]);
+
+		if (id == syncpt.id) {
+			args->fence = job->checkpoints[i].threshold;
+			break;
+		}
+	}
 
 fail:
 	while (num_refs--)
@@ -336,7 +354,6 @@ put:
 	host1x_job_put(job);
 	return err;
 }
-
 
 #ifdef CONFIG_DRM_TEGRA_STAGING
 static int tegra_gem_create(struct drm_device *drm, void *data,

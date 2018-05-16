@@ -209,23 +209,23 @@ static void syncpt_thresh_work(struct work_struct *work)
 }
 
 int host1x_intr_add_action(struct host1x *host, struct host1x_syncpt *syncpt,
-			   u32 thresh, enum host1x_intr_action action,
+			   u32 threshold, enum host1x_intr_action action,
 			   void *data, struct host1x_waitlist *waiter,
 			   void **ref)
 {
 	int queue_was_empty;
 
-	if (waiter == NULL) {
-		pr_warn("%s: NULL waiter\n", __func__);
+	if (waiter == NULL)
 		return -EINVAL;
-	}
 
 	/* initialize a new waiter */
 	INIT_LIST_HEAD(&waiter->list);
 	kref_init(&waiter->refcount);
+
 	if (ref)
 		kref_get(&waiter->refcount);
-	waiter->thresh = thresh;
+
+	waiter->thresh = threshold;
 	waiter->action = action;
 	atomic_set(&waiter->state, WLS_PENDING);
 	waiter->data = data;
@@ -237,7 +237,7 @@ int host1x_intr_add_action(struct host1x *host, struct host1x_syncpt *syncpt,
 
 	if (add_waiter_to_queue(waiter, &syncpt->intr.wait_head)) {
 		/* added at head of list - new threshold value */
-		host1x_hw_intr_set_syncpt_threshold(host, syncpt->id, thresh);
+		host1x_hw_intr_set_syncpt_threshold(host, syncpt->id, threshold);
 
 		/* added as first waiter - enable interrupt */
 		if (queue_was_empty)
@@ -248,6 +248,7 @@ int host1x_intr_add_action(struct host1x *host, struct host1x_syncpt *syncpt,
 
 	if (ref)
 		*ref = waiter;
+
 	return 0;
 }
 

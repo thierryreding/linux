@@ -26,15 +26,20 @@ static void push_buffer_init(struct push_buffer *pb)
  * Increment timedout buffer's syncpt via CPU.
  */
 static void cdma_timeout_cpu_incr(struct host1x_cdma *cdma, u32 getptr,
-				u32 syncpt_incrs, u32 syncval, u32 nr_slots)
+				  u32 nr_slots)
 {
-	unsigned int i;
+	unsigned int i, j;
 
-	for (i = 0; i < syncpt_incrs; i++)
-		host1x_syncpt_incr(cdma->timeout.syncpt);
+	for (i = 0; i < cdma->timeout.num_checkpoints; i++) {
+		struct host1x_checkpoint *cp = &cdma->timeout.checkpoints[i];
+		u32 value = host1x_syncpt_load(cp->syncpt);
 
-	/* after CPU incr, ensure shadow is up to date */
-	host1x_syncpt_load(cdma->timeout.syncpt);
+		for (j = value; j < cp->threshold; j++)
+			host1x_syncpt_incr(cp->syncpt);
+
+		/* after CPU incr, ensure shadow is up to date */
+		host1x_syncpt_load(cp->syncpt);
+	}
 }
 
 /*
@@ -245,10 +250,11 @@ static void cdma_resume(struct host1x_cdma *cdma, u32 getptr)
  */
 static void cdma_timeout_handler(struct work_struct *work)
 {
-	u32 syncpt_val;
 	struct host1x_cdma *cdma;
 	struct host1x *host1x;
 	struct host1x_channel *ch;
+	bool completed = true;
+	unsigned int i;
 
 	cdma = container_of(to_delayed_work(work), struct host1x_cdma,
 			    timeout.wq);
@@ -269,21 +275,30 @@ static void cdma_timeout_handler(struct work_struct *work)
 	/* stop processing to get a clean snapshot */
 	cdma_hw_cmdproc_stop(host1x, ch, true);
 
-	syncpt_val = host1x_syncpt_load(cdma->timeout.syncpt);
+	for (i = 0; i < cdma->timeout.num_checkpoints; i++) {
+		struct host1x_checkpoint *cp = &cdma->timeout.checkpoints[i];
+		u32 value = host1x_syncpt_load(cp->syncpt);
 
-	/* has buffer actually completed? */
-	if ((s32)(syncpt_val - cdma->timeout.syncpt_val) >= 0) {
-		dev_dbg(host1x->dev,
-			"cdma_timeout: expired, but buffer had completed\n");
-		/* restore */
-		cdma_hw_cmdproc_stop(host1x, ch, false);
+		/* has buffer actually completed? */
+		if ((s32)(value - cp->threshold) >= 0) {
+			dev_dbg(host1x->dev,
+				"cdma_timeout: expired, but buffer had completed\n");
+			/* restore */
+			cdma_hw_cmdproc_stop(host1x, ch, false);
+			continue;
+		}
+
+		dev_warn(host1x->dev,
+			"%s: timeout: %u (%s), HW thresh %d, done %d\n",
+			 __func__, cp->syncpt->id, cp->syncpt->name,
+			 value, cp->threshold);
+		completed = false;
+	}
+
+	if (completed) {
 		host1x_cdma_unlock(cdma);
 		return;
 	}
-
-	dev_warn(host1x->dev, "%s: timeout: %u (%s), HW thresh %d, done %d\n",
-		 __func__, cdma->timeout.syncpt->id, cdma->timeout.syncpt->name,
-		 syncpt_val, cdma->timeout.syncpt_val);
 
 	/* stop HW, resetting channel/module */
 	host1x_hw_cdma_freeze(host1x, cdma);
@@ -295,7 +310,7 @@ static void cdma_timeout_handler(struct work_struct *work)
 /*
  * Init timeout resources
  */
-static int cdma_timeout_init(struct host1x_cdma *cdma, unsigned int syncpt)
+static int cdma_timeout_init(struct host1x_cdma *cdma)
 {
 	INIT_DELAYED_WORK(&cdma->timeout.wq, cdma_timeout_handler);
 	cdma->timeout.initialized = true;
