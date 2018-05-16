@@ -287,7 +287,8 @@ struct host1x_job *host1x_job_alloc(struct host1x_channel *channel,
 				    unsigned int num_cmdbufs,
 				    unsigned int num_relocs,
 				    unsigned int num_syncpts,
-				    unsigned int num_fences);
+				    unsigned int num_fences,
+				    size_t extra, void **priv);
 void host1x_job_add_gather(struct host1x_job *job, struct host1x_bo *bo,
 			   unsigned int words, unsigned int offset,
 			   struct host1x_job_fence *fences,

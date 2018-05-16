@@ -28,7 +28,8 @@ struct host1x_job *host1x_job_alloc(struct host1x_channel *channel,
 				    unsigned int num_cmdbufs,
 				    unsigned int num_relocs,
 				    unsigned int num_syncpts,
-				    unsigned int num_fences)
+				    unsigned int num_fences,
+				    size_t extra, void **priv)
 {
 	struct host1x_job *job = NULL;
 	unsigned int num_unpins = num_cmdbufs + num_relocs, i;
@@ -44,7 +45,8 @@ struct host1x_job *host1x_job_alloc(struct host1x_channel *channel,
 		(u64)num_syncpts * sizeof(struct host1x_checkpoint) +
 		(u64)num_fences * sizeof(struct host1x_job_fence) +
 		(u64)num_unpins * sizeof(dma_addr_t) +
-		(u64)num_unpins * sizeof(u32 *);
+		(u64)num_unpins * sizeof(u32 *) +
+		extra;
 	if (total > ULONG_MAX)
 		return NULL;
 
@@ -85,6 +87,10 @@ struct host1x_job *host1x_job_alloc(struct host1x_channel *channel,
 	mem += num_relocs * sizeof(dma_addr_t);
 
 	job->gather_addr_phys = mem;
+	mem += num_cmdbufs * sizeof(dma_addr_t);
+
+	if (priv)
+		*priv = extra ? mem : NULL;
 
 	job->reloc_addr_phys = job->addr_phys;
 
