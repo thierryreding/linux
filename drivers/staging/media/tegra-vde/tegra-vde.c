@@ -24,6 +24,8 @@
 
 #include <soc/tegra/pmc.h>
 
+#include <drm/drm_fourcc.h>
+
 #include "uapi.h"
 
 #define ICMDQUE_WR		0x00
@@ -58,7 +60,7 @@ struct video_frame {
 	dma_addr_t aux_addr;
 	u32 frame_num;
 	u32 flags;
-	unsigned int block_height;
+	u64 modifier;
 };
 
 struct tegra_vde_soc {
@@ -211,8 +213,12 @@ static void tegra_vde_setup_frameid(struct tegra_vde *vde,
 	u32 value2 = frame ? ((((mbs_width + 1) >> 1) << 6) | 1) : 0;
 	u32 value = y_addr >> 8;
 
-	if (vde->soc->supports_interlacing)
+	if (!vde->soc->supports_interlacing) {
+		if (frame->modifier == DRM_FORMAT_MOD_NVIDIA_TEGRA_TILED)
+			value |= BIT(31);
+	} else {
 		value |= BIT(31);
+	}
 
 	VDE_WR(value,        vde->frameid + 0x000 + frameid * 4);
 	VDE_WR(cb_addr >> 8, vde->frameid + 0x100 + frameid * 4);
@@ -352,6 +358,37 @@ static void tegra_vde_setup_iram_tables(struct tegra_vde *vde,
 	}
 }
 
+static int tegra_vde_get_block_height(u64 modifier, unsigned int *block_height)
+{
+	switch (modifier) {
+	case DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK_ONE_GOB:
+		*block_height = 0;
+		return 0;
+
+	case DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK_TWO_GOB:
+		*block_height = 1;
+		return 0;
+
+	case DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK_FOUR_GOB:
+		*block_height = 2;
+		return 0;
+
+	case DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK_EIGHT_GOB:
+		*block_height = 3;
+		return 0;
+
+	case DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK_SIXTEEN_GOB:
+		*block_height = 4;
+		return 0;
+
+	case DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK_THIRTYTWO_GOB:
+		*block_height = 5;
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
 static int tegra_vde_setup_hw_context(struct tegra_vde *vde,
 				      struct tegra_vde_h264_decoder_ctx *ctx,
 				      struct video_frame *dpb_frames,
@@ -389,8 +426,16 @@ static int tegra_vde_setup_hw_context(struct tegra_vde *vde,
 
 	value = 0x00000000;
 
-	if (vde->soc->supports_block_linear)
-		value |= (dpb_frames[0].block_height << 10);
+	if (vde->soc->supports_block_linear) {
+		unsigned int block_height;
+
+		err = tegra_vde_get_block_height(dpb_frames[0].modifier,
+						 &block_height);
+		if (err < 0)
+			return err;
+
+		value |= block_height << 10;
+	}
 
 	VDE_WR(value, vde->vdma + 0x00);
 	VDE_WR(0x00000007, vde->vdma + 0x04);
@@ -761,9 +806,35 @@ static void tegra_vde_release_frame_dmabufs(struct video_frame *frame,
 static int tegra_vde_validate_frame(struct device *dev,
 				    struct tegra_vde_h264_frame *frame)
 {
+	struct tegra_vde *vde = dev_get_drvdata(dev);
+
 	if (frame->frame_num > 0x7FFFFF) {
 		dev_err(dev, "Bad frame_num %u\n", frame->frame_num);
 		return -EINVAL;
+	}
+
+	if (vde->soc->supports_block_linear) {
+		switch (frame->modifier) {
+		case DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK_ONE_GOB:
+		case DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK_TWO_GOB:
+		case DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK_FOUR_GOB:
+		case DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK_EIGHT_GOB:
+		case DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK_SIXTEEN_GOB:
+		case DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK_THIRTYTWO_GOB:
+			break;
+
+		default:
+			return -EINVAL;
+		}
+	} else {
+		switch (frame->modifier) {
+		case DRM_FORMAT_MOD_NVIDIA_TEGRA_TILED:
+		case DRM_FORMAT_MOD_LINEAR:
+			break;
+
+		default:
+			return -EINVAL;
+		}
 	}
 
 	return 0;
@@ -843,7 +914,6 @@ static int tegra_vde_ioctl_decode_h264(struct tegra_vde *vde,
 {
 	struct device *dev = vde->miscdev.parent;
 	struct tegra_vde_h264_decoder_ctx ctx;
-	struct tegra_vde_h264_frame frames[17];
 	struct tegra_vde_h264_frame __user *frames_user;
 	struct video_frame *dpb_frames;
 	struct dma_buf_attachment *bitstream_data_dmabuf_attachment;
@@ -883,7 +953,7 @@ static int tegra_vde_ioctl_decode_h264(struct tegra_vde *vde,
 
 	if (vde->soc->supports_ref_pic_marking) {
 		ret = tegra_vde_attach_dmabuf(dev, ctx.secure_fd,
-					      ctx.secure_offset, 0,
+					      ctx.secure_offset, 0, SZ_256,
 					      &secure_attachment,
 					      &secure_addr,
 					      &secure_sgt,
@@ -903,29 +973,30 @@ static int tegra_vde_ioctl_decode_h264(struct tegra_vde *vde,
 	macroblocks_nb = ctx.pic_width_in_mbs * ctx.pic_height_in_mbs;
 	frames_user = u64_to_user_ptr(ctx.dpb_frames_ptr);
 
-	if (copy_from_user(frames, frames_user,
-			   ctx.dpb_frames_nb * sizeof(*frames))) {
-		ret = -EFAULT;
-		goto free_dpb_frames;
-	}
-
 	cstride = ALIGN(ctx.pic_width_in_mbs * 8, 16);
 	csize = cstride * ctx.pic_height_in_mbs * 8;
 	lsize = macroblocks_nb * 256;
 
 	for (i = 0; i < ctx.dpb_frames_nb; i++) {
-		ret = tegra_vde_validate_frame(dev, &frames[i]);
+		struct tegra_vde_h264_frame frame;
+
+		if (copy_from_user(&frame, &frames_user[i], sizeof(frame))) {
+			ret = -EFAULT;
+			goto release_dpb_frames;
+		}
+
+		ret = tegra_vde_validate_frame(dev, &frame);
 		if (ret)
 			goto release_dpb_frames;
 
-		dpb_frames[i].flags = frames[i].flags;
-		dpb_frames[i].frame_num = frames[i].frame_num;
-		dpb_frames[i].block_height = frames[i].block_height;
+		dpb_frames[i].flags = frame.flags;
+		dpb_frames[i].frame_num = frame.frame_num;
+		dpb_frames[i].modifier = frame.modifier;
 
 		dma_dir = (i == 0) ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
 
 		ret = tegra_vde_attach_dmabufs_to_frame(dev, &dpb_frames[i],
-							&frames[i], dma_dir,
+							&frame, dma_dir,
 							ctx.baseline_profile,
 							lsize, csize);
 		if (ret)
@@ -1017,7 +1088,6 @@ release_dpb_frames:
 						ctx.baseline_profile);
 	}
 
-free_dpb_frames:
 	kfree(dpb_frames);
 
 release_bitstream_dmabuf:

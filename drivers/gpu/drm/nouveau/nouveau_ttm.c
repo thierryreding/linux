@@ -167,11 +167,21 @@ nouveau_ttm_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct drm_file *file_priv = filp->private_data;
 	struct nouveau_drm *drm = nouveau_drm(file_priv->minor->dev);
+	int err;
 
-	if (unlikely(vma->vm_pgoff < DRM_FILE_PAGE_OFFSET))
-		return drm_legacy_mmap(filp, vma);
+	pr_info("> %s(filp=%px, vma=%px)\n", __func__, filp, vma);
+	pr_info("  vma->vm_pgoff: %lx\n", vma->vm_pgoff);
 
-	return ttm_bo_mmap(filp, vma, &drm->ttm.bdev);
+	if (unlikely(vma->vm_pgoff < DRM_FILE_PAGE_OFFSET)) {
+		pr_info("  using legacy mmap\n");
+		err = drm_legacy_mmap(filp, vma);
+		pr_info("< %s() = %d\n", __func__, err);
+		return err;
+	}
+
+	err = ttm_bo_mmap(filp, vma, &drm->ttm.bdev);
+	pr_info("< %s() = %d\n", __func__, err);
+	return err;
 }
 
 static int
