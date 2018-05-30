@@ -626,7 +626,6 @@ put:
 	return err;
 }
 
-#ifdef CONFIG_DRM_TEGRA_STAGING
 static int tegra_gem_create(struct drm_device *drm, void *data,
 			    struct drm_file *file)
 {
@@ -764,10 +763,8 @@ unlock:
 	mutex_unlock(&fpriv->lock);
 	return err;
 }
-#endif
 
 static const struct drm_ioctl_desc tegra_drm_ioctls[] = {
-#ifdef CONFIG_DRM_TEGRA_STAGING
 	DRM_IOCTL_DEF_DRV(TEGRA_GEM_CREATE, tegra_gem_create,
 			  DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(TEGRA_GEM_MMAP, tegra_gem_mmap,
@@ -778,7 +775,6 @@ static const struct drm_ioctl_desc tegra_drm_ioctls[] = {
 			  DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(TEGRA_SUBMIT, tegra_submit,
 			  DRM_RENDER_ALLOW),
-#endif
 };
 
 static const struct file_operations tegra_drm_fops = {
