@@ -351,7 +351,6 @@ static void vic_close_channel(struct tegra_drm_context *context)
 static const struct tegra_drm_client_ops vic_ops = {
 	.open_channel = vic_open_channel,
 	.close_channel = vic_close_channel,
-	.submit_legacy = tegra_drm_submit_legacy,
 	.submit = tegra_drm_submit,
 };
 
