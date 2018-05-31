@@ -247,6 +247,7 @@ config TEGRA_IOMMU_GART
 
 config TEGRA_IOMMU_SMMU
 	bool "NVIDIA Tegra SMMU Support"
+	select ARM_DMA_USE_IOMMU if ARM
 	depends on ARCH_TEGRA
 	depends on TEGRA_AHB
 	depends on TEGRA_MC
