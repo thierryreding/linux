@@ -1258,6 +1258,7 @@ static int tegra_vde_runtime_suspend(struct device *dev)
 	}
 
 	reset_control_assert(vde->rst_bsev);
+	reset_control_assert(vde->rst);
 
 	usleep_range(2000, 4000);
 
