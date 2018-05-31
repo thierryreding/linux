@@ -675,7 +675,7 @@ static int tegra_vde_attach_dmabuf(struct device *dev,
 
 	dmabuf = dma_buf_get(fd);
 	if (IS_ERR(dmabuf)) {
-		dev_err(dev, "Invalid dmabuf FD\n");
+		dev_err(dev, "Invalid dmabuf FD: %d\n", fd);
 		return PTR_ERR(dmabuf);
 	}
 
