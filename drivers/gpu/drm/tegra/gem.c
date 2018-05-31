@@ -206,11 +206,12 @@ static void tegra_bo_free(struct drm_device *drm, struct tegra_bo *bo)
 		dma_unmap_sg(drm->dev, bo->sgt->sgl, bo->sgt->nents,
 			     DMA_BIDIRECTIONAL);
 		drm_gem_put_pages(&bo->gem, bo->pages, true, true);
-		sg_free_table(bo->sgt);
-		kfree(bo->sgt);
 	} else if (bo->vaddr) {
-		dma_free_wc(drm->dev, bo->gem.size, bo->vaddr, bo->iova);
+		dma_free_wc(drm->dev, bo->gem.size, bo->vaddr, bo->paddr);
 	}
+
+	sg_free_table(bo->sgt);
+	kfree(bo->sgt);
 }
 
 static int tegra_bo_get_pages(struct drm_device *drm, struct tegra_bo *bo)
@@ -246,35 +247,60 @@ put_pages:
 	return err;
 }
 
-static int tegra_bo_alloc(struct drm_device *drm, struct tegra_bo *bo)
+static int tegra_bo_alloc(struct drm_device *drm, struct tegra_bo *bo,
+			  unsigned long flags)
 {
+	bool contiguous = flags & DRM_TEGRA_GEM_CONTIGUOUS;
 	struct tegra_drm *tegra = drm->dev_private;
 	int err;
 
-	if (tegra->domain) {
+	if (tegra->domain && !contiguous) {
 		err = tegra_bo_get_pages(drm, bo);
 		if (err < 0)
 			return err;
+	} else {
+		size_t size = bo->gem.size;
 
+		bo->sgt = kzalloc(sizeof(*bo->sgt), GFP_KERNEL);
+		if (!bo->sgt) {
+			err = -ENOMEM;
+			goto free;
+		}
+
+		bo->vaddr = dma_alloc_wc(drm->dev, size, &bo->paddr,
+					 GFP_KERNEL | __GFP_NOWARN);
+		if (!bo->vaddr) {
+			dev_err(drm->dev,
+				"failed to allocate buffer of size %zu\n",
+				size);
+			err = -ENOMEM;
+			goto free;
+		}
+
+		err = dma_get_sgtable(drm->dev, bo->sgt, bo->vaddr, bo->paddr,
+				      size);
+		if (err < 0)
+			goto free;
+	}
+
+	if (tegra->domain) {
 		err = tegra_bo_iommu_map(tegra, bo);
 		if (err < 0) {
 			tegra_bo_free(drm, bo);
 			return err;
 		}
 	} else {
-		size_t size = bo->gem.size;
-
-		bo->vaddr = dma_alloc_wc(drm->dev, size, &bo->iova,
-					 GFP_KERNEL | __GFP_NOWARN);
-		if (!bo->vaddr) {
-			dev_err(drm->dev,
-				"failed to allocate buffer of size %zu\n",
-				size);
-			return -ENOMEM;
-		}
+		bo->iova = bo->paddr;
 	}
 
 	return 0;
+
+free:
+	if (bo->vaddr)
+		dma_free_wc(drm->dev, bo->gem.size, bo->vaddr, bo->paddr);
+
+	kfree(bo->sgt);
+	return err;
 }
 
 struct tegra_bo *tegra_bo_create(struct drm_device *drm, size_t size,
@@ -287,7 +313,7 @@ struct tegra_bo *tegra_bo_create(struct drm_device *drm, size_t size,
 	if (IS_ERR(bo))
 		return bo;
 
-	err = tegra_bo_alloc(drm, bo);
+	err = tegra_bo_alloc(drm, bo, flags);
 	if (err < 0)
 		goto release;
 
@@ -296,6 +322,9 @@ struct tegra_bo *tegra_bo_create(struct drm_device *drm, size_t size,
 
 	if (flags & DRM_TEGRA_GEM_CREATE_BOTTOM_UP)
 		bo->flags |= TEGRA_BO_BOTTOM_UP;
+
+	if (flags & DRM_TEGRA_GEM_CONTIGUOUS)
+		bo->contiguous = true;
 
 	reservation_object_init(&bo->_resv);
 	bo->resv = &bo->_resv;
@@ -466,7 +495,7 @@ int __tegra_gem_mmap(struct drm_gem_object *gem, struct vm_area_struct *vma)
 		vma->vm_flags &= ~VM_PFNMAP;
 		vma->vm_pgoff = 0;
 
-		err = dma_mmap_wc(gem->dev->dev, vma, bo->vaddr, bo->iova,
+		err = dma_mmap_wc(gem->dev->dev, vma, bo->vaddr, bo->paddr,
 				  gem->size);
 		if (err < 0) {
 			drm_gem_vm_close(vma);
