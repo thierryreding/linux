@@ -691,7 +691,11 @@ static int tegra_vde_attach_dmabuf(struct device *dev,
 		goto err_detach;
 	}
 
+#if IS_ENABLED(CONFIG_ARM_DMA_USE_IOMMU)
+	if (sgt->nents != 1 && !dev->archdata.mapping) {
+#else
 	if (sgt->nents != 1) {
+#endif
 		dev_err(dev, "Sparse DMA region is unsupported\n");
 		err = -EINVAL;
 		goto err_unmap;
