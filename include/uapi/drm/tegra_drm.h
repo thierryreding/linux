@@ -391,6 +391,87 @@ struct drm_tegra_submit_legacy {
 	__u32 reserved[5];
 };
 
+#define DRM_TEGRA_GEM_TILING_MODE_PITCH 0
+#define DRM_TEGRA_GEM_TILING_MODE_TILED 1
+#define DRM_TEGRA_GEM_TILING_MODE_BLOCK 2
+
+/**
+ * struct drm_tegra_gem_set_tiling - parameters for the set tiling IOCTL
+ */
+struct drm_tegra_gem_set_tiling {
+	/**
+	 * @handle:
+	 *
+	 * Handle to the GEM object for which to set the tiling parameters.
+	 */
+	__u32 handle;
+
+	/**
+	 * @mode:
+	 *
+	 * The tiling mode to set. Must be one of:
+	 *
+	 * DRM_TEGRA_GEM_TILING_MODE_PITCH
+	 *   pitch linear format
+	 *
+	 * DRM_TEGRA_GEM_TILING_MODE_TILED
+	 *   16x16 tiling format
+	 *
+	 * DRM_TEGRA_GEM_TILING_MODE_BLOCK
+	 *   16Bx2 tiling format
+	 */
+	__u32 mode;
+
+	/**
+	 * @value:
+	 *
+	 * The value to set for the tiling mode parameter.
+	 */
+	__u32 value;
+
+	/**
+	 * @pad:
+	 *
+	 * Structure padding that may be used in the future. Must be 0.
+	 */
+	__u32 pad;
+};
+
+/**
+ * struct drm_tegra_gem_get_tiling - parameters for the get tiling IOCTL
+ */
+struct drm_tegra_gem_get_tiling {
+	/**
+	 * @handle:
+	 *
+	 * Handle to the GEM object for which to query the tiling parameters.
+	 */
+	__u32 handle;
+
+	/**
+	 * @mode:
+	 *
+	 * The tiling mode currently associated with the GEM object. Set by
+	 * the kernel upon successful completion of the IOCTL.
+	 */
+	__u32 mode;
+
+	/**
+	 * @value:
+	 *
+	 * The tiling mode parameter currently associated with the GEM object.
+	 * Set by the kernel upon successful completion of the IOCTL.
+	 */
+	__u32 value;
+
+	/**
+	 * @pad:
+	 *
+	 * Structure padding that may be used in the future. Must be 0.
+	 */
+	__u32 pad;
+};
+
 #define DRM_TEGRA_GEM_BOTTOM_UP		(1 << 0)
 #define DRM_TEGRA_GEM_FLAGS		(DRM_TEGRA_GEM_BOTTOM_UP)
 
@@ -796,6 +877,8 @@ struct drm_tegra_submit {
 #define DRM_TEGRA_OPEN_CHANNEL_LEGACY	0x05
 #define DRM_TEGRA_CLOSE_CHANNEL		0x06
 #define DRM_TEGRA_SUBMIT_LEGACY		0x08
+#define DRM_TEGRA_GEM_SET_TILING	0x0a
+#define DRM_TEGRA_GEM_GET_TILING	0x0b
 #define DRM_TEGRA_GEM_SET_FLAGS		0x0c
 #define DRM_TEGRA_GEM_GET_FLAGS		0x0d
 #define DRM_TEGRA_OPEN_CHANNEL		0x0e
@@ -806,6 +889,8 @@ struct drm_tegra_submit {
 #define DRM_IOCTL_TEGRA_OPEN_CHANNEL_LEGACY DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_OPEN_CHANNEL_LEGACY, struct drm_tegra_open_channel_legacy)
 #define DRM_IOCTL_TEGRA_CLOSE_CHANNEL DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_CLOSE_CHANNEL, struct drm_tegra_close_channel)
 #define DRM_IOCTL_TEGRA_SUBMIT_LEGACY DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_SUBMIT_LEGACY, struct drm_tegra_submit_legacy)
+#define DRM_IOCTL_TEGRA_GEM_SET_TILING DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_GEM_SET_TILING, struct drm_tegra_gem_set_tiling)
+#define DRM_IOCTL_TEGRA_GEM_GET_TILING DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_GEM_GET_TILING, struct drm_tegra_gem_get_tiling)
 #define DRM_IOCTL_TEGRA_GEM_SET_FLAGS DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_GEM_SET_FLAGS, struct drm_tegra_gem_set_flags)
 #define DRM_IOCTL_TEGRA_GEM_GET_FLAGS DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_GEM_GET_FLAGS, struct drm_tegra_gem_get_flags)
 #define DRM_IOCTL_TEGRA_OPEN_CHANNEL DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_OPEN_CHANNEL, struct drm_tegra_open_channel)
