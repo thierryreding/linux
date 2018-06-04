@@ -391,6 +391,48 @@ struct drm_tegra_submit_legacy {
 	__u32 reserved[5];
 };
 
+#define DRM_TEGRA_GEM_BOTTOM_UP		(1 << 0)
+#define DRM_TEGRA_GEM_FLAGS		(DRM_TEGRA_GEM_BOTTOM_UP)
+
+/**
+ * struct drm_tegra_gem_set_flags - parameters for the set flags IOCTL
+ */
+struct drm_tegra_gem_set_flags {
+	/**
+	 * @handle:
+	 *
+	 * Handle to the GEM object for which to set the flags.
+	 */
+	__u32 handle;
+
+	/**
+	 * @flags:
+	 *
+	 * The flags to set for the GEM object.
+	 */
+	__u32 flags;
+};
+
+/**
+ * struct drm_tegra_gem_get_flags - parameters for the get flags IOCTL
+ */
+struct drm_tegra_gem_get_flags {
+	/**
+	 * @handle:
+	 *
+	 * Handle to the GEM object for which to query the flags.
+	 */
+	__u32 handle;
+
+	/**
+	 * @flags:
+	 *
+	 * The flags currently associated with the GEM object. Set by the
+	 * kernel upon successful completion of the IOCTL.
+	 */
+	__u32 flags;
+};
+
 #define DRM_TEGRA_CHANNEL_FLAGS (0)
 
 /**
@@ -754,6 +796,8 @@ struct drm_tegra_submit {
 #define DRM_TEGRA_OPEN_CHANNEL_LEGACY	0x05
 #define DRM_TEGRA_CLOSE_CHANNEL		0x06
 #define DRM_TEGRA_SUBMIT_LEGACY		0x08
+#define DRM_TEGRA_GEM_SET_FLAGS		0x0c
+#define DRM_TEGRA_GEM_GET_FLAGS		0x0d
 #define DRM_TEGRA_OPEN_CHANNEL		0x0e
 #define DRM_TEGRA_SUBMIT		0x0f
 
@@ -762,6 +806,8 @@ struct drm_tegra_submit {
 #define DRM_IOCTL_TEGRA_OPEN_CHANNEL_LEGACY DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_OPEN_CHANNEL_LEGACY, struct drm_tegra_open_channel_legacy)
 #define DRM_IOCTL_TEGRA_CLOSE_CHANNEL DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_CLOSE_CHANNEL, struct drm_tegra_close_channel)
 #define DRM_IOCTL_TEGRA_SUBMIT_LEGACY DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_SUBMIT_LEGACY, struct drm_tegra_submit_legacy)
+#define DRM_IOCTL_TEGRA_GEM_SET_FLAGS DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_GEM_SET_FLAGS, struct drm_tegra_gem_set_flags)
+#define DRM_IOCTL_TEGRA_GEM_GET_FLAGS DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_GEM_GET_FLAGS, struct drm_tegra_gem_get_flags)
 #define DRM_IOCTL_TEGRA_OPEN_CHANNEL DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_OPEN_CHANNEL, struct drm_tegra_open_channel)
 #define DRM_IOCTL_TEGRA_SUBMIT DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_SUBMIT, struct drm_tegra_submit)
 
