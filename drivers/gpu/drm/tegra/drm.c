@@ -901,6 +901,51 @@ static int tegra_gem_mmap(struct drm_device *drm, void *data,
 	return 0;
 }
 
+static int tegra_syncpt_read(struct drm_device *drm, void *data,
+			     struct drm_file *file)
+{
+	struct host1x *host = dev_get_drvdata(drm->dev->parent);
+	struct drm_tegra_syncpt_read *args = data;
+	struct host1x_syncpt *sp;
+
+	sp = host1x_syncpt_get(host, args->id);
+	if (!sp)
+		return -EINVAL;
+
+	args->value = host1x_syncpt_read_min(sp);
+	return 0;
+}
+
+static int tegra_syncpt_incr(struct drm_device *drm, void *data,
+			     struct drm_file *file)
+{
+	struct host1x *host1x = dev_get_drvdata(drm->dev->parent);
+	struct drm_tegra_syncpt_incr *args = data;
+	struct host1x_syncpt *sp;
+
+	sp = host1x_syncpt_get(host1x, args->id);
+	if (!sp)
+		return -EINVAL;
+
+	return host1x_syncpt_incr(sp);
+}
+
+static int tegra_syncpt_wait(struct drm_device *drm, void *data,
+			     struct drm_file *file)
+{
+	struct host1x *host1x = dev_get_drvdata(drm->dev->parent);
+	struct drm_tegra_syncpt_wait *args = data;
+	struct host1x_syncpt *sp;
+
+	sp = host1x_syncpt_get(host1x, args->id);
+	if (!sp)
+		return -EINVAL;
+
+	return host1x_syncpt_wait(sp, args->thresh,
+				  msecs_to_jiffies(args->timeout),
+				  &args->value);
+}
+
 static int tegra_client_open(struct tegra_drm_file *fpriv,
 			     struct tegra_drm_client *client,
 			     struct tegra_drm_context *context)
@@ -980,6 +1025,36 @@ unlock:
 	return err;
 }
 
+static int tegra_get_syncpt(struct drm_device *drm, void *data,
+			    struct drm_file *file)
+{
+	struct tegra_drm_file *fpriv = file->driver_priv;
+	struct drm_tegra_get_syncpt *args = data;
+	struct tegra_drm_context *context;
+	struct host1x_syncpt *syncpt;
+	int err = 0;
+
+	mutex_lock(&fpriv->lock);
+
+	context = idr_find(&fpriv->contexts, args->context);
+	if (!context) {
+		err = -ENODEV;
+		goto unlock;
+	}
+
+	if (args->index >= context->client->base.num_syncpts) {
+		err = -EINVAL;
+		goto unlock;
+	}
+
+	syncpt = context->client->base.syncpts[args->index];
+	args->id = host1x_syncpt_id(syncpt);
+
+unlock:
+	mutex_unlock(&fpriv->lock);
+	return err;
+}
+
 static int tegra_submit_legacy(struct drm_device *drm, void *data, struct drm_file *file)
 {
 	struct tegra_drm_file *fpriv = file->driver_priv;
@@ -996,6 +1071,44 @@ static int tegra_submit_legacy(struct drm_device *drm, void *data, struct drm_fi
 	}
 
 	err = context->client->ops->submit_legacy(context, args, drm, file);
+
+unlock:
+	mutex_unlock(&fpriv->lock);
+	return err;
+}
+
+static int tegra_get_syncpt_base(struct drm_device *drm, void *data,
+				 struct drm_file *file)
+{
+	struct tegra_drm_file *fpriv = file->driver_priv;
+	struct drm_tegra_get_syncpt_base *args = data;
+	struct tegra_drm_context *context;
+	struct host1x_syncpt_base *base;
+	struct host1x_syncpt *syncpt;
+	int err = 0;
+
+	mutex_lock(&fpriv->lock);
+
+	context = idr_find(&fpriv->contexts, args->context);
+	if (!context) {
+		err = -ENODEV;
+		goto unlock;
+	}
+
+	if (args->syncpt >= context->client->base.num_syncpts) {
+		err = -EINVAL;
+		goto unlock;
+	}
+
+	syncpt = context->client->base.syncpts[args->syncpt];
+
+	base = host1x_syncpt_get_base(syncpt);
+	if (!base) {
+		err = -ENXIO;
+		goto unlock;
+	}
+
+	args->id = host1x_syncpt_base_id(base);
 
 unlock:
 	mutex_unlock(&fpriv->lock);
@@ -1204,11 +1317,21 @@ static const struct drm_ioctl_desc tegra_drm_ioctls[] = {
 			  DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(TEGRA_GEM_MMAP, tegra_gem_mmap,
 			  DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(TEGRA_SYNCPT_READ, tegra_syncpt_read,
+			  DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(TEGRA_SYNCPT_INCR, tegra_syncpt_incr,
+			  DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(TEGRA_SYNCPT_WAIT, tegra_syncpt_wait,
+			  DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(TEGRA_OPEN_CHANNEL_LEGACY, tegra_open_channel_legacy,
 			  DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(TEGRA_CLOSE_CHANNEL, tegra_close_channel,
 			  DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(TEGRA_GET_SYNCPT, tegra_get_syncpt,
+			  DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(TEGRA_SUBMIT_LEGACY, tegra_submit_legacy,
+			  DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(TEGRA_GET_SYNCPT_BASE, tegra_get_syncpt_base,
 			  DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(TEGRA_GEM_SET_TILING, tegra_gem_set_tiling,
 			  DRM_RENDER_ALLOW),
