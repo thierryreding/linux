@@ -557,7 +557,7 @@ tegra_gem_prime_map_dma_buf(struct dma_buf_attachment *attach,
 		if (sg_alloc_table(sgt, 1, GFP_KERNEL))
 			goto free;
 
-		sg_dma_address(sgt->sgl) = bo->iova;
+		sg_dma_address(sgt->sgl) = bo->paddr;
 		sg_dma_len(sgt->sgl) = gem->size;
 	}
 
