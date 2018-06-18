@@ -43,7 +43,7 @@ struct host1x_job *host1x_job_alloc(struct host1x_channel *channel,
 				    size_t extra, void **priv)
 {
 	struct host1x_job *job = NULL;
-	unsigned int num_unpins = num_cmdbufs + num_relocs;
+	unsigned int num_unpins = num_cmdbufs + num_relocs, i;
 	u64 total;
 	void *mem;
 
@@ -104,6 +104,12 @@ struct host1x_job *host1x_job_alloc(struct host1x_channel *channel,
 		*priv = extra ? mem : NULL;
 
 	job->reloc_addr_phys = job->addr_phys;
+
+	job->client = channel->client;
+	job->class = channel->client->class;
+
+	for (i = 0; i < job->client->num_syncpts; i++)
+		job->checkpoints[i].syncpt = job->client->syncpts[i];
 
 	return job;
 }
