@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2016-2018, NVIDIA CORPORATION.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -42,6 +42,7 @@ struct tegra_hsp_channel;
 struct tegra_hsp;
 
 struct tegra_hsp_channel {
+	unsigned int type;
 	struct tegra_hsp *hsp;
 	struct mbox_chan *chan;
 	void __iomem *regs;
@@ -54,6 +55,12 @@ struct tegra_hsp_doorbell {
 	unsigned int master;
 	unsigned int index;
 };
+
+static inline struct tegra_hsp_doorbell *
+channel_to_doorbell(struct tegra_hsp_channel *channel)
+{
+	return container_of(channel, struct tegra_hsp_doorbell, channel);
+}
 
 struct tegra_hsp_db_map {
 	const char *name;
@@ -69,7 +76,7 @@ struct tegra_hsp {
 	const struct tegra_hsp_soc *soc;
 	struct mbox_controller mbox;
 	void __iomem *regs;
-	unsigned int irq;
+	unsigned int doorbell_irq;
 	unsigned int num_sm;
 	unsigned int num_as;
 	unsigned int num_ss;
@@ -194,7 +201,7 @@ tegra_hsp_doorbell_create(struct tegra_hsp *hsp, const char *name,
 	if (!db)
 		return ERR_PTR(-ENOMEM);
 
-	offset = (1 + (hsp->num_sm / 2) + hsp->num_ss + hsp->num_as) << 16;
+	offset = (1 + (hsp->num_sm / 2) + hsp->num_ss + hsp->num_as) * SZ_64K;
 	offset += index * 0x100;
 
 	db->channel.regs = hsp->regs + offset;
@@ -218,18 +225,8 @@ static void __tegra_hsp_doorbell_destroy(struct tegra_hsp_doorbell *db)
 	kfree(db);
 }
 
-static int tegra_hsp_doorbell_send_data(struct mbox_chan *chan, void *data)
+static int tegra_hsp_doorbell_startup(struct tegra_hsp_doorbell *db)
 {
-	struct tegra_hsp_doorbell *db = chan->con_priv;
-
-	tegra_hsp_channel_writel(&db->channel, 1, HSP_DB_TRIGGER);
-
-	return 0;
-}
-
-static int tegra_hsp_doorbell_startup(struct mbox_chan *chan)
-{
-	struct tegra_hsp_doorbell *db = chan->con_priv;
 	struct tegra_hsp *hsp = db->channel.hsp;
 	struct tegra_hsp_doorbell *ccplex;
 	unsigned long flags;
@@ -260,9 +257,8 @@ static int tegra_hsp_doorbell_startup(struct mbox_chan *chan)
 	return 0;
 }
 
-static void tegra_hsp_doorbell_shutdown(struct mbox_chan *chan)
+static void tegra_hsp_doorbell_shutdown(struct tegra_hsp_doorbell *db)
 {
-	struct tegra_hsp_doorbell *db = chan->con_priv;
 	struct tegra_hsp *hsp = db->channel.hsp;
 	struct tegra_hsp_doorbell *ccplex;
 	unsigned long flags;
@@ -281,35 +277,60 @@ static void tegra_hsp_doorbell_shutdown(struct mbox_chan *chan)
 	spin_unlock_irqrestore(&hsp->lock, flags);
 }
 
-static const struct mbox_chan_ops tegra_hsp_doorbell_ops = {
-	.send_data = tegra_hsp_doorbell_send_data,
-	.startup = tegra_hsp_doorbell_startup,
-	.shutdown = tegra_hsp_doorbell_shutdown,
+static int tegra_hsp_send_data(struct mbox_chan *chan, void *data)
+{
+	struct tegra_hsp_channel *channel = chan->con_priv;
+
+	switch (channel->type) {
+	case TEGRA_HSP_MBOX_TYPE_DB:
+		tegra_hsp_channel_writel(channel, 1, HSP_DB_TRIGGER);
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
+static int tegra_hsp_startup(struct mbox_chan *chan)
+{
+	struct tegra_hsp_channel *channel = chan->con_priv;
+
+	switch (channel->type) {
+	case TEGRA_HSP_MBOX_TYPE_DB:
+		return tegra_hsp_doorbell_startup(channel_to_doorbell(channel));
+	}
+
+	return -EINVAL;
+}
+
+static void tegra_hsp_shutdown(struct mbox_chan *chan)
+{
+	struct tegra_hsp_channel *channel = chan->con_priv;
+
+	switch (channel->type) {
+	case TEGRA_HSP_MBOX_TYPE_DB:
+		tegra_hsp_doorbell_shutdown(channel_to_doorbell(channel));
+		break;
+	}
+}
+
+static const struct mbox_chan_ops tegra_hsp_ops = {
+	.send_data = tegra_hsp_send_data,
+	.startup = tegra_hsp_startup,
+	.shutdown = tegra_hsp_shutdown,
 };
 
-static struct mbox_chan *of_tegra_hsp_xlate(struct mbox_controller *mbox,
-					    const struct of_phandle_args *args)
+static struct mbox_chan *tegra_hsp_doorbell_xlate(struct tegra_hsp *hsp,
+						  unsigned int master)
 {
 	struct tegra_hsp_channel *channel = ERR_PTR(-ENODEV);
-	struct tegra_hsp *hsp = to_tegra_hsp(mbox);
-	unsigned int type = args->args[0];
-	unsigned int master = args->args[1];
 	struct tegra_hsp_doorbell *db;
 	struct mbox_chan *chan;
 	unsigned long flags;
 	unsigned int i;
 
-	switch (type) {
-	case TEGRA_HSP_MBOX_TYPE_DB:
-		db = tegra_hsp_doorbell_get(hsp, master);
-		if (db)
-			channel = &db->channel;
-
-		break;
-
-	default:
-		break;
-	}
+	db = tegra_hsp_doorbell_get(hsp, master);
+	if (db)
+		channel = &db->channel;
 
 	if (IS_ERR(channel))
 		return ERR_CAST(channel);
@@ -321,6 +342,7 @@ static struct mbox_chan *of_tegra_hsp_xlate(struct mbox_controller *mbox,
 		if (!chan->con_priv) {
 			chan->con_priv = channel;
 			channel->chan = chan;
+			channel->type = TEGRA_HSP_MBOX_TYPE_DB;
 			break;
 		}
 
@@ -330,6 +352,22 @@ static struct mbox_chan *of_tegra_hsp_xlate(struct mbox_controller *mbox,
 	spin_unlock_irqrestore(&hsp->lock, flags);
 
 	return chan ?: ERR_PTR(-EBUSY);
+}
+
+static struct mbox_chan *of_tegra_hsp_xlate(struct mbox_controller *mbox,
+					    const struct of_phandle_args *args)
+{
+	struct tegra_hsp *hsp = to_tegra_hsp(mbox);
+	unsigned int type = args->args[0];
+	unsigned int param = args->args[1];
+
+	switch (type) {
+	case TEGRA_HSP_MBOX_TYPE_DB:
+		return tegra_hsp_doorbell_xlate(hsp, param);
+
+	default:
+		return ERR_PTR(-EINVAL);
+	}
 }
 
 static void tegra_hsp_remove_doorbells(struct tegra_hsp *hsp)
@@ -397,14 +435,14 @@ static int tegra_hsp_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	hsp->irq = err;
+	hsp->doorbell_irq = err;
 
 	hsp->mbox.of_xlate = of_tegra_hsp_xlate;
 	hsp->mbox.num_chans = 32;
 	hsp->mbox.dev = &pdev->dev;
 	hsp->mbox.txdone_irq = false;
 	hsp->mbox.txdone_poll = false;
-	hsp->mbox.ops = &tegra_hsp_doorbell_ops;
+	hsp->mbox.ops = &tegra_hsp_ops;
 
 	hsp->mbox.chans = devm_kcalloc(&pdev->dev, hsp->mbox.num_chans,
 					sizeof(*hsp->mbox.chans),
@@ -427,11 +465,12 @@ static int tegra_hsp_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	err = devm_request_irq(&pdev->dev, hsp->irq, tegra_hsp_doorbell_irq,
-			       IRQF_NO_SUSPEND, dev_name(&pdev->dev), hsp);
+	err = devm_request_irq(&pdev->dev, hsp->doorbell_irq,
+			       tegra_hsp_doorbell_irq, IRQF_NO_SUSPEND,
+			       dev_name(&pdev->dev), hsp);
 	if (err < 0) {
-		dev_err(&pdev->dev, "failed to request IRQ#%u: %d\n",
-			hsp->irq, err);
+		dev_err(&pdev->dev, "failed to request doorbell IRQ#%u: %d\n",
+			hsp->doorbell_irq, err);
 		return err;
 	}
 
