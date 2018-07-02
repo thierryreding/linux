@@ -53,6 +53,8 @@ static int add_to_rbuf(struct mbox_chan *chan, void *mssg)
 	return idx;
 }
 
+static void tx_tick(struct mbox_chan *chan, int r, bool submit_next);
+
 static void msg_submit(struct mbox_chan *chan)
 {
 	unsigned count, idx;
@@ -60,10 +62,13 @@ static void msg_submit(struct mbox_chan *chan)
 	void *data;
 	int err = -EBUSY;
 
+next:
 	spin_lock_irqsave(&chan->lock, flags);
 
-	if (!chan->msg_count || chan->active_req)
-		goto exit;
+	if (!chan->msg_count || chan->active_req) {
+		spin_unlock_irqrestore(&chan->lock, flags);
+		return;
+	}
 
 	count = chan->msg_count;
 	idx = chan->msg_free;
@@ -82,15 +87,21 @@ static void msg_submit(struct mbox_chan *chan)
 		chan->active_req = data;
 		chan->msg_count--;
 	}
-exit:
+
 	spin_unlock_irqrestore(&chan->lock, flags);
 
 	if (!err && (chan->txdone_method & TXDONE_BY_POLL))
 		/* kick start the timer immediately to avoid delays */
 		hrtimer_start(&chan->mbox->poll_hrt, 0, HRTIMER_MODE_REL);
+
+	if (chan->txdone_method & TXDONE_BY_BLOCK) {
+		tx_tick(chan, err, false);
+		if (!err)
+			goto next;
+	}
 }
 
-static void tx_tick(struct mbox_chan *chan, int r)
+static void tx_tick(struct mbox_chan *chan, int r, bool submit_next)
 {
 	unsigned long flags;
 	void *mssg;
@@ -101,7 +112,8 @@ static void tx_tick(struct mbox_chan *chan, int r)
 	spin_unlock_irqrestore(&chan->lock, flags);
 
 	/* Submit next message */
-	msg_submit(chan);
+	if (submit_next)
+		msg_submit(chan);
 
 	if (!mssg)
 		return;
@@ -127,7 +139,7 @@ static enum hrtimer_restart txdone_hrtimer(struct hrtimer *hrtimer)
 		if (chan->active_req && chan->cl) {
 			txdone = chan->mbox->ops->last_tx_done(chan);
 			if (txdone)
-				tx_tick(chan, 0);
+				tx_tick(chan, 0, true);
 			else
 				resched = true;
 		}
@@ -176,7 +188,7 @@ void mbox_chan_txdone(struct mbox_chan *chan, int r)
 		return;
 	}
 
-	tx_tick(chan, r);
+	tx_tick(chan, r, true);
 }
 EXPORT_SYMBOL_GPL(mbox_chan_txdone);
 
@@ -196,7 +208,7 @@ void mbox_client_txdone(struct mbox_chan *chan, int r)
 		return;
 	}
 
-	tx_tick(chan, r);
+	tx_tick(chan, r, true);
 }
 EXPORT_SYMBOL_GPL(mbox_client_txdone);
 
@@ -275,7 +287,7 @@ int mbox_send_message(struct mbox_chan *chan, void *mssg)
 		ret = wait_for_completion_timeout(&chan->tx_complete, wait);
 		if (ret == 0) {
 			t = -ETIME;
-			tx_tick(chan, t);
+			tx_tick(chan, t, true);
 		}
 	}
 
