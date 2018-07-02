@@ -13,6 +13,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/mailbox_controller.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -20,6 +21,14 @@
 #include <linux/slab.h>
 
 #include <dt-bindings/mailbox/tegra186-hsp.h>
+
+#include "mailbox.h"
+
+#define HSP_INT0_IE		0x100
+#define HSP_INT0_IE_FULL_SHIFT	8
+#define HSP_INT_IR		0x304
+#define HSP_INT_IR_FULL_SHIFT	8
+#define HSP_INT_IR_FULL_MASK	0xff
 
 #define HSP_INT_DIMENSIONING	0x380
 #define HSP_nSM_SHIFT		0
@@ -33,6 +42,9 @@
 #define HSP_DB_ENABLE	0x4
 #define HSP_DB_RAW	0x8
 #define HSP_DB_PENDING	0xc
+
+#define HSP_SM_SHRD_MBOX	0x0
+#define HSP_SM_SHRD_MBOX_FULL	BIT(31)
 
 #define HSP_DB_CCPLEX		1
 #define HSP_DB_BPMP		3
@@ -68,6 +80,18 @@ struct tegra_hsp_db_map {
 	unsigned int index;
 };
 
+struct tegra_hsp_mailbox {
+	struct tegra_hsp_channel channel;
+	unsigned int index;
+	bool sending;
+};
+
+static inline struct tegra_hsp_mailbox *
+channel_to_mailbox(struct tegra_hsp_channel *channel)
+{
+	return container_of(channel, struct tegra_hsp_mailbox, channel);
+}
+
 struct tegra_hsp_soc {
 	const struct tegra_hsp_db_map *map;
 };
@@ -77,6 +101,7 @@ struct tegra_hsp {
 	struct mbox_controller mbox;
 	void __iomem *regs;
 	unsigned int doorbell_irq;
+	unsigned int shared_irq;
 	unsigned int num_sm;
 	unsigned int num_as;
 	unsigned int num_ss;
@@ -85,6 +110,7 @@ struct tegra_hsp {
 	spinlock_t lock;
 
 	struct list_head doorbells;
+	struct tegra_hsp_mailbox *mailboxes;
 };
 
 static inline struct tegra_hsp *
@@ -189,6 +215,33 @@ static irqreturn_t tegra_hsp_doorbell_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t tegra_hsp_shared_irq(int irq, void *data)
+{
+	struct tegra_hsp_mailbox *mb;
+	struct tegra_hsp *hsp = data;
+	unsigned long bit, mask;
+	u32 value;
+
+	mask = tegra_hsp_readl(hsp, HSP_INT_IR);
+	/* Only interested in FULL interrupts */
+	mask = (mask >> HSP_INT_IR_FULL_SHIFT) & HSP_INT_IR_FULL_MASK;
+
+	for_each_set_bit(bit, &mask, 8) {
+		mb = &hsp->mailboxes[bit];
+
+		if (!mb->sending) {
+			value = tegra_hsp_channel_readl(&mb->channel,
+							HSP_SM_SHRD_MBOX);
+			value &= ~HSP_SM_SHRD_MBOX_FULL;
+			mbox_chan_received_data(mb->channel.chan, &value);
+			tegra_hsp_channel_writel(&mb->channel, value,
+						 HSP_SM_SHRD_MBOX);
+		}
+	}
+
+	return IRQ_HANDLED;
+}
+
 static struct tegra_hsp_channel *
 tegra_hsp_doorbell_create(struct tegra_hsp *hsp, const char *name,
 			  unsigned int master, unsigned int index)
@@ -277,14 +330,57 @@ static void tegra_hsp_doorbell_shutdown(struct tegra_hsp_doorbell *db)
 	spin_unlock_irqrestore(&hsp->lock, flags);
 }
 
+static int tegra_hsp_mailbox_startup(struct tegra_hsp_mailbox *mb)
+{
+	struct tegra_hsp *hsp = mb->channel.hsp;
+	u32 value;
+
+	mb->channel.chan->txdone_method = TXDONE_BY_BLOCK;
+
+	/* Route FULL interrupt to external IRQ 0 */
+	value = tegra_hsp_readl(hsp, HSP_INT0_IE);
+	value |= BIT(HSP_INT0_IE_FULL_SHIFT + mb->index);
+	tegra_hsp_writel(hsp, value, HSP_INT0_IE);
+
+	return 0;
+}
+
+static int tegra_hsp_mailbox_shutdown(struct tegra_hsp_mailbox *mb)
+{
+	struct tegra_hsp *hsp = mb->channel.hsp;
+	u32 value;
+
+	value = tegra_hsp_readl(hsp, HSP_INT0_IE);
+	value &= ~BIT(mb->index + 8);
+	tegra_hsp_writel(hsp, value, HSP_INT0_IE);
+
+	return 0;
+}
+
 static int tegra_hsp_send_data(struct mbox_chan *chan, void *data)
 {
 	struct tegra_hsp_channel *channel = chan->con_priv;
+	struct tegra_hsp_mailbox *mailbox;
+	uint32_t value;
 
 	switch (channel->type) {
 	case TEGRA_HSP_MBOX_TYPE_DB:
 		tegra_hsp_channel_writel(channel, 1, HSP_DB_TRIGGER);
 		return 0;
+
+	case TEGRA_HSP_MBOX_TYPE_SM:
+		mailbox = channel_to_mailbox(channel);
+		mailbox->sending = true;
+
+		value = *(uint32_t *)data;
+		/* Mark mailbox full */
+		value |= HSP_SM_SHRD_MBOX_FULL;
+
+		tegra_hsp_channel_writel(channel, value, HSP_SM_SHRD_MBOX);
+
+		return readl_poll_timeout(
+			channel->regs + HSP_SM_SHRD_MBOX, value,
+			!(value & HSP_SM_SHRD_MBOX_FULL), 0, 10000);
 	}
 
 	return -EINVAL;
@@ -297,6 +393,8 @@ static int tegra_hsp_startup(struct mbox_chan *chan)
 	switch (channel->type) {
 	case TEGRA_HSP_MBOX_TYPE_DB:
 		return tegra_hsp_doorbell_startup(channel_to_doorbell(channel));
+	case TEGRA_HSP_MBOX_TYPE_SM:
+		return tegra_hsp_mailbox_startup(channel_to_mailbox(channel));
 	}
 
 	return -EINVAL;
@@ -309,6 +407,9 @@ static void tegra_hsp_shutdown(struct mbox_chan *chan)
 	switch (channel->type) {
 	case TEGRA_HSP_MBOX_TYPE_DB:
 		tegra_hsp_doorbell_shutdown(channel_to_doorbell(channel));
+		break;
+	case TEGRA_HSP_MBOX_TYPE_SM:
+		tegra_hsp_mailbox_shutdown(channel_to_mailbox(channel));
 		break;
 	}
 }
@@ -363,7 +464,16 @@ static struct mbox_chan *of_tegra_hsp_xlate(struct mbox_controller *mbox,
 
 	switch (type) {
 	case TEGRA_HSP_MBOX_TYPE_DB:
-		return tegra_hsp_doorbell_xlate(hsp, param);
+		if (hsp->doorbell_irq)
+			return tegra_hsp_doorbell_xlate(hsp, param);
+		else
+			return ERR_PTR(-EINVAL);
+
+	case TEGRA_HSP_MBOX_TYPE_SM:
+		if (hsp->shared_irq && param < hsp->num_sm)
+			return hsp->mailboxes[param].channel.chan;
+		else
+			return ERR_PTR(-EINVAL);
 
 	default:
 		return ERR_PTR(-EINVAL);
@@ -402,6 +512,31 @@ static int tegra_hsp_add_doorbells(struct tegra_hsp *hsp)
 	return 0;
 }
 
+static int tegra_hsp_add_mailboxes(struct tegra_hsp *hsp, struct device *dev)
+{
+	int i;
+
+	hsp->mailboxes = devm_kcalloc(dev, hsp->num_sm, sizeof(*hsp->mailboxes),
+				      GFP_KERNEL);
+	if (!hsp->mailboxes)
+		return -ENOMEM;
+
+	for (i = 0; i < hsp->num_sm; i++) {
+		struct tegra_hsp_mailbox *mb = &hsp->mailboxes[i];
+
+		mb->index = i;
+		mb->sending = false;
+
+		mb->channel.hsp = hsp;
+		mb->channel.type = TEGRA_HSP_MBOX_TYPE_SM;
+		mb->channel.regs = hsp->regs + SZ_64K + i * SZ_32K;
+		mb->channel.chan = &hsp->mbox.chans[i];
+		mb->channel.chan->con_priv = &mb->channel;
+	}
+
+	return 0;
+}
+
 static int tegra_hsp_probe(struct platform_device *pdev)
 {
 	struct tegra_hsp *hsp;
@@ -430,14 +565,15 @@ static int tegra_hsp_probe(struct platform_device *pdev)
 	hsp->num_si = (value >> HSP_nSI_SHIFT) & HSP_nINT_MASK;
 
 	err = platform_get_irq_byname(pdev, "doorbell");
-	if (err < 0) {
-		dev_err(&pdev->dev, "failed to get doorbell IRQ: %d\n", err);
-		return err;
-	}
+	if (err >= 0)
+		hsp->doorbell_irq = err;
 
-	hsp->doorbell_irq = err;
+	err = platform_get_irq_byname(pdev, "shared0");
+	if (err >= 0)
+		hsp->shared_irq = err;
 
 	hsp->mbox.of_xlate = of_tegra_hsp_xlate;
+	/* First nSM are reserved for mailboxes */
 	hsp->mbox.num_chans = 32;
 	hsp->mbox.dev = &pdev->dev;
 	hsp->mbox.txdone_irq = false;
@@ -450,10 +586,22 @@ static int tegra_hsp_probe(struct platform_device *pdev)
 	if (!hsp->mbox.chans)
 		return -ENOMEM;
 
-	err = tegra_hsp_add_doorbells(hsp);
-	if (err < 0) {
-		dev_err(&pdev->dev, "failed to add doorbells: %d\n", err);
-		return err;
+	if (hsp->doorbell_irq) {
+		err = tegra_hsp_add_doorbells(hsp);
+		if (err < 0) {
+			dev_err(&pdev->dev, "failed to add doorbells: %d\n",
+			        err);
+			return err;
+		}
+	}
+
+	if (hsp->shared_irq) {
+		err = tegra_hsp_add_mailboxes(hsp, &pdev->dev);
+		if (err < 0) {
+			dev_err(&pdev->dev, "failed to add mailboxes: %d\n",
+			        err);
+			goto remove_doorbells;
+		}
 	}
 
 	platform_set_drvdata(pdev, hsp);
@@ -461,20 +609,42 @@ static int tegra_hsp_probe(struct platform_device *pdev)
 	err = mbox_controller_register(&hsp->mbox);
 	if (err) {
 		dev_err(&pdev->dev, "failed to register mailbox: %d\n", err);
-		tegra_hsp_remove_doorbells(hsp);
-		return err;
+		goto remove_doorbells;
 	}
 
-	err = devm_request_irq(&pdev->dev, hsp->doorbell_irq,
-			       tegra_hsp_doorbell_irq, IRQF_NO_SUSPEND,
-			       dev_name(&pdev->dev), hsp);
-	if (err < 0) {
-		dev_err(&pdev->dev, "failed to request doorbell IRQ#%u: %d\n",
-			hsp->doorbell_irq, err);
-		return err;
+	if (hsp->doorbell_irq) {
+		err = devm_request_irq(&pdev->dev, hsp->doorbell_irq,
+				       tegra_hsp_doorbell_irq, IRQF_NO_SUSPEND,
+				       dev_name(&pdev->dev), hsp);
+		if (err < 0) {
+			dev_err(&pdev->dev,
+			        "failed to request doorbell IRQ#%u: %d\n",
+				hsp->doorbell_irq, err);
+			goto unregister_mbox_controller;
+		}
+	}
+
+	if (hsp->shared_irq) {
+		err = devm_request_irq(&pdev->dev, hsp->shared_irq,
+				       tegra_hsp_shared_irq, 0,
+				       dev_name(&pdev->dev), hsp);
+		if (err < 0) {
+			dev_err(&pdev->dev,
+				"failed to request shared0 IRQ%u: %d\n",
+				hsp->shared_irq, err);
+			goto unregister_mbox_controller;
+		}
 	}
 
 	return 0;
+
+unregister_mbox_controller:
+	mbox_controller_unregister(&hsp->mbox);
+remove_doorbells:
+	if (hsp->doorbell_irq)
+		tegra_hsp_remove_doorbells(hsp);
+
+	return err;
 }
 
 static int tegra_hsp_remove(struct platform_device *pdev)
@@ -482,7 +652,8 @@ static int tegra_hsp_remove(struct platform_device *pdev)
 	struct tegra_hsp *hsp = platform_get_drvdata(pdev);
 
 	mbox_controller_unregister(&hsp->mbox);
-	tegra_hsp_remove_doorbells(hsp);
+	if (hsp->doorbell_irq)
+		tegra_hsp_remove_doorbells(hsp);
 
 	return 0;
 }
