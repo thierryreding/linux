@@ -69,6 +69,10 @@
 		pmc@c360000 {
 			nvidia,invert-interrupt;
 		};
+
+		gpu@17000000 {
+			status = "okay";
+		};
 	};
 
 	bpmp {
@@ -286,6 +290,50 @@
 
 			regulator-always-on;
 			regulator-boot-on;
+		};
+	};
+
+	thermal-zones {
+		cpu {
+			polling-delay = <0>;
+			polling-delay-passive = <500>;
+			status = "okay";
+
+			trips {
+				critical {
+					temperature = <96500>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+			};
+		};
+
+		gpu {
+			polling-delay = <0>;
+			polling-delay-passive = <500>;
+			status = "okay";
+
+			trips {
+				critical {
+					temperature = <99000>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+			};
+		};
+
+		aux {
+			polling-delay = <0>;
+			polling-delay-passive = <500>;
+			status = "okay";
+
+			trips {
+				critical {
+					temperature = <90000>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+			};
 		};
 	};
 };

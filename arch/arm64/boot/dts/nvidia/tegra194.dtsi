@@ -5,6 +5,7 @@
 #include <dt-bindings/mailbox/tegra186-hsp.h>
 #include <dt-bindings/reset/tegra194-reset.h>
 #include <dt-bindings/power/tegra194-powergate.h>
+#include <dt-bindings/thermal/tegra194-bpmp-thermal.h>
 
 / {
 	compatible = "nvidia,tegra194";
@@ -38,8 +39,8 @@
 
 		host1x@13e00000 {
 			compatible = "nvidia,tegra194-host1x", "simple-bus";
-			reg = <0x0 0x13e00000 0x0 0x10000>,
-			      <0x0 0x13e10000 0x0 0x10000>;
+			reg = <0x13e00000 0x10000>,
+			      <0x13e10000 0x10000>;
 			reg-names = "hypervisor", "vm";
 			interrupts = <GIC_SPI 265 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 263 IRQ_TYPE_LEVEL_HIGH>;
@@ -559,6 +560,90 @@
 			status = "disabled";
 		};
 
+		pwm1: pwm@3280000 {
+			compatible = "nvidia,tegra194-pwm",
+				     "nvidia,tegra186-pwm";
+			reg = <0x3280000 0x10000>;
+			clocks = <&bpmp TEGRA194_CLK_PWM1>;
+			clock-names = "pwm";
+			resets = <&bpmp TEGRA194_RESET_PWM1>;
+			reset-names = "pwm";
+			status = "disabled";
+			#pwm-cells = <2>;
+		};
+
+		pwm2: pwm@3290000 {
+			compatible = "nvidia,tegra194-pwm",
+				     "nvidia,tegra186-pwm";
+			reg = <0x3290000 0x10000>;
+			clocks = <&bpmp TEGRA194_CLK_PWM2>;
+			clock-names = "pwm";
+			resets = <&bpmp TEGRA194_RESET_PWM2>;
+			reset-names = "pwm";
+			status = "disabled";
+			#pwm-cells = <2>;
+		};
+
+		pwm3: pwm@32a0000 {
+			compatible = "nvidia,tegra194-pwm",
+				     "nvidia,tegra186-pwm";
+			reg = <0x32a0000 0x10000>;
+			clocks = <&bpmp TEGRA194_CLK_PWM3>;
+			clock-names = "pwm";
+			resets = <&bpmp TEGRA194_RESET_PWM3>;
+			reset-names = "pwm";
+			status = "disabled";
+			#pwm-cells = <2>;
+		};
+
+		pwm5: pwm@32c0000 {
+			compatible = "nvidia,tegra194-pwm",
+				     "nvidia,tegra186-pwm";
+			reg = <0x32c0000 0x10000>;
+			clocks = <&bpmp TEGRA194_CLK_PWM5>;
+			clock-names = "pwm";
+			resets = <&bpmp TEGRA194_RESET_PWM5>;
+			reset-names = "pwm";
+			status = "disabled";
+			#pwm-cells = <2>;
+		};
+
+		pwm6: pwm@32d0000 {
+			compatible = "nvidia,tegra194-pwm",
+				     "nvidia,tegra186-pwm";
+			reg = <0x32d0000 0x10000>;
+			clocks = <&bpmp TEGRA194_CLK_PWM6>;
+			clock-names = "pwm";
+			resets = <&bpmp TEGRA194_RESET_PWM6>;
+			reset-names = "pwm";
+			status = "disabled";
+			#pwm-cells = <2>;
+		};
+
+		pwm7: pwm@32e0000 {
+			compatible = "nvidia,tegra194-pwm",
+				     "nvidia,tegra186-pwm";
+			reg = <0x32e0000 0x10000>;
+			clocks = <&bpmp TEGRA194_CLK_PWM7>;
+			clock-names = "pwm";
+			resets = <&bpmp TEGRA194_RESET_PWM7>;
+			reset-names = "pwm";
+			status = "disabled";
+			#pwm-cells = <2>;
+		};
+
+		pwm8: pwm@32f0000 {
+			compatible = "nvidia,tegra194-pwm",
+				     "nvidia,tegra186-pwm";
+			reg = <0x32f0000 0x10000>;
+			clocks = <&bpmp TEGRA194_CLK_PWM8>;
+			clock-names = "pwm";
+			resets = <&bpmp TEGRA194_RESET_PWM8>;
+			reset-names = "pwm";
+			status = "disabled";
+			#pwm-cells = <2>;
+		};
+
 		sdmmc1: sdhci@3400000 {
 			compatible = "nvidia,tegra194-sdhci", "nvidia,tegra186-sdhci";
 			reg = <0x03400000 0x10000>;
@@ -684,6 +769,18 @@
 			status = "disabled";
 		};
 
+		pwm4: pwm@c340000 {
+			compatible = "nvidia,tegra194-pwm",
+				     "nvidia,tegra186-pwm";
+			reg = <0xc340000 0x10000>;
+			clocks = <&bpmp TEGRA194_CLK_PWM4>;
+			clock-names = "pwm";
+			resets = <&bpmp TEGRA194_RESET_PWM4>;
+			reset-names = "pwm";
+			status = "disabled";
+			#pwm-cells = <2>;
+		};
+
 		pmc@c360000 {
 			compatible = "nvidia,tegra194-pmc";
 			reg = <0x0c360000 0x10000>,
@@ -692,6 +789,23 @@
 			      <0x0c390000 0x10000>,
 			      <0x0c3a0000 0x10000>;
 			reg-names = "pmc", "wake", "aotag", "scratch", "misc";
+		};
+
+		gpu@17000000 {
+			compatible = "nvidia,gv11b";
+			reg = <0x17000000 0x10000000>,
+			      <0x18000000 0x10000000>;
+			interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "stall", "nonstall";
+			clocks = <&bpmp TEGRA194_CLK_GPCCLK>,
+				 <&bpmp TEGRA194_CLK_GPU_PWR>;
+			clock-names = "gpu", "pwr";
+			resets = <&bpmp TEGRA194_RESET_GPU>;
+			reset-names = "gpu";
+			status = "disabled";
+
+			power-domains = <&bpmp TEGRA194_POWER_DOMAIN_GPU>;
 		};
 	};
 
@@ -811,6 +925,44 @@
 		mboxes = <&hsp_top0 TEGRA_HSP_MBOX_TYPE_SM 0>,
 		         <&hsp_aon TEGRA_HSP_MBOX_TYPE_SM 1>;
 		mbox-names = "rx", "tx";
+	};
+
+	thermal-zones {
+		cpu {
+			thermal-sensor = <&{/bpmp/thermal}
+					  TEGRA194_BPMP_THERMAL_ZONE_CPU>;
+			status = "disabled";
+		};
+
+		gpu {
+			thermal-sensor = <&{/bpmp/thermal}
+					  TEGRA194_BPMP_THERMAL_ZONE_GPU>;
+			status = "disabled";
+		};
+
+		aux {
+			thermal-sensor = <&{/bpmp/thermal}
+					  TEGRA194_BPMP_THERMAL_ZONE_AUX>;
+			status = "disabled";
+		};
+
+		pllx {
+			thermal-sensor = <&{/bpmp/thermal}
+					  TEGRA194_BPMP_THERMAL_ZONE_PLLX>;
+			status = "disabled";
+		};
+
+		ao {
+			thermal-sensor = <&{/bpmp/thermal}
+					  TEGRA194_BPMP_THERMAL_ZONE_AO>;
+			status = "disabled";
+		};
+
+		tj {
+			thermal-sensor = <&{/bpmp/thermal}
+					  TEGRA194_BPMP_THERMAL_ZONE_TJ_MAX>;
+			status = "disabled";
+		};
 	};
 
 	timer {

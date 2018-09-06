@@ -37,5 +37,14 @@
 		ddc: i2c@31c0000 {
 			status = "okay";
 		};
+
+		pwm@c340000 {
+			status = "okay";
+		};
+	};
+
+	fan {
+		compatible = "pwm-fan";
+		pwms = <&pwm4 0 45334>;
 	};
 };
