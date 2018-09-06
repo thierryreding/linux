@@ -51,7 +51,7 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 
-			ranges = <0x15000000 0x0 0x15000000 0x01000000>;
+			ranges = <0x15000000 0x15000000 0x01000000>;
 			/*
 			iommus = <&smmu TEGRA194_SID_HOST1X>;
 			*/
