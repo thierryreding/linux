@@ -13,7 +13,6 @@
 #include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
-#include <linux/of_irq.h>
 #include <linux/platform_device.h>
 
 #include <dt-bindings/gpio/tegra186-gpio.h>
@@ -286,13 +285,9 @@ static int tegra186_irq_set_type(struct irq_data *data, unsigned int flow)
 	void __iomem *base;
 	u32 value;
 
-	dev_info(gpio->gpio.parent, "> %s(data=%px, flow=%x)\n", __func__, data, flow);
-
 	base = tegra186_gpio_get_base(gpio, data->hwirq);
-	if (WARN_ON(base == NULL)) {
-		dev_err(gpio->gpio.parent, "invalid pin: %lu\n", data->hwirq);
+	if (WARN_ON(base == NULL))
 		return -ENODEV;
-	}
 
 	value = readl(base + TEGRA186_GPIO_ENABLE_CONFIG);
 	value &= ~TEGRA186_GPIO_ENABLE_CONFIG_TRIGGER_TYPE_MASK;
@@ -325,8 +320,6 @@ static int tegra186_irq_set_type(struct irq_data *data, unsigned int flow)
 		break;
 
 	default:
-		dev_err(gpio->gpio.parent, "invalid flow: %x\n", flow);
-		dev_info(gpio->gpio.parent, "< %s() = -EINVAL\n", __func__);
 		return -EINVAL;
 	}
 
@@ -337,30 +330,7 @@ static int tegra186_irq_set_type(struct irq_data *data, unsigned int flow)
 	else
 		irq_set_handler_locked(data, handle_edge_irq);
 
-	dev_info(gpio->gpio.parent, "< %s()\n", __func__);
 	return 0;
-}
-
-static int tegra186_irq_set_wake(struct irq_data *data, unsigned int on)
-{
-	struct tegra_gpio *gpio = irq_data_get_irq_chip_data(data);
-	const struct tegra_gpio_port *port;
-	unsigned int pin = data->hwirq;
-	int err = 0;
-
-	pr_info("> %s(data=%px, on=%u)\n", __func__, data, on);
-
-	port = tegra186_gpio_get_port(gpio, &pin);
-	if (!port) {
-		err = -EINVAL;
-		goto out;
-	}
-
-	err = irq_set_irq_wake(gpio->irq[port->irq], on);
-
-out:
-	pr_info("< %s() = %d\n", __func__, err);
-	return err;
 }
 
 static void tegra186_gpio_irq(struct irq_desc *desc)
@@ -400,105 +370,39 @@ skip:
 	chained_irq_exit(chip, desc);
 }
 
-static int tegra186_gpio_domain_translate(struct irq_domain *domain,
-					  struct irq_fwspec *fwspec,
+static int tegra186_gpio_irq_domain_xlate(struct irq_domain *domain,
+					  struct device_node *np,
+					  const u32 *spec, unsigned int size,
 					  unsigned long *hwirq,
 					  unsigned int *type)
 {
 	struct tegra_gpio *gpio = gpiochip_get_data(domain->host_data);
 	unsigned int port, pin, i, offset = 0;
 
-	pr_info("> %s(domain=%px, fwspec=%px, hwirq=%px, type=%px)\n", __func__, domain, fwspec, hwirq, type);
-	pr_info("  fwspec: %u parameters\n", fwspec->param_count);
-
-	for (i = 0; i < fwspec->param_count; i++)
-		pr_info("    %u: %x\n", i, fwspec->param[i]);
-
-	if (WARN_ON(gpio->gpio.of_gpio_n_cells < 2))
+	if (size < 2)
 		return -EINVAL;
 
-	if (WARN_ON(fwspec->param_count < gpio->gpio.of_gpio_n_cells))
-		return -EINVAL;
+	port = spec[0] / 8;
+	pin = spec[0] % 8;
 
-	port = fwspec->param[0] / 8;
-	pin = fwspec->param[0] % 8;
-
-	if (port > gpio->soc->num_ports)
+	if (port >= gpio->soc->num_ports) {
+		dev_err(gpio->gpio.parent, "invalid port number: %u\n", port);
 		return -EINVAL;
+	}
 
 	for (i = 0; i < port; i++)
 		offset += gpio->soc->ports[i].pins;
 
-	*type = fwspec->param[1] & IRQ_TYPE_SENSE_MASK;
+	*type = spec[1] & IRQ_TYPE_SENSE_MASK;
 	*hwirq = offset + pin;
 
-	pr_info("  hwirq: %lu type: %x\n", *hwirq, *type);
-	pr_info("< %s()\n", __func__);
-	return 0;
-}
-
-static int tegra186_gpio_domain_alloc(struct irq_domain *domain, unsigned int virq, unsigned int num_irqs, void *data)
-{
-	struct tegra_gpio *gpio = gpiochip_get_data(domain->host_data);
-	struct irq_fwspec *fwspec = data;
-	unsigned long start;
-	unsigned int type;
-	unsigned int i;
-	int err;
-
-	pr_info("> %s(domain=%px, virq=%u, num_irqs=%u, data=%px)\n", __func__, domain, virq, num_irqs, data);
-	pr_info("  fwspec: %u\n", fwspec->param_count);
-	pr_info("    0: %u\n", fwspec->param[0]);
-	pr_info("    1: %u\n", fwspec->param[1]);
-
-	pr_info("parent domain: %px\n", domain->parent);
-	pr_info("  name: %s\n", domain->parent->name);
-	pr_info("  ops: %px (%ps)\n", domain->parent->ops, domain->parent->ops);
-	pr_info("    alloc: %ps\n", domain->parent->ops->alloc);
-
-	err = tegra186_gpio_domain_translate(domain, fwspec, &start, &type);
-	if (err < 0)
-		return err;
-
-	for (i = 0; i < num_irqs; i++) {
-		const struct tegra_gpio_port *port;
-		unsigned int pin = start + i;
-		struct irq_fwspec fwspec;
-		struct irq_data *data;
-		unsigned int irq;
-
-		pr_info("  %u: %u\n", i, pin);
-
-		irq_domain_set_hwirq_and_chip(domain, virq + i, pin,
-					      &gpio->intc, &gpio->gpio);
-
-		port = tegra186_gpio_get_port(gpio, &pin);
-		irq = gpio->irq[port->irq];
-
-		data = irq_get_irq_data(irq);
-		if (!data)
-			pr_err("no data for IRQ %u\n", irq);
-
-		fwspec.fwnode = &gpio->gpio.of_node->fwnode;
-		fwspec.param_count = 3;
-		fwspec.param[0] = 0; /* GIC_SPI */
-		fwspec.param[1] = data->hwirq;
-		fwspec.param[2] = IRQ_TYPE_LEVEL_HIGH;
-
-		err = irq_domain_alloc_irqs_parent(domain, virq + i, 1, &fwspec);
-		if (err < 0)
-			pr_info("irq_domain_alloc_irqs_parent() failed: %d\n", err);
-	}
-
-	pr_info("< %s()\n", __func__);
 	return 0;
 }
 
 static const struct irq_domain_ops tegra186_gpio_irq_domain_ops = {
-	.translate = tegra186_gpio_domain_translate,
-	.alloc = tegra186_gpio_domain_alloc,
 	.map = gpiochip_irq_map,
 	.unmap = gpiochip_irq_unmap,
+	.xlate = tegra186_gpio_irq_domain_xlate,
 };
 
 static int tegra186_gpio_probe(struct platform_device *pdev)
@@ -586,7 +490,6 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 	gpio->intc.irq_mask = tegra186_irq_mask;
 	gpio->intc.irq_unmask = tegra186_irq_unmask;
 	gpio->intc.irq_set_type = tegra186_irq_set_type;
-	gpio->intc.irq_set_wake = tegra186_irq_set_wake;
 
 	irq = &gpio->gpio.irq;
 	irq->chip = &gpio->intc;
@@ -597,16 +500,6 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 	irq->parent_handler_data = gpio;
 	irq->num_parents = gpio->num_irq;
 	irq->parents = gpio->irq;
-
-	if (1) {
-		struct device_node *np;
-
-		np = of_irq_find_parent(pdev->dev.of_node);
-		if (np) {
-			irq->parent_domain = irq_find_host(np);
-			of_node_put(np);
-		}
-	}
 
 	irq->map = devm_kcalloc(&pdev->dev, gpio->gpio.ngpio,
 				sizeof(*irq->map), GFP_KERNEL);
