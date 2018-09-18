@@ -127,6 +127,11 @@ Required properties:
             - 8: Active low level-sensitive.
             Valid combinations are 1, 2, 3, 4, 8.
 
+Optional properties:
+- wake-parent
+    A phandle to the Power Management Controller (PMC) that contains top-
+    level controls to enable the wake-up capabilities of some GPIOs.
+
 Example:
 
 #include <dt-bindings/interrupt-controller/irq.h>
@@ -148,6 +153,7 @@ gpio@2200000 {
 	#gpio-cells = <2>;
 	interrupt-controller;
 	#interrupt-cells = <2>;
+	wakeup-parent = <&pmc>;
 };
 
 gpio@c2f0000 {
@@ -162,4 +168,5 @@ gpio@c2f0000 {
 	#gpio-cells = <2>;
 	interrupt-controller;
 	#interrupt-cells = <2>;
+	wakeup-parent = <&pmc>;
 };
