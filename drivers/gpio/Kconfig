@@ -44,7 +44,7 @@ config GPIO_ACPI
 	depends on ACPI
 
 config GPIOLIB_IRQCHIP
-	select IRQ_DOMAIN
+	select IRQ_DOMAIN_HIERARCHY
 	bool
 
 config DEBUG_GPIO

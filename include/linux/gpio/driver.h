@@ -49,6 +49,14 @@ struct gpio_irq_chip {
 	const struct irq_domain_ops *domain_ops;
 
 	/**
+	 * @parent_domain:
+	 *
+	 * If non-NULL, will be set as the parent of this GPIO interrupt
+	 * controller's IRQ domain to establish a hierarchy.
+	 */
+	struct irq_domain *parent_domain;
+
+	/**
 	 * @handler:
 	 *
 	 * The IRQ handler to use (often a predefined IRQ core function) for
