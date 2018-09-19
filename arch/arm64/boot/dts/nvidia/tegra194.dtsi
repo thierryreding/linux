@@ -781,7 +781,7 @@
 			#pwm-cells = <2>;
 		};
 
-		pmc@c360000 {
+		pmc: pmc@c360000 {
 			compatible = "nvidia,tegra194-pmc";
 			reg = <0x0c360000 0x10000>,
 			      <0x0c370000 0x10000>,
@@ -789,6 +789,9 @@
 			      <0x0c390000 0x10000>,
 			      <0x0c3a0000 0x10000>;
 			reg-names = "pmc", "wake", "aotag", "scratch", "misc";
+
+			#interrupt-cells = <2>;
+			interrupt-controller;
 		};
 
 		gpu@17000000 {
