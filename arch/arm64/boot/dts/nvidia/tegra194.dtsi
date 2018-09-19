@@ -35,6 +35,7 @@
 			interrupt-controller;
 			#gpio-cells = <2>;
 			gpio-controller;
+			wakeup-parent = <&pmc>;
 		};
 
 		host1x@13e00000 {
@@ -767,6 +768,22 @@
 			resets = <&bpmp TEGRA194_RESET_UARTG>;
 			reset-names = "serial";
 			status = "disabled";
+		};
+
+		gpio_aon: gpio@c2f0000 {
+			compatible = "nvidia,tegra194-gpio-aon";
+			reg-names = "security", "gpio";
+			reg = <0xc2f0000 0x1000>,
+			      <0xc2f1000 0x1000>;
+			interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			wakeup-parent = <&pmc>;
 		};
 
 		pwm4: pwm@c340000 {
