@@ -36,6 +36,7 @@
 		interrupt-controller;
 		#gpio-cells = <2>;
 		gpio-controller;
+		wakeup-parent = <&pmc>;
 	};
 
 	ethernet@2490000 {
