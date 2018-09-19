@@ -416,6 +416,7 @@
 		#gpio-cells = <2>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
+		wakeup-parent = <&pmc>;
 	};
 
 	pmc: pmc@c360000 {
