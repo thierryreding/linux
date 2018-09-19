@@ -130,6 +130,18 @@
 #define GPU_RG_CNTRL			0x2d4
 
 /* Tegra186 and later */
+#define WAKE_AOWAKE_CNTRL(x) (0x000 + ((x) << 2))
+#define WAKE_AOWAKE_CNTRL_LEVEL (1 << 3)
+#define WAKE_AOWAKE_MASK_W(x) (0x180 + ((x) << 2))
+#define WAKE_AOWAKE_MASK_R(x) (0x300 + ((x) << 2))
+#define WAKE_AOWAKE_STATUS_W(x) (0x30c + ((x) << 2))
+#define WAKE_AOWAKE_STATUS_R(x) (0x48c + ((x) << 2))
+#define WAKE_AOWAKE_TIER1_CTRL 0x4ac
+#define WAKE_AOWAKE_TIER2_CTRL 0x4b0
+#define WAKE_AOWAKE_TIER0_ROUTING(x) (0x4b4 + ((x) << 2))
+#define WAKE_AOWAKE_TIER1_ROUTING(x) (0x4c0 + ((x) << 2))
+#define WAKE_AOWAKE_TIER2_ROUTING(x) (0x4cc + ((x) << 2))
+
 #define WAKE_AOWAKE_CTRL 0x4f4
 #define  WAKE_AOWAKE_CTRL_INTR_POLARITY BIT(0)
 
@@ -157,17 +169,37 @@ struct tegra_pmc_regs {
 	unsigned int dpd2_status;
 };
 
-struct tegra_wake_parent {
-	struct irq_chip chip;
-	struct irq_domain *domain;
-	unsigned int num_events;
+struct tegra_wake_event {
+	const char *name;
+	unsigned int id;
+	unsigned int irq;
+	struct {
+		unsigned int instance;
+		unsigned int pin;
+	} gpio;
 };
 
-struct tegra_wake_event {
-	struct tegra_wake_parent *parent;
-	struct of_phandle_args src;
-	struct of_phandle_args dst;
-};
+#define TEGRA_WAKE_IRQ(_name, _id, _irq)		\
+	{						\
+		.name = _name,				\
+		.id = _id,				\
+		.irq = _irq,				\
+		.gpio = {				\
+			.instance = UINT_MAX,		\
+			.pin = UINT_MAX,		\
+		},					\
+	}
+
+#define TEGRA_WAKE_GPIO(_name, _id, _instance, _pin)	\
+	{						\
+		.name = _name,				\
+		.id = _id,				\
+		.irq = 0,				\
+		.gpio = {				\
+			.instance = _instance,		\
+			.pin = _pin,			\
+		},					\
+	}
 
 struct tegra_pmc_soc {
 	unsigned int num_powergates;
@@ -191,6 +223,9 @@ struct tegra_pmc_soc {
 	void (*setup_irq_polarity)(struct tegra_pmc *pmc,
 				   struct device_node *np,
 				   bool invert);
+
+	const struct tegra_wake_event *wake_events;
+	unsigned int num_wake_events;
 };
 
 /**
@@ -247,10 +282,8 @@ struct tegra_pmc {
 
 	struct pinctrl_dev *pctl_dev;
 
-	struct tegra_wake_parent *wake_parents;
-	unsigned int num_wake_parents;
-	struct tegra_wake_event *wake_events;
-	unsigned int num_wake_events;
+	struct irq_domain *domain;
+	struct irq_chip irq;
 };
 
 static struct tegra_pmc *pmc = &(struct tegra_pmc) {
@@ -1564,141 +1597,26 @@ static int tegra_pmc_pinctrl_init(struct tegra_pmc *pmc)
 	return err;
 }
 
-#define WAKE_AOWAKE_CNTRL(x) (0x000 + ((x) << 2))
-#define WAKE_AOWAKE_CNTRL_LEVEL (1 << 3)
-#define WAKE_AOWAKE_MASK_W(x) (0x180 + ((x) << 2))
-#define WAKE_AOWAKE_TIER1_CTRL 0x4ac
-#define WAKE_AOWAKE_TIER2_CTRL 0x4b0
-#define WAKE_AOWAKE_TIER0_ROUTING(x) (0x4b4 + ((x) << 2))
-#define WAKE_AOWAKE_TIER1_ROUTING(x) (0x4c0 + ((x) << 2))
-#define WAKE_AOWAKE_TIER2_ROUTING(x) (0x4cc + ((x) << 2))
-
-static int tegra_pmc_irq_set_wake(struct irq_data *data, unsigned int on)
-{
-	struct tegra_pmc *pmc = irq_data_get_irq_chip_data(data);
-	unsigned int offset, bit;
-	u32 value;
-
-	pr_info("> %s(data=%px, on=%u)\n", __func__, data, on);
-	pr_info("  hwirq: %lu\n", data->hwirq);
-
-	offset = data->hwirq / 32;
-	bit = data->hwirq % 32;
-
-	value = readl(pmc->wake + WAKE_AOWAKE_TIER2_CTRL);
-	pr_info("  WAKE_AOWAKE_TIER2_CTRL > %08x\n", value);
-
-	value = readl(pmc->wake + WAKE_AOWAKE_TIER2_ROUTING(offset));
-	pr_info("  WAKE_AOWAKE_TIER2_ROUTING(%3u) > %08x\n", offset, value);
-
-	if (!on)
-		value &= ~(1 << bit);
-	else
-		value |= 1 << bit;
-
-	pr_info("  WAKE_AOWAKE_TIER2_ROUTING(%3u) < %08x\n", offset, value);
-	writel(value, pmc->wake + WAKE_AOWAKE_TIER2_ROUTING(offset));
-
-	value = readl(pmc->wake + WAKE_AOWAKE_CNTRL(data->hwirq));
-	pr_info("  WAKE_AOWAKE_CNTRL(%lu) > %08x\n", data->hwirq, value);
-	/* XXX */
-	value |= WAKE_AOWAKE_CNTRL_LEVEL;
-	pr_info("  WAKE_AOWAKE_CNTRL(%lu) < %08x\n", data->hwirq, value);
-	writel(value, pmc->wake + WAKE_AOWAKE_CNTRL(data->hwirq));
-
-	value = readl(pmc->wake + WAKE_AOWAKE_MASK_W(data->hwirq));
-	pr_info("  WAKE_AOWAKE_MASK_W(%lu) > %08x\n", data->hwirq, value);
-	value = 1;
-	pr_info("  WAKE_AOWAKE_MASK_W(%lu) < %08x\n", data->hwirq, value);
-	writel(value, pmc->wake + WAKE_AOWAKE_MASK_W(data->hwirq));
-
-	pr_info("< %s()\n", __func__);
-	return 0;
-}
-
-static struct tegra_wake_event *
-tegra_pmc_find_wake_event(struct tegra_pmc *pmc, unsigned int id)
-{
-	unsigned int i;
-
-	pr_info("> %s(pmc=%px, id=%u)\n", __func__, pmc, id);
-
-	for (i = 0; i < pmc->num_wake_events; i++) {
-		struct tegra_wake_event *event = &pmc->wake_events[i];
-
-		if (id == event->src.args[0]) {
-			if (event->dst.args_count == 2)
-				pr_info("  %pOFn: %u -> %pOFn: %u/%x\n",
-					event->src.np, event->src.args[0],
-					event->dst.np, event->dst.args[0],
-					event->dst.args[1]);
-
-			if (event->dst.args_count == 3)
-				pr_info("  %pOFn: %u -> %pOFn: %u/%u/%u\n",
-					event->src.np, event->src.args[0],
-					event->dst.np, event->dst.args[0],
-					event->dst.args[1],
-					event->dst.args[2]);
-
-			pr_info("< %s() = %px\n", __func__, event);
-			return event;
-		}
-	}
-
-	pr_info("< %s() = NULL\n", __func__);
-	return NULL;
-}
-
 static int tegra_pmc_irq_translate(struct irq_domain *domain,
 				   struct irq_fwspec *fwspec,
 				   unsigned long *hwirq,
 				   unsigned int *type)
 {
-	struct tegra_pmc *pmc = domain->host_data;
-	struct tegra_wake_event *event;
-	int err = 0;
+	if (WARN_ON(fwspec->param_count < 2)) {
+		unsigned int i;
 
-	pr_info("> %s(domain=%px, fwspec=%px, hwirq=%px, type=%px)\n", __func__, domain, fwspec, hwirq, type);
+		pr_info("fwspec: %u parameters\n", fwspec->param_count);
 
-	if (!is_of_node(fwspec->fwnode)) {
-		err = -EINVAL;
-		goto out;
+		for (i = 0; i < fwspec->param_count; i++)
+			pr_info("  %u: %x\n", i, fwspec->param[i]);
+
+		return -EINVAL;
 	}
 
-	if (fwspec->param_count != 1) {
-		err = -EINVAL;
-		goto out;
-	}
+	*hwirq = fwspec->param[0];
+	*type = fwspec->param[1];
 
-	event = tegra_pmc_find_wake_event(pmc, fwspec->param[0]);
-	if (!event) {
-		err = -EINVAL;
-		goto out;
-	}
-
-	pr_info("  event: %px src: %d dst: %d\n", event, event->src.args_count, event->dst.args_count);
-
-	switch (event->dst.args_count) {
-	case 2:
-		*hwirq = event->dst.args[0];
-		*type = event->dst.args[1] & IRQ_TYPE_SENSE_MASK;
-		break;
-
-	case 3:
-		*hwirq = event->dst.args[1];
-		*type = event->dst.args[2] & IRQ_TYPE_SENSE_MASK;
-		break;
-
-	default:
-		err = -EINVAL;
-		goto out;
-	}
-
-	pr_info("hwirq: %lu type: %x\n", *hwirq, *type);
-
-out:
-	pr_info("< %s() = %d\n", __func__, err);
-	return err;
+	return 0;
 }
 
 static int tegra_pmc_irq_alloc(struct irq_domain *domain, unsigned int virq,
@@ -1706,311 +1624,157 @@ static int tegra_pmc_irq_alloc(struct irq_domain *domain, unsigned int virq,
 {
 	struct tegra_pmc *pmc = domain->host_data;
 	struct irq_fwspec *fwspec = data;
-	struct tegra_wake_event *event;
-	struct irq_fwspec parent;
-	unsigned int i, id;
+	unsigned int i;
 	int err = 0;
 
-	pr_info("> %s(domain=%px, virq=%u, num_irqs=%u, data=%px)\n",
-		__func__, domain, virq, num_irqs, data);
-	pr_info("name: %s\n", domain->name);
+	for (i = 0; i < pmc->soc->num_wake_events; i++) {
+		const struct tegra_wake_event *event = &pmc->soc->wake_events[i];
 
-	if (fwspec->param_count != 1) {
-		err = -EINVAL;
-		goto out;
+		if (fwspec->param_count == 2) {
+			struct irq_fwspec spec;
+
+			if (event->id != fwspec->param[0])
+				continue;
+
+			err = irq_domain_set_hwirq_and_chip(domain, virq,
+							    event->id,
+							    &pmc->irq, pmc);
+			if (err < 0)
+				break;
+
+			spec.fwnode = &pmc->dev->of_node->fwnode;
+			spec.param_count = 3;
+			spec.param[0] = GIC_SPI;
+			spec.param[1] = event->irq;
+			spec.param[2] = fwspec->param[1];
+
+			err = irq_domain_alloc_irqs_parent(domain, virq,
+							   num_irqs, &spec);
+
+			break;
+		}
+
+		if (fwspec->param_count == 3) {
+			if (event->gpio.instance != fwspec->param[0] ||
+			    event->gpio.pin != fwspec->param[1])
+				continue;
+
+			err = irq_domain_set_hwirq_and_chip(domain, virq,
+							    event->id,
+							    &pmc->irq, pmc);
+
+			break;
+		}
 	}
 
-	id = fwspec->param[0];
-	pr_info("ID: %u\n", id);
+	if (i == pmc->soc->num_wake_events)
+		err = irq_domain_set_hwirq_and_chip(domain, virq, ULONG_MAX,
+						    &pmc->irq, pmc);
 
-	event = tegra_pmc_find_wake_event(pmc, id);
-	if (!event) {
-		err = -EINVAL;
-		goto out;
-	}
-
-	pr_info("event: %px parent: %px\n", event, event->parent);
-
-	memset(&parent, 0, sizeof(parent));
-	parent.fwnode = &event->dst.np->fwnode;
-	parent.param_count = event->dst.args_count;
-
-	for (i = 0; i < event->dst.args_count; i++)
-		parent.param[i] = event->dst.args[i];
-
-	for (i = 0; i < num_irqs; i++)
-		irq_domain_set_hwirq_and_chip(domain, virq + i, id + i,
-					      &event->parent->chip, pmc);
-
-	if (event->parent->domain)
-		pr_info("allocating for domain %s\n", event->parent->domain->name);
-	else
-		pr_info("domain missing\n");
-
-	pr_info("parent specifier: %px\n", parent.fwnode);
-	pr_info("parent domain: %px\n", event->parent->domain->parent);
-	pr_info("  name: %s\n", event->parent->domain->parent->name);
-	pr_info("  ops: %px (%ps)\n", event->parent->domain->parent->ops, event->parent->domain->parent->ops);
-	pr_info("    alloc: %ps\n", event->parent->domain->parent->ops->alloc);
-
-	/* XXX requires parent domain to implement ->alloc() */
-	err = irq_domain_alloc_irqs_parent(event->parent->domain, virq,
-					   num_irqs, &parent);
-
-out:
-	pr_info("< %s() = %d\n", __func__, err);
 	return err;
 }
 
 static const struct irq_domain_ops tegra_pmc_irq_domain_ops = {
 	.translate = tegra_pmc_irq_translate,
 	.alloc = tegra_pmc_irq_alloc,
-	.free = irq_domain_free_irqs_common,
 };
+
+static int tegra_pmc_irq_set_wake(struct irq_data *data, unsigned int on)
+{
+	struct tegra_pmc *pmc = irq_data_get_irq_chip_data(data);
+	unsigned int offset, bit;
+	u32 value;
+
+	offset = data->hwirq / 32;
+	bit = data->hwirq % 32;
+
+	/* clear wake status */
+	writel(0x1, pmc->wake + WAKE_AOWAKE_STATUS_W(data->hwirq));
+
+	/* route wake to tier 2 (XXX conditionally enable this) */
+	value = readl(pmc->wake + WAKE_AOWAKE_TIER2_CTRL);
+	writel(0x1, pmc->wake + WAKE_AOWAKE_TIER2_CTRL);
+
+	value = readl(pmc->wake + WAKE_AOWAKE_TIER2_ROUTING(offset));
+
+	if (!on)
+		value &= ~(1 << bit);
+	else
+		value |= 1 << bit;
+
+	writel(value, pmc->wake + WAKE_AOWAKE_TIER2_ROUTING(offset));
+
+	/* enable wakeup event */
+	writel(!!on, pmc->wake + WAKE_AOWAKE_MASK_W(data->hwirq));
+
+	return 0;
+}
 
 static int tegra_pmc_irq_set_type(struct irq_data *data, unsigned int type)
 {
-	int err;
+	struct tegra_pmc *pmc = irq_data_get_irq_chip_data(data);
+	u32 value;
 
-	pr_info("> %s(data=%px, type=%x)\n", __func__, data, type);
+	if (data->hwirq == ULONG_MAX)
+		return 0;
 
-	err = irq_chip_set_type_parent(data, type);
+	value = readl(pmc->wake + WAKE_AOWAKE_CNTRL(data->hwirq));
 
-	pr_info("< %s() = %d\n", __func__, err);
-	return err;
-}
+	switch (type) {
+	case IRQ_TYPE_EDGE_RISING:
+	case IRQ_TYPE_LEVEL_HIGH:
+		value |= WAKE_AOWAKE_CNTRL_LEVEL;
+		break;
 
-static int of_irq_map_count(struct device_node *np)
-{
-	struct device_node *parent;
-	unsigned int count = 0;
-	const __be32 *map;
-	u32 na, ni = 1;
-	int err, size;
+	case IRQ_TYPE_EDGE_FALLING:
+	case IRQ_TYPE_LEVEL_LOW:
+		value &= ~WAKE_AOWAKE_CNTRL_LEVEL;
+		break;
 
-	pr_info("> %s(np=%pOFn)\n", __func__, np);
+	case IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING:
+		value ^= WAKE_AOWAKE_CNTRL_LEVEL;
+		break;
 
-	map = of_get_property(np, "interrupt-map", &size);
-	if (!map) {
-		pr_info("  interrupt-map property is missing\n");
-		return -ENOENT;
+	default:
+		return -EINVAL;
 	}
 
-	pr_info("  interrupt-map: %px (%d bytes)\n", map, size);
+	writel(value, pmc->wake + WAKE_AOWAKE_CNTRL(data->hwirq));
 
-	err = of_property_read_u32(np, "#interrupt-cells", &na);
-	if (err < 0)
-		return err;
-
-	pr_info("  #interrupt-cells: %u\n", na);
-
-	size /= sizeof(u32);
-
-	while (size) {
-		phandle phandle;
-		size_t len;
-
-		phandle = be32_to_cpup(map + na);
-
-		pr_info("  finding interrupt controller for phandle %u\n", phandle);
-
-		parent = of_find_node_by_phandle(be32_to_cpup(map + na));
-		if (!parent)
-			return -EINVAL;
-
-		pr_info("  found: %pOFn\n", parent);
-
-		err = of_property_read_u32(parent, "#interrupt-cells", &ni);
-		if (err < 0)
-			return err;
-
-		len = na + 1 + ni;
-
-		if (len > size)
-			return -EINVAL;
-
-		size -= len;
-		map += len;
-		count++;
-	}
-
-	return count;
-}
-
-static int of_irq_map_parse(struct device_node *np, unsigned int index,
-			    struct of_phandle_args *src,
-			    struct of_phandle_args *dst)
-{
-	struct device_node *parent;
-	const __be32 *map;
-	u32 na, ni = 1;
-	int err, size;
-
-	pr_info("> %s(np=%pOFn, index=%u, src=%px, dst=%px)\n", __func__, np, index, src, dst);
-
-	map = of_get_property(np, "interrupt-map", &size);
-	if (!map) {
-		pr_info("  interrupt-map property is missing\n");
-		err = -EINVAL;
-		goto out;
-	}
-
-	pr_info("  interrupt-map: %px (%d bytes)\n", map, size);
-
-	err = of_property_read_u32(np, "#interrupt-cells", &na);
-	if (err < 0)
-		goto out;
-
-	pr_info("  #interrupt-cells: %u\n", na);
-
-	size /= sizeof(u32);
-
-	while (size) {
-		phandle phandle;
-		unsigned int i;
-		size_t len;
-
-		phandle = be32_to_cpup(map + na);
-
-		pr_info("  finding interrupt controller for phandle %u\n", phandle);
-
-		parent = of_find_node_by_phandle(phandle);
-		if (!parent)
-			goto out;
-
-		pr_info("  found: %pOFn\n", parent);
-
-		err = of_property_read_u32(parent, "#interrupt-cells", &ni);
-		if (err < 0)
-			return err;
-
-		if (index-- == 0) {
-			src->np = np;
-			src->args_count = na;
-
-			for (i = 0; i < na; i++)
-				src->args[i] = be32_to_cpup(map + i);
-
-			dst->np = parent;
-			dst->args_count = ni;
-
-			for (i = 0; i < ni; i++)
-				dst->args[i] = be32_to_cpup(map + na + 1 + i);
-
-			goto out;
-		}
-
-		len = na + 1 + ni;
-
-		if (len > size)
-			break;
-
-		size -= len;
-		map += len;
-	}
-
-	err = -EINVAL;
-
-out:
-	pr_info("< %s() = %d\n", __func__, err);
-	return err;
+	return 0;
 }
 
 static int tegra_pmc_irq_init(struct tegra_pmc *pmc)
 {
-	unsigned int i, j;
-	int err;
+	struct irq_domain *parent = NULL;
+	struct device_node *np;
+	int err = 0;
 
-	dev_info(pmc->dev, "> %s(pmc=%px)\n", __func__, pmc);
-
-	err = of_irq_map_count(pmc->dev->of_node);
-	if (err < 0)
-		goto out;
-
-	pmc->num_wake_events = err;
-
-	pmc->wake_events = devm_kcalloc(pmc->dev, pmc->num_wake_events,
-					sizeof(*pmc->wake_events),
-					GFP_KERNEL);
-	if (!pmc->wake_events) {
-		err = -ENOMEM;
-		goto out;
+	np = of_irq_find_parent(pmc->dev->of_node);
+	if (np) {
+		parent = irq_find_host(np);
+		of_node_put(np);
 	}
 
-	pmc->wake_parents = devm_kcalloc(pmc->dev, pmc->num_wake_events,
-					 sizeof(*pmc->wake_parents),
-					 GFP_KERNEL);
-	if (!pmc->wake_parents) {
-		err = -ENOMEM;
-		goto out;
-	}
+	if (parent) {
+		pmc->irq.name = dev_name(pmc->dev);
+		pmc->irq.irq_mask = irq_chip_mask_parent;
+		pmc->irq.irq_unmask = irq_chip_unmask_parent;
+		pmc->irq.irq_eoi = irq_chip_eoi_parent;
+		pmc->irq.irq_set_affinity = irq_chip_set_affinity_parent;
+		pmc->irq.irq_set_type = tegra_pmc_irq_set_type;
+		pmc->irq.irq_set_wake = tegra_pmc_irq_set_wake;
 
-	for (i = 0; i < pmc->num_wake_events; i++) {
-		struct tegra_wake_event *event = &pmc->wake_events[i];
-		struct irq_domain *domain;
-
-		err = of_irq_map_parse(pmc->dev->of_node, i, &event->src,
-				       &event->dst);
-		if (err < 0)
-			goto out;
-
-		domain = irq_find_host(event->dst.np);
-
-		for (j = 0; j < pmc->num_wake_parents; j++) {
-			if (domain == pmc->wake_parents[j].domain) {
-				event->parent = &pmc->wake_parents[j];
-				event->parent->num_events++;
-				break;
-			}
-		}
-
-		if (j == pmc->num_wake_parents) {
-			struct tegra_wake_parent *parent;
-
-			parent = &pmc->wake_parents[pmc->num_wake_parents];
-			parent->domain = domain;
-			parent->num_events = 1;
-
-			pmc->num_wake_parents++;
-			event->parent = parent;
-		}
-	}
-
-	for (i = 0; i < pmc->num_wake_parents; i++) {
-		struct tegra_wake_parent *parent;
-		struct irq_chip *chip;
-
-		parent = &pmc->wake_parents[i];
-
-		chip = &parent->chip;
-		chip->name = dev_name(pmc->dev);
-		chip->irq_set_wake = tegra_pmc_irq_set_wake;
-
-		if (parent->domain->ops->alloc) {
-			chip->irq_eoi = irq_chip_eoi_parent;
-			chip->irq_mask = irq_chip_mask_parent;
-			chip->irq_unmask = irq_chip_unmask_parent;
-			chip->irq_retrigger = irq_chip_retrigger_hierarchy;
-			chip->irq_set_type = tegra_pmc_irq_set_type;
-			chip->irq_set_affinity = irq_chip_set_affinity_parent;
-		}
-
-		parent->domain = irq_domain_add_hierarchy(parent->domain, 0,
-							  parent->num_events,
-							  pmc->dev->of_node,
-							  &tegra_pmc_irq_domain_ops,
-							  pmc);
-		if (!parent->domain) {
+		pmc->domain = irq_domain_add_hierarchy(parent, 0, 96,
+						       pmc->dev->of_node,
+						       &tegra_pmc_irq_domain_ops,
+						       pmc);
+		if (!pmc->domain) {
 			dev_err(pmc->dev, "failed to allocate domain\n");
 			return -ENOMEM;
 		}
 	}
 
-	dev_info(pmc->dev, "%u unique wake parent%s\n", pmc->num_wake_parents,
-		 pmc->num_wake_parents == 1 ? "" : "s");
-
-out:
-	dev_info(pmc->dev, "< %s() = %d\n", __func__, err);
 	return err;
 }
 
