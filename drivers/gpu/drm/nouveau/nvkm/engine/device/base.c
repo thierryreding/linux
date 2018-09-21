@@ -2436,6 +2436,30 @@ nv140_chipset = {
 };
 
 static const struct nvkm_device_chip
+nv15b_chipset = {
+	.name = "GV11B",
+	.bar = gm20b_bar_new,
+	.bus = gf100_bus_new,
+	.fault = gv11b_fault_new,
+	.fb = gv11b_fb_new,
+	.fuse = gm107_fuse_new,
+	.ibus = gp10b_ibus_new,
+	.imem = gk20a_instmem_new,
+	.ltc = gp102_ltc_new,
+	.mc = gp10b_mc_new,
+	.mmu = gv11b_mmu_new,
+	.pmu = gm20b_pmu_new,
+	.secboot = gv11b_secboot_new,
+	.timer = gk20a_timer_new,
+	.top = gk104_top_new,
+	.ce[0] = gv100_ce_new,
+	.dma = gv100_dma_new,
+	.fifo = gv11b_fifo_new,
+	.gr = gv11b_gr_new,
+	.sw = gf100_sw_new,
+};
+
+static const struct nvkm_device_chip
 nv162_chipset = {
 	.name = "TU102",
 	.bar = tu102_bar_new,
@@ -2990,6 +3014,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 			case 0x120: device->card_type = GM100; break;
 			case 0x130: device->card_type = GP100; break;
 			case 0x140: device->card_type = GV100; break;
+			case 0x150: device->card_type = GV100; break;
 			case 0x160: device->card_type = TU100; break;
 			default:
 				break;
@@ -3083,6 +3108,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 		case 0x138: device->chip = &nv138_chipset; break;
 		case 0x13b: device->chip = &nv13b_chipset; break;
 		case 0x140: device->chip = &nv140_chipset; break;
+		case 0x15b: device->chip = &nv15b_chipset; break;
 		case 0x162: device->chip = &nv162_chipset; break;
 		case 0x164: device->chip = &nv164_chipset; break;
 		case 0x166: device->chip = &nv166_chipset; break;

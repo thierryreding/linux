@@ -52,4 +52,5 @@ int gp104_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
 int gp107_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
 int gp10b_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
 int gv100_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
+int gv11b_gr_new(struct nvkm_device *, int, struct nvkm_gr **);
 #endif

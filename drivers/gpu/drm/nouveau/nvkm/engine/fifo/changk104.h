@@ -46,6 +46,12 @@ int gv100_fifo_gpfifo_engine_init(struct nvkm_fifo_chan *,
 				  struct nvkm_engine *);
 int gv100_fifo_gpfifo_engine_fini(struct nvkm_fifo_chan *,
 				  struct nvkm_engine *, bool);
+int gv100_fifo_gpfifo_engine_valid(struct gk104_fifo_chan *, bool ce,
+				   bool valid);
+u32 gv100_fifo_gpfifo_submit_token(struct nvkm_fifo_chan *);
+
+int gv11b_fifo_gpfifo_new(struct gk104_fifo *, const struct nvkm_oclass *,
+			  void *data, u32 size, struct nvkm_object **);
 
 int tu102_fifo_gpfifo_new(struct gk104_fifo *, const struct nvkm_oclass *,
 			  void *data, u32 size, struct nvkm_object **);
