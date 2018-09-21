@@ -74,6 +74,10 @@
 		pmc@c360000 {
 			nvidia,invert-interrupt;
 		};
+
+		gpu@17000000 {
+			status = "okay";
+		};
 	};
 
 	bpmp {
