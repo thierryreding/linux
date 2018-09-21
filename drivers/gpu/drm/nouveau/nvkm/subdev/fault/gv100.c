@@ -71,7 +71,7 @@ gv100_fault_buffer_process(struct nvkm_fault_buffer *buffer)
 	nvkm_done(mem);
 }
 
-static void
+void
 gv100_fault_buffer_intr(struct nvkm_fault_buffer *buffer, bool enable)
 {
 	struct nvkm_device *device = buffer->fault->subdev.device;
@@ -82,7 +82,7 @@ gv100_fault_buffer_intr(struct nvkm_fault_buffer *buffer, bool enable)
 		nvkm_mask(device, 0x100a34, intr, intr);
 }
 
-static void
+void
 gv100_fault_buffer_fini(struct nvkm_fault_buffer *buffer)
 {
 	struct nvkm_device *device = buffer->fault->subdev.device;
@@ -90,7 +90,7 @@ gv100_fault_buffer_fini(struct nvkm_fault_buffer *buffer)
 	nvkm_mask(device, 0x100e34 + foff, 0x80000000, 0x00000000);
 }
 
-static void
+void
 gv100_fault_buffer_init(struct nvkm_fault_buffer *buffer)
 {
 	struct nvkm_device *device = buffer->fault->subdev.device;
@@ -102,7 +102,7 @@ gv100_fault_buffer_init(struct nvkm_fault_buffer *buffer)
 	nvkm_mask(device, 0x100e34 + foff, 0x80000000, 0x80000000);
 }
 
-static void
+void
 gv100_fault_buffer_info(struct nvkm_fault_buffer *buffer)
 {
 	struct nvkm_device *device = buffer->fault->subdev.device;
@@ -150,7 +150,7 @@ gv100_fault_intr_fault(struct nvkm_fault *fault)
 	nvkm_fifo_fault(device->fifo, &info);
 }
 
-static void
+void
 gv100_fault_intr(struct nvkm_fault *fault)
 {
 	struct nvkm_subdev *subdev = &fault->subdev;
@@ -182,7 +182,7 @@ gv100_fault_intr(struct nvkm_fault *fault)
 	}
 }
 
-static void
+void
 gv100_fault_fini(struct nvkm_fault *fault)
 {
 	nvkm_notify_put(&fault->nrpfb);
@@ -191,7 +191,7 @@ gv100_fault_fini(struct nvkm_fault *fault)
 	nvkm_mask(fault->subdev.device, 0x100a34, 0x80000000, 0x80000000);
 }
 
-static void
+void
 gv100_fault_init(struct nvkm_fault *fault)
 {
 	nvkm_mask(fault->subdev.device, 0x100a2c, 0x80000000, 0x80000000);

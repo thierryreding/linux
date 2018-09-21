@@ -250,6 +250,12 @@ extern const struct gf100_gr_func_zbc gp100_gr_zbc;
 void gp102_gr_init_swdx_pes_mask(struct gf100_gr *);
 extern const struct gf100_gr_func_zbc gp102_gr_zbc;
 
+void gv100_gr_trap_mp(struct gf100_gr *, int, int);
+void gv100_gr_init_4188a4(struct gf100_gr *);
+void gv100_gr_init_shader_exceptions(struct gf100_gr *, int, int);
+void gv100_gr_init_504430(struct gf100_gr *, int, int);
+void gv100_gr_init_419bd8(struct gf100_gr *);
+
 #define gf100_gr_chan(p) container_of((p), struct gf100_gr_chan, object)
 #include <core/object.h>
 

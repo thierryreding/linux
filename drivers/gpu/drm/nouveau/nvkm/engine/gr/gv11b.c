@@ -24,69 +24,8 @@
 
 #include <nvif/class.h>
 
-static void
-gv100_gr_trap_sm(struct gf100_gr *gr, int gpc, int tpc, int sm)
-{
-	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
-	struct nvkm_device *device = subdev->device;
-	u32 werr = nvkm_rd32(device, TPC_UNIT(gpc, tpc, 0x730 + (sm * 0x80)));
-	u32 gerr = nvkm_rd32(device, TPC_UNIT(gpc, tpc, 0x734 + (sm * 0x80)));
-	const struct nvkm_enum *warp;
-	char glob[128];
-
-	nvkm_snprintbf(glob, sizeof(glob), gf100_mp_global_error, gerr);
-	warp = nvkm_enum_find(gf100_mp_warp_error, werr & 0xffff);
-
-	nvkm_error(subdev, "GPC%i/TPC%i/SM%d trap: "
-			   "global %08x [%s] warp %04x [%s]\n",
-		   gpc, tpc, sm, gerr, glob, werr, warp ? warp->name : "");
-
-	nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x730 + sm * 0x80), 0x00000000);
-	nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x734 + sm * 0x80), gerr);
-}
-
-void
-gv100_gr_trap_mp(struct gf100_gr *gr, int gpc, int tpc)
-{
-	gv100_gr_trap_sm(gr, gpc, tpc, 0);
-	gv100_gr_trap_sm(gr, gpc, tpc, 1);
-}
-
-void
-gv100_gr_init_4188a4(struct gf100_gr *gr)
-{
-	struct nvkm_device *device = gr->base.engine.subdev.device;
-	nvkm_mask(device, 0x4188a4, 0x03000000, 0x03000000);
-}
-
-void
-gv100_gr_init_shader_exceptions(struct gf100_gr *gr, int gpc, int tpc)
-{
-	struct nvkm_device *device = gr->base.engine.subdev.device;
-	int sm;
-	for (sm = 0; sm < 0x100; sm += 0x80) {
-		nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x728 + sm), 0x0085eb64);
-		nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x610), 0x00000001);
-		nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x72c + sm), 0x00000004);
-	}
-}
-
-void
-gv100_gr_init_504430(struct gf100_gr *gr, int gpc, int tpc)
-{
-	struct nvkm_device *device = gr->base.engine.subdev.device;
-	nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x430), 0x403f0000);
-}
-
-void
-gv100_gr_init_419bd8(struct gf100_gr *gr)
-{
-	struct nvkm_device *device = gr->base.engine.subdev.device;
-	nvkm_mask(device, 0x419bd8, 0x00000700, 0x00000000);
-}
-
 static const struct gf100_gr_func
-gv100_gr = {
+gv11b_gr = {
 	.oneinit_tiles = gm200_gr_oneinit_tiles,
 	.oneinit_sm_id = gm200_gr_oneinit_sm_id,
 	.init = gf100_gr_init,
@@ -94,7 +33,7 @@ gv100_gr = {
 	.init_gpc_mmu = gm200_gr_init_gpc_mmu,
 	.init_vsc_stream_master = gk104_gr_init_vsc_stream_master,
 	.init_zcull = gf117_gr_init_zcull,
-	.init_num_active_ltcs = gm200_gr_init_num_active_ltcs,
+	.init_num_active_ltcs = gf100_gr_init_num_active_ltcs,
 	.init_rop_active_fbps = gp100_gr_init_rop_active_fbps,
 	.init_swdx_pes_mask = gp102_gr_init_swdx_pes_mask,
 	.init_fecs_exceptions = gp100_gr_init_fecs_exceptions,
@@ -108,7 +47,7 @@ gv100_gr = {
 	.rops = gm200_gr_rops,
 	.gpc_nr = 6,
 	.tpc_nr = 5,
-	.ppc_nr = 3,
+	.ppc_nr = 2,
 	.grctx = &gv100_grctx,
 	.zbc = &gp102_gr_zbc,
 	.sclass = {
@@ -121,7 +60,7 @@ gv100_gr = {
 };
 
 int
-gv100_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
+gv11b_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
 {
-	return gm200_gr_new_(&gv100_gr, device, index, pgr);
+	return gm200_gr_new_(&gv11b_gr, device, index, pgr);
 }
