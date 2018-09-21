@@ -62,5 +62,6 @@ int gm20b_secboot_new(struct nvkm_device *, int, struct nvkm_secboot **);
 int gp102_secboot_new(struct nvkm_device *, int, struct nvkm_secboot **);
 int gp108_secboot_new(struct nvkm_device *, int, struct nvkm_secboot **);
 int gp10b_secboot_new(struct nvkm_device *, int, struct nvkm_secboot **);
+int gv11b_secboot_new(struct nvkm_device *, int, struct nvkm_secboot **);
 
 #endif

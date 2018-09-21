@@ -50,6 +50,13 @@ void gp100_fault_intr(struct nvkm_fault *);
 
 u64 gp10b_fault_buffer_pin(struct nvkm_fault_buffer *);
 
+void gv100_fault_buffer_intr(struct nvkm_fault_buffer *, bool enable);
+void gv100_fault_buffer_fini(struct nvkm_fault_buffer *);
+void gv100_fault_buffer_init(struct nvkm_fault_buffer *);
+void gv100_fault_buffer_info(struct nvkm_fault_buffer *);
+void gv100_fault_intr(struct nvkm_fault *);
+void gv100_fault_fini(struct nvkm_fault *);
+void gv100_fault_init(struct nvkm_fault *);
 int gv100_fault_oneinit(struct nvkm_fault *);
 
 int nvkm_ufault_new(struct nvkm_device *, const struct nvkm_oclass *,

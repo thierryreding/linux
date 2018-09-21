@@ -211,6 +211,7 @@ void gf100_vmm_invalidate(struct nvkm_vmm *, u32 type);
 void gf100_vmm_invalidate_pdb(struct nvkm_vmm *, u64 addr);
 
 int gk20a_vmm_valid(struct nvkm_vmm *, void *, u32, struct nvkm_vmm_map *);
+int gp10b_vmm_valid(struct nvkm_vmm *, void *, u32, struct nvkm_vmm_map *);
 
 int gm200_vmm_new_(const struct nvkm_vmm_func *, const struct nvkm_vmm_func *,
 		   struct nvkm_mmu *, bool, u64, u64, void *, u32,
@@ -269,6 +270,9 @@ int gv100_vmm_new(struct nvkm_mmu *, bool, u64, u64, void *, u32,
 		  struct lock_class_key *, const char *,
 		  struct nvkm_vmm **);
 int tu102_vmm_new(struct nvkm_mmu *, bool, u64, u64, void *, u32,
+		  struct lock_class_key *, const char *,
+		  struct nvkm_vmm **);
+int gv11b_vmm_new(struct nvkm_mmu *, bool, u64, u64, void *, u32,
 		  struct lock_class_key *, const char *,
 		  struct nvkm_vmm **);
 

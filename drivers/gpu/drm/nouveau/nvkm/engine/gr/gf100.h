@@ -245,6 +245,7 @@ extern const struct gf100_gr_func_zbc gp102_gr_zbc;
 
 extern const struct gf100_gr_func gp107_gr;
 
+void gv100_gr_init_4188a4(struct gf100_gr *);
 void gv100_gr_init_419bd8(struct gf100_gr *);
 void gv100_gr_init_504430(struct gf100_gr *, int, int);
 void gv100_gr_init_shader_exceptions(struct gf100_gr *, int, int);
