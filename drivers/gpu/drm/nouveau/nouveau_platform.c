@@ -68,6 +68,11 @@ static const struct nvkm_device_tegra_func gp10b_platform_data = {
 	.require_vdd = false,
 };
 
+static const struct nvkm_device_tegra_func gv11b_platform_data = {
+	.iommu_bit = 36,
+	.require_vdd = false,
+};
+
 static const struct of_device_id nouveau_platform_match[] = {
 	{
 		.compatible = "nvidia,gk20a",
@@ -80,6 +85,10 @@ static const struct of_device_id nouveau_platform_match[] = {
 	{
 		.compatible = "nvidia,gp10b",
 		.data = &gp10b_platform_data,
+	},
+	{
+		.compatible = "nvidia,gv11b",
+		.data = &gv11b_platform_data,
 	},
 	{ }
 };
