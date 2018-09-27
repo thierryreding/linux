@@ -247,6 +247,9 @@ static irqreturn_t tegra_hsp_shared_irq(int irq, void *data)
 
 	hsp->stats.interrupts.total++;
 
+	if (i != 0)
+		goto out;
+
 	status = tegra_hsp_readl(hsp, HSP_INT_IR);
 
 	/* Only interested in FULL interrupts */
@@ -265,6 +268,7 @@ static irqreturn_t tegra_hsp_shared_irq(int irq, void *data)
 		}
 	}
 
+out:
 	return IRQ_HANDLED;
 }
 
