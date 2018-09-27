@@ -24,11 +24,14 @@
 
 #include "mailbox.h"
 
-#define HSP_INT0_IE		0x100
-#define HSP_INT0_IE_FULL_SHIFT	8
+#define HSP_INT_IE(x)		(0x100 + ((x) * 4))
+#define HSP_INT_IV		0x300
 #define HSP_INT_IR		0x304
-#define HSP_INT_IR_FULL_SHIFT	8
-#define HSP_INT_IR_FULL_MASK	0xff
+
+#define HSP_INT_EMPTY_SHIFT	0
+#define HSP_INT_EMPTY_MASK	0xff
+#define HSP_INT_FULL_SHIFT	8
+#define HSP_INT_FULL_MASK	0xff
 
 #define HSP_INT_DIMENSIONING	0x380
 #define HSP_nSM_SHIFT		0
@@ -45,6 +48,8 @@
 
 #define HSP_SM_SHRD_MBOX	0x0
 #define HSP_SM_SHRD_MBOX_FULL	BIT(31)
+#define HSP_SM_SHRD_MBOX_FULL_INT_IE	0x04
+#define HSP_SM_SHRD_MBOX_EMPTY_INT_IE	0x08
 
 #define HSP_DB_CCPLEX		1
 #define HSP_DB_BPMP		3
@@ -220,11 +225,12 @@ static irqreturn_t tegra_hsp_shared_irq(int irq, void *data)
 	struct tegra_hsp_mailbox *mb;
 	struct tegra_hsp *hsp = data;
 	unsigned long bit, mask;
-	u32 value;
+	u32 status, value;
 
-	mask = tegra_hsp_readl(hsp, HSP_INT_IR);
+	status = tegra_hsp_readl(hsp, HSP_INT_IR);
+
 	/* Only interested in FULL interrupts */
-	mask = (mask >> HSP_INT_IR_FULL_SHIFT) & HSP_INT_IR_FULL_MASK;
+	mask = (status >> HSP_INT_FULL_SHIFT) & HSP_INT_FULL_MASK;
 
 	for_each_set_bit(bit, &mask, 8) {
 		mb = &hsp->mailboxes[bit];
@@ -332,27 +338,47 @@ static void tegra_hsp_doorbell_shutdown(struct tegra_hsp_doorbell *db)
 
 static int tegra_hsp_mailbox_startup(struct tegra_hsp_mailbox *mb)
 {
-	struct tegra_hsp *hsp = mb->channel.hsp;
+	struct tegra_hsp_channel *channel = &mb->channel;
+	struct tegra_hsp *hsp = channel->hsp;
 	u32 value;
 
 	mb->channel.chan->txdone_method = TXDONE_BY_BLOCK;
 
 	/* Route FULL interrupt to external IRQ 0 */
-	value = tegra_hsp_readl(hsp, HSP_INT0_IE);
-	value |= BIT(HSP_INT0_IE_FULL_SHIFT + mb->index);
-	tegra_hsp_writel(hsp, value, HSP_INT0_IE);
+	value = tegra_hsp_readl(hsp, HSP_INT_IE(0));
+	value |= BIT(HSP_INT_FULL_SHIFT + mb->index);
+	tegra_hsp_writel(hsp, value, HSP_INT_IE(0));
+
+	/* route EMPTY interrupt to external IRQ 1 */
+	value = tegra_hsp_readl(hsp, HSP_INT_IE(1));
+	value |= BIT(HSP_INT_EMPTY_SHIFT + mb->index);
+	tegra_hsp_writel(hsp, value, HSP_INT_IE(1));
+
+	tegra_hsp_channel_writel(channel, 0x1, HSP_SM_SHRD_MBOX_FULL_INT_IE);
+	tegra_hsp_channel_writel(channel, 0x1, HSP_SM_SHRD_MBOX_EMPTY_INT_IE);
+	/* XXX need this, otherwise the CPU stalls in the interrupt handler */
+	tegra_hsp_channel_writel(channel, 0x0, HSP_SM_SHRD_MBOX_EMPTY_INT_IE);
 
 	return 0;
 }
 
 static int tegra_hsp_mailbox_shutdown(struct tegra_hsp_mailbox *mb)
 {
-	struct tegra_hsp *hsp = mb->channel.hsp;
+	struct tegra_hsp_channel *channel = &mb->channel;
+	struct tegra_hsp *hsp = channel->hsp;
 	u32 value;
 
-	value = tegra_hsp_readl(hsp, HSP_INT0_IE);
-	value &= ~BIT(mb->index + 8);
-	tegra_hsp_writel(hsp, value, HSP_INT0_IE);
+
+	tegra_hsp_channel_writel(channel, 0x0, HSP_SM_SHRD_MBOX_EMPTY_INT_IE);
+	tegra_hsp_channel_writel(channel, 0x0, HSP_SM_SHRD_MBOX_FULL_INT_IE);
+
+	value = tegra_hsp_readl(hsp, HSP_INT_IE(1));
+	value &= ~BIT(HSP_INT_EMPTY_SHIFT + mb->index + 8);
+	tegra_hsp_writel(hsp, value, HSP_INT_IE(1));
+
+	value = tegra_hsp_readl(hsp, HSP_INT_IE(0));
+	value &= ~BIT(HSP_INT_FULL_SHIFT + mb->index + 8);
+	tegra_hsp_writel(hsp, value, HSP_INT_IE(0));
 
 	return 0;
 }
