@@ -101,7 +101,7 @@ struct tegra_hsp {
 	struct mbox_controller mbox;
 	void __iomem *regs;
 	unsigned int doorbell_irq;
-	unsigned int shared_irq;
+	unsigned int *shared_irqs;
 	unsigned int num_sm;
 	unsigned int num_as;
 	unsigned int num_ss;
@@ -470,7 +470,7 @@ static struct mbox_chan *of_tegra_hsp_xlate(struct mbox_controller *mbox,
 			return ERR_PTR(-EINVAL);
 
 	case TEGRA_HSP_MBOX_TYPE_SM:
-		if (hsp->shared_irq && param < hsp->num_sm)
+		if (hsp->shared_irqs && param < hsp->num_sm)
 			return hsp->mailboxes[param].channel.chan;
 		else
 			return ERR_PTR(-EINVAL);
@@ -541,6 +541,7 @@ static int tegra_hsp_probe(struct platform_device *pdev)
 {
 	struct tegra_hsp *hsp;
 	struct resource *res;
+	unsigned int i;
 	u32 value;
 	int err;
 
@@ -568,9 +569,36 @@ static int tegra_hsp_probe(struct platform_device *pdev)
 	if (err >= 0)
 		hsp->doorbell_irq = err;
 
-	err = platform_get_irq_byname(pdev, "shared0");
-	if (err >= 0)
-		hsp->shared_irq = err;
+	if (hsp->num_si > 0) {
+		unsigned int count = 0;
+
+		hsp->shared_irqs = devm_kcalloc(&pdev->dev, hsp->num_si,
+						sizeof(*hsp->shared_irqs),
+						GFP_KERNEL);
+		if (!hsp->shared_irqs)
+			return -ENOMEM;
+
+		for (i = 0; i < hsp->num_si; i++) {
+			char *name;
+
+			name = kasprintf(GFP_KERNEL, "shared%u", i);
+			if (!name)
+				return -ENOMEM;
+
+			err = platform_get_irq_byname(pdev, name);
+			if (err >= 0) {
+				hsp->shared_irqs[i] = err;
+				count++;
+			}
+
+			kfree(name);
+		}
+
+		if (count == 0) {
+			devm_kfree(&pdev->dev, hsp->shared_irqs);
+			hsp->shared_irqs = NULL;
+		}
+	}
 
 	hsp->mbox.of_xlate = of_tegra_hsp_xlate;
 	/* First nSM are reserved for mailboxes */
@@ -595,7 +623,7 @@ static int tegra_hsp_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (hsp->shared_irq) {
+	if (hsp->shared_irqs) {
 		err = tegra_hsp_add_mailboxes(hsp, &pdev->dev);
 		if (err < 0) {
 			dev_err(&pdev->dev, "failed to add mailboxes: %d\n",
@@ -624,15 +652,21 @@ static int tegra_hsp_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (hsp->shared_irq) {
-		err = devm_request_irq(&pdev->dev, hsp->shared_irq,
-				       tegra_hsp_shared_irq, 0,
-				       dev_name(&pdev->dev), hsp);
-		if (err < 0) {
-			dev_err(&pdev->dev,
-				"failed to request shared0 IRQ%u: %d\n",
-				hsp->shared_irq, err);
-			goto unregister_mbox_controller;
+	if (hsp->shared_irqs) {
+		for (i = 0; i < hsp->num_si; i++) {
+			if (hsp->shared_irqs[i] > 0) {
+				err = devm_request_irq(&pdev->dev, hsp->shared_irqs[i],
+						       tegra_hsp_shared_irq, 0,
+						       dev_name(&pdev->dev), hsp);
+				if (err < 0) {
+					dev_err(&pdev->dev,
+						"failed to request shared%u IRQ%u: %d\n",
+						i, hsp->shared_irqs[i], err);
+					goto unregister_mbox_controller;
+				}
+
+				dev_info(&pdev->dev, "interrupt shared%u requested: %u\n", i, hsp->shared_irqs[i]);
+			}
 		}
 	}
 
