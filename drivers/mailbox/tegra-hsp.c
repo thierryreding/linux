@@ -103,6 +103,7 @@ struct tegra_hsp_soc {
 };
 
 struct tegra_hsp {
+	struct device *dev;
 	const struct tegra_hsp_soc *soc;
 	struct mbox_controller mbox;
 	void __iomem *regs;
@@ -123,6 +124,9 @@ struct tegra_hsp {
 	struct {
 		struct {
 			unsigned int count[8];
+			unsigned int empty[8];
+			unsigned int full[8];
+			unsigned int invalid;
 			unsigned int total;
 		} interrupts;
 	} stats;
@@ -234,9 +238,9 @@ static irqreturn_t tegra_hsp_shared_irq(int irq, void *data)
 {
 	struct tegra_hsp_mailbox *mb;
 	struct tegra_hsp *hsp = data;
+	unsigned int i, shared_irq;
 	unsigned long bit, mask;
 	u32 status, value;
-	unsigned int i;
 
 	for (i = 0; i < hsp->num_si; i++) {
 		if (hsp->shared_irqs[i] == irq) {
@@ -245,31 +249,61 @@ static irqreturn_t tegra_hsp_shared_irq(int irq, void *data)
 		}
 	}
 
-	hsp->stats.interrupts.total++;
+	shared_irq = i;
 
-	if (i != 0)
-		goto out;
+	hsp->stats.interrupts.total++;
 
 	status = tegra_hsp_readl(hsp, HSP_INT_IR);
 
-	/* Only interested in FULL interrupts */
-	mask = (status >> HSP_INT_FULL_SHIFT) & HSP_INT_FULL_MASK;
-
-	for_each_set_bit(bit, &mask, 8) {
-		mb = &hsp->mailboxes[bit];
-
-		if (!mb->sending) {
-			value = tegra_hsp_channel_readl(&mb->channel,
-							HSP_SM_SHRD_MBOX);
-			value &= ~HSP_SM_SHRD_MBOX_FULL;
-			mbox_chan_received_data(mb->channel.chan, &value);
-			tegra_hsp_channel_writel(&mb->channel, value,
-						 HSP_SM_SHRD_MBOX);
-		}
+	for (i = 0; i < hsp->num_sm; i++) {
+		if (status & BIT(HSP_INT_EMPTY_SHIFT + i))
+			hsp->stats.interrupts.empty[i]++;
 	}
 
-out:
-	return IRQ_HANDLED;
+	for (i = 0; i < hsp->num_sm; i++) {
+		if (status & BIT(HSP_INT_FULL_SHIFT + i))
+			hsp->stats.interrupts.full[i]++;
+	}
+
+	if (shared_irq == 0) {
+		/* only interested in FULL interrupts */
+		mask = (status >> HSP_INT_FULL_SHIFT) & HSP_INT_FULL_MASK;
+
+		for_each_set_bit(bit, &mask, hsp->num_sm) {
+			mb = &hsp->mailboxes[bit];
+
+			if (!mb->sending) {
+				value = tegra_hsp_channel_readl(&mb->channel,
+								HSP_SM_SHRD_MBOX);
+				value &= ~HSP_SM_SHRD_MBOX_FULL;
+				mbox_chan_received_data(mb->channel.chan, &value);
+				tegra_hsp_channel_writel(&mb->channel, value,
+							 HSP_SM_SHRD_MBOX);
+			}
+		}
+
+		if (mask)
+			return IRQ_HANDLED;
+	}
+
+	if (shared_irq == 1) {
+		/* only interested in EMPTY interrupts */
+		mask = (status >> HSP_INT_EMPTY_SHIFT) & HSP_INT_EMPTY_MASK;
+
+		for_each_set_bit(bit, &mask, hsp->num_sm) {
+			mb = &hsp->mailboxes[bit];
+
+			tegra_hsp_channel_writel(&mb->channel, 0x0, HSP_SM_SHRD_MBOX_EMPTY_INT_IE);
+
+			if (mb->channel.chan->txdone_method == TXDONE_BY_IRQ)
+				mbox_chan_txdone(mb->channel.chan, 0);
+		}
+
+		if (mask)
+			return IRQ_HANDLED;
+	}
+
+	return IRQ_NONE;
 }
 
 static struct tegra_hsp_channel *
@@ -368,20 +402,21 @@ static int tegra_hsp_mailbox_startup(struct tegra_hsp_mailbox *mb)
 
 	mb->channel.chan->txdone_method = TXDONE_BY_BLOCK;
 
+	tegra_hsp_channel_writel(channel, 0x1, HSP_SM_SHRD_MBOX_FULL_INT_IE);
+	/* shared mailboxes start out as consumers by default */
+	tegra_hsp_channel_writel(channel, 0x0, HSP_SM_SHRD_MBOX_EMPTY_INT_IE);
+
 	/* Route FULL interrupt to external IRQ 0 */
 	value = tegra_hsp_readl(hsp, HSP_INT_IE(0));
 	value |= BIT(HSP_INT_FULL_SHIFT + mb->index);
+	dev_info(hsp->dev, "HSP_INT_IE(0) < %08x\n", value);
 	tegra_hsp_writel(hsp, value, HSP_INT_IE(0));
 
 	/* route EMPTY interrupt to external IRQ 1 */
 	value = tegra_hsp_readl(hsp, HSP_INT_IE(1));
 	value |= BIT(HSP_INT_EMPTY_SHIFT + mb->index);
+	dev_info(hsp->dev, "HSP_INT_IE(1) < %08x\n", value);
 	tegra_hsp_writel(hsp, value, HSP_INT_IE(1));
-
-	tegra_hsp_channel_writel(channel, 0x1, HSP_SM_SHRD_MBOX_FULL_INT_IE);
-	tegra_hsp_channel_writel(channel, 0x1, HSP_SM_SHRD_MBOX_EMPTY_INT_IE);
-	/* XXX need this, otherwise the CPU stalls in the interrupt handler */
-	tegra_hsp_channel_writel(channel, 0x0, HSP_SM_SHRD_MBOX_EMPTY_INT_IE);
 
 	return 0;
 }
@@ -391,7 +426,6 @@ static int tegra_hsp_mailbox_shutdown(struct tegra_hsp_mailbox *mb)
 	struct tegra_hsp_channel *channel = &mb->channel;
 	struct tegra_hsp *hsp = channel->hsp;
 	u32 value;
-
 
 	tegra_hsp_channel_writel(channel, 0x0, HSP_SM_SHRD_MBOX_EMPTY_INT_IE);
 	tegra_hsp_channel_writel(channel, 0x0, HSP_SM_SHRD_MBOX_FULL_INT_IE);
@@ -427,10 +461,21 @@ static int tegra_hsp_send_data(struct mbox_chan *chan, void *data)
 		value |= HSP_SM_SHRD_MBOX_FULL;
 
 		tegra_hsp_channel_writel(channel, value, HSP_SM_SHRD_MBOX);
+		tegra_hsp_channel_writel(channel, 0x1, HSP_SM_SHRD_MBOX_EMPTY_INT_IE);
 
-		return readl_poll_timeout(
-			channel->regs + HSP_SM_SHRD_MBOX, value,
-			!(value & HSP_SM_SHRD_MBOX_FULL), 0, 10000);
+		if (chan->txdone_method != TXDONE_BY_IRQ) {
+			unsigned long timeout = jiffies + msecs_to_jiffies(100);
+
+			while (time_before(jiffies, timeout)) {
+				value = tegra_hsp_channel_readl(channel, HSP_SM_SHRD_MBOX);
+				if ((value & HSP_SM_SHRD_MBOX_FULL) == 0)
+					break;
+
+				udelay(10);
+			}
+		}
+
+		return 0;
 	}
 
 	return -EINVAL;
@@ -598,7 +643,14 @@ static int tegra_hsp_interrupts_show(struct seq_file *s, void *data)
 		seq_printf(s, "  %u: %3u: %u\n", i, hsp->shared_irqs[i],
 			   hsp->stats.interrupts.count[i]);
 
+	seq_printf(s, "invalid: %u\n", hsp->stats.interrupts.invalid);
 	seq_printf(s, "total: %u\n", hsp->stats.interrupts.total);
+
+	seq_printf(s, "shared mailboxes: %u\n", hsp->num_sm);
+
+	for (i = 0; i < hsp->num_sm; i++) {
+		seq_printf(s, "  %u: empty %u full %u\n", i, hsp->stats.interrupts.empty[i], hsp->stats.interrupts.full[i]);
+	}
 
 	return 0;
 }
@@ -627,6 +679,7 @@ static int tegra_hsp_probe(struct platform_device *pdev)
 	if (!hsp)
 		return -ENOMEM;
 
+	hsp->dev = &pdev->dev;
 	hsp->soc = of_device_get_match_data(&pdev->dev);
 	INIT_LIST_HEAD(&hsp->doorbells);
 	spin_lock_init(&hsp->lock);
@@ -642,6 +695,12 @@ static int tegra_hsp_probe(struct platform_device *pdev)
 	hsp->num_as = (value >> HSP_nAS_SHIFT) & HSP_nINT_MASK;
 	hsp->num_db = (value >> HSP_nDB_SHIFT) & HSP_nINT_MASK;
 	hsp->num_si = (value >> HSP_nSI_SHIFT) & HSP_nINT_MASK;
+
+	for (i = 0; i < hsp->num_si; i++) {
+		u32 value = tegra_hsp_readl(hsp, HSP_INT_IE(i));
+		dev_info(&pdev->dev, "IE%u: %08x\n", i, value);
+		tegra_hsp_writel(hsp, 0, HSP_INT_IE(i));
+	}
 
 	err = platform_get_irq_byname(pdev, "doorbell");
 	if (err >= 0)
