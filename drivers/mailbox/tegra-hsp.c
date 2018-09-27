@@ -11,6 +11,7 @@
  * more details.
  */
 
+#include <linux/debugfs.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
@@ -116,6 +117,15 @@ struct tegra_hsp {
 
 	struct list_head doorbells;
 	struct tegra_hsp_mailbox *mailboxes;
+
+	struct dentry *debugfs;
+
+	struct {
+		struct {
+			unsigned int count[8];
+			unsigned int total;
+		} interrupts;
+	} stats;
 };
 
 static inline struct tegra_hsp *
@@ -226,6 +236,16 @@ static irqreturn_t tegra_hsp_shared_irq(int irq, void *data)
 	struct tegra_hsp *hsp = data;
 	unsigned long bit, mask;
 	u32 status, value;
+	unsigned int i;
+
+	for (i = 0; i < hsp->num_si; i++) {
+		if (hsp->shared_irqs[i] == irq) {
+			hsp->stats.interrupts.count[i]++;
+			break;
+		}
+	}
+
+	hsp->stats.interrupts.total++;
 
 	status = tegra_hsp_readl(hsp, HSP_INT_IR);
 
@@ -563,6 +583,34 @@ static int tegra_hsp_add_mailboxes(struct tegra_hsp *hsp, struct device *dev)
 	return 0;
 }
 
+static int tegra_hsp_interrupts_show(struct seq_file *s, void *data)
+{
+	struct tegra_hsp *hsp = s->private;
+	unsigned int i;
+
+	seq_printf(s, "interrupts: %u\n", hsp->num_si);
+
+	for (i = 0; i < hsp->num_si; i++)
+		seq_printf(s, "  %u: %3u: %u\n", i, hsp->shared_irqs[i],
+			   hsp->stats.interrupts.count[i]);
+
+	seq_printf(s, "total: %u\n", hsp->stats.interrupts.total);
+
+	return 0;
+}
+
+static int tegra_hsp_interrupts_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, tegra_hsp_interrupts_show, inode->i_private);
+}
+
+static const struct file_operations tegra_hsp_interrupts_fops = {
+	.open = tegra_hsp_interrupts_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
 static int tegra_hsp_probe(struct platform_device *pdev)
 {
 	struct tegra_hsp *hsp;
@@ -694,6 +742,12 @@ static int tegra_hsp_probe(struct platform_device *pdev)
 				dev_info(&pdev->dev, "interrupt shared%u requested: %u\n", i, hsp->shared_irqs[i]);
 			}
 		}
+	}
+
+	hsp->debugfs = debugfs_create_dir(dev_name(&pdev->dev), NULL);
+	if (hsp->debugfs) {
+		debugfs_create_file("stats", S_IRUGO, hsp->debugfs, hsp,
+				    &tegra_hsp_interrupts_fops);
 	}
 
 	return 0;
