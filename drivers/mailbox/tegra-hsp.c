@@ -126,6 +126,7 @@ struct tegra_hsp {
 			unsigned int count[8];
 			unsigned int empty[8];
 			unsigned int full[8];
+			unsigned int unhandled;
 			unsigned int invalid;
 			unsigned int total;
 		} interrupts;
@@ -303,6 +304,11 @@ static irqreturn_t tegra_hsp_shared_irq(int irq, void *data)
 			return IRQ_HANDLED;
 	}
 
+	if (shared_irq != 0 && shared_irq != 1)
+		hsp->stats.interrupts.invalid++;
+
+	hsp->stats.interrupts.unhandled++;
+
 	return IRQ_NONE;
 }
 
@@ -406,7 +412,7 @@ static int tegra_hsp_mailbox_startup(struct tegra_hsp_mailbox *mb)
 	/* shared mailboxes start out as consumers by default */
 	tegra_hsp_channel_writel(channel, 0x0, HSP_SM_SHRD_MBOX_EMPTY_INT_IE);
 
-	/* Route FULL interrupt to external IRQ 0 */
+	/* route FULL interrupt to external IRQ 0 */
 	value = tegra_hsp_readl(hsp, HSP_INT_IE(0));
 	value |= BIT(HSP_INT_FULL_SHIFT + mb->index);
 	dev_info(hsp->dev, "HSP_INT_IE(0) < %08x\n", value);
@@ -431,11 +437,11 @@ static int tegra_hsp_mailbox_shutdown(struct tegra_hsp_mailbox *mb)
 	tegra_hsp_channel_writel(channel, 0x0, HSP_SM_SHRD_MBOX_FULL_INT_IE);
 
 	value = tegra_hsp_readl(hsp, HSP_INT_IE(1));
-	value &= ~BIT(HSP_INT_EMPTY_SHIFT + mb->index + 8);
+	value &= ~BIT(HSP_INT_EMPTY_SHIFT + mb->index);
 	tegra_hsp_writel(hsp, value, HSP_INT_IE(1));
 
 	value = tegra_hsp_readl(hsp, HSP_INT_IE(0));
-	value &= ~BIT(HSP_INT_FULL_SHIFT + mb->index + 8);
+	value &= ~BIT(HSP_INT_FULL_SHIFT + mb->index);
 	tegra_hsp_writel(hsp, value, HSP_INT_IE(0));
 
 	return 0;
@@ -643,6 +649,7 @@ static int tegra_hsp_interrupts_show(struct seq_file *s, void *data)
 		seq_printf(s, "  %u: %3u: %u\n", i, hsp->shared_irqs[i],
 			   hsp->stats.interrupts.count[i]);
 
+	seq_printf(s, "unhandled: %u\n", hsp->stats.interrupts.unhandled);
 	seq_printf(s, "invalid: %u\n", hsp->stats.interrupts.invalid);
 	seq_printf(s, "total: %u\n", hsp->stats.interrupts.total);
 
