@@ -98,20 +98,8 @@ channel_to_mailbox(struct tegra_hsp_channel *channel)
 	return container_of(channel, struct tegra_hsp_mailbox, channel);
 }
 
-struct tegra_hsp_ops {
-	void (*mailbox_prepare_irq)(struct tegra_hsp_mailbox *mb, bool full,
-				    bool empty);
-	void (*mailbox_enable_irq)(struct tegra_hsp_mailbox *mb, bool full,
-				   bool empty);
-	void (*mailbox_disable_irq)(struct tegra_hsp_mailbox *mb, bool full,
-				    bool empty);
-	void (*mailbox_unprepare_irq)(struct tegra_hsp_mailbox *mb, bool full,
-				      bool empty);
-};
-
 struct tegra_hsp_soc {
 	const struct tegra_hsp_db_map *map;
-	const struct tegra_hsp_ops *ops;
 };
 
 struct tegra_hsp {
@@ -414,23 +402,47 @@ static void tegra_hsp_doorbell_shutdown(struct tegra_hsp_doorbell *db)
 
 static int tegra_hsp_mailbox_startup(struct tegra_hsp_mailbox *mb)
 {
-	struct tegra_hsp *hsp = mb->channel.hsp;
+	struct tegra_hsp_channel *channel = &mb->channel;
+	struct tegra_hsp *hsp = channel->hsp;
+	u32 value;
 
 	mb->channel.chan->txdone_method = TXDONE_BY_BLOCK;
 
+	tegra_hsp_channel_writel(channel, 0x1, HSP_SM_SHRD_MBOX_FULL_INT_IE);
 	/* shared mailboxes start out as consumers by default */
-	hsp->soc->ops->mailbox_prepare_irq(mb, true, true);
-	hsp->soc->ops->mailbox_enable_irq(mb, true, false);
+	tegra_hsp_channel_writel(channel, 0x0, HSP_SM_SHRD_MBOX_EMPTY_INT_IE);
+
+	/* Route FULL interrupt to external IRQ 0 */
+	value = tegra_hsp_readl(hsp, HSP_INT_IE(0));
+	value |= BIT(HSP_INT_FULL_SHIFT + mb->index);
+	dev_info(hsp->dev, "HSP_INT_IE(0) < %08x\n", value);
+	tegra_hsp_writel(hsp, value, HSP_INT_IE(0));
+
+	/* route EMPTY interrupt to external IRQ 1 */
+	value = tegra_hsp_readl(hsp, HSP_INT_IE(1));
+	value |= BIT(HSP_INT_EMPTY_SHIFT + mb->index);
+	dev_info(hsp->dev, "HSP_INT_IE(1) < %08x\n", value);
+	tegra_hsp_writel(hsp, value, HSP_INT_IE(1));
 
 	return 0;
 }
 
 static int tegra_hsp_mailbox_shutdown(struct tegra_hsp_mailbox *mb)
 {
-	struct tegra_hsp *hsp = mb->channel.hsp;
+	struct tegra_hsp_channel *channel = &mb->channel;
+	struct tegra_hsp *hsp = channel->hsp;
+	u32 value;
 
-	hsp->soc->ops->mailbox_disable_irq(mb, true, true);
-	hsp->soc->ops->mailbox_unprepare_irq(mb, true, true);
+	tegra_hsp_channel_writel(channel, 0x0, HSP_SM_SHRD_MBOX_EMPTY_INT_IE);
+	tegra_hsp_channel_writel(channel, 0x0, HSP_SM_SHRD_MBOX_FULL_INT_IE);
+
+	value = tegra_hsp_readl(hsp, HSP_INT_IE(1));
+	value &= ~BIT(HSP_INT_EMPTY_SHIFT + mb->index + 8);
+	tegra_hsp_writel(hsp, value, HSP_INT_IE(1));
+
+	value = tegra_hsp_readl(hsp, HSP_INT_IE(0));
+	value &= ~BIT(HSP_INT_FULL_SHIFT + mb->index + 8);
+	tegra_hsp_writel(hsp, value, HSP_INT_IE(0));
 
 	return 0;
 }
@@ -438,7 +450,6 @@ static int tegra_hsp_mailbox_shutdown(struct tegra_hsp_mailbox *mb)
 static int tegra_hsp_send_data(struct mbox_chan *chan, void *data)
 {
 	struct tegra_hsp_channel *channel = chan->con_priv;
-	struct tegra_hsp *hsp = channel->hsp;
 	struct tegra_hsp_mailbox *mailbox;
 	uint32_t value;
 
@@ -451,16 +462,12 @@ static int tegra_hsp_send_data(struct mbox_chan *chan, void *data)
 		mailbox = channel_to_mailbox(channel);
 		mailbox->sending = true;
 
-		/* make the shared mailbox a producer */
-		hsp->soc->ops->mailbox_disable_irq(mailbox, true, false);
-
 		value = *(uint32_t *)data;
 		/* Mark mailbox full */
 		value |= HSP_SM_SHRD_MBOX_FULL;
 
 		tegra_hsp_channel_writel(channel, value, HSP_SM_SHRD_MBOX);
-
-		hsp->soc->ops->mailbox_enable_irq(mailbox, false, true);
+		tegra_hsp_channel_writel(channel, 0x1, HSP_SM_SHRD_MBOX_EMPTY_INT_IE);
 
 		if (chan->txdone_method != TXDONE_BY_IRQ) {
 			unsigned long timeout = jiffies + msecs_to_jiffies(100);
@@ -841,145 +848,12 @@ static const struct tegra_hsp_db_map tegra186_hsp_db_map[] = {
 	{ /* sentinel */ }
 };
 
-static void tegra186_hsp_mailbox_prepare_irq(struct tegra_hsp_mailbox *mb,
-					     bool full, bool empty)
-{
-	struct tegra_hsp *hsp = mb->channel.hsp;
-	u32 value;
-
-	if (empty) {
-		/* route EMPTY interrupt to external IRQ 1 */
-		value = tegra_hsp_readl(hsp, HSP_INT_IE(1));
-		value |= BIT(HSP_INT_EMPTY_SHIFT + mb->index);
-		tegra_hsp_writel(hsp, value, HSP_INT_IE(1));
-	}
-
-	if (full) {
-		/* route FULL interrupt to external IRQ 0 */
-		value = tegra_hsp_readl(hsp, HSP_INT_IE(0));
-		value |= BIT(HSP_INT_FULL_SHIFT + mb->index);
-		tegra_hsp_writel(hsp, value, HSP_INT_IE(0));
-	}
-}
-
-static void tegra186_hsp_mailbox_enable_irq(struct tegra_hsp_mailbox *mb,
-					    bool full, bool empty)
-{
-	struct tegra_hsp_channel *channel = &mb->channel;
-
-	if (empty)
-		tegra_hsp_channel_writel(channel, 1, HSP_SM_SHRD_MBOX_EMPTY_INT_IE);
-
-	if (full)
-		tegra_hsp_channel_writel(channel, 1, HSP_SM_SHRD_MBOX_FULL_INT_IE);
-}
-
-static void tegra186_hsp_mailbox_disable_irq(struct tegra_hsp_mailbox *mb,
-					     bool full, bool empty)
-{
-	struct tegra_hsp_channel *channel = &mb->channel;
-
-	if (empty)
-		tegra_hsp_channel_writel(channel, 0, HSP_SM_SHRD_MBOX_EMPTY_INT_IE);
-
-	if (full)
-		tegra_hsp_channel_writel(channel, 0, HSP_SM_SHRD_MBOX_FULL_INT_IE);
-}
-
-static void tegra186_hsp_mailbox_unprepare_irq(struct tegra_hsp_mailbox *mb,
-					       bool full, bool empty)
-{
-	struct tegra_hsp *hsp = mb->channel.hsp;
-	u32 value;
-
-	if (empty) {
-		value = tegra_hsp_readl(hsp, HSP_INT_IE(1));
-		value &= ~BIT(HSP_INT_EMPTY_SHIFT + mb->index);
-		tegra_hsp_writel(hsp, value, HSP_INT_IE(1));
-	}
-
-	if (full) {
-		value = tegra_hsp_readl(hsp, HSP_INT_IE(0));
-		value &= ~BIT(HSP_INT_FULL_SHIFT + mb->index);
-		tegra_hsp_writel(hsp, value, HSP_INT_IE(0));
-	}
-}
-
-static const struct tegra_hsp_ops tegra186_hsp_ops = {
-	.mailbox_prepare_irq = tegra186_hsp_mailbox_prepare_irq,
-	.mailbox_enable_irq = tegra186_hsp_mailbox_enable_irq,
-	.mailbox_disable_irq = tegra186_hsp_mailbox_disable_irq,
-	.mailbox_unprepare_irq = tegra186_hsp_mailbox_unprepare_irq,
-};
-
 static const struct tegra_hsp_soc tegra186_hsp_soc = {
 	.map = tegra186_hsp_db_map,
-	.ops = &tegra186_hsp_ops,
-};
-
-static void tegra186_hsp_aon_mailbox_prepare_irq(struct tegra_hsp_mailbox *mb,
-						 bool full, bool empty)
-{
-}
-
-static void tegra186_hsp_aon_mailbox_enable_irq(struct tegra_hsp_mailbox *mb,
-						bool full, bool empty)
-{
-	struct tegra_hsp *hsp = mb->channel.hsp;
-	u32 value;
-
-	if (empty) {
-		value = tegra_hsp_readl(hsp, HSP_INT_IE(1));
-		value |= BIT(HSP_INT_EMPTY_SHIFT + mb->index);
-		tegra_hsp_writel(hsp, value, HSP_INT_IE(1));
-	}
-
-	if (full) {
-		value = tegra_hsp_readl(hsp, HSP_INT_IE(0));
-		value |= BIT(HSP_INT_FULL_SHIFT + mb->index);
-		tegra_hsp_writel(hsp, value, HSP_INT_IE(0));
-	}
-}
-
-static void tegra186_hsp_aon_mailbox_disable_irq(struct tegra_hsp_mailbox *mb,
-						 bool full, bool empty)
-{
-	struct tegra_hsp *hsp = mb->channel.hsp;
-	u32 value;
-
-	if (empty) {
-		value = tegra_hsp_readl(hsp, HSP_INT_IE(1));
-		value &= ~BIT(HSP_INT_EMPTY_SHIFT + mb->index);
-		tegra_hsp_writel(hsp, value, HSP_INT_IE(1));
-	}
-
-	if (full) {
-		value = tegra_hsp_readl(hsp, HSP_INT_IE(0));
-		value &= ~BIT(HSP_INT_FULL_SHIFT + mb->index);
-		tegra_hsp_writel(hsp, value, HSP_INT_IE(0));
-	}
-}
-
-static void tegra186_hsp_aon_mailbox_unprepare_irq(struct tegra_hsp_mailbox *mb,
-						   bool full, bool empty)
-{
-}
-
-static const struct tegra_hsp_ops tegra186_hsp_aon_ops = {
-	.mailbox_prepare_irq = tegra186_hsp_aon_mailbox_prepare_irq,
-	.mailbox_enable_irq = tegra186_hsp_aon_mailbox_enable_irq,
-	.mailbox_disable_irq = tegra186_hsp_aon_mailbox_disable_irq,
-	.mailbox_unprepare_irq = tegra186_hsp_aon_mailbox_unprepare_irq,
-};
-
-static const struct tegra_hsp_soc tegra186_hsp_aon_soc = {
-	.map = tegra186_hsp_db_map,
-	.ops = &tegra186_hsp_aon_ops,
 };
 
 static const struct of_device_id tegra_hsp_match[] = {
 	{ .compatible = "nvidia,tegra186-hsp", .data = &tegra186_hsp_soc },
-	{ .compatible = "nvidia,tegra186-hsp-aon", .data = &tegra186_hsp_aon_soc },
 	{ }
 };
 
