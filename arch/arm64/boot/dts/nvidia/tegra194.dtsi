@@ -364,7 +364,7 @@
 			             <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>,
 			             <GIC_SPI 135 IRQ_TYPE_LEVEL_HIGH>,
 			             <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "shared0", "shared1", "shared2", "shared3";
+			interrupt-names = "shared1", "shared2", "shared3", "shared4";
 			#mbox-cells = <2>;
 		};
 

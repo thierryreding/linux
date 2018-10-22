@@ -26,6 +26,7 @@ static struct uart_port tegra_tcu_uart_port;
 struct tegra_tcu {
 	struct mbox_client tx_client, rx_client;
 	struct mbox_chan *tx, *rx;
+	u32 value;
 };
 
 static unsigned int tegra_tcu_uart_tx_empty(struct uart_port *port)
@@ -55,19 +56,23 @@ static void tegra_tcu_write(const char *s, unsigned int count)
 
 	while (i < count) {
 		if (insert_nl) {
+			pr_info("injecting \\n\n");
 			value |= TCU_MBOX_BYTE(written++, '\n');
 			insert_nl = false;
 			i++;
 		} else if (s[i] == '\n') {
+			pr_info("injecting \\r\n");
 			value |= TCU_MBOX_BYTE(written++, '\r');
 			insert_nl = true;
 		} else {
+			pr_info("adding '%c'\n", s[i]);
 			value |= TCU_MBOX_BYTE(written++, s[i++]);
 		}
 
 		if (written == 3) {
 			value |= TCU_MBOX_NUM_BYTES(3);
-			mbox_send_message(tcu->tx, &value);
+			pr_info("sending %08x\n", value);
+			mbox_send_message(tcu->tx, value);
 			value = 0;
 			written = 0;
 		}
@@ -75,7 +80,8 @@ static void tegra_tcu_write(const char *s, unsigned int count)
 
 	if (written) {
 		value |= TCU_MBOX_NUM_BYTES(written);
-		mbox_send_message(tcu->tx, &value);
+		pr_info("sending %08x\n", value);
+		mbox_send_message(tcu->tx, value);
 	}
 }
 
