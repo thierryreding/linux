@@ -267,6 +267,14 @@ int mbox_send_message(struct mbox_chan *chan, void *mssg)
 		unsigned long wait;
 		int ret;
 
+		if (irqs_disabled() && chan->mbox->ops->flush) {
+			ret = chan->mbox->ops->flush(chan, chan->cl->tx_tout);
+			if (ret < 0)
+				tx_tick(chan, ret);
+
+			return ret;
+		}
+
 		if (!chan->cl->tx_tout) /* wait forever */
 			wait = msecs_to_jiffies(3600000);
 		else
