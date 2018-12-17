@@ -30,6 +30,11 @@
 
 #include <soc/tegra/pmc.h>
 
+#include <media/media-device.h>
+#include <media/v4l2-device.h>
+#include <media/v4l2-ioctl.h>
+#include <media/v4l2-mem2mem.h>
+
 #include <drm/drm_fourcc.h>
 
 #include "uapi.h"
@@ -102,6 +107,11 @@ struct tegra_vde {
 	struct iova_domain iova;
 	unsigned long limit;
 	unsigned int shift;
+
+	struct video_device video;
+	struct media_device mdev;
+	struct v4l2_device v4l2;
+	struct v4l2_m2m_dev *m2m;
 };
 
 static __maybe_unused char const *
@@ -1293,6 +1303,22 @@ static int tegra_vde_runtime_resume(struct device *dev)
 	return 0;
 }
 
+static const struct v4l2_file_operations tegra_vde_v4l2_fops = {
+};
+
+static const struct v4l2_ioctl_ops tegra_vde_ioctl_ops = {
+};
+
+static void tegra_vde_release(struct video_device *vdev)
+{
+}
+
+static const struct v4l2_m2m_ops tegra_vde_m2m_ops = {
+};
+
+static const struct media_device_ops tegra_vde_media_ops = {
+};
+
 static int tegra_vde_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1496,6 +1522,57 @@ static int tegra_vde_probe(struct platform_device *pdev)
 		goto detach;
 	}
 
+	snprintf(vde->video.name, sizeof(vde->video.name), "tegra-vde");
+	vde->video.vfl_dir = VFL_DIR_M2M;
+	vde->video.fops = &tegra_vde_v4l2_fops;
+	vde->video.ioctl_ops = &tegra_vde_ioctl_ops;
+	vde->video.minor = -1;
+	vde->video.release = tegra_vde_release;
+	vde->video.device_caps = V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING;
+	vde->video.lock = &vde->lock;
+	vde->video.v4l2_dev = &vde->v4l2;
+
+	err = v4l2_device_register(dev, &vde->v4l2);
+	if (err < 0) {
+		dev_err(dev, "failed to register V4L2 device: %d\n", err);
+		goto err_misc_unreg;
+	}
+
+	video_set_drvdata(&vde->video, vde);
+
+	vde->m2m = v4l2_m2m_init(&tegra_vde_m2m_ops);
+	if (IS_ERR(vde->m2m)) {
+		err = PTR_ERR(vde->m2m);
+		v4l2_err(&vde->v4l2, "failed to initialize M2M device: %d\n", err);
+		goto unregister_v4l2_device;
+	}
+
+	snprintf(vde->mdev.model, sizeof(vde->mdev.model), "tegra-vde");
+	vde->mdev.dev = dev;
+
+	media_device_init(&vde->mdev);
+	vde->mdev.ops = &tegra_vde_media_ops;
+	vde->v4l2.mdev = &vde->mdev;
+
+	err = v4l2_m2m_register_media_controller(vde->m2m, &vde->video,
+						 MEDIA_ENT_F_PROC_VIDEO_DECODER);
+	if (err < 0) {
+		v4l2_err(&vde->v4l2, "failed to register M2M media controller: %d\n", err);
+		goto release_m2m;
+	}
+
+	err = video_register_device(&vde->video, VFL_TYPE_GRABBER, 0);
+	if (err < 0) {
+		v4l2_err(&vde->v4l2, "failed to register video device: %d\n", err);
+		goto unregister_media_controller;
+	}
+
+	err = media_device_register(&vde->mdev);
+	if (err < 0) {
+		v4l2_err(&vde->v4l2, "failed to register media device: %d\n", err);
+		goto unregister_video_device;
+	}
+
 	pm_runtime_enable(dev);
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_set_autosuspend_delay(dev, 300);
@@ -1503,11 +1580,21 @@ static int tegra_vde_probe(struct platform_device *pdev)
 	if (!pm_runtime_enabled(dev)) {
 		err = tegra_vde_runtime_resume(dev);
 		if (err)
-			goto err_misc_unreg;
+			goto unregister_media_device;
 	}
 
 	return 0;
 
+unregister_media_device:
+	media_device_unregister(&vde->mdev);
+unregister_video_device:
+	video_unregister_device(&vde->video);
+unregister_media_controller:
+	v4l2_m2m_unregister_media_controller(vde->m2m);
+release_m2m:
+	v4l2_m2m_release(vde->m2m);
+unregister_v4l2_device:
+	v4l2_device_unregister(&vde->v4l2);
 err_misc_unreg:
 	misc_deregister(&vde->miscdev);
 
@@ -1546,6 +1633,12 @@ static int tegra_vde_remove(struct platform_device *pdev)
 
 	pm_runtime_dont_use_autosuspend(dev);
 	pm_runtime_disable(dev);
+
+	media_device_unregister(&vde->mdev);
+	video_unregister_device(&vde->video);
+	v4l2_m2m_unregister_media_controller(vde->m2m);
+	v4l2_m2m_release(vde->m2m);
+	v4l2_device_unregister(&vde->v4l2);
 
 	misc_deregister(&vde->miscdev);
 
