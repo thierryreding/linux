@@ -790,7 +790,12 @@ static int tegra_vde_attach_dmabuf(struct tegra_vde *vde,
 		struct iova *iova;
 		dma_addr_t addr;
 
-		size = (dmabuf->size - offset) >> vde->shift;
+		/*
+		 * This is suboptimal. Ideally we'd only map each DMA-BUF once
+		 * and then reuse the IOVA and only add the offset into that
+		 * buffer so that mappings can be reused.
+		 */
+		size = dmabuf->size >> vde->shift;
 
 		iova = alloc_iova(&vde->iova, size, vde->limit - 1, true);
 		if (!iova) {
@@ -808,7 +813,7 @@ static int tegra_vde_attach_dmabuf(struct tegra_vde *vde,
 			goto err_unmap;
 		}
 
-		*addrp = addr;
+		*addrp = addr + offset;
 		*iovap = iova;
 	} else {
 		*addrp = sg_dma_address(sgt->sgl) + offset;
