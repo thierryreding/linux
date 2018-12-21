@@ -677,16 +677,20 @@ int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
 
 	fill_buf_caps(q, &create->capabilities);
 	create->index = q->num_buffers;
-	if (create->count == 0)
+	if (create->count == 0) {
+		pr_info("%s(): q->num_buffers: %u\n", __func__, q->num_buffers);
 		return ret != -EBUSY ? ret : 0;
+	}
 
 	switch (f->type) {
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE:
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE:
 		requested_planes = f->fmt.pix_mp.num_planes;
 		if (requested_planes == 0 ||
-		    requested_planes > VIDEO_MAX_PLANES)
+		    requested_planes > VIDEO_MAX_PLANES) {
+			pr_info("invalid number of requested planes: %u\n", requested_planes);
 			return -EINVAL;
+		}
 		for (i = 0; i < requested_planes; i++)
 			requested_sizes[i] =
 				f->fmt.pix_mp.plane_fmt[i].sizeimage;
@@ -715,9 +719,12 @@ int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
 	default:
 		return -EINVAL;
 	}
-	for (i = 0; i < requested_planes; i++)
-		if (requested_sizes[i] == 0)
+	for (i = 0; i < requested_planes; i++) {
+		if (requested_sizes[i] == 0) {
+			pr_info("%s(): requested_sizes[i]: %u\n", __func__, requested_sizes[i]);
 			return -EINVAL;
+		}
+	}
 	return ret ? ret : vb2_core_create_bufs(q, create->memory,
 		&create->count, requested_planes, requested_sizes);
 }

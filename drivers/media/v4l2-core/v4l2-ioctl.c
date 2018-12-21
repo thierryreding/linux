@@ -1952,14 +1952,18 @@ static int v4l_create_bufs(const struct v4l2_ioctl_ops *ops,
 	struct v4l2_create_buffers *create = arg;
 	int ret = check_fmt(file, create->format.type);
 
-	if (ret)
+	if (ret) {
+		pr_info("%s(): format check failed\n", __func__);
 		return ret;
+	}
 
 	CLEAR_AFTER_FIELD(create, capabilities);
 
 	v4l_sanitize_format(&create->format);
 
 	ret = ops->vidioc_create_bufs(file, fh, create);
+	if (ret < 0)
+		pr_info("vidioc_create_bufs() (%ps) failed: %d\n", ops->vidioc_create_bufs, ret);
 
 	if (create->format.type == V4L2_BUF_TYPE_VIDEO_CAPTURE ||
 	    create->format.type == V4L2_BUF_TYPE_VIDEO_OUTPUT)

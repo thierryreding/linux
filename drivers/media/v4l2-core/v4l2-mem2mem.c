@@ -538,6 +538,7 @@ int v4l2_m2m_create_bufs(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 	struct vb2_queue *vq;
 
 	vq = v4l2_m2m_get_vq(m2m_ctx, create->format.type);
+	pr_info("%s(): vq: %px\n", __func__, vq);
 	return vb2_create_bufs(vq, create);
 }
 EXPORT_SYMBOL_GPL(v4l2_m2m_create_bufs);

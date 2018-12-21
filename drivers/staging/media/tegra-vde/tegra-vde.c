@@ -36,6 +36,7 @@
 #include <media/v4l2-event.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-mem2mem.h>
+#include <media/videobuf2-dma-contig.h>
 
 #include <drm/drm_fourcc.h>
 
@@ -125,6 +126,10 @@ struct tegra_vde_context {
 
 	struct v4l2_pix_format src_fmt;
 	struct v4l2_pix_format dst_fmt;
+};
+
+struct tegra_vde_buffer {
+	struct v4l2_m2m_buffer base;
 };
 
 static __maybe_unused char const *
@@ -1321,15 +1326,128 @@ static int tegra_vde_runtime_resume(struct device *dev)
 	return 0;
 }
 
+static int tegra_vde_queue_setup(struct vb2_queue *vq, unsigned int *nbufs,
+				 unsigned int *nplanes, unsigned int sizes[],
+				 struct device *alloc_devs[])
+{
+	int err = 0;
+
+	pr_info("> %s(vq=%px, nbufs=%px, nplanes=%px, sizes=%px, alloc_devs=%px)\n",
+		__func__, vq, nbufs, nplanes, sizes, alloc_devs);
+
+	pr_info("< %s() = %d\n", __func__, err);
+	return err;
+}
+
+static int tegra_vde_buffer_prepare(struct vb2_buffer *vb)
+{
+	int err = 0;
+	pr_info("> %s(vb=%px)\n", __func__, vb);
+	pr_info("< %s() = %d\n", __func__, err);
+	return err;
+}
+
+static int tegra_vde_buffer_init(struct vb2_buffer *vb)
+{
+	int err = 0;
+	pr_info("> %s(vb=%px)\n", __func__, vb);
+	pr_info("< %s() = %d\n", __func__, err);
+	return err;
+}
+
+static void tegra_vde_buffer_cleanup(struct vb2_buffer *vb)
+{
+	pr_info("> %s(vb=%px)\n", __func__, vb);
+	pr_info("< %s()\n", __func__);
+}
+
+static void tegra_vde_buffer_queue(struct vb2_buffer *vb)
+{
+	pr_info("> %s(vb=%px)\n", __func__, vb);
+	pr_info("< %s()\n", __func__);
+}
+
+static void tegra_vde_buffer_request_complete(struct vb2_buffer *vb)
+{
+	struct tegra_vde_context *context = vb2_get_drv_priv(vb->vb2_queue);
+
+	pr_info("> %s(vb=%px)\n", __func__, vb);
+
+	v4l2_ctrl_request_complete(vb->req_obj.req, &context->handler);
+
+	pr_info("< %s()\n", __func__);
+}
+
+static int tegra_vde_start_streaming(struct vb2_queue *vq, unsigned int count)
+{
+	int err = 0;
+	pr_info("> %s(vq=%px, count=%u)\n", __func__, vq, count);
+	pr_info("< %s() = %d\n", __func__, err);
+	return err;
+}
+
+static void tegra_vde_stop_streaming(struct vb2_queue *vq)
+{
+	pr_info("> %s(vq=%px)\n", __func__, vq);
+	pr_info("< %s()\n", __func__);
+}
+
+static struct vb2_ops tegra_vde_queue_ops = {
+	.queue_setup = tegra_vde_queue_setup,
+	.buf_prepare = tegra_vde_buffer_prepare,
+	.buf_init = tegra_vde_buffer_init,
+	.buf_cleanup = tegra_vde_buffer_cleanup,
+	.buf_queue = tegra_vde_buffer_queue,
+	.buf_request_complete = tegra_vde_buffer_request_complete,
+	.start_streaming = tegra_vde_start_streaming,
+	.stop_streaming = tegra_vde_stop_streaming,
+	.wait_prepare = vb2_ops_wait_prepare,
+	.wait_finish = vb2_ops_wait_finish,
+};
+
 static int tegra_vde_queue_init(void *priv, struct vb2_queue *src,
 				struct vb2_queue *dst)
 {
+	struct tegra_vde_context *context = priv;
 	int err = 0;
 
 	pr_info("> %s(priv=%px, src=%px, dst=%px)\n", __func__, priv, src, dst);
 
-	pr_info("< %s()\n", __func__);
+	src->type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
+	src->io_modes = VB2_MMAP | VB2_DMABUF;
+	src->drv_priv = context;
+	src->buf_struct_size = sizeof(struct tegra_vde_buffer);
+	src->min_buffers_needed = 1;
+	src->ops = &tegra_vde_queue_ops;
+	src->mem_ops = &vb2_dma_contig_memops;
+	src->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
+	src->lock = &context->vde->lock;
+	src->dev = context->vde->dev;
+	src->supports_requests = true;
 
+	err = vb2_queue_init(src);
+	if (err < 0)
+		goto out;
+
+	dst->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	dst->io_modes = VB2_MMAP | VB2_DMABUF;
+	dst->drv_priv = context;
+	dst->buf_struct_size = sizeof(struct tegra_vde_buffer);
+	dst->min_buffers_needed = 1;
+	dst->ops = &tegra_vde_queue_ops;
+	dst->mem_ops = &vb2_dma_contig_memops;
+	dst->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
+	dst->lock = &context->vde->lock;
+	dst->dev = context->vde->dev;
+
+	err = vb2_queue_init(dst);
+	if (err < 0)
+		goto out;
+
+	return 0;
+
+out:
+	pr_info("< %s()\n", __func__);
 	return err;
 }
 
@@ -1554,11 +1672,37 @@ static int tegra_vde_g_fmt_vid_cap(struct file *file, void *fh,
 				   struct v4l2_format *fmt)
 {
 	struct tegra_vde_context *context = container_of(file->private_data, struct tegra_vde_context, fh);
+	unsigned int i;
 	int err = 0;
 
 	pr_info("> %s(file=%px, fh=%px, fmt=%px)\n", __func__, file, fh, fmt);
 	pr_info("  context: %px fh: %px\n", context, &context->fh);
 	pr_info("  type: %u\n", fmt->type);
+
+	if (fmt->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
+		fmt->fmt.pix_mp.width = 32;
+		fmt->fmt.pix_mp.height = 32;
+		fmt->fmt.pix_mp.pixelformat = V4L2_PIX_FMT_YUV420;
+		fmt->fmt.pix_mp.field = 0;
+		fmt->fmt.pix_mp.colorspace = 0;
+
+		for (i = 0; i < 3; i++) {
+			fmt->fmt.pix_mp.plane_fmt[i].sizeimage = 32 * 32;
+			fmt->fmt.pix_mp.plane_fmt[i].bytesperline = 32;
+
+			if (i == 1 || i == 2) {
+				fmt->fmt.pix_mp.plane_fmt[i].sizeimage /= 4;
+				fmt->fmt.pix_mp.plane_fmt[i].bytesperline /= 2;
+			}
+		}
+
+		fmt->fmt.pix_mp.num_planes = 3;
+		fmt->fmt.pix_mp.ycbcr_enc = 0;
+		fmt->fmt.pix_mp.quantization = 0;
+		fmt->fmt.pix_mp.xfer_func = 0;
+
+		goto out;
+	}
 
 	if (!context->dst_fmt.width || !context->dst_fmt.height) {
 		fmt->fmt.pix.pixelformat = V4L2_PIX_FMT_YUV420;
@@ -1591,9 +1735,18 @@ static int tegra_vde_try_fmt_vid_cap(struct file *file, void *fh,
 static int tegra_vde_s_fmt_vid_cap(struct file *file, void *fh,
 				   struct v4l2_format *fmt)
 {
-	int err = -EINVAL;
+	int err = 0;
 
 	pr_info("> %s(file=%px, fh=%px, fmt=%px)\n", __func__, file, fh, fmt);
+
+	switch (fmt->fmt.pix.pixelformat) {
+	case V4L2_PIX_FMT_YUV420:
+		break;
+
+	default:
+		err = -EINVAL;
+		break;
+	}
 
 	pr_info("< %s() = %d\n", __func__, err);
 
@@ -1626,7 +1779,7 @@ static int tegra_vde_g_fmt_vid_out(struct file *file, void *fh,
 				   struct v4l2_format *fmt)
 {
 	struct tegra_vde_context *context = container_of(file->private_data, struct tegra_vde_context, fh);
-	int err = -EINVAL;
+	int err = 0;
 
 	pr_info("> %s(file=%px, fh=%px, fmt=%px)\n", __func__, file, fh, fmt);
 	pr_info("  context: %px fh: %px\n", context, &context->fh);
@@ -1664,9 +1817,18 @@ static int tegra_vde_try_fmt_vid_out(struct file *file, void *fh,
 static int tegra_vde_s_fmt_vid_out(struct file *file, void *fh,
 				   struct v4l2_format *fmt)
 {
-	int err = -EINVAL;
+	int err = 0;
 
 	pr_info("> %s(file=%px, fh=%px, fmt=%px)\n", __func__, file, fh, fmt);
+
+	switch (fmt->fmt.pix.pixelformat) {
+	case V4L2_PIX_FMT_H264:
+		break;
+
+	default:
+		err = -EINVAL;
+		break;
+	}
 
 	pr_info("< %s() = %d\n", __func__, err);
 
@@ -1680,6 +1842,11 @@ static const struct v4l2_ioctl_ops tegra_vde_ioctl_ops = {
 	.vidioc_g_fmt_vid_cap = tegra_vde_g_fmt_vid_cap,
 	.vidioc_try_fmt_vid_cap = tegra_vde_try_fmt_vid_cap,
 	.vidioc_s_fmt_vid_cap = tegra_vde_s_fmt_vid_cap,
+
+	.vidioc_enum_fmt_vid_cap_mplane = tegra_vde_enum_fmt_vid_cap,
+	.vidioc_g_fmt_vid_cap_mplane = tegra_vde_g_fmt_vid_cap,
+	.vidioc_try_fmt_vid_cap_mplane = tegra_vde_try_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap_mplane = tegra_vde_s_fmt_vid_cap,
 
 	.vidioc_enum_fmt_vid_out = tegra_vde_enum_fmt_vid_out,
 	.vidioc_g_fmt_vid_out = tegra_vde_g_fmt_vid_out,
@@ -1923,7 +2090,7 @@ static int tegra_vde_probe(struct platform_device *pdev)
 	vde->video.ioctl_ops = &tegra_vde_ioctl_ops;
 	vde->video.minor = -1;
 	vde->video.release = video_device_release_empty;
-	vde->video.device_caps = V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING;
+	vde->video.device_caps = V4L2_CAP_VIDEO_M2M | V4L2_CAP_VIDEO_M2M_MPLANE | V4L2_CAP_STREAMING;
 	vde->video.lock = &vde->lock;
 	vde->video.v4l2_dev = &vde->v4l2;
 
