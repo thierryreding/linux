@@ -1643,16 +1643,17 @@
 		dvddio-pex-supply = <&avddio_1v05>;
 		hvddio-pex-supply = <&pp1800>;
 		avdd-usb-supply = <&pp3300>;
-		avdd-pll-utmip-supply = <&pp1800>;
-		avdd-pll-uerefe-supply = <&pp1050_avdd>;
-		dvdd-pex-pll-supply = <&avddio_1v05>;
-		hvdd-pex-pll-e-supply = <&pp1800>;
 
 		status = "okay";
 	};
 
 	padctl@7009f000 {
 		status = "okay";
+
+		avdd-pll-utmip-supply = <&pp1800>;
+		avdd-pll-uerefe-supply = <&pp1050_avdd>;
+		dvdd-pex-pll-supply = <&avddio_1v05>;
+		hvdd-pex-pll-e-supply = <&pp1800>;
 
 		pads {
 			usb2 {
