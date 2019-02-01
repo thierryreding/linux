@@ -19,6 +19,7 @@
 
 #include <asm/cacheflush.h>
 #include <linux/device.h>
+#include <linux/dma-direct.h>
 #include <linux/dma-mapping.h>
 #include <linux/host1x.h>
 #include <linux/interrupt.h>
@@ -80,6 +81,7 @@ static void host1x_pushbuffer_destroy(struct push_buffer *pb)
  */
 static int host1x_pushbuffer_init(struct push_buffer *pb)
 {
+	unsigned long attrs = DMA_ATTR_WRITE_COMBINE;
 	struct host1x_cdma *cdma = pb_to_cdma(pb);
 	struct host1x *host1x = cdma_to_host1x(cdma);
 	struct iova *alloc;
@@ -101,8 +103,8 @@ static int host1x_pushbuffer_init(struct push_buffer *pb)
 
 		size = iova_align(&host1x->iova, size);
 
-		pb->mapped = dma_alloc_wc(host1x->dev, size, &pb->phys,
-					  GFP_KERNEL);
+		pb->mapped = dma_direct_alloc(host1x->dev, size, &pb->phys,
+					      GFP_KERNEL, attrs);
 		if (!pb->mapped)
 			return -ENOMEM;
 
@@ -137,7 +139,10 @@ static int host1x_pushbuffer_init(struct push_buffer *pb)
 iommu_free_iova:
 	__free_iova(&host1x->iova, alloc);
 iommu_free_mem:
-	dma_free_wc(host1x->dev, size, pb->mapped, pb->phys);
+	if (host1x->domain)
+		dma_direct_free(host1x->dev, size, pb->mapped, pb->phys, attrs);
+	else
+		dma_free_wc(host1x->dev, size, pb->mapped, pb->phys);
 
 	return err;
 }
