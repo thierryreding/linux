@@ -29,10 +29,6 @@
 #include <trace/events/host1x.h>
 #undef CREATE_TRACE_POINTS
 
-#if IS_ENABLED(CONFIG_ARM_DMA_USE_IOMMU)
-#include <asm/dma-iommu.h>
-#endif
-
 #include "bus.h"
 #include "channel.h"
 #include "debug.h"
@@ -275,63 +271,12 @@ static int host1x_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get reset: %d\n", err);
 		return err;
 	}
-#if IS_ENABLED(CONFIG_ARM_DMA_USE_IOMMU)
-	if (host->dev->archdata.mapping) {
-		struct dma_iommu_mapping *mapping =
-				to_dma_iommu_mapping(host->dev);
-		arm_iommu_detach_device(host->dev);
-		arm_iommu_release_mapping(mapping);
-	}
-#endif
-	if (IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL))
-		goto skip_iommu;
 
-	host->group = iommu_group_get(&pdev->dev);
-	if (host->group) {
-		struct iommu_domain_geometry *geometry;
-		u64 mask = dma_get_mask(host->dev);
-		dma_addr_t start, end;
-		unsigned long order;
-
-		err = iova_cache_get();
-		if (err < 0)
-			goto put_group;
-
-		host->domain = iommu_domain_alloc(&platform_bus_type);
-		if (!host->domain) {
-			err = -ENOMEM;
-			goto put_cache;
-		}
-
-		err = iommu_attach_group(host->domain, host->group);
-		if (err) {
-			if (err == -ENODEV) {
-				iommu_domain_free(host->domain);
-				host->domain = NULL;
-				iova_cache_put();
-				iommu_group_put(host->group);
-				host->group = NULL;
-				goto skip_iommu;
-			}
-
-			goto fail_free_domain;
-		}
-
-		geometry = &host->domain->geometry;
-		start = geometry->aperture_start & mask;
-		end = geometry->aperture_end & mask;
-
-		order = __ffs(host->domain->pgsize_bitmap);
-		init_iova_domain(&host->iova, 1UL << order, start >> order);
-		host->iova_end = end;
-	}
-
-skip_iommu:
 	err = host1x_channel_list_init(&host->channel_list,
 				       host->info->nb_channels);
 	if (err) {
 		dev_err(&pdev->dev, "failed to initialize channel list\n");
-		goto fail_detach_device;
+		return err;
 	}
 
 	err = clk_prepare_enable(host->clk);
@@ -379,19 +324,6 @@ fail_unprepare_disable:
 	clk_disable_unprepare(host->clk);
 fail_free_channels:
 	host1x_channel_list_free(&host->channel_list);
-fail_detach_device:
-	if (host->group && host->domain) {
-		put_iova_domain(&host->iova);
-		iommu_detach_group(host->domain, host->group);
-	}
-fail_free_domain:
-	if (host->domain)
-		iommu_domain_free(host->domain);
-put_cache:
-	if (host->group)
-		iova_cache_put();
-put_group:
-	iommu_group_put(host->group);
 
 	return err;
 }
@@ -405,14 +337,6 @@ static int host1x_remove(struct platform_device *pdev)
 	host1x_syncpt_deinit(host);
 	reset_control_assert(host->rst);
 	clk_disable_unprepare(host->clk);
-
-	if (host->domain) {
-		put_iova_domain(&host->iova);
-		iommu_detach_group(host->domain, host->group);
-		iommu_domain_free(host->domain);
-		iova_cache_put();
-		iommu_group_put(host->group);
-	}
 
 	return 0;
 }

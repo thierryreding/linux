@@ -65,11 +65,6 @@ static void host1x_pushbuffer_destroy(struct push_buffer *pb)
 	if (!pb->mapped)
 		return;
 
-	if (host1x->domain) {
-		iommu_unmap(host1x->domain, pb->dma, pb->alloc_size);
-		free_iova(&host1x->iova, iova_pfn(&host1x->iova, pb->dma));
-	}
-
 	dma_free_wc(host1x->dev, pb->alloc_size, pb->mapped, pb->phys);
 
 	pb->mapped = NULL;
@@ -81,70 +76,26 @@ static void host1x_pushbuffer_destroy(struct push_buffer *pb)
  */
 static int host1x_pushbuffer_init(struct push_buffer *pb)
 {
-	unsigned long attrs = DMA_ATTR_WRITE_COMBINE;
 	struct host1x_cdma *cdma = pb_to_cdma(pb);
 	struct host1x *host1x = cdma_to_host1x(cdma);
-	struct iova *alloc;
-	u32 size;
-	int err;
 
 	pb->mapped = NULL;
 	pb->phys = 0;
 	pb->size = HOST1X_PUSHBUFFER_SLOTS * 8;
-
-	size = pb->size + 4;
+	pb->alloc_size = pb->size + 4;
 
 	/* initialize buffer pointers */
 	pb->fence = pb->size - 8;
 	pb->pos = 0;
 
-	if (host1x->domain) {
-		unsigned long shift;
-
-		size = iova_align(&host1x->iova, size);
-
-		pb->mapped = dma_direct_alloc(host1x->dev, size, &pb->phys,
-					      GFP_KERNEL, attrs);
-		if (!pb->mapped)
-			return -ENOMEM;
-
-		shift = iova_shift(&host1x->iova);
-		alloc = alloc_iova(&host1x->iova, size >> shift,
-				   host1x->iova_end >> shift, true);
-		if (!alloc) {
-			err = -ENOMEM;
-			goto iommu_free_mem;
-		}
-
-		pb->dma = iova_dma_addr(&host1x->iova, alloc);
-		err = iommu_map(host1x->domain, pb->dma, pb->phys, size,
-				IOMMU_READ);
-		if (err)
-			goto iommu_free_iova;
-	} else {
-		pb->mapped = dma_alloc_wc(host1x->dev, size, &pb->phys,
-					  GFP_KERNEL);
-		if (!pb->mapped)
-			return -ENOMEM;
-
-		pb->dma = pb->phys;
-	}
-
-	pb->alloc_size = size;
+	pb->mapped = dma_alloc_wc(host1x->dev, pb->alloc_size, &pb->phys,
+				  GFP_KERNEL);
+	if (!pb->mapped)
+		return -ENOMEM;
 
 	host1x_hw_pushbuffer_init(host1x, pb);
 
 	return 0;
-
-iommu_free_iova:
-	__free_iova(&host1x->iova, alloc);
-iommu_free_mem:
-	if (host1x->domain)
-		dma_direct_free(host1x->dev, size, pb->mapped, pb->phys, attrs);
-	else
-		dma_free_wc(host1x->dev, size, pb->mapped, pb->phys);
-
-	return err;
 }
 
 /*

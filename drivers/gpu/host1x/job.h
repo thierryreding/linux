@@ -36,7 +36,6 @@ struct host1x_job_unpin_data {
 	struct host1x_bo *bo;
 	struct sg_table *sgt;
 	struct device *dev;
-	size_t size;
 };
 
 /*

@@ -65,7 +65,7 @@ static void cdma_start(struct host1x_cdma *cdma)
 		return;
 
 	cdma->last_pos = cdma->push_buffer.pos;
-	start = cdma->push_buffer.dma;
+	start = cdma->push_buffer.phys;
 	end = cdma->push_buffer.size + 4;
 
 	host1x_ch_writel(ch, HOST1X_CHANNEL_DMACTRL_DMASTOP,
@@ -116,7 +116,7 @@ static void cdma_timeout_restart(struct host1x_cdma *cdma, u32 getptr)
 	host1x_ch_writel(ch, HOST1X_CHANNEL_DMACTRL_DMASTOP,
 			 HOST1X_CHANNEL_DMACTRL);
 
-	start = cdma->push_buffer.dma;
+	start = cdma->push_buffer.phys;
 	end = cdma->push_buffer.size + 4;
 
 	/* set base, end pointer (all of memory) */

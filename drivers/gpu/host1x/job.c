@@ -206,13 +206,7 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 
 	for (i = 0; i < job->num_gathers; i++) {
 		struct host1x_job_gather *g = &job->gathers[i];
-		size_t gather_size = 0;
-		struct scatterlist *sg;
 		struct sg_table *sgt;
-		dma_addr_t phys_addr;
-		unsigned long shift;
-		struct iova *alloc;
-		unsigned int j;
 
 		g->bo = host1x_bo_get(g->bo);
 		if (!g->bo) {
@@ -226,45 +220,17 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 			goto unpin;
 		}
 
-		if (!IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL) && host->domain) {
-			for_each_sg(sgt->sgl, sg, sgt->nents, j)
-				gather_size += sg->length;
-			gather_size = iova_align(&host->iova, gather_size);
-
-			shift = iova_shift(&host->iova);
-			alloc = alloc_iova(&host->iova, gather_size >> shift,
-					   host->iova_end >> shift, true);
-			if (!alloc) {
-				err = -ENOMEM;
-				goto unpin;
-			}
-
-			err = iommu_map_sg(host->domain,
-					iova_dma_addr(&host->iova, alloc),
-					sgt->sgl, sgt->nents, IOMMU_READ);
-			if (err == 0) {
-				__free_iova(&host->iova, alloc);
-				err = -EINVAL;
-				goto unpin;
-			}
-
-			job->unpins[job->num_unpins].size = gather_size;
-			phys_addr = iova_dma_addr(&host->iova, alloc);
-		} else {
-			err = dma_map_sg(host->dev, sgt->sgl, sgt->nents,
-					 DMA_TO_DEVICE);
-			if (!err) {
-				err = -ENOMEM;
-				goto unpin;
-			}
-
-			job->unpins[job->num_unpins].dev = job->client->dev;
-			phys_addr = sg_dma_address(sgt->sgl);
+		err = dma_map_sg(host->dev, sgt->sgl, sgt->nents,
+				 DMA_TO_DEVICE);
+		if (!err) {
+			err = -ENOMEM;
+			goto unpin;
 		}
 
-		job->addr_phys[job->num_unpins] = phys_addr;
-		job->gather_addr_phys[i] = phys_addr;
+		job->addr_phys[job->num_unpins] = sg_dma_address(sgt->sgl);
+		job->gather_addr_phys[i] = job->addr_phys[job->num_unpins];
 
+		job->unpins[job->num_unpins].dev = host->dev;
 		job->unpins[job->num_unpins].bo = g->bo;
 		job->unpins[job->num_unpins].sgt = sgt;
 		job->num_unpins++;
@@ -711,14 +677,6 @@ void host1x_job_unpin(struct host1x_job *job)
 		struct host1x_job_unpin_data *unpin = &job->unpins[i];
 		struct device *dev = unpin->dev ?: host->dev;
 		struct sg_table *sgt = unpin->sgt;
-
-		if (!IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL) &&
-		    unpin->size && host->domain) {
-			iommu_unmap(host->domain, job->addr_phys[i],
-				    unpin->size);
-			free_iova(&host->iova,
-				iova_pfn(&host->iova, job->addr_phys[i]));
-		}
 
 		if (unpin->dev && sgt)
 			dma_unmap_sg(unpin->dev, sgt->sgl, sgt->nents,
