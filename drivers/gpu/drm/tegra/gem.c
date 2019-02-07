@@ -27,16 +27,18 @@ static void tegra_bo_put(struct host1x_bo *bo)
 	drm_gem_object_put_unlocked(&obj->gem);
 }
 
-static dma_addr_t tegra_bo_pin(struct host1x_bo *bo, struct sg_table **sgt)
+static struct sg_table *tegra_bo_pin(struct device *dev, struct host1x_bo *bo,
+				     dma_addr_t *phys)
 {
 	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
 
-	*sgt = obj->sgt;
+	if (phys)
+		*phys = obj->iova;
 
-	return obj->iova;
+	return obj->sgt;
 }
 
-static void tegra_bo_unpin(struct host1x_bo *bo, struct sg_table *sgt)
+static void tegra_bo_unpin(struct device *dev, struct sg_table *sgt)
 {
 }
 
