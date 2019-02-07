@@ -31,15 +31,39 @@ static struct sg_table *tegra_bo_pin(struct device *dev, struct host1x_bo *bo,
 				     dma_addr_t *phys)
 {
 	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
+	struct sg_table *sgt;
+	int err;
 
 	if (phys)
 		*phys = obj->iova;
 
-	return obj->sgt;
+	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
+	if (!sgt)
+		return ERR_PTR(-ENOMEM);
+
+	if (obj->pages) {
+		err = sg_alloc_table_from_pages(sgt, obj->pages, obj->num_pages,
+						0, obj->gem.size, GFP_KERNEL);
+		if (err < 0)
+			goto free;
+	} else {
+		err = dma_get_sgtable(dev, sgt, obj->vaddr, obj->paddr,
+				      obj->gem.size);
+		if (err < 0)
+			goto free;
+	}
+
+	return sgt;
+
+free:
+	kfree(sgt);
+	return ERR_PTR(err);
 }
 
 static void tegra_bo_unpin(struct device *dev, struct sg_table *sgt)
 {
+	sg_free_table(sgt);
+	kfree(sgt);
 }
 
 static void *tegra_bo_mmap(struct host1x_bo *bo)
