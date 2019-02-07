@@ -167,7 +167,11 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 	unsigned int i;
 	int err;
 
+	dev_info(host->dev, "> %s(host=%px, job=%px)\n", __func__, host, job);
+
 	job->num_unpins = 0;
+
+	dev_info(host->dev, "  performing %u relocations:\n", job->num_relocs);
 
 	for (i = 0; i < job->num_relocs; i++) {
 		struct host1x_reloc *reloc = &job->relocs[i];
@@ -186,6 +190,8 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 			goto unpin;
 		}
 
+		dev_info(host->dev, "    %u: sgt: %px\n", i, sgt);
+
 		if (sgt) {
 			err = dma_map_sg(job->client->dev, sgt->sgl,
 					 sgt->nents, DMA_TO_DEVICE);
@@ -198,11 +204,15 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 			phys_addr = sg_dma_address(sgt->sgl);
 		}
 
+		dev_info(host->dev, "      phys: %pad\n", &phys_addr);
+
 		job->addr_phys[job->num_unpins] = phys_addr;
 		job->unpins[job->num_unpins].bo = reloc->target.bo;
 		job->unpins[job->num_unpins].sgt = sgt;
 		job->num_unpins++;
 	}
+
+	dev_info(host->dev, "  pinning %u gathers:\n", job->num_gathers);
 
 	for (i = 0; i < job->num_gathers; i++) {
 		struct host1x_job_gather *g = &job->gathers[i];
@@ -220,6 +230,8 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 			goto unpin;
 		}
 
+		dev_info(host->dev, "    %u: sgt: %px\n", i, sgt);
+
 		err = dma_map_sg(host->dev, sgt->sgl, sgt->nents,
 				 DMA_TO_DEVICE);
 		if (!err) {
@@ -230,16 +242,20 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 		job->addr_phys[job->num_unpins] = sg_dma_address(sgt->sgl);
 		job->gather_addr_phys[i] = job->addr_phys[job->num_unpins];
 
+		dev_info(host->dev, "      phys: %pad\n", &job->addr_phys[job->num_unpins]);
+
 		job->unpins[job->num_unpins].dev = host->dev;
 		job->unpins[job->num_unpins].bo = g->bo;
 		job->unpins[job->num_unpins].sgt = sgt;
 		job->num_unpins++;
 	}
 
+	dev_info(host->dev, "< %s()\n", __func__);
 	return 0;
 
 unpin:
 	host1x_job_unpin(job);
+	dev_info(host->dev, "< %s() = %d\n", __func__, err);
 	return err;
 }
 
@@ -673,10 +689,16 @@ void host1x_job_unpin(struct host1x_job *job)
 	struct host1x *host = dev_get_drvdata(job->channel->dev->parent);
 	unsigned int i;
 
+	dev_info(host->dev, "> %s(job=%px)\n", __func__, job);
+	dev_info(host->dev, "  unpinning %u buffers:\n", job->num_unpins);
+
 	for (i = 0; i < job->num_unpins; i++) {
 		struct host1x_job_unpin_data *unpin = &job->unpins[i];
 		struct device *dev = unpin->dev ?: host->dev;
 		struct sg_table *sgt = unpin->sgt;
+
+		dev_info(host->dev, "    %u: sgt: %px\n", i, sgt);
+		dev_info(host->dev, "      dev: %s\n", dev_name(dev));
 
 		if (unpin->dev && sgt)
 			dma_unmap_sg(unpin->dev, sgt->sgl, sgt->nents,
@@ -691,6 +713,8 @@ void host1x_job_unpin(struct host1x_job *job)
 	if (job->gather_copy_size)
 		dma_free_wc(job->channel->dev, job->gather_copy_size,
 			    job->gather_copy_mapped, job->gather_copy);
+
+	dev_info(host->dev, "< %s()\n", __func__);
 }
 EXPORT_SYMBOL(host1x_job_unpin);
 
