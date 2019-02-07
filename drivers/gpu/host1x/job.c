@@ -186,6 +186,18 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 			goto unpin;
 		}
 
+		if (sgt) {
+			err = dma_map_sg(job->client->dev, sgt->sgl,
+					 sgt->nents, DMA_TO_DEVICE);
+			if (!err) {
+				err = -ENOMEM;
+				goto unpin;
+			}
+
+			job->unpins[job->num_unpins].dev = job->client->dev;
+			phys_addr = sg_dma_address(sgt->sgl);
+		}
+
 		job->addr_phys[job->num_unpins] = phys_addr;
 		job->unpins[job->num_unpins].bo = reloc->target.bo;
 		job->unpins[job->num_unpins].sgt = sgt;
@@ -208,7 +220,7 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 			goto unpin;
 		}
 
-		sgt = host1x_bo_pin(host->dev, g->bo, &phys_addr);
+		sgt = host1x_bo_pin(host->dev, g->bo, NULL);
 		if (IS_ERR(sgt)) {
 			err = PTR_ERR(sgt);
 			goto unpin;
@@ -236,14 +248,22 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 				goto unpin;
 			}
 
-			job->addr_phys[job->num_unpins] =
-				iova_dma_addr(&host->iova, alloc);
 			job->unpins[job->num_unpins].size = gather_size;
+			phys_addr = iova_dma_addr(&host->iova, alloc);
 		} else {
-			job->addr_phys[job->num_unpins] = phys_addr;
+			err = dma_map_sg(host->dev, sgt->sgl, sgt->nents,
+					 DMA_TO_DEVICE);
+			if (!err) {
+				err = -ENOMEM;
+				goto unpin;
+			}
+
+			job->unpins[job->num_unpins].dev = job->client->dev;
+			phys_addr = sg_dma_address(sgt->sgl);
 		}
 
-		job->gather_addr_phys[i] = job->addr_phys[job->num_unpins];
+		job->addr_phys[job->num_unpins] = phys_addr;
+		job->gather_addr_phys[i] = phys_addr;
 
 		job->unpins[job->num_unpins].bo = g->bo;
 		job->unpins[job->num_unpins].sgt = sgt;
@@ -689,6 +709,8 @@ void host1x_job_unpin(struct host1x_job *job)
 
 	for (i = 0; i < job->num_unpins; i++) {
 		struct host1x_job_unpin_data *unpin = &job->unpins[i];
+		struct device *dev = unpin->dev ?: host->dev;
+		struct sg_table *sgt = unpin->sgt;
 
 		if (!IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL) &&
 		    unpin->size && host->domain) {
@@ -698,7 +720,11 @@ void host1x_job_unpin(struct host1x_job *job)
 				iova_pfn(&host->iova, job->addr_phys[i]));
 		}
 
-		host1x_bo_unpin(host->dev, unpin->bo, unpin->sgt);
+		if (unpin->dev && sgt)
+			dma_unmap_sg(unpin->dev, sgt->sgl, sgt->nents,
+				     DMA_TO_DEVICE);
+
+		host1x_bo_unpin(dev, unpin->bo, sgt);
 		host1x_bo_put(unpin->bo);
 	}
 
