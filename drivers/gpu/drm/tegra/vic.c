@@ -36,6 +36,7 @@ struct vic {
 	void __iomem *regs;
 	struct tegra_drm_client client;
 	struct host1x_channel *channel;
+	struct iommu_domain *domain;
 	struct device *dev;
 	struct clk *clk;
 	struct reset_control *rst;
@@ -163,13 +164,17 @@ static int vic_boot(struct vic *vic)
 static void *vic_falcon_alloc(struct falcon *falcon, size_t size,
 			      dma_addr_t *iova)
 {
-	return dma_alloc_coherent(falcon->dev, size, iova, GFP_KERNEL);
+	struct tegra_drm *tegra = falcon->data;
+
+	return tegra_drm_alloc(tegra, size, iova);
 }
 
 static void vic_falcon_free(struct falcon *falcon, size_t size,
 			    dma_addr_t iova, void *va)
 {
-	dma_free_coherent(falcon->dev, size, va, iova);
+	struct tegra_drm *tegra = falcon->data;
+
+	return tegra_drm_free(tegra, size, va, iova);
 }
 
 static const struct falcon_ops vic_falcon_ops = {
@@ -180,14 +185,28 @@ static const struct falcon_ops vic_falcon_ops = {
 static int vic_init(struct host1x_client *client)
 {
 	struct tegra_drm_client *drm = host1x_to_drm_client(client);
+	struct iommu_group *group = iommu_group_get(client->dev);
 	struct drm_device *dev = dev_get_drvdata(client->parent);
 	struct tegra_drm *tegra = dev->dev_private;
 	struct vic *vic = to_vic(drm);
 	int err;
 
+	if (group && tegra->domain) {
+		err = iommu_attach_group(tegra->domain, group);
+		if (err < 0) {
+			dev_err(vic->dev, "failed to attach to domain: %d\n",
+				err);
+			return err;
+		}
+
+		vic->domain = tegra->domain;
+	}
+
 	vic->channel = host1x_channel_request(client);
-	if (!vic->channel)
-		return -ENOMEM;
+	if (!vic->channel) {
+		err = -ENOMEM;
+		goto detach;
+	}
 
 	client->syncpts[0] = host1x_syncpt_request(client, 0);
 	if (!client->syncpts[0]) {
@@ -205,6 +224,9 @@ free_syncpt:
 	host1x_syncpt_free(client->syncpts[0]);
 free_channel:
 	host1x_channel_put(vic->channel);
+detach:
+	if (group && tegra->domain)
+		iommu_detach_group(tegra->domain, group);
 
 	return err;
 }
@@ -212,6 +234,7 @@ free_channel:
 static int vic_exit(struct host1x_client *client)
 {
 	struct tegra_drm_client *drm = host1x_to_drm_client(client);
+	struct iommu_group *group = iommu_group_get(client->dev);
 	struct drm_device *dev = dev_get_drvdata(client->parent);
 	struct tegra_drm *tegra = dev->dev_private;
 	struct vic *vic = to_vic(drm);
@@ -223,6 +246,11 @@ static int vic_exit(struct host1x_client *client)
 
 	host1x_syncpt_free(client->syncpts[0]);
 	host1x_channel_put(vic->channel);
+
+	if (vic->domain) {
+		iommu_detach_group(vic->domain, group);
+		vic->domain = NULL;
+	}
 
 	return 0;
 }
