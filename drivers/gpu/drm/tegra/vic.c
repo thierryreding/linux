@@ -254,10 +254,15 @@ static int vic_load_firmware(struct vic *vic)
 
 	size = vic->falcon.firmware.size;
 
-	if (!client->group)
+	if (!client->group) {
 		virt = dma_alloc_coherent(vic->dev, size, &phys, GFP_KERNEL);
-	else
+
+		err = dma_mapping_error(vic->dev, phys);
+		if (err < 0)
+			return err;
+	} else {
 		virt = tegra_drm_alloc(tegra, size, &phys);
+	}
 
 	vic->falcon.firmware.vaddr = virt;
 	vic->falcon.firmware.paddr = phys;
