@@ -164,7 +164,8 @@ EXPORT_SYMBOL(host1x_job_add_gather);
 
 static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 {
-	struct device *dev = job->client->dev;
+	struct host1x_client *client = job->client;
+	struct device *dev = client->dev;
 	unsigned int i;
 	int err;
 
@@ -176,8 +177,8 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 
 	for (i = 0; i < job->num_relocs; i++) {
 		struct host1x_reloc *reloc = &job->relocs[i];
+		dma_addr_t phys_addr, *phys;
 		struct sg_table *sgt;
-		dma_addr_t phys_addr;
 
 		reloc->target.bo = host1x_bo_get(reloc->target.bo);
 		if (!reloc->target.bo) {
@@ -185,7 +186,12 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 			goto unpin;
 		}
 
-		sgt = host1x_bo_pin(dev, reloc->target.bo, &phys_addr);
+		if (client->group)
+			phys = &phys_addr;
+		else
+			phys = NULL;
+
+		sgt = host1x_bo_pin(dev, reloc->target.bo, phys);
 		if (IS_ERR(sgt)) {
 			err = PTR_ERR(sgt);
 			goto unpin;
