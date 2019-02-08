@@ -194,14 +194,14 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 		dev_info(host->dev, "    %u: sgt: %px\n", i, sgt);
 
 		if (sgt) {
-			err = dma_map_sg(job->client->dev, sgt->sgl,
-					 sgt->nents, DMA_TO_DEVICE);
+			err = dma_map_sg(dev, sgt->sgl, sgt->nents,
+					 DMA_TO_DEVICE);
 			if (!err) {
 				err = -ENOMEM;
 				goto unpin;
 			}
 
-			job->unpins[job->num_unpins].dev = job->client->dev;
+			job->unpins[job->num_unpins].dev = dev;
 			phys_addr = sg_dma_address(sgt->sgl);
 		}
 
