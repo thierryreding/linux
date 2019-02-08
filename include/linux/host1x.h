@@ -31,6 +31,7 @@ enum host1x_class {
 };
 
 struct host1x_client;
+struct iommu_group;
 
 /**
  * struct host1x_client_ops - host1x client operations
@@ -57,6 +58,7 @@ struct host1x_client {
 	struct list_head list;
 	struct device *parent;
 	struct device *dev;
+	struct iommu_group *group;
 
 	const struct host1x_client_ops *ops;
 

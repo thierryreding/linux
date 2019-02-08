@@ -36,7 +36,6 @@ struct vic {
 	void __iomem *regs;
 	struct tegra_drm_client client;
 	struct host1x_channel *channel;
-	struct iommu_group *group;
 	struct device *dev;
 	struct clk *clk;
 	struct reset_control *rst;
@@ -169,9 +168,8 @@ static int vic_init(struct host1x_client *client)
 	struct vic *vic = to_vic(drm);
 	int err;
 
-	vic->group = host1x_client_iommu_attach(client, false);
-	if (IS_ERR(vic->group)) {
-		err = PTR_ERR(vic->group);
+	err = host1x_client_iommu_attach(client, false);
+	if (err < 0) {
 		dev_err(vic->dev, "failed to attach to domain: %d\n", err);
 		return err;
 	}
@@ -199,7 +197,7 @@ free_syncpt:
 free_channel:
 	host1x_channel_put(vic->channel);
 detach:
-	host1x_client_iommu_detach(client, vic->group);
+	host1x_client_iommu_detach(client);
 
 	return err;
 }
@@ -216,14 +214,14 @@ static int vic_exit(struct host1x_client *client)
 	if (err < 0)
 		return err;
 
+	host1x_client_iommu_detach(client);
 	host1x_syncpt_free(client->syncpts[0]);
 	host1x_channel_put(vic->channel);
 
-	if (vic->group) {
+	if (client->group) {
 		tegra_drm_free(tegra, vic->falcon.firmware.size,
 			       vic->falcon.firmware.vaddr,
 			       vic->falcon.firmware.paddr);
-		host1x_client_iommu_detach(client, vic->group);
 	} else {
 		dma_free_coherent(vic->dev, vic->falcon.firmware.size,
 				  vic->falcon.firmware.vaddr,
@@ -240,6 +238,7 @@ static const struct host1x_client_ops vic_client_ops = {
 
 static int vic_load_firmware(struct vic *vic)
 {
+	struct host1x_client *client = &vic->client.base;
 	struct tegra_drm *tegra = vic->client.drm;
 	dma_addr_t phys;
 	size_t size;
@@ -255,7 +254,7 @@ static int vic_load_firmware(struct vic *vic)
 
 	size = vic->falcon.firmware.size;
 
-	if (!vic->group)
+	if (!client->group)
 		virt = dma_alloc_coherent(vic->dev, size, &phys, GFP_KERNEL);
 	else
 		virt = tegra_drm_alloc(tegra, size, &phys);
@@ -272,7 +271,7 @@ static int vic_load_firmware(struct vic *vic)
 	 * need to make sure to get the physical address so that the DMA API
 	 * knows what memory pages to flush the cache for.
 	 */
-	if (vic->group) {
+	if (client->group) {
 		phys = dma_map_single(vic->dev, virt, size, DMA_TO_DEVICE);
 
 		err = dma_mapping_error(vic->dev, phys);
@@ -292,13 +291,13 @@ static int vic_load_firmware(struct vic *vic)
 
 	dma_sync_single_for_device(vic->dev, phys, size, DMA_TO_DEVICE);
 
-	if (vic->group)
+	if (client->group)
 		dma_unmap_single(vic->dev, phys, size, DMA_TO_DEVICE);
 
 	return 0;
 
 cleanup:
-	if (!vic->group)
+	if (!client->group)
 		dma_free_coherent(vic->dev, size, virt, phys);
 	else
 		tegra_drm_free(tegra, size, virt, phys);
