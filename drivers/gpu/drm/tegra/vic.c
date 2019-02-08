@@ -119,6 +119,8 @@ static int vic_boot(struct vic *vic)
 		if (spec->num_ids > 0) {
 			value = spec->ids[0] & 0xffff;
 
+			pr_info("programming SID: %08x\n", value);
+
 			vic_writel(vic, value, VIC_THI_STREAMID0);
 			vic_writel(vic, value, VIC_THI_STREAMID1);
 		}

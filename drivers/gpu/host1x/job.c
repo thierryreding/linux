@@ -308,6 +308,7 @@ static int do_relocs(struct host1x_job *job, struct host1x_job_gather *g)
 
 		target = cmdbuf_page_addr + (reloc->cmdbuf.offset & ~PAGE_MASK);
 patch_reloc:
+		pr_info("  patching %08x\n", reloc_addr);
 		*target = reloc_addr;
 	}
 

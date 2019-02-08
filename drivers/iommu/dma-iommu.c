@@ -805,6 +805,8 @@ int iommu_dma_map_sg(struct device *dev, struct scatterlist *sg,
 	if (!iova)
 		goto out_restore_sg;
 
+	pr_info("iova: %#zx bytes @ %pad\n", iova_len, &iova);
+
 	/*
 	 * We'll leave any physical concatenation to the IOMMU driver's
 	 * implementation - it knows better than we do.
