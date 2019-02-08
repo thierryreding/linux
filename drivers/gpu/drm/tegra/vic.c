@@ -409,6 +409,9 @@ static int vic_probe(struct platform_device *pdev)
 	struct vic *vic;
 	int err;
 
+	/* inherit DMA mask from host1x parent */
+	dma_coerce_mask_and_coherent(dev, *dev->parent->dma_mask);
+
 	vic = devm_kzalloc(dev, sizeof(*vic), GFP_KERNEL);
 	if (!vic)
 		return -ENOMEM;
