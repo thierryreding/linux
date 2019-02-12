@@ -19,6 +19,8 @@
 #ifndef __HOST1X_JOB_H
 #define __HOST1X_JOB_H
 
+#include <linux/dma-direction.h>
+
 struct host1x_job_gather {
 	unsigned int words;
 	dma_addr_t base;
@@ -36,6 +38,7 @@ struct host1x_job_unpin_data {
 	struct host1x_bo *bo;
 	struct sg_table *sgt;
 	struct device *dev;
+	enum dma_data_direction dir;
 };
 
 /*
