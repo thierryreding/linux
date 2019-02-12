@@ -172,6 +172,9 @@ int host1x_job_submit(struct host1x_job *job);
  * host1x job
  */
 
+#define HOST1X_RELOC_READ	(1 << 0)
+#define HOST1X_RELOC_WRITE	(1 << 1)
+
 struct host1x_reloc {
 	struct {
 		struct host1x_bo *bo;
@@ -182,6 +185,7 @@ struct host1x_reloc {
 		unsigned long offset;
 	} target;
 	unsigned long shift;
+	unsigned long flags;
 };
 
 struct host1x_job {
