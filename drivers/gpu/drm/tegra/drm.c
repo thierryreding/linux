@@ -308,6 +308,8 @@ host1x_reloc_legacy_copy_from_user(struct host1x_reloc *dest,
 	if (err < 0)
 		return err;
 
+	dest->flags = HOST1X_RELOC_READ | HOST1X_RELOC_WRITE;
+
 	dest->cmdbuf.bo = host1x_bo_lookup(file, cmdbuf);
 	if (!dest->cmdbuf.bo)
 		return -ENOENT;
