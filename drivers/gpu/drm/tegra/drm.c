@@ -530,7 +530,7 @@ static int host1x_reloc_copy_from_user(struct host1x_job *job,
 				       struct host1x_reloc *dest,
 				       struct drm_tegra_reloc __user *src)
 {
-	u32 cmdbuf, target;
+	u32 cmdbuf, target, flags;
 	int err;
 
 	err = get_user(cmdbuf, &src->cmdbuf.index);
@@ -558,6 +558,16 @@ static int host1x_reloc_copy_from_user(struct host1x_job *job,
 	err = get_user(dest->shift, &src->shift);
 	if (err < 0)
 		return err;
+
+	err = get_user(flags, &src->flags);
+	if (err < 0)
+		return err;
+
+	if (flags & DRM_TEGRA_RELOC_READ)
+		dest->flags |= HOST1X_RELOC_READ;
+
+	if (flags & DRM_TEGRA_RELOC_WRITE)
+		dest->flags |= HOST1X_RELOC_WRITE;
 
 	return 0;
 }

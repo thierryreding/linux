@@ -841,7 +841,10 @@ struct drm_tegra_cmdbuf {
 	__u64 fences;
 };
 
-#define DRM_TEGRA_RELOC_FLAGS	(0)
+#define DRM_TEGRA_RELOC_READ	(1 << 0)
+#define DRM_TEGRA_RELOC_WRITE	(1 << 1)
+#define DRM_TEGRA_RELOC_FLAGS	(DRM_TEGRA_RELOC_READ | \
+				 DRM_TEGRA_RELOC_WRITE)
 
 /**
  * struct drm_tegra_reloc - GEM object relocation structure
@@ -895,7 +898,13 @@ struct drm_tegra_reloc {
 	 * @flags:
 	 *
 	 * A bitmask of flags that determine how the GEM object should be
-	 * relocated.
+	 * relocated:
+	 *
+	 * DRM_TEGRA_RELOC_READ
+	 *   The relocated GEM object will be readable by the hardware.
+	 *
+	 * DRM_TEGRA_RELOC_WRITE
+	 *   The relocated GEM object will be writable by the hardware.
 	 */
 	__u32 flags;
 
