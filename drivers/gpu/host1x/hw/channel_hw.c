@@ -243,7 +243,6 @@ static void host1x_channel_set_streamid(struct host1x_channel *channel)
 	struct iommu_fwspec *spec = dev_iommu_fwspec_get(channel->dev->parent);
 	u32 sid = spec ? spec->ids[0] & 0xffff : 0x7f;
 
-	pr_info("setting stream ID: %08x\n", sid);
 	host1x_ch_writel(channel, sid, HOST1X_CHANNEL_SMMU_STREAMID);
 #endif
 }
