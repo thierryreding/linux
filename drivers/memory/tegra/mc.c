@@ -8,6 +8,7 @@
 
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -633,6 +634,8 @@ static int tegra_mc_probe(struct platform_device *pdev)
 	spin_lock_init(&mc->lock);
 	mc->soc = of_device_get_match_data(&pdev->dev);
 	mc->dev = &pdev->dev;
+
+	dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(mc->soc->num_address_bits));
 
 	/* length of MC tick in nanoseconds */
 	mc->tick = 30;
