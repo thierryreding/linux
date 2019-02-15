@@ -917,29 +917,36 @@ static struct iommu_group *tegra_smmu_device_group(struct device *dev)
 
 static void tegra_smmu_get_resv_regions(struct device *dev, struct list_head *list)
 {
-	struct iommu_resv_region *region;
-	struct device_node *target;
-	struct resource res;
+	struct of_phandle_iterator it;
+	int err;
 
 	if (!dev->of_node)
 		return;
 
-	target = of_parse_phandle(dev->of_node, "memory-region", 0);
-	if (!target)
-		return;
+	of_for_each_phandle(&it, err, dev->of_node, "memory-region", NULL, 0) {
+		struct iommu_resv_region *region;
+		struct resource res;
 
-	of_address_to_resource(target, 0, &res);
-	of_node_put(target);
+		err = of_address_to_resource(it.node, 0, &res);
+		if (err < 0) {
+			dev_err(dev, "failed to parse memory region %pOFn: %d\n",
+				it.node, err);
+			continue;
+		}
 
-	region = iommu_alloc_resv_region(res.start, resource_size(&res),
-					 IOMMU_READ, IOMMU_RESV_DIRECT);
-	if (!region)
-		return;
+		region = iommu_alloc_resv_region(res.start, resource_size(&res),
+						 IOMMU_READ | IOMMU_WRITE,
+						 IOMMU_RESV_DIRECT);
+		if (!region)
+			return;
 
-	list_add_tail(&region->list, list);
+		dev_dbg(dev, "reserved region %pR\n", &res);
+		list_add_tail(&region->list, list);
+	}
 }
 
-static void tegra_smmu_put_resv_regions(struct device *dev, struct list_head *list)
+static void tegra_smmu_put_resv_regions(struct device *dev,
+					struct list_head *list)
 {
 	struct iommu_resv_region *entry, *next;
 
@@ -947,7 +954,9 @@ static void tegra_smmu_put_resv_regions(struct device *dev, struct list_head *li
 		kfree(entry);
 }
 
-static void tegra_smmu_apply_resv_region(struct device *dev, struct iommu_domain *domain, struct iommu_resv_region *region)
+static void tegra_smmu_apply_resv_region(struct device *dev,
+					 struct iommu_domain *domain,
+					 struct iommu_resv_region *region)
 {
 	struct tegra_smmu *smmu = dev->archdata.iommu;
 	struct tegra_smmu_as *as = to_smmu_as(domain);
