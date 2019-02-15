@@ -101,8 +101,10 @@ const struct drm_plane_funcs tegra_plane_funcs = {
 int tegra_plane_prepare_fb(struct drm_plane *plane,
 			   struct drm_plane_state *state)
 {
+	struct tegra_dc *dc = to_tegra_dc(state->crtc);
 	struct dma_fence *fence;
 	struct tegra_bo *bo;
+	int err;
 
 	if ((plane->state->fb == state->fb) || !state->fb)
 		return 0;
@@ -112,7 +114,36 @@ int tegra_plane_prepare_fb(struct drm_plane *plane,
 	fence = reservation_object_get_excl_rcu(bo->resv);
 	drm_atomic_set_fence_for_plane(state, fence);
 
+	if (dc) {
+		err = dma_map_sg(dc->dev, bo->sgt->sgl, bo->sgt->nents, DMA_TO_DEVICE);
+		if (err == 0) {
+			dev_err(dc->dev, "failed to map framebuffer\n");
+			return -ENOMEM;
+		}
+
+		/*
+		 * XXX This should probably not overwrite the IOVA here. A
+		 * better solution may be to duplicate the SG table into a
+		 * Tegra-specific subclass of struct drm_framebuffer and
+		 * also keep a separate IOVA there.
+		 */
+		bo->iova = sg_dma_address(bo->sgt->sgl);
+	}
+
 	return 0;
+}
+
+void tegra_plane_cleanup_fb(struct tegra_plane *plane,
+			    struct drm_plane_state *state)
+{
+	struct tegra_dc *dc = to_tegra_dc(state->crtc);
+
+	if (dc) {
+		struct tegra_bo *bo = tegra_fb_get_plane(state->fb, 0);
+
+		dma_unmap_sg(dc->dev, bo->sgt->sgl, bo->sgt->nents,
+			     DMA_TO_DEVICE);
+	}
 }
 
 int tegra_plane_state_add(struct tegra_plane *plane,
