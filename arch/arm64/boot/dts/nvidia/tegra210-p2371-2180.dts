@@ -8,6 +8,16 @@
 	model = "NVIDIA Jetson TX1 Developer Kit";
 	compatible = "nvidia,p2371-2180", "nvidia,tegra210";
 
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		framebuffer: framebuffer@92c9f000 {
+			reg = <0 0x92c9f000 0 0x00800000>;
+		};
+	};
+
 	pcie@1003000 {
 		status = "okay";
 
@@ -35,6 +45,14 @@
 	};
 
 	host1x@50000000 {
+		dc@54200000 {
+			memory-region = <&framebuffer>;
+		};
+
+		dc@54240000 {
+			memory-region = <&framebuffer>;
+		};
+
 		dsi@54300000 {
 			status = "okay";
 
