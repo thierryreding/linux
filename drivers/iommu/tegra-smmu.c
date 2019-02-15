@@ -275,8 +275,9 @@ static struct iommu_domain *tegra_smmu_domain_alloc(unsigned type)
 	struct tegra_smmu_as *as;
 	int ret;
 
-	if (type != IOMMU_DOMAIN_UNMANAGED && type != IOMMU_DOMAIN_DMA &&
-			type != IOMMU_DOMAIN_IDENTITY)
+	if (type != IOMMU_DOMAIN_UNMANAGED &&
+	    type != IOMMU_DOMAIN_DMA &&
+	    type != IOMMU_DOMAIN_IDENTITY)
 		return NULL;
 
 	as = kzalloc(sizeof(*as), GFP_KERNEL);
@@ -285,10 +286,11 @@ static struct iommu_domain *tegra_smmu_domain_alloc(unsigned type)
 
 	as->attr = SMMU_PD_READABLE | SMMU_PD_WRITABLE | SMMU_PD_NONSECURE;
 
-	ret = (type == IOMMU_DOMAIN_DMA) ? iommu_get_dma_cookie(&as->domain) :
-		-ENODEV;
-	if (ret)
-		goto free_as;
+	if (type == IOMMU_DOMAIN_DMA) {
+		ret = iommu_get_dma_cookie(&as->domain);
+		if (ret)
+			goto free_as;
+	}
 
 	as->pd = alloc_page(GFP_KERNEL | __GFP_DMA | __GFP_ZERO);
 	if (!as->pd)
