@@ -65,6 +65,8 @@ nvkm_device_tegra_power_up(struct nvkm_device_tegra *tdev)
 	reset_control_deassert(tdev->rst);
 	udelay(10);
 
+	msleep(50);
+
 	return 0;
 
 err_clamp:
@@ -107,6 +109,7 @@ nvkm_device_tegra_probe_iommu(struct nvkm_device_tegra *tdev)
 #if IS_ENABLED(CONFIG_IOMMU_API)
 	struct device *dev = &tdev->pdev->dev;
 	unsigned long pgsize_bitmap;
+	struct iommu_domain *domain;
 	int ret;
 
 #if IS_ENABLED(CONFIG_ARM_DMA_USE_IOMMU)
@@ -122,6 +125,12 @@ nvkm_device_tegra_probe_iommu(struct nvkm_device_tegra *tdev)
 		return;
 
 	mutex_init(&tdev->iommu.mutex);
+
+	domain = iommu_get_domain_for_dev(dev);
+	if (domain && domain->type == IOMMU_DOMAIN_DMA) {
+		dev_info(dev, "DMA with IOMMU backing, skipping IOMMU initialization\n");
+		return;
+	}
 
 	if (iommu_present(&platform_bus_type)) {
 		tdev->iommu.domain = iommu_domain_alloc(&platform_bus_type);

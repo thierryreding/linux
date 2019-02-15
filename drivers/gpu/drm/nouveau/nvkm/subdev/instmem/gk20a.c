@@ -301,6 +301,10 @@ gk20a_instobj_dtor_dma(struct nvkm_memory *memory)
 	if (unlikely(!node->base.vaddr))
 		goto out;
 
+	/* clear IOMMU bit to unmap pages */
+	if (imem->iommu_bit)
+		node->r.offset &= ~BIT(imem->iommu_bit - imem->iommu_pgshift);
+
 	dma_free_attrs(dev, (u64)node->base.mn->length << PAGE_SHIFT,
 		       node->base.vaddr, node->handle, imem->attrs);
 
@@ -412,6 +416,10 @@ gk20a_instobj_ctor_dma(struct gk20a_instmem *imem, u32 npages, u32 align,
 	node->r.type = 12;
 	node->r.offset = node->handle >> 12;
 	node->r.length = (npages << PAGE_SHIFT) >> 12;
+
+	/* IOMMU bit tells that an adrdess is to be resolved through the IOMMU */
+	if (imem->iommu_bit)
+		node->r.offset |= BIT(imem->iommu_bit - imem->iommu_pgshift);
 
 	node->base.mn = &node->r;
 	return 0;
@@ -594,11 +602,21 @@ gk20a_instmem_new(struct nvkm_device *device, int index,
 
 		nvkm_info(&imem->base.subdev, "using IOMMU\n");
 	} else {
+		struct iommu_domain *domain = iommu_get_domain_for_dev(device->dev);
+
 		imem->attrs = DMA_ATTR_NON_CONSISTENT |
 			      DMA_ATTR_WEAK_ORDERING |
 			      DMA_ATTR_WRITE_COMBINE;
 
-		nvkm_info(&imem->base.subdev, "using DMA API\n");
+		if (domain && domain->type == IOMMU_DOMAIN_DMA) {
+			imem->iommu_bit = tdev->func->iommu_bit;
+			/* XXX parameterize? */
+			imem->iommu_pgshift = PAGE_SHIFT;
+
+			nvkm_info(&imem->base.subdev, "using DMA API with IOMMU backing\n");
+		} else {
+			nvkm_info(&imem->base.subdev, "using DMA API\n");
+		}
 	}
 
 	return 0;
