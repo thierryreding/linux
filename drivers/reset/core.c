@@ -421,7 +421,13 @@ int reset_control_acquire(struct reset_control *rstc)
 {
 	struct reset_control *rc;
 
-	if (!rstc || rstc->acquired)
+	if (!rstc)
+		return 0;
+
+	if (WARN_ON(IS_ERR(rstc)))
+		return -EINVAL;
+
+	if (rstc->acquired)
 		return 0;
 
 	mutex_lock(&reset_list_mutex);
@@ -442,6 +448,9 @@ EXPORT_SYMBOL_GPL(reset_control_acquire);
 
 void reset_control_release(struct reset_control *rstc)
 {
+	if (!rstc || WARN_ON(IS_ERR(rstc)))
+		return;
+
 	rstc->acquired = false;
 }
 EXPORT_SYMBOL_GPL(reset_control_release);
