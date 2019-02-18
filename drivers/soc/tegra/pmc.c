@@ -561,6 +561,12 @@ static int tegra_powergate_power_up(struct tegra_powergate *pg,
 {
 	int err;
 
+	err = reset_control_acquire(pg->reset);
+	if (err < 0) {
+		pr_err("failed to acquire resets: %d\n", err);
+		return err;
+	}
+
 	err = reset_control_assert(pg->reset);
 	if (err)
 		return err;
@@ -589,6 +595,8 @@ static int tegra_powergate_power_up(struct tegra_powergate *pg,
 	if (err)
 		goto powergate_off;
 
+	reset_control_release(pg->reset);
+
 	usleep_range(10, 20);
 
 	if (pg->pmc->soc->needs_mbist_war)
@@ -615,9 +623,15 @@ static int tegra_powergate_power_down(struct tegra_powergate *pg)
 {
 	int err;
 
+	err = reset_control_acquire(pg->reset);
+	if (err < 0) {
+		pr_err("failed to acquire resets: %d\n", err);
+		return err;
+	}
+
 	err = tegra_powergate_enable_clocks(pg);
 	if (err)
-		return err;
+		goto release;
 
 	usleep_range(10, 20);
 
@@ -645,6 +659,9 @@ assert_resets:
 
 disable_clks:
 	tegra_powergate_disable_clocks(pg);
+
+release:
+	reset_control_release(pg->reset);
 
 	return err;
 }
@@ -937,20 +954,31 @@ static int tegra_powergate_of_get_resets(struct tegra_powergate *pg,
 	struct device *dev = pg->pmc->dev;
 	int err;
 
-	pg->reset = of_reset_control_array_get_exclusive(np);
+	pg->reset = of_reset_control_array_get_exclusive_released(np);
 	if (IS_ERR(pg->reset)) {
 		err = PTR_ERR(pg->reset);
 		dev_err(dev, "failed to get device resets: %d\n", err);
 		return err;
 	}
 
-	if (off)
-		err = reset_control_assert(pg->reset);
-	else
-		err = reset_control_deassert(pg->reset);
+	err = reset_control_acquire(pg->reset);
+	if (err < 0) {
+		pr_err("failed to acquire resets: %d\n", err);
+		goto out;
+	}
 
-	if (err)
+	if (off) {
+		err = reset_control_assert(pg->reset);
+	} else {
+		err = reset_control_deassert(pg->reset);
+		reset_control_release(pg->reset);
+	}
+
+out:
+	if (err) {
+		reset_control_release(pg->reset);
 		reset_control_put(pg->reset);
+	}
 
 	return err;
 }
