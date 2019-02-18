@@ -320,7 +320,7 @@ config SERIAL_TEGRA
 	  and better performance.
 
 config SERIAL_TEGRA_TCU
-	tristate "NVIDIA Tegra Combined UART"
+	bool "NVIDIA Tegra Combined UART"
 	depends on ARCH_TEGRA && TEGRA_HSP_MBOX
 	select SERIAL_CORE
 	help
