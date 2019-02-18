@@ -276,7 +276,7 @@ int reset_control_reset(struct reset_control *rstc)
 			return 0;
 	} else {
 		if (!rstc->acquired)
-			return -EINVAL;
+			return -EPERM;
 	}
 
 	ret = rstc->rcdev->ops->reset(rstc->rcdev, rstc->id);
@@ -341,7 +341,7 @@ int reset_control_assert(struct reset_control *rstc)
 			return -ENOTSUPP;
 
 		if (!rstc->acquired)
-			return -EINVAL;
+			return -EPERM;
 	}
 
 	return rstc->rcdev->ops->assert(rstc->rcdev, rstc->id);
@@ -379,7 +379,7 @@ int reset_control_deassert(struct reset_control *rstc)
 			return 0;
 	} else {
 		if (!rstc->acquired)
-			return -EINVAL;
+			return -EPERM;
 	}
 
 	/*
