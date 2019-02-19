@@ -561,12 +561,6 @@ static int tegra_powergate_power_up(struct tegra_powergate *pg,
 {
 	int err;
 
-	err = reset_control_acquire(pg->reset);
-	if (err < 0) {
-		pr_err("failed to acquire resets: %d\n", err);
-		return err;
-	}
-
 	err = reset_control_assert(pg->reset);
 	if (err) {
 		pr_err("failed to assert reset: %d\n", err);
@@ -599,8 +593,6 @@ static int tegra_powergate_power_up(struct tegra_powergate *pg,
 	if (err)
 		goto powergate_off;
 
-	reset_control_release(pg->reset);
-
 	usleep_range(10, 20);
 
 	if (pg->pmc->soc->needs_mbist_war)
@@ -627,15 +619,9 @@ static int tegra_powergate_power_down(struct tegra_powergate *pg)
 {
 	int err;
 
-	err = reset_control_acquire(pg->reset);
-	if (err < 0) {
-		pr_err("failed to acquire resets: %d\n", err);
-		return err;
-	}
-
 	err = tegra_powergate_enable_clocks(pg);
 	if (err)
-		goto release;
+		return err;
 
 	usleep_range(10, 20);
 
@@ -664,9 +650,6 @@ assert_resets:
 disable_clks:
 	tegra_powergate_disable_clocks(pg);
 
-release:
-	reset_control_release(pg->reset);
-
 	return err;
 }
 
@@ -677,10 +660,15 @@ static int tegra_genpd_power_on(struct generic_pm_domain *domain)
 	int err;
 
 	err = tegra_powergate_power_up(pg, true);
-	if (err)
+	if (err) {
 		dev_err(dev, "failed to turn on PM domain %s: %d\n",
 			pg->genpd.name, err);
+		goto out;
+	}
 
+	reset_control_release(pg->reset);
+
+out:
 	return err;
 }
 
@@ -690,10 +678,18 @@ static int tegra_genpd_power_off(struct generic_pm_domain *domain)
 	struct device *dev = pg->pmc->dev;
 	int err;
 
+	err = reset_control_acquire(pg->reset);
+	if (err < 0) {
+		pr_err("failed to acquire resets: %d\n", err);
+		return err;
+	}
+
 	err = tegra_powergate_power_down(pg);
-	if (err)
+	if (err) {
 		dev_err(dev, "failed to turn off PM domain %s: %d\n",
 			pg->genpd.name, err);
+		reset_control_release(pg->reset);
+	}
 
 	return err;
 }

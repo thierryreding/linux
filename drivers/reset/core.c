@@ -368,8 +368,10 @@ int reset_control_assert(struct reset_control *rstc)
 		if (!rstc->rcdev->ops->assert)
 			return -ENOTSUPP;
 
-		if (!rstc->acquired)
+		if (!rstc->acquired) {
+			WARN(1, "reset %u is not acquired\n", rstc->id);
 			return -EPERM;
+		}
 	}
 
 	return rstc->rcdev->ops->assert(rstc->rcdev, rstc->id);
@@ -390,6 +392,8 @@ EXPORT_SYMBOL_GPL(reset_control_assert);
  */
 int reset_control_deassert(struct reset_control *rstc)
 {
+	int err;
+
 	if (!rstc)
 		return 0;
 
@@ -406,8 +410,10 @@ int reset_control_deassert(struct reset_control *rstc)
 		if (atomic_inc_return(&rstc->deassert_count) != 1)
 			return 0;
 	} else {
-		if (!rstc->acquired)
+		if (!rstc->acquired) {
+			WARN(1, "reset %u is not acquired\n", rstc->id);
 			return -EPERM;
+		}
 	}
 
 	/*
@@ -445,6 +451,26 @@ int reset_control_status(struct reset_control *rstc)
 }
 EXPORT_SYMBOL_GPL(reset_control_status);
 
+/**
+ * reset_control_acquire() - acquires a reset control for exclusive use
+ * @rstc: reset control
+ *
+ * This is used to explicitly acquire a reset control for exclusive use. Note
+ * that exclusive resets are requested as acquired by default. In order for a
+ * second consumer to be able to control the reset, the first consumer has to
+ * release it first. Typically the easiest way to achieve this is to call the
+ * reset_control_get_exclusive_released() to obtain an instance of the reset
+ * control. Such reset controls are not acquired by default.
+ *
+ * Consumers implementing shared access to an exclusive reset need to follow
+ * a specific protocol in order to work together. Before consumers can change
+ * a reset they must acquire exclusive access using reset_control_acquire().
+ * After they are done operating the reset, they must release exclusive access
+ * with a call to reset_control_release(). Consumers are not granted exclusive
+ * access to the reset as long as another consumer hasn't released a reset.
+ *
+ * See also: reset_control_release()
+ */
 int reset_control_acquire(struct reset_control *rstc)
 {
 	struct reset_control *rc;
@@ -458,10 +484,12 @@ int reset_control_acquire(struct reset_control *rstc)
 	if (reset_control_is_array(rstc))
 		return reset_control_array_acquire(rstc_to_array(rstc));
 
-	if (rstc->acquired)
-		return 0;
-
 	mutex_lock(&reset_list_mutex);
+
+	if (rstc->acquired) {
+		mutex_unlock(&reset_list_mutex);
+		return 0;
+	}
 
 	list_for_each_entry(rc, &rstc->rcdev->reset_control_head, list) {
 		if (rstc != rc && rstc->id == rc->id) {
@@ -472,11 +500,23 @@ int reset_control_acquire(struct reset_control *rstc)
 		}
 	}
 
+	rstc->acquired = true;
+
 	mutex_unlock(&reset_list_mutex);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(reset_control_acquire);
 
+/**
+ * reset_control_release() - releases exclusive access to a reset control
+ * @rstc: reset control
+ *
+ * Releases exclusive access right to a reset control previously obtained by a
+ * call to reset_control_acquire(). Until a consumer calls this function, no
+ * other consumers will be granted exclusive access.
+ *
+ * See also: reset_control_acquire()
+ */
 void reset_control_release(struct reset_control *rstc)
 {
 	if (!rstc || WARN_ON(IS_ERR(rstc)))
