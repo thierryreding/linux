@@ -561,8 +561,6 @@ static int tegra_powergate_power_up(struct tegra_powergate *pg,
 {
 	int err;
 
-	pr_info("> %s(pg=%px, disable_clocks=%d)\n", __func__, pg, disable_clocks);
-
 	err = reset_control_acquire(pg->reset);
 	if (err < 0) {
 		pr_err("failed to acquire resets: %d\n", err);
@@ -613,7 +611,6 @@ static int tegra_powergate_power_up(struct tegra_powergate *pg,
 	if (disable_clocks)
 		tegra_powergate_disable_clocks(pg);
 
-	pr_info("< %s()\n", __func__);
 	return 0;
 
 disable_clks:
@@ -623,15 +620,12 @@ disable_clks:
 powergate_off:
 	tegra_powergate_set(pg->pmc, pg->id, false);
 
-	pr_info("< %s() = %d\n", __func__, err);
 	return err;
 }
 
 static int tegra_powergate_power_down(struct tegra_powergate *pg)
 {
 	int err;
-
-	pr_info("> %s(pg=%px)\n", __func__, pg);
 
 	err = reset_control_acquire(pg->reset);
 	if (err < 0) {
@@ -659,7 +653,6 @@ static int tegra_powergate_power_down(struct tegra_powergate *pg)
 	if (err)
 		goto assert_resets;
 
-	pr_info("< %s()\n", __func__);
 	return 0;
 
 assert_resets:
@@ -674,7 +667,6 @@ disable_clks:
 release:
 	reset_control_release(pg->reset);
 
-	pr_info("< %s() = %d\n", __func__, err);
 	return err;
 }
 
@@ -684,15 +676,11 @@ static int tegra_genpd_power_on(struct generic_pm_domain *domain)
 	struct device *dev = pg->pmc->dev;
 	int err;
 
-	pr_info("> %s(domain=%px)\n", __func__, domain);
-	pr_info("  name: %s\n", domain->name);
-
 	err = tegra_powergate_power_up(pg, true);
 	if (err)
 		dev_err(dev, "failed to turn on PM domain %s: %d\n",
 			pg->genpd.name, err);
 
-	pr_info("< %s() = %d\n", __func__, err);
 	return err;
 }
 
@@ -702,15 +690,11 @@ static int tegra_genpd_power_off(struct generic_pm_domain *domain)
 	struct device *dev = pg->pmc->dev;
 	int err;
 
-	pr_info("> %s(domain=%px)\n", __func__, domain);
-	pr_info("  name: %s\n", domain->name);
-
 	err = tegra_powergate_power_down(pg);
 	if (err)
 		dev_err(dev, "failed to turn off PM domain %s: %d\n",
 			pg->genpd.name, err);
 
-	pr_info("< %s() = %d\n", __func__, err);
 	return err;
 }
 
@@ -991,6 +975,9 @@ static int tegra_powergate_of_get_resets(struct tegra_powergate *pg,
 		err = reset_control_assert(pg->reset);
 	} else {
 		err = reset_control_deassert(pg->reset);
+		if (err < 0)
+			goto out;
+
 		reset_control_release(pg->reset);
 	}
 
