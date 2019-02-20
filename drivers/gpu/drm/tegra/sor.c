@@ -3117,45 +3117,6 @@ static int tegra_sor_init(struct host1x_client *client)
 		}
 	}
 
-	/*
-	 * XXX: Remove this reset once proper hand-over from firmware to
-	 * kernel is possible.
-	 */
-	if (sor->rst) {
-		err = reset_control_acquire(sor->rst);
-		if (err < 0) {
-			dev_err(sor->dev, "failed to acquire SOR reset: %d\n",
-				err);
-			return err;
-		}
-
-		err = reset_control_assert(sor->rst);
-		if (err < 0) {
-			dev_err(sor->dev, "failed to assert SOR reset: %d\n",
-				err);
-			return err;
-		}
-	}
-
-	err = clk_prepare_enable(sor->clk);
-	if (err < 0) {
-		dev_err(sor->dev, "failed to enable clock: %d\n", err);
-		return err;
-	}
-
-	usleep_range(1000, 3000);
-
-	if (sor->rst) {
-		err = reset_control_deassert(sor->rst);
-		if (err < 0) {
-			dev_err(sor->dev, "failed to deassert SOR reset: %d\n",
-				err);
-			return err;
-		}
-
-		reset_control_release(sor->rst);
-	}
-
 	err = clk_prepare_enable(sor->clk_safe);
 	if (err < 0)
 		return err;
