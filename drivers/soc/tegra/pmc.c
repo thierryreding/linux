@@ -3022,15 +3022,15 @@ static bool __init tegra_pmc_detect_tz_only(struct tegra_pmc *pmc)
 {
 	u32 value, saved;
 
-	saved = readl(pmc->base + pmc->soc->regs->scratch0);
+	saved = readl(pmc->scratch + pmc->soc->regs->scratch0);
 	value = saved ^ 0xffffffff;
 
 	if (value == 0xffffffff)
 		value = 0xdeadbeef;
 
 	/* write pattern and read it back */
-	writel(value, pmc->base + pmc->soc->regs->scratch0);
-	value = readl(pmc->base + pmc->soc->regs->scratch0);
+	writel(value, pmc->scratch + pmc->soc->regs->scratch0);
+	value = readl(pmc->scratch + pmc->soc->regs->scratch0);
 
 	/* if we read all-zeroes, access is restricted to TZ only */
 	if (value == 0) {
@@ -3039,7 +3039,7 @@ static bool __init tegra_pmc_detect_tz_only(struct tegra_pmc *pmc)
 	}
 
 	/* restore original value */
-	writel(saved, pmc->base + pmc->soc->regs->scratch0);
+	writel(saved, pmc->scratch + pmc->soc->regs->scratch0);
 
 	return false;
 }
