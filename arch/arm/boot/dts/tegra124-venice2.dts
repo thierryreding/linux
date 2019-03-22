@@ -911,11 +911,7 @@
 		avddio-pex-supply = <&vdd_1v05_run>;
 		dvddio-pex-supply = <&vdd_1v05_run>;
 		avdd-usb-supply = <&vdd_3v3_lp0>;
-		avdd-pll-utmip-supply = <&vddio_1v8>;
-		avdd-pll-erefe-supply = <&avdd_1v05_run>;
-		avdd-usb-ss-pll-supply = <&vdd_1v05_run>;
 		hvdd-usb-ss-supply = <&vdd_3v3_lp0>;
-		hvdd-usb-ss-pll-e-supply = <&vdd_3v3_lp0>;
 
 		status = "okay";
 	};
