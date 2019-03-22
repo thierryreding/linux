@@ -18,10 +18,7 @@
 	pcie@1003000 {
 		status = "okay";
 		avddio-pex-supply = <&reg_1v05_vdd>;
-		avdd-pex-pll-supply = <&reg_1v05_vdd>;
-		avdd-pll-erefe-supply = <&reg_1v05_avdd>;
 		dvddio-pex-supply = <&reg_1v05_vdd>;
-		hvdd-pex-pll-e-supply = <&reg_module_3v3>;
 		hvdd-pex-supply = <&reg_module_3v3>;
 		vddio-pex-ctl-supply = <&reg_module_3v3>;
 
@@ -1791,12 +1788,8 @@
 		       <&{/padctl@7009f000/pads/pcie/lanes/pcie-0}>;
 		phy-names = "usb2-0", "usb3-1", "usb2-1", "usb2-2", "usb3-0";
 		avddio-pex-supply = <&reg_1v05_vdd>;
-		avdd-pll-erefe-supply = <&reg_1v05_avdd>;
-		avdd-pll-utmip-supply = <&reg_1v8_vddio>;
-		avdd-usb-ss-pll-supply = <&reg_1v05_vdd>;
-		avdd-usb-supply = <&reg_module_3v3>;
 		dvddio-pex-supply = <&reg_1v05_vdd>;
-		hvdd-usb-ss-pll-e-supply = <&reg_module_3v3>;
+		avdd-usb-supply = <&reg_module_3v3>;
 		hvdd-usb-ss-supply = <&reg_module_3v3>;
 	};
 
