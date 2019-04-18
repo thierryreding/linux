@@ -52,6 +52,8 @@
 			ethernet@0,0 {
 				reg = <0x000000 0 0 0 0>;
 				local-mac-address = [ 00 00 00 00 00 00 ];
+				isolate-gpios = <&gpio TEGRA_GPIO(X, 3)
+						       GPIO_ACTIVE_HIGH>;
 			};
 		};
 	};

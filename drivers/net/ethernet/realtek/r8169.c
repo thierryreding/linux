@@ -17,6 +17,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/ethtool.h>
+#include <linux/gpio/consumer.h>
 #include <linux/phy.h>
 #include <linux/if_vlan.h>
 #include <linux/crc32.h>
@@ -656,6 +657,7 @@ struct rtl8169_private {
 	u16 irq_mask;
 	const struct rtl_coalesce_info *coalesce_info;
 	struct clk *clk;
+	struct gpio_desc *isolate;
 
 	struct mdio_ops {
 		void (*write)(struct rtl8169_private *, int, int);
@@ -6696,12 +6698,16 @@ static int rtl8169_suspend(struct device *device)
 	rtl8169_net_suspend(dev);
 	clk_disable_unprepare(tp->clk);
 
+	gpiod_set_value_cansleep(tp->isolate, 0);
+
 	return 0;
 }
 
 static void __rtl8169_resume(struct net_device *dev)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
+
+	gpiod_set_value_cansleep(tp->isolate, 1);
 
 	netif_device_attach(dev);
 
@@ -7133,6 +7139,21 @@ static int rtl_get_ether_clk(struct rtl8169_private *tp)
 	return rc;
 }
 
+static int rtl_get_isolate_gpio(struct rtl8169_private *tp)
+{
+	struct device *dev = tp_to_dev(tp);
+	int rc;
+
+	tp->isolate = devm_gpiod_get_optional(dev, "isolate", GPIOD_OUT_HIGH);
+	if (IS_ERR(tp->isolate)) {
+		rc = PTR_ERR(tp->isolate);
+		dev_err(dev, "failed to get ISOLATEB GPIO: %d\n", rc);
+		return rc;
+	}
+
+	return 0;
+}
+
 static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	const struct rtl_cfg_info *cfg = rtl_cfg_infos + ent->driver_data;
@@ -7157,6 +7178,10 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* Get the *optional* external "ether_clk" used on some boards */
 	rc = rtl_get_ether_clk(tp);
+	if (rc)
+		return rc;
+
+	rc = rtl_get_isolate_gpio(tp);
 	if (rc)
 		return rc;
 
