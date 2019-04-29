@@ -5096,6 +5096,7 @@ static void rtl_hw_start_8168g(struct rtl8169_private *tp)
 	rtl_reset_packet_filter(tp);
 	rtl_eri_write(tp, 0x2f8, ERIAR_MASK_0011, 0x1d8f);
 
+	pr_info("%s(): clearing RXDV_GATEN_EN ...\n", __func__);
 	RTL_W32(tp, MISC, RTL_R32(tp, MISC) & ~RXDV_GATED_EN);
 	RTL_W8(tp, MaxTxPacketSize, EarlySize);
 
@@ -5194,6 +5195,7 @@ static void rtl_hw_start_8168h_1(struct rtl8169_private *tp)
 
 	rtl_eri_write(tp, 0x5f0, ERIAR_MASK_0011, 0x4f87);
 
+	pr_info("%s(): clearing RXDV_GATEN_EN ...\n", __func__);
 	RTL_W32(tp, MISC, RTL_R32(tp, MISC) & ~RXDV_GATED_EN);
 	RTL_W8(tp, MaxTxPacketSize, EarlySize);
 
@@ -5270,6 +5272,7 @@ static void rtl_hw_start_8168ep(struct rtl8169_private *tp)
 
 	rtl_eri_write(tp, 0x5f0, ERIAR_MASK_0011, 0x4f87);
 
+	pr_info("%s(): clearing RXDV_GATEN_EN ...\n", __func__);
 	RTL_W32(tp, MISC, RTL_R32(tp, MISC) & ~RXDV_GATED_EN);
 	RTL_W8(tp, MaxTxPacketSize, EarlySize);
 
@@ -7026,6 +7029,7 @@ static void rtl_hw_init_8168g(struct rtl8169_private *tp)
 
 	tp->ocp_base = OCP_STD_PHY_BASE;
 
+	pr_info("%s(): setting RXDV_GATEN_EN ...\n", __func__);
 	RTL_W32(tp, MISC, RTL_R32(tp, MISC) | RXDV_GATED_EN);
 
 	if (!rtl_udelay_loop_wait_high(tp, &rtl_txcfg_empty_cond, 100, 42))
