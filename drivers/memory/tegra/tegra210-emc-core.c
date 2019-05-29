@@ -79,6 +79,7 @@
 	  _OB_DDLL_LONG_DQ_RANK ## rank ## _BYTE ## byte2 ## _MASK))
 
 static const struct tegra210_emc_sequence *tegra210_emc_sequences[] = {
+	&tegra210_emc_r21021,
 };
 
 static const struct tegra210_emc_table_register_offsets
