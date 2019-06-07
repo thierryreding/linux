@@ -75,6 +75,10 @@
 					   GPIO_ACTIVE_LOW>;
 			nvidia,xbar-cfg = <0 1 2 3 4>;
 		};
+
+		i2c@546c0000 {
+			status = "okay";
+		};
 	};
 
 	gpu@57000000 {
