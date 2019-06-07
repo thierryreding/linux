@@ -921,7 +921,10 @@ static int tegra_xusb_padctl_probe(struct platform_device *pdev)
 	err = devm_regulator_bulk_get(&pdev->dev, padctl->soc->num_supplies,
 				      padctl->supplies);
 	if (err < 0) {
-		dev_err(&pdev->dev, "failed to get regulators: %d\n", err);
+		if (err != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "failed to get regulators: %d\n",
+				err);
+
 		goto remove;
 	}
 
