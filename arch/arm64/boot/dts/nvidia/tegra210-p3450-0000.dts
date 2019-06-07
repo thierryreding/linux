@@ -448,7 +448,7 @@
 
 					usb2-2 {
 						nvidia,function = "xusb";
-						status = "okay";
+						status = "disabled";
 					};
 				};
 			};
@@ -499,15 +499,18 @@
 			usb2-0 {
 				status = "okay";
 				mode = "otg";
+
+				vbus-supply = <&vdd_5v0_sys>;
 			};
 
 			usb2-1 {
 				status = "okay";
 				mode = "host";
+				vbus-supply = <&vdd_hub_3v3>;
 			};
 
 			usb2-2 {
-				status = "okay";
+				status = "disabled";
 				mode = "host";
 			};
 
