@@ -23,10 +23,6 @@
 
 #include "timer-of.h"
 
-#define RTC_SECONDS		0x08
-#define RTC_SHADOW_SECONDS	0x0c
-#define RTC_MILLISECONDS	0x10
-
 #define TIMERUS_CNTR_1US	0x10
 #define TIMERUS_USEC_CFG	0x14
 #define TIMERUS_CNTR_FREEZE	0x4c
@@ -180,34 +176,6 @@ static struct delay_timer tegra_delay_timer = {
 	.freq = TIMER_1MHz,
 };
 #endif
-
-static struct timer_of suspend_rtc_to = {
-	.flags = TIMER_OF_BASE | TIMER_OF_CLOCK,
-};
-
-/*
- * tegra_rtc_read - Reads the Tegra RTC registers
- * Care must be taken that this function is not called while the
- * tegra_rtc driver could be executing to avoid race conditions
- * on the RTC shadow register
- */
-static u64 tegra_rtc_read_ms(struct clocksource *cs)
-{
-	void __iomem *reg_base = timer_of_base(&suspend_rtc_to);
-
-	u32 ms = readl_relaxed(reg_base + RTC_MILLISECONDS);
-	u32 s = readl_relaxed(reg_base + RTC_SHADOW_SECONDS);
-
-	return (u64)s * MSEC_PER_SEC + ms;
-}
-
-static struct clocksource suspend_rtc_clocksource = {
-	.name	= "tegra_suspend_timer",
-	.rating	= 200,
-	.read	= tegra_rtc_read_ms,
-	.mask	= CLOCKSOURCE_MASK(32),
-	.flags	= CLOCK_SOURCE_IS_CONTINUOUS | CLOCK_SOURCE_SUSPEND_NONSTOP,
-};
 
 static inline unsigned int tegra_base_for_cpu(int cpu, bool tegra20)
 {
@@ -402,15 +370,3 @@ static int __init tegra20_init_timer(struct device_node *np)
 	return tegra_init_timer(np, true, rating);
 }
 TIMER_OF_DECLARE(tegra20_timer, "nvidia,tegra20-timer", tegra20_init_timer);
-
-static int __init tegra20_init_rtc(struct device_node *np)
-{
-	int ret;
-
-	ret = timer_of_init(np, &suspend_rtc_to);
-	if (ret)
-		return ret;
-
-	return clocksource_register_hz(&suspend_rtc_clocksource, 1000);
-}
-TIMER_OF_DECLARE(tegra20_rtc, "nvidia,tegra20-rtc", tegra20_init_rtc);

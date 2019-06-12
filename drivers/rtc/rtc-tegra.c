@@ -6,6 +6,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/clocksource.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -52,7 +53,14 @@ struct tegra_rtc_info {
 	struct clk *clk;
 	int irq; /* alarm and periodic IRQ */
 	spinlock_t lock;
+
+	struct clocksource clksrc;
 };
+
+static inline struct tegra_rtc_info *to_tegra_rtc(struct clocksource *clksrc)
+{
+	return container_of(clksrc, struct tegra_rtc_info, clksrc);
+}
 
 /*
  * RTC hardware is busy when it is updating its values over AHB once every
@@ -268,6 +276,17 @@ static const struct rtc_class_ops tegra_rtc_ops = {
 	.alarm_irq_enable = tegra_rtc_alarm_irq_enable,
 };
 
+static u64 tegra_rtc_read_ms(struct clocksource *clksrc)
+{
+	struct tegra_rtc_info *info = to_tegra_rtc(clksrc);
+	u32 ms, s;
+
+	ms = readl_relaxed(info->base + TEGRA_RTC_REG_MILLI_SECONDS);
+	s = readl_relaxed(info->base + TEGRA_RTC_REG_SHADOW_SECONDS);
+
+	return (u64)s * MSEC_PER_SEC + ms;
+}
+
 static const struct of_device_id tegra_rtc_dt_match[] = {
 	{ .compatible = "nvidia,tegra20-rtc", },
 	{}
@@ -333,6 +352,28 @@ static int tegra_rtc_probe(struct platform_device *pdev)
 	if (ret)
 		goto disable_clk;
 
+	/*
+	 * The Tegra RTC is the only reliable clock source that persists
+	 * across an SC7 transition (VDD_CPU and VDD_CORE off) on Tegra210
+	 * and earlier. Starting with Tegra186, the ARM v8 architected timer
+	 * is in an always on power partition and its reference clock keeps
+	 * running during SC7. Therefore, we technically don't need to have
+	 * the RTC register as a clock source on Tegra186 and later, but it
+	 * doesn't hurt either, so we just register it unconditionally here.
+	 */
+	info->clksrc.name = "tegra_rtc";
+	info->clksrc.rating = 200;
+	info->clksrc.read = tegra_rtc_read_ms;
+	info->clksrc.mask = CLOCKSOURCE_MASK(42);
+	info->clksrc.flags = CLOCK_SOURCE_SUSPEND_NONSTOP |
+			     CLOCK_SOURCE_IS_CONTINUOUS;
+
+	ret = clocksource_register_hz(&info->clksrc, 1000);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to register clock source: %d\n", ret);
+		goto disable_clk;
+	}
+
 	dev_notice(&pdev->dev, "Tegra internal Real Time Clock\n");
 
 	return 0;
@@ -346,6 +387,7 @@ static void tegra_rtc_remove(struct platform_device *pdev)
 {
 	struct tegra_rtc_info *info = platform_get_drvdata(pdev);
 
+	clocksource_unregister(&info->clksrc);
 	clk_disable_unprepare(info->clk);
 }
 
