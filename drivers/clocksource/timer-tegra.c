@@ -335,7 +335,7 @@ static int __init tegra_init_timer(struct device_node *np, bool tegra20,
 	sched_clock_register(tegra_read_sched_clock, 32, TIMER_1MHz);
 
 	ret = clocksource_mmio_init(timer_reg_base + TIMERUS_CNTR_1US,
-				    "timer_us", TIMER_1MHz, 300, 32,
+				    "timer_us", TIMER_1MHz, rating, 32,
 				    clocksource_mmio_readl_up);
 	if (ret)
 		pr_err("failed to register clocksource: %d\n", ret);
