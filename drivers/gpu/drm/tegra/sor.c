@@ -2909,6 +2909,8 @@ static void tegra_sor_dp_disable(struct drm_encoder *encoder)
 	u32 value;
 	int err;
 
+	tegra_sor_audio_unprepare(sor);
+
 	err = drm_dp_link_power_down(sor->aux, &sor->link.base);
 	if (err < 0)
 		dev_err(sor->dev, "failed to power down link: %d\n", err);
@@ -3123,6 +3125,8 @@ static void tegra_sor_dp_enable(struct drm_encoder *encoder)
 	err = tegra_sor_wakeup(sor);
 	if (err < 0)
 		dev_err(sor->dev, "failed to wakeup SOR: %d\n", err);
+
+	tegra_sor_audio_prepare(sor);
 }
 
 static const struct drm_encoder_helper_funcs tegra_sor_dp_helpers = {
@@ -3389,10 +3393,38 @@ static int tegra_sor_dp_remove(struct tegra_sor *sor)
 	return 0;
 }
 
+static void tegra_sor_dp_audio_enable(struct tegra_sor *sor)
+{
+	u32 value;
+
+	tegra_sor_audio_enable(sor);
+
+	/*
+	 * The SOR_DP_AUDIO_HBLANK_SYMBOLS and SOR_DP_AUDIO_VBLANK_SYMBOLS
+	 * registers are written as part of tegra_sor_apply_config().
+	 */
+
+	value = SOR_DP_AUDIO_CTRL_NEW_SETTINGS | SOR_DP_AUDIO_CTRL_CA_SELECT |
+		SOR_DP_AUDIO_CTRL_SS_SELECT | SOR_DP_AUDIO_CTRL_SF_SELECT |
+		SOR_DP_AUDIO_CTRL_CC_SELECT | SOR_DP_AUDIO_CTRL_CT_SELECT |
+		SOR_DP_AUDIO_CTRL_ENABLE;
+	tegra_sor_writel(sor, value, SOR_DP_AUDIO_CTRL);
+
+	value = tegra_sor_readl(sor, SOR_DP_OUTPUT_CHANNEL_STATUS2);
+	value &= ~SOR_DP_OUTPUT_CHANNEL_STATUS2_ENABLE;
+	tegra_sor_writel(sor, value, SOR_DP_OUTPUT_CHANNEL_STATUS2);
+}
+
+static void tegra_sor_dp_audio_disable(struct tegra_sor *sor)
+{
+}
+
 static const struct tegra_sor_ops tegra_sor_dp_ops = {
 	.name = "DP",
 	.probe = tegra_sor_dp_probe,
 	.remove = tegra_sor_dp_remove,
+	.audio_enable = tegra_sor_dp_audio_enable,
+	.audio_disable = tegra_sor_dp_audio_disable,
 };
 
 static const u8 tegra124_sor_xbar_cfg[5] = {
