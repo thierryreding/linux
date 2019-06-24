@@ -64,6 +64,16 @@
 			status = "okay";
 		};
 
+		sor@54540000 {
+			status = "okay";
+
+			avdd-io-hdmi-dp-supply = <&avdd_1v05>;
+			vdd-hdmi-dp-pll = <&vdd_1v8>;
+
+			nvidia,xbar-cfg = <2 1 0 3 4>;
+			nvidia,dpaux = <&dpaux>;
+		};
+
 		sor@54580000 {
 			status = "okay";
 
@@ -75,6 +85,10 @@
 			nvidia,hpd-gpio = <&gpio TEGRA_GPIO(CC, 1)
 					   GPIO_ACTIVE_LOW>;
 			nvidia,xbar-cfg = <0 1 2 3 4>;
+		};
+
+		dpaux@545c0000 {
+			status = "okay";
 		};
 	};
 
