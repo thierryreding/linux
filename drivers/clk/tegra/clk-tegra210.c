@@ -33,6 +33,7 @@
 #define CLK_SOURCE_CSITE 0x1d4
 #define CLK_SOURCE_EMC 0x19c
 #define CLK_SOURCE_SOR1 0x410
+#define CLK_SOURCE_SOR0 0x414
 #define CLK_SOURCE_LA 0x1f8
 #define CLK_SOURCE_SDMMC2 0x154
 #define CLK_SOURCE_SDMMC4 0x164
@@ -298,6 +299,7 @@ static DEFINE_SPINLOCK(pll_d_lock);
 static DEFINE_SPINLOCK(pll_e_lock);
 static DEFINE_SPINLOCK(pll_re_lock);
 static DEFINE_SPINLOCK(pll_u_lock);
+static DEFINE_SPINLOCK(sor0_lock);
 static DEFINE_SPINLOCK(sor1_lock);
 static DEFINE_SPINLOCK(emc_lock);
 static DEFINE_MUTEX(lvl2_ovr_lock);
@@ -2345,8 +2347,6 @@ static struct tegra_clk tegra210_clks[tegra_clk_max] __initdata = {
 	[tegra_clk_vic03_8] = { .dt_id = TEGRA210_CLK_VIC03, .present = true },
 	[tegra_clk_dpaux] = { .dt_id = TEGRA210_CLK_DPAUX, .present = true },
 	[tegra_clk_dpaux1] = { .dt_id = TEGRA210_CLK_DPAUX1, .present = true },
-	[tegra_clk_sor0] = { .dt_id = TEGRA210_CLK_SOR0, .present = true },
-	[tegra_clk_sor0_lvds] = { .dt_id = TEGRA210_CLK_SOR0_LVDS, .present = true },
 	[tegra_clk_sor1] = { .dt_id = TEGRA210_CLK_SOR1, .present = true },
 	[tegra_clk_sor1_src] = { .dt_id = TEGRA210_CLK_SOR1_SRC, .present = true },
 	[tegra_clk_gpu] = { .dt_id = TEGRA210_CLK_GPU, .present = true },
@@ -2546,7 +2546,6 @@ static struct tegra_devclk devclks[] __initdata = {
 	{ .con_id = "pll_c4_out2", .dt_id = TEGRA210_CLK_PLL_C4_OUT2 },
 	{ .con_id = "pll_c4_out3", .dt_id = TEGRA210_CLK_PLL_C4_OUT3 },
 	{ .con_id = "dpaux", .dt_id = TEGRA210_CLK_DPAUX },
-	{ .con_id = "sor0", .dt_id = TEGRA210_CLK_SOR0 },
 };
 
 static struct tegra_audio_clk_info tegra210_audio_plls[] = {
@@ -2910,6 +2909,8 @@ static int tegra210_init_pllu(void)
 	return 0;
 }
 
+static const char * const mux_sorsafe_plldp[] = { "sor_safe", "pll_dp" };
+
 static const char * const sor1_out_parents[] = {
 	/*
 	 * Bit 0 of the mux selects sor1_pad_clkout, irrespective of bit 1, so
@@ -2928,6 +2929,9 @@ static const char * const sor1_parents[] = {
 static u32 sor1_parents_idx[] = { 0, 2, 5, 6 };
 
 static struct tegra_periph_init_data tegra210_periph[] = {
+	TEGRA_INIT_DATA_TABLE("sor0", NULL, NULL, mux_sorsafe_plldp,
+			      CLK_SOURCE_SOR0, 14, 1, 0, 0, 0, 0, 0,
+			      182, 0, tegra_clk_sor0, NULL, 0, &sor0_lock),
 	TEGRA_INIT_DATA_TABLE("sor1", NULL, NULL, sor1_parents,
 			      CLK_SOURCE_SOR1, 29, 0x7, 0, 0, 8, 1,
 			      TEGRA_DIVIDER_ROUND_UP, 183, 0, tegra_clk_sor1,
