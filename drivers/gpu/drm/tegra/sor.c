@@ -4057,6 +4057,8 @@ static int tegra_sor_probe(struct platform_device *pdev)
 	 * pad output clock.
 	 */
 	if (!sor->clk_pad) {
+		char *name;
+
 		err = pm_runtime_get_sync(&pdev->dev);
 		if (err < 0) {
 			dev_err(&pdev->dev, "failed to get runtime PM: %d\n",
@@ -4064,8 +4066,13 @@ static int tegra_sor_probe(struct platform_device *pdev)
 			goto remove;
 		}
 
-		sor->clk_pad = tegra_clk_sor_pad_register(sor,
-							  "sor1_pad_clkout");
+		name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "sor%u_pad_clkout", sor->index);
+		if (!name) {
+			err = -ENOMEM;
+			goto remove;
+		}
+
+		sor->clk_pad = tegra_clk_sor_pad_register(sor, name);
 		pm_runtime_put(&pdev->dev);
 	}
 
