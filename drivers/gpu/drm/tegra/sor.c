@@ -3214,6 +3214,7 @@ static int tegra_sor_init(struct host1x_client *client)
 			return err;
 		}
 
+		pr_info("asserting %px\n", sor->rst);
 		err = reset_control_assert(sor->rst);
 		if (err < 0) {
 			dev_err(sor->dev, "failed to assert SOR reset: %d\n",
@@ -3231,6 +3232,7 @@ static int tegra_sor_init(struct host1x_client *client)
 	usleep_range(1000, 3000);
 
 	if (sor->rst) {
+		pr_info("asserting %px\n", sor->rst);
 		err = reset_control_deassert(sor->rst);
 		if (err < 0) {
 			dev_err(sor->dev, "failed to deassert SOR reset: %d\n",

@@ -769,6 +769,7 @@ enum drm_connector_status drm_dp_aux_detect(struct drm_dp_aux *aux)
 	u32 value;
 
 	value = tegra_dpaux_readl(dpaux, DPAUX_DP_AUXSTAT);
+	dev_info(aux->dev, "DPAUX_DP_AUXSTAT: %08x\n", value);
 
 	if (value & DPAUX_DP_AUXSTAT_HPD_STATUS)
 		return connector_status_connected;
