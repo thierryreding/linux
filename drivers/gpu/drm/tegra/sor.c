@@ -3135,162 +3135,6 @@ static const struct drm_encoder_helper_funcs tegra_sor_dp_helpers = {
 	.atomic_check = tegra_sor_encoder_atomic_check,
 };
 
-static int tegra_sor_init(struct host1x_client *client)
-{
-	struct drm_device *drm = dev_get_drvdata(client->parent);
-	const struct drm_encoder_helper_funcs *helpers = NULL;
-	struct tegra_sor *sor = host1x_client_to_sor(client);
-	int connector = DRM_MODE_CONNECTOR_Unknown;
-	int encoder = DRM_MODE_ENCODER_NONE;
-	u32 value;
-	int err;
-
-	if (!sor->aux) {
-		if (sor->soc->supports_hdmi) {
-			connector = DRM_MODE_CONNECTOR_HDMIA;
-			encoder = DRM_MODE_ENCODER_TMDS;
-			helpers = &tegra_sor_hdmi_helpers;
-		} else if (sor->soc->supports_lvds) {
-			connector = DRM_MODE_CONNECTOR_LVDS;
-			encoder = DRM_MODE_ENCODER_LVDS;
-		}
-	} else {
-		if (sor->soc->supports_edp) {
-			connector = DRM_MODE_CONNECTOR_eDP;
-			encoder = DRM_MODE_ENCODER_TMDS;
-			helpers = &tegra_sor_edp_helpers;
-		} else if (sor->soc->supports_dp) {
-			connector = DRM_MODE_CONNECTOR_DisplayPort;
-			encoder = DRM_MODE_ENCODER_TMDS;
-			helpers = &tegra_sor_dp_helpers;
-		}
-
-		sor->link.ops = &tegra_sor_dp_link_ops;
-		sor->link.aux = sor->aux;
-	}
-
-	sor->output.dev = sor->dev;
-
-	drm_connector_init(drm, &sor->output.connector,
-			   &tegra_sor_connector_funcs,
-			   connector);
-	drm_connector_helper_add(&sor->output.connector,
-				 &tegra_sor_connector_helper_funcs);
-	sor->output.connector.dpms = DRM_MODE_DPMS_OFF;
-
-	drm_encoder_init(drm, &sor->output.encoder, &tegra_sor_encoder_funcs,
-			 encoder, NULL);
-	drm_encoder_helper_add(&sor->output.encoder, helpers);
-
-	drm_connector_attach_encoder(&sor->output.connector,
-					  &sor->output.encoder);
-	drm_connector_register(&sor->output.connector);
-
-	err = tegra_output_init(drm, &sor->output);
-	if (err < 0) {
-		dev_err(client->dev, "failed to initialize output: %d\n", err);
-		return err;
-	}
-
-	tegra_output_find_possible_crtcs(&sor->output, drm);
-
-	if (sor->aux) {
-		err = drm_dp_aux_attach(sor->aux, &sor->output);
-		if (err < 0) {
-			dev_err(sor->dev, "failed to attach DP: %d\n", err);
-			return err;
-		}
-	}
-
-	/*
-	 * XXX: Remove this reset once proper hand-over from firmware to
-	 * kernel is possible.
-	 */
-	if (sor->rst) {
-		err = reset_control_acquire(sor->rst);
-		if (err < 0) {
-			dev_err(sor->dev, "failed to acquire SOR reset: %d\n",
-				err);
-			return err;
-		}
-
-		err = reset_control_assert(sor->rst);
-		if (err < 0) {
-			dev_err(sor->dev, "failed to assert SOR reset: %d\n",
-				err);
-			return err;
-		}
-	}
-
-	err = clk_prepare_enable(sor->clk);
-	if (err < 0) {
-		dev_err(sor->dev, "failed to enable clock: %d\n", err);
-		return err;
-	}
-
-	usleep_range(1000, 3000);
-
-	if (sor->rst) {
-		err = reset_control_deassert(sor->rst);
-		if (err < 0) {
-			dev_err(sor->dev, "failed to deassert SOR reset: %d\n",
-				err);
-			return err;
-		}
-
-		reset_control_release(sor->rst);
-	}
-
-	err = clk_prepare_enable(sor->clk_safe);
-	if (err < 0)
-		return err;
-
-	err = clk_prepare_enable(sor->clk_dp);
-	if (err < 0)
-		return err;
-
-	/*
-	 * Enable and unmask the HDA codec SCRATCH0 register interrupt. This
-	 * is used for interoperability between the HDA codec driver and the
-	 * HDMI/DP driver.
-	 */
-	value = SOR_INT_CODEC_SCRATCH1 | SOR_INT_CODEC_SCRATCH0;
-	tegra_sor_writel(sor, value, SOR_INT_ENABLE);
-	tegra_sor_writel(sor, value, SOR_INT_MASK);
-
-	return 0;
-}
-
-static int tegra_sor_exit(struct host1x_client *client)
-{
-	struct tegra_sor *sor = host1x_client_to_sor(client);
-	int err;
-
-	tegra_sor_writel(sor, 0, SOR_INT_MASK);
-	tegra_sor_writel(sor, 0, SOR_INT_ENABLE);
-
-	tegra_output_exit(&sor->output);
-
-	if (sor->aux) {
-		err = drm_dp_aux_detach(sor->aux);
-		if (err < 0) {
-			dev_err(sor->dev, "failed to detach DP: %d\n", err);
-			return err;
-		}
-	}
-
-	clk_disable_unprepare(sor->clk_safe);
-	clk_disable_unprepare(sor->clk_dp);
-	clk_disable_unprepare(sor->clk);
-
-	return 0;
-}
-
-static const struct host1x_client_ops sor_client_ops = {
-	.init = tegra_sor_init,
-	.exit = tegra_sor_exit,
-};
-
 static const struct tegra_sor_ops tegra_sor_edp_ops = {
 	.name = "eDP",
 };
@@ -3425,6 +3269,162 @@ static const struct tegra_sor_ops tegra_sor_dp_ops = {
 	.remove = tegra_sor_dp_remove,
 	.audio_enable = tegra_sor_dp_audio_enable,
 	.audio_disable = tegra_sor_dp_audio_disable,
+};
+
+static int tegra_sor_init(struct host1x_client *client)
+{
+	struct drm_device *drm = dev_get_drvdata(client->parent);
+	const struct drm_encoder_helper_funcs *helpers = NULL;
+	struct tegra_sor *sor = host1x_client_to_sor(client);
+	int connector = DRM_MODE_CONNECTOR_Unknown;
+	int encoder = DRM_MODE_ENCODER_NONE;
+	u32 value;
+	int err;
+
+	if (!sor->aux) {
+		if (sor->ops == &tegra_sor_hdmi_ops) {
+			connector = DRM_MODE_CONNECTOR_HDMIA;
+			encoder = DRM_MODE_ENCODER_TMDS;
+			helpers = &tegra_sor_hdmi_helpers;
+		} else if (sor->soc->supports_lvds) {
+			connector = DRM_MODE_CONNECTOR_LVDS;
+			encoder = DRM_MODE_ENCODER_LVDS;
+		}
+	} else {
+		if (sor->ops == &tegra_sor_edp_ops) {
+			connector = DRM_MODE_CONNECTOR_eDP;
+			encoder = DRM_MODE_ENCODER_TMDS;
+			helpers = &tegra_sor_edp_helpers;
+		} else {
+			connector = DRM_MODE_CONNECTOR_DisplayPort;
+			encoder = DRM_MODE_ENCODER_TMDS;
+			helpers = &tegra_sor_dp_helpers;
+		}
+
+		sor->link.ops = &tegra_sor_dp_link_ops;
+		sor->link.aux = sor->aux;
+	}
+
+	sor->output.dev = sor->dev;
+
+	drm_connector_init(drm, &sor->output.connector,
+			   &tegra_sor_connector_funcs,
+			   connector);
+	drm_connector_helper_add(&sor->output.connector,
+				 &tegra_sor_connector_helper_funcs);
+	sor->output.connector.dpms = DRM_MODE_DPMS_OFF;
+
+	drm_encoder_init(drm, &sor->output.encoder, &tegra_sor_encoder_funcs,
+			 encoder, NULL);
+	drm_encoder_helper_add(&sor->output.encoder, helpers);
+
+	drm_connector_attach_encoder(&sor->output.connector,
+					  &sor->output.encoder);
+	drm_connector_register(&sor->output.connector);
+
+	err = tegra_output_init(drm, &sor->output);
+	if (err < 0) {
+		dev_err(client->dev, "failed to initialize output: %d\n", err);
+		return err;
+	}
+
+	tegra_output_find_possible_crtcs(&sor->output, drm);
+
+	if (sor->aux) {
+		err = drm_dp_aux_attach(sor->aux, &sor->output);
+		if (err < 0) {
+			dev_err(sor->dev, "failed to attach DP: %d\n", err);
+			return err;
+		}
+	}
+
+	/*
+	 * XXX: Remove this reset once proper hand-over from firmware to
+	 * kernel is possible.
+	 */
+	if (sor->rst) {
+		err = reset_control_acquire(sor->rst);
+		if (err < 0) {
+			dev_err(sor->dev, "failed to acquire SOR reset: %d\n",
+				err);
+			return err;
+		}
+
+		err = reset_control_assert(sor->rst);
+		if (err < 0) {
+			dev_err(sor->dev, "failed to assert SOR reset: %d\n",
+				err);
+			return err;
+		}
+	}
+
+	err = clk_prepare_enable(sor->clk);
+	if (err < 0) {
+		dev_err(sor->dev, "failed to enable clock: %d\n", err);
+		return err;
+	}
+
+	usleep_range(1000, 3000);
+
+	if (sor->rst) {
+		err = reset_control_deassert(sor->rst);
+		if (err < 0) {
+			dev_err(sor->dev, "failed to deassert SOR reset: %d\n",
+				err);
+			return err;
+		}
+
+		reset_control_release(sor->rst);
+	}
+
+	err = clk_prepare_enable(sor->clk_safe);
+	if (err < 0)
+		return err;
+
+	err = clk_prepare_enable(sor->clk_dp);
+	if (err < 0)
+		return err;
+
+	/*
+	 * Enable and unmask the HDA codec SCRATCH0 register interrupt. This
+	 * is used for interoperability between the HDA codec driver and the
+	 * HDMI/DP driver.
+	 */
+	value = SOR_INT_CODEC_SCRATCH1 | SOR_INT_CODEC_SCRATCH0;
+	tegra_sor_writel(sor, value, SOR_INT_ENABLE);
+	tegra_sor_writel(sor, value, SOR_INT_MASK);
+
+	return 0;
+}
+
+static int tegra_sor_exit(struct host1x_client *client)
+{
+	struct tegra_sor *sor = host1x_client_to_sor(client);
+	int err;
+
+	tegra_sor_writel(sor, 0, SOR_INT_MASK);
+	tegra_sor_writel(sor, 0, SOR_INT_ENABLE);
+
+	tegra_output_exit(&sor->output);
+
+	if (sor->aux) {
+		err = drm_dp_aux_detach(sor->aux);
+		if (err < 0) {
+			dev_err(sor->dev, "failed to detach DP: %d\n", err);
+			return err;
+		}
+	}
+
+	clk_disable_unprepare(sor->clk_safe);
+	clk_disable_unprepare(sor->clk_dp);
+	clk_disable_unprepare(sor->clk);
+
+	return 0;
+}
+
+static const struct host1x_client_ops sor_client_ops = {
+	.init = tegra_sor_init,
+	.exit = tegra_sor_exit,
 };
 
 static const u8 tegra124_sor_xbar_cfg[5] = {
