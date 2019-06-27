@@ -394,9 +394,10 @@ int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
 		connector->helper_private;
 	int count = 0, ret;
 	int mode_flags = 0;
-	bool verbose_prune = true;
+	bool verbose_prune = true, cmdline_mode_pruned = true;
 	enum drm_connector_status old_status;
 	struct drm_modeset_acquire_ctx ctx;
+	struct drm_display_mode *cmdline;
 
 	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
 
@@ -530,8 +531,20 @@ prune:
 	if (list_empty(&connector->modes))
 		return 0;
 
-	list_for_each_entry(mode, &connector->modes, head)
+	cmdline = drm_mode_create_from_cmdline_mode(dev,
+						    &connector->cmdline_mode);
+
+	list_for_each_entry(mode, &connector->modes, head) {
+		if (drm_mode_equal(mode, cmdline))
+			cmdline_mode_pruned = false;
+
 		mode->vrefresh = drm_mode_vrefresh(mode);
+	}
+
+	if (cmdline_mode_pruned)
+		connector->cmdline_mode.specified = false;
+
+	drm_mode_destroy(dev, cmdline);
 
 	drm_mode_sort(&connector->modes);
 
