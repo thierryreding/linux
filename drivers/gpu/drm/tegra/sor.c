@@ -3995,7 +3995,14 @@ static int tegra_sor_probe(struct platform_device *pdev)
 			return -ENODEV;
 		}
 	} else {
-		if (sor->soc->supports_edp) {
+		np = of_parse_phandle(pdev->dev.of_node, "nvidia,panel", 0);
+		/*
+		 * No need to keep this around since we only use it as a check
+		 * to see if a panel is connected (eDP) or not (DP).
+		 */
+		of_node_put(np);
+
+		if (sor->soc->supports_edp && np) {
 			sor->ops = &tegra_sor_edp_ops;
 			sor->pad = TEGRA_IO_PAD_LVDS;
 		} else if (sor->soc->supports_dp) {
