@@ -2915,7 +2915,7 @@ static const char * const sor0_parents[] = {
 	"sor_safe", "sor0_pad_clkout",
 };
 
-static const char * const sor1_out_parents[] = {
+static const char * const sor1_parents[] = {
 	/*
 	 * Bit 0 of the mux selects sor1_pad_clkout, irrespective of bit 1, so
 	 * the sor1_pad_clkout parent appears twice in the list below. This is
@@ -2923,23 +2923,28 @@ static const char * const sor1_out_parents[] = {
 	 * these bits to 0b11. While not an invalid setting, code should
 	 * always set the bits to 0b01 to select sor1_pad_clkout.
 	 */
-	"sor_safe", "sor1_pad_clkout", "sor1", "sor1_pad_clkout",
+	"sor_safe", "sor1_pad_clkout", "sor1_out", "sor1_pad_clkout",
 };
 
-static const char * const sor1_parents[] = {
+static const char * const sor1_out_parents[] = {
 	"pll_p", "pll_d_out0", "pll_d2_out0", "clk_m",
 };
 
-static u32 sor1_parents_idx[] = { 0, 2, 5, 6 };
+static u32 sor1_out_parents_idx[] = { 0, 2, 5, 6 };
 
 static struct tegra_periph_init_data tegra210_periph[] = {
 	TEGRA_INIT_DATA_TABLE("sor0", NULL, NULL, sor0_parents,
 			      CLK_SOURCE_SOR0, 14, 1, 0, 0, 0, 0, 0,
 			      182, 0, tegra_clk_sor0, NULL, 0, &sor0_lock),
-	TEGRA_INIT_DATA_TABLE("sor1", NULL, NULL, sor1_parents,
+	TEGRA_INIT_DATA_TABLE("sor1_out", NULL, NULL, sor1_out_parents,
 			      CLK_SOURCE_SOR1, 29, 0x7, 0, 0, 8, 1,
+			      TEGRA_DIVIDER_ROUND_UP, 0, TEGRA_PERIPH_NO_GATE,
+			      tegra_clk_sor1_out, sor1_out_parents_idx, 0,
+			      &sor1_lock),
+	TEGRA_INIT_DATA_TABLE("sor1", NULL, NULL, sor1_parents,
+			      CLK_SOURCE_SOR1, 14, 0x3, 0, 0, 8, 1,
 			      TEGRA_DIVIDER_ROUND_UP, 183, 0, tegra_clk_sor1,
-			      sor1_parents_idx, 0, &sor1_lock),
+			      NULL, 0, &sor1_lock),
 };
 
 static const char * const la_parents[] = {
@@ -2971,12 +2976,6 @@ static __init void tegra210_periph_clk_init(void __iomem *clk_base,
 	clk = tegra_clk_register_periph_fixed("dpaux1", "sor_safe", 0, clk_base,
 					      1, 17, 207);
 	clks[TEGRA210_CLK_DPAUX1] = clk;
-
-	clk = clk_register_mux_table(NULL, "sor1_out", sor1_out_parents,
-				     ARRAY_SIZE(sor1_out_parents), 0,
-				     clk_base + CLK_SOURCE_SOR1, 14, 0x3,
-				     0, NULL, &sor1_lock);
-	clks[TEGRA210_CLK_SOR1_OUT] = clk;
 
 	clk = clk_register_fixed_factor(NULL, "sor0_out", "pll_d_out0", 0,
 					1, 1);
