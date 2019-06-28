@@ -500,7 +500,7 @@ static int tegra_sor_set_parent_clock(struct tegra_sor *sor, struct clk *parent)
 
 	clk_disable_unprepare(sor->clk);
 
-	err = clk_set_parent(sor->clk_out, parent);
+	err = clk_set_parent(sor->clk, parent);
 	if (err < 0)
 		return err;
 
@@ -521,8 +521,9 @@ static inline struct tegra_clk_sor_pad *to_pad(struct clk_hw *hw)
 	return container_of(hw, struct tegra_clk_sor_pad, hw);
 }
 
-static const char * const tegra_clk_sor_pad_parents[] = {
-	"pll_d2_out0", "pll_dp"
+static const char * const tegra_clk_sor_pad_parents[2][2] = {
+	{ "pll_d_out0", "pll_dp" },
+	{ "pll_d2_out0", "pll_dp" },
 };
 
 static int tegra_clk_sor_pad_set_parent(struct clk_hw *hw, u8 index)
@@ -593,8 +594,8 @@ static struct clk *tegra_clk_sor_pad_register(struct tegra_sor *sor,
 
 	init.name = name;
 	init.flags = 0;
-	init.parent_names = tegra_clk_sor_pad_parents;
-	init.num_parents = ARRAY_SIZE(tegra_clk_sor_pad_parents);
+	init.parent_names = tegra_clk_sor_pad_parents[sor->index];
+	init.num_parents = ARRAY_SIZE(tegra_clk_sor_pad_parents[sor->index]);
 	init.ops = &tegra_clk_sor_pad_ops;
 
 	pad->hw.init = &init;
@@ -1987,10 +1988,29 @@ static void tegra_sor_edp_enable(struct drm_encoder *encoder)
 	tegra_sor_writel(sor, 0x00000000, SOR_XBAR_POL);
 	tegra_sor_writel(sor, value, SOR_XBAR_CTRL);
 
-	/* switch to DP parent clock */
-	err = tegra_sor_set_parent_clock(sor, sor->clk_dp);
-	if (err < 0)
-		dev_err(sor->dev, "failed to set parent clock: %d\n", err);
+	/* switch the output clock to the parent pixel clock */
+	err = clk_set_parent(sor->clk_out, sor->clk_parent);
+	if (err < 0) {
+		dev_err(sor->dev, "failed to select output parent clock: %d\n",
+			err);
+		return;
+	}
+
+	/* switch the pad clock to the DP clock */
+	err = clk_set_parent(sor->clk_pad, sor->clk_dp);
+	if (err < 0) {
+		dev_err(sor->dev, "failed to select pad parent clock: %d\n",
+			err);
+		return;
+	}
+
+	/* switch the SOR clock to the pad clock */
+	err = tegra_sor_set_parent_clock(sor, sor->clk_pad);
+	if (err < 0) {
+		dev_err(sor->dev, "failed to select SOR parent clock: %d\n",
+			err);
+		return;
+	}
 
 	/* use DP-A protocol */
 	value = tegra_sor_readl(sor, SOR_STATE1);
@@ -2657,16 +2677,27 @@ static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 	tegra_sor_writel(sor, 0x00000000, SOR_XBAR_POL);
 	tegra_sor_writel(sor, value, SOR_XBAR_CTRL);
 
-	/* switch to parent clock */
-	err = clk_set_parent(sor->clk, sor->clk_parent);
+	/* switch the output clock to the parent pixel clock */
+	err = clk_set_parent(sor->clk_out, sor->clk_parent);
 	if (err < 0) {
-		dev_err(sor->dev, "failed to set parent clock: %d\n", err);
+		dev_err(sor->dev, "failed to select output parent clock: %d\n",
+			err);
 		return;
 	}
 
+	/* switch the pad clock to the parent pixel clock */
+	err = clk_set_parent(sor->clk_pad, sor->clk_parent);
+	if (err < 0) {
+		dev_err(sor->dev, "failed to select pad parent clock: %d\n",
+			err);
+		return;
+	}
+
+	/* switch the SOR clock to the pad clock */
 	err = tegra_sor_set_parent_clock(sor, sor->clk_pad);
 	if (err < 0) {
-		dev_err(sor->dev, "failed to set pad clock: %d\n", err);
+		dev_err(sor->dev, "failed to select SOR parent clock: %d\n",
+			err);
 		return;
 	}
 
@@ -3059,16 +3090,27 @@ static void tegra_sor_dp_enable(struct drm_encoder *encoder)
 	tegra_sor_writel(sor, 0x00000000, SOR_XBAR_POL);
 	tegra_sor_writel(sor, value, SOR_XBAR_CTRL);
 
-	/* switch to DP parent clock */
-	err = tegra_sor_set_parent_clock(sor, sor->clk_pad);
+	/* switch the output clock to the parent pixel clock */
+	err = clk_set_parent(sor->clk_out, sor->clk_parent);
 	if (err < 0) {
-		dev_err(sor->dev, "failed to switch to pad clock: %d\n", err);
+		dev_err(sor->dev, "failed to select output parent clock: %d\n",
+			err);
 		return;
 	}
 
-	err = clk_set_parent(sor->clk, sor->clk_parent);
+	/* switch the pad clock to the DP clock */
+	err = clk_set_parent(sor->clk_pad, sor->clk_dp);
 	if (err < 0) {
-		dev_err(sor->dev, "failed to switch to parent clock: %d\n", err);
+		dev_err(sor->dev, "failed to select pad parent clock: %d\n",
+			err);
+		return;
+	}
+
+	/* switch the SOR clock to the pad clock */
+	err = tegra_sor_set_parent_clock(sor, sor->clk_pad);
+	if (err < 0) {
+		dev_err(sor->dev, "failed to select SOR parent clock: %d\n",
+			err);
 		return;
 	}
 
@@ -3628,7 +3670,7 @@ static const struct tegra_sor_soc tegra210_sor = {
 	.supports_edp = true,
 	.supports_lvds = false,
 	.supports_hdmi = false,
-	.supports_dp = false,
+	.supports_dp = true,
 
 	.regs = &tegra210_sor_regs,
 	.has_nvdisplay = false,
@@ -3904,6 +3946,11 @@ static int tegra_sor_parse_dt(struct tegra_sor *sor)
 		 * earlier
 		 */
 		sor->pad = TEGRA_IO_PAD_HDMI_DP0 + sor->index;
+	} else {
+		if (sor->soc->supports_edp)
+			sor->index = 0;
+		else
+			sor->index = 1;
 	}
 
 	err = of_property_read_u32_array(np, "nvidia,xbar-cfg", xbar_cfg, 5);
@@ -4007,6 +4054,7 @@ static int tegra_sor_probe(struct platform_device *pdev)
 			sor->pad = TEGRA_IO_PAD_LVDS;
 		} else if (sor->soc->supports_dp) {
 			sor->ops = &tegra_sor_dp_ops;
+			sor->pad = TEGRA_IO_PAD_LVDS;
 		} else {
 			dev_err(&pdev->dev, "unknown (DP) support\n");
 			return -ENODEV;
@@ -4151,7 +4199,7 @@ static int tegra_sor_probe(struct platform_device *pdev)
 	 * is sourced by one of the display PLLs. However, that doesn't work
 	 * without properly having set up other bits of the SOR.
 	 */
-	err = clk_set_parent(sor->clk_out, sor->clk_safe);
+	err = clk_set_parent(sor->clk, sor->clk_safe);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to use safe clock: %d\n", err);
 		goto remove;
