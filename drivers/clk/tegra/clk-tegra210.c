@@ -2347,6 +2347,8 @@ static struct tegra_clk tegra210_clks[tegra_clk_max] __initdata = {
 	[tegra_clk_vic03_8] = { .dt_id = TEGRA210_CLK_VIC03, .present = true },
 	[tegra_clk_dpaux] = { .dt_id = TEGRA210_CLK_DPAUX, .present = true },
 	[tegra_clk_dpaux1] = { .dt_id = TEGRA210_CLK_DPAUX1, .present = true },
+	[tegra_clk_sor0] = { .dt_id = TEGRA210_CLK_SOR0, .present = true },
+	[tegra_clk_sor0_out] = { .dt_id = TEGRA210_CLK_SOR0_OUT, .present = true },
 	[tegra_clk_sor1] = { .dt_id = TEGRA210_CLK_SOR1, .present = true },
 	[tegra_clk_sor1_out] = { .dt_id = TEGRA210_CLK_SOR1_OUT, .present = true },
 	[tegra_clk_gpu] = { .dt_id = TEGRA210_CLK_GPU, .present = true },
@@ -2909,7 +2911,9 @@ static int tegra210_init_pllu(void)
 	return 0;
 }
 
-static const char * const mux_sorsafe_plldp[] = { "sor_safe", "pll_dp" };
+static const char * const sor0_parents[] = {
+	"sor_safe", "sor0_pad_clkout",
+};
 
 static const char * const sor1_out_parents[] = {
 	/*
@@ -2929,7 +2933,7 @@ static const char * const sor1_parents[] = {
 static u32 sor1_parents_idx[] = { 0, 2, 5, 6 };
 
 static struct tegra_periph_init_data tegra210_periph[] = {
-	TEGRA_INIT_DATA_TABLE("sor0", NULL, NULL, mux_sorsafe_plldp,
+	TEGRA_INIT_DATA_TABLE("sor0", NULL, NULL, sor0_parents,
 			      CLK_SOURCE_SOR0, 14, 1, 0, 0, 0, 0, 0,
 			      182, 0, tegra_clk_sor0, NULL, 0, &sor0_lock),
 	TEGRA_INIT_DATA_TABLE("sor1", NULL, NULL, sor1_parents,
@@ -2973,6 +2977,10 @@ static __init void tegra210_periph_clk_init(void __iomem *clk_base,
 				     clk_base + CLK_SOURCE_SOR1, 14, 0x3,
 				     0, NULL, &sor1_lock);
 	clks[TEGRA210_CLK_SOR1_OUT] = clk;
+
+	clk = clk_register_fixed_factor(NULL, "sor0_out", "pll_d_out0", 0,
+					1, 1);
+	clks[TEGRA210_CLK_SOR0_OUT] = clk;
 
 	/* pll_d_dsi_out */
 	clk = clk_register_gate(NULL, "pll_d_dsi_out", "pll_d_out0", 0,
