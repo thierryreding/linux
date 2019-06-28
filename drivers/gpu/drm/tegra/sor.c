@@ -500,7 +500,7 @@ static int tegra_sor_set_parent_clock(struct tegra_sor *sor, struct clk *parent)
 
 	clk_disable_unprepare(sor->clk);
 
-	err = clk_set_parent(sor->clk, parent);
+	err = clk_set_parent(sor->clk_out, parent);
 	if (err < 0)
 		return err;
 
@@ -525,6 +525,14 @@ static const char * const tegra_clk_sor_pad_parents[2][2] = {
 	{ "pll_d_out0", "pll_dp" },
 	{ "pll_d2_out0", "pll_dp" },
 };
+
+/*
+ * Implementing ->set_parent() here isn't really required because the parent
+ * will be explicitly selected in the driver code via the DP_CLK_SEL mux in
+ * the SOR_CLK_CNTRL register. This is primarily for compatibility with the
+ * Tegra186 and later SoC generations where the BPMP implements this clock
+ * and doesn't expose the mux via the common clock framework.
+ */
 
 static int tegra_clk_sor_pad_set_parent(struct clk_hw *hw, u8 index)
 {
@@ -1989,7 +1997,7 @@ static void tegra_sor_edp_enable(struct drm_encoder *encoder)
 	tegra_sor_writel(sor, value, SOR_XBAR_CTRL);
 
 	/* switch the output clock to the parent pixel clock */
-	err = clk_set_parent(sor->clk_out, sor->clk_parent);
+	err = clk_set_parent(sor->clk, sor->clk_parent);
 	if (err < 0) {
 		dev_err(sor->dev, "failed to select output parent clock: %d\n",
 			err);
@@ -2678,7 +2686,7 @@ static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 	tegra_sor_writel(sor, value, SOR_XBAR_CTRL);
 
 	/* switch the output clock to the parent pixel clock */
-	err = clk_set_parent(sor->clk_out, sor->clk_parent);
+	err = clk_set_parent(sor->clk, sor->clk_parent);
 	if (err < 0) {
 		dev_err(sor->dev, "failed to select output parent clock: %d\n",
 			err);
@@ -3090,26 +3098,28 @@ static void tegra_sor_dp_enable(struct drm_encoder *encoder)
 	tegra_sor_writel(sor, 0x00000000, SOR_XBAR_POL);
 	tegra_sor_writel(sor, value, SOR_XBAR_CTRL);
 
-	/* switch the output clock to the parent pixel clock */
-	err = clk_set_parent(sor->clk_out, sor->clk_parent);
-	if (err < 0) {
-		dev_err(sor->dev, "failed to select output parent clock: %d\n",
-			err);
-		return;
-	}
-
 	/* switch the pad clock to the DP clock */
+#if 0
 	err = clk_set_parent(sor->clk_pad, sor->clk_dp);
 	if (err < 0) {
 		dev_err(sor->dev, "failed to select pad parent clock: %d\n",
 			err);
 		return;
 	}
+#endif
 
 	/* switch the SOR clock to the pad clock */
 	err = tegra_sor_set_parent_clock(sor, sor->clk_pad);
 	if (err < 0) {
 		dev_err(sor->dev, "failed to select SOR parent clock: %d\n",
+			err);
+		return;
+	}
+
+	/* switch the output clock to the parent pixel clock */
+	err = clk_set_parent(sor->clk, sor->clk_parent);
+	if (err < 0) {
+		dev_err(sor->dev, "failed to select output parent clock: %d\n",
 			err);
 		return;
 	}
@@ -4199,7 +4209,7 @@ static int tegra_sor_probe(struct platform_device *pdev)
 	 * is sourced by one of the display PLLs. However, that doesn't work
 	 * without properly having set up other bits of the SOR.
 	 */
-	err = clk_set_parent(sor->clk, sor->clk_safe);
+	err = clk_set_parent(sor->clk_out, sor->clk_safe);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to use safe clock: %d\n", err);
 		goto remove;
