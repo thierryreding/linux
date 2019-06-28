@@ -1996,26 +1996,33 @@ static void tegra_sor_edp_enable(struct drm_encoder *encoder)
 	tegra_sor_writel(sor, 0x00000000, SOR_XBAR_POL);
 	tegra_sor_writel(sor, value, SOR_XBAR_CTRL);
 
-	/* switch the output clock to the parent pixel clock */
-	err = clk_set_parent(sor->clk, sor->clk_parent);
-	if (err < 0) {
-		dev_err(sor->dev, "failed to select output parent clock: %d\n",
-			err);
-		return;
-	}
-
-	/* switch the pad clock to the DP clock */
+	/*
+	 * Switch the pad clock to the DP clock. Note that we cannot actually
+	 * do this because Tegra186 and later don't support clk_set_parent()
+	 * on the sorX_pad_clkout clocks. We already do the equivalent above
+	 * using the DP_CLK_SEL mux of the SOR_CLK_CNTRL register.
+	 */
+#if 0
 	err = clk_set_parent(sor->clk_pad, sor->clk_dp);
 	if (err < 0) {
 		dev_err(sor->dev, "failed to select pad parent clock: %d\n",
 			err);
 		return;
 	}
+#endif
 
 	/* switch the SOR clock to the pad clock */
 	err = tegra_sor_set_parent_clock(sor, sor->clk_pad);
 	if (err < 0) {
 		dev_err(sor->dev, "failed to select SOR parent clock: %d\n",
+			err);
+		return;
+	}
+
+	/* switch the output clock to the parent pixel clock */
+	err = clk_set_parent(sor->clk, sor->clk_parent);
+	if (err < 0) {
+		dev_err(sor->dev, "failed to select output parent clock: %d\n",
 			err);
 		return;
 	}
@@ -2685,26 +2692,33 @@ static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 	tegra_sor_writel(sor, 0x00000000, SOR_XBAR_POL);
 	tegra_sor_writel(sor, value, SOR_XBAR_CTRL);
 
-	/* switch the output clock to the parent pixel clock */
-	err = clk_set_parent(sor->clk, sor->clk_parent);
-	if (err < 0) {
-		dev_err(sor->dev, "failed to select output parent clock: %d\n",
-			err);
-		return;
-	}
-
-	/* switch the pad clock to the parent pixel clock */
-	err = clk_set_parent(sor->clk_pad, sor->clk_parent);
+	/*
+	 * Switch the pad clock to the DP clock. Note that we cannot actually
+	 * do this because Tegra186 and later don't support clk_set_parent()
+	 * on the sorX_pad_clkout clocks. We already do the equivalent above
+	 * using the DP_CLK_SEL mux of the SOR_CLK_CNTRL register.
+	 */
+#if 0
+	err = clk_set_parent(sor->clk_pad, sor->clk_dp);
 	if (err < 0) {
 		dev_err(sor->dev, "failed to select pad parent clock: %d\n",
 			err);
 		return;
 	}
+#endif
 
 	/* switch the SOR clock to the pad clock */
 	err = tegra_sor_set_parent_clock(sor, sor->clk_pad);
 	if (err < 0) {
 		dev_err(sor->dev, "failed to select SOR parent clock: %d\n",
+			err);
+		return;
+	}
+
+	/* switch the output clock to the parent pixel clock */
+	err = clk_set_parent(sor->clk, sor->clk_parent);
+	if (err < 0) {
+		dev_err(sor->dev, "failed to select output parent clock: %d\n",
 			err);
 		return;
 	}
@@ -3098,9 +3112,14 @@ static void tegra_sor_dp_enable(struct drm_encoder *encoder)
 	tegra_sor_writel(sor, 0x00000000, SOR_XBAR_POL);
 	tegra_sor_writel(sor, value, SOR_XBAR_CTRL);
 
-	/* switch the pad clock to the DP clock */
+	/*
+	 * Switch the pad clock to the DP clock. Note that we cannot actually
+	 * do this because Tegra186 and later don't support clk_set_parent()
+	 * on the sorX_pad_clkout clocks. We already do the equivalent above
+	 * using the DP_CLK_SEL mux of the SOR_CLK_CNTRL register.
+	 */
 #if 0
-	err = clk_set_parent(sor->clk_pad, sor->clk_dp);
+	err = clk_set_parent(sor->clk_pad, sor->clk_parent);
 	if (err < 0) {
 		dev_err(sor->dev, "failed to select pad parent clock: %d\n",
 			err);
