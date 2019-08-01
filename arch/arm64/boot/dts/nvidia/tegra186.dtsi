@@ -1170,6 +1170,7 @@
 		status = "disabled";
 
 		power-domains = <&bpmp TEGRA186_POWER_DOMAIN_GPU>;
+		iommus = <&smmu TEGRA186_SID_GPU>;
 	};
 
 	sysram@30000000 {
