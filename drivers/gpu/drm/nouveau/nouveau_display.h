@@ -15,6 +15,8 @@ struct nouveau_framebuffer {
 	u32 r_handle;
 	u32 r_format;
 	u32 r_pitch;
+	u32 tile_mode;
+	u8 kind;
 	struct nvif_object h_base[4];
 	struct nvif_object h_core;
 };
