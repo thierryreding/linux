@@ -261,6 +261,34 @@ out:
 	nvkm_ltc_invalidate(ltc);
 }
 
+static u64
+gk20a_instobj_bar2_dma(struct nvkm_memory *memory)
+{
+	struct gk20a_instobj_dma *iobj = gk20a_instobj_dma(memory);
+	u64 addr = ~0ULL;
+
+	if (gk20a_instobj_acquire_dma(&iobj->base.memory))
+		addr = gk20a_instobj_addr(&iobj->base.memory);
+
+	gk20a_instobj_release_dma(&iobj->base.memory);
+
+	return addr;
+}
+
+static u64
+gk20a_instobj_bar2_iommu(struct nvkm_memory *memory)
+{
+	struct gk20a_instobj_iommu *iobj = gk20a_instobj_iommu(memory);
+	u64 addr = ~0ULL;
+
+	if (gk20a_instobj_acquire_iommu(&iobj->base.memory))
+		addr = gk20a_instobj_addr(&iobj->base.memory);
+
+	gk20a_instobj_release_iommu(&iobj->base.memory);
+
+	return addr;
+}
+
 static u32
 gk20a_instobj_rd32(struct nvkm_memory *memory, u64 offset)
 {
@@ -353,6 +381,7 @@ static const struct nvkm_memory_func
 gk20a_instobj_func_dma = {
 	.dtor = gk20a_instobj_dtor_dma,
 	.target = gk20a_instobj_target,
+	.bar2 = gk20a_instobj_bar2_dma,
 	.page = gk20a_instobj_page,
 	.addr = gk20a_instobj_addr,
 	.size = gk20a_instobj_size,
@@ -365,6 +394,7 @@ static const struct nvkm_memory_func
 gk20a_instobj_func_iommu = {
 	.dtor = gk20a_instobj_dtor_iommu,
 	.target = gk20a_instobj_target,
+	.bar2 = gk20a_instobj_bar2_iommu,
 	.page = gk20a_instobj_page,
 	.addr = gk20a_instobj_addr,
 	.size = gk20a_instobj_size,
