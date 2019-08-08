@@ -61,10 +61,10 @@ gf100_fb_oneinit(struct nvkm_fb *base)
 	if (ret)
 		return ret;
 
-	fb->r100c10_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
+	fb->r100c10_page = alloc_pages(GFP_KERNEL | __GFP_ZERO, 4);
 	if (fb->r100c10_page) {
 		fb->r100c10 = dma_map_page(device->dev, fb->r100c10_page, 0,
-					   PAGE_SIZE, DMA_BIDIRECTIONAL);
+					   SZ_64K, DMA_BIDIRECTIONAL);
 		if (dma_mapping_error(device->dev, fb->r100c10))
 			return -EFAULT;
 	}
@@ -107,7 +107,7 @@ gf100_fb_dtor(struct nvkm_fb *base)
 	struct nvkm_device *device = fb->base.subdev.device;
 
 	if (fb->r100c10_page) {
-		dma_unmap_page(device->dev, fb->r100c10, PAGE_SIZE,
+		dma_unmap_page(device->dev, fb->r100c10, SZ_64K,
 			       DMA_BIDIRECTIONAL);
 		__free_page(fb->r100c10_page);
 	}
