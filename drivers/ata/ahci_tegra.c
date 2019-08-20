@@ -12,6 +12,7 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/nvmem-consumer.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
@@ -133,9 +134,6 @@
 #define SATA_AUX_SPARE_CFG0_0				0x18
 #define SATA_AUX_SPARE_CFG0_0_MDAT_TIMER_AFTER_PG_VALID	BIT(14)
 
-#define FUSE_SATA_CALIB					0x124
-#define FUSE_SATA_CALIB_MASK				0x3
-
 struct sata_pad_calibration {
 	u8 gen1_tx_amp;
 	u8 gen1_tx_peak;
@@ -194,11 +192,11 @@ static int tegra124_ahci_init(struct ahci_host_priv *hpriv)
 	u32 val;
 
 	/* Pad calibration */
-	ret = tegra_fuse_readl(FUSE_SATA_CALIB, &val);
+	ret = nvmem_cell_read_u32(tegra->dev, "calibration", &val);
 	if (ret)
 		return ret;
 
-	calib = tegra124_pad_calibration[val & FUSE_SATA_CALIB_MASK];
+	calib = tegra124_pad_calibration[val];
 
 	writel(BIT(0), tegra->sata_regs + SCFG_OFFSET + T_SATA0_INDEX);
 
