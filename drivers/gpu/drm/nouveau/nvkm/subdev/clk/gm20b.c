@@ -20,6 +20,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+#include <linux/nvmem-consumer.h>
+
 #include <subdev/clk.h>
 #include <subdev/volt.h>
 #include <subdev/timer.h>
@@ -929,7 +931,6 @@ gm20b_clk_new_speedo0(struct nvkm_device *device, int index,
 }
 
 /* FUSE register */
-#define FUSE_RESERVED_CALIB0	0x204
 #define FUSE_RESERVED_CALIB0_INTERCEPT_FRAC_SHIFT	0
 #define FUSE_RESERVED_CALIB0_INTERCEPT_FRAC_WIDTH	4
 #define FUSE_RESERVED_CALIB0_INTERCEPT_INT_SHIFT	4
@@ -945,14 +946,17 @@ static int
 gm20b_clk_init_fused_params(struct gm20b_clk *clk)
 {
 	struct nvkm_subdev *subdev = &clk->base.base.subdev;
+	struct nvkm_device *device = subdev->device;
 	u32 val = 0;
 	u32 rev = 0;
+	int ret;
 
-#if IS_ENABLED(CONFIG_ARCH_TEGRA)
-	tegra_fuse_readl(FUSE_RESERVED_CALIB0, &val);
+	ret = nvmem_cell_read_u32(device->dev, "calibration", &val);
+	if (ret < 0)
+		return ret;
+
 	rev = (val >> FUSE_RESERVED_CALIB0_FUSE_REV_SHIFT) &
 	      MASK(FUSE_RESERVED_CALIB0_FUSE_REV_WIDTH);
-#endif
 
 	/* No fused parameters, we will calibrate later */
 	if (rev == 0)
