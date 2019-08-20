@@ -3162,10 +3162,7 @@ static void amd_iommu_get_resv_regions(struct device *dev,
 static void amd_iommu_put_resv_regions(struct device *dev,
 				     struct list_head *head)
 {
-	struct iommu_resv_region *entry, *next;
-
-	list_for_each_entry_safe(entry, next, head, list)
-		kfree(entry);
+	iommu_dma_put_resv_regions(dev, head);
 }
 
 static void amd_iommu_apply_resv_region(struct device *dev,
