@@ -107,6 +107,7 @@ nvkm_device_tegra_probe_iommu(struct nvkm_device_tegra *tdev)
 #if IS_ENABLED(CONFIG_IOMMU_API)
 	struct device *dev = &tdev->pdev->dev;
 	unsigned long pgsize_bitmap;
+	struct iommu_domain *domain;
 	int ret;
 
 #if IS_ENABLED(CONFIG_ARM_DMA_USE_IOMMU)
@@ -119,6 +120,11 @@ nvkm_device_tegra_probe_iommu(struct nvkm_device_tegra *tdev)
 #endif
 
 	if (!tdev->func->iommu_bit)
+		return;
+
+	/* skip IOMMU setup if we're using DMA/IOMMU */
+	domain = iommu_get_domain_for_dev(dev);
+	if (domain && domain->type == IOMMU_DOMAIN_DMA)
 		return;
 
 	mutex_init(&tdev->iommu.mutex);
