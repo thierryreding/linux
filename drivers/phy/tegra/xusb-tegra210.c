@@ -10,6 +10,7 @@
 #include <linux/io.h>
 #include <linux/mailbox_client.h>
 #include <linux/module.h>
+#include <linux/nvmem-consumer.h>
 #include <linux/of.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
@@ -1946,13 +1947,14 @@ static const struct tegra_xusb_port_ops tegra210_usb3_port_ops = {
 };
 
 static int
-tegra210_xusb_read_fuse_calibration(struct tegra210_xusb_fuse_calibration *fuse)
+tegra210_xusb_read_fuse_calibration(struct tegra210_xusb_padctl *padctl)
 {
+	struct tegra210_xusb_fuse_calibration *fuse = &padctl->fuse;
 	unsigned int i;
 	u32 value;
 	int err;
 
-	err = tegra_fuse_readl(TEGRA_FUSE_SKU_CALIB_0, &value);
+	err = nvmem_cell_read_u32(padctl->base.dev, "calibration", &value);
 	if (err < 0)
 		return err;
 
@@ -1966,7 +1968,7 @@ tegra210_xusb_read_fuse_calibration(struct tegra210_xusb_fuse_calibration *fuse)
 		(value >> FUSE_SKU_CALIB_HS_TERM_RANGE_ADJ_SHIFT) &
 		FUSE_SKU_CALIB_HS_TERM_RANGE_ADJ_MASK;
 
-	err = tegra_fuse_readl(TEGRA_FUSE_USB_CALIB_EXT_0, &value);
+	err = nvmem_cell_read_u32(padctl->base.dev, "calibration-ext", &value);
 	if (err < 0)
 		return err;
 
@@ -1991,7 +1993,7 @@ tegra210_xusb_padctl_probe(struct device *dev,
 	padctl->base.dev = dev;
 	padctl->base.soc = soc;
 
-	err = tegra210_xusb_read_fuse_calibration(&padctl->fuse);
+	err = tegra210_xusb_read_fuse_calibration(padctl);
 	if (err < 0)
 		return ERR_PTR(err);
 

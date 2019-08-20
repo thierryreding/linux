@@ -7,14 +7,13 @@
 #include <linux/io.h>
 #include <linux/mailbox_client.h>
 #include <linux/module.h>
+#include <linux/nvmem-consumer.h>
 #include <linux/of.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/reset.h>
 #include <linux/slab.h>
-
-#include <soc/tegra/fuse.h>
 
 #include "xusb.h"
 
@@ -1653,13 +1652,14 @@ static const struct tegra_xusb_port_ops tegra124_usb3_port_ops = {
 };
 
 static int
-tegra124_xusb_read_fuse_calibration(struct tegra124_xusb_fuse_calibration *fuse)
+tegra124_xusb_read_fuse_calibration(struct tegra124_xusb_padctl *padctl)
 {
+	struct tegra124_xusb_fuse_calibration *fuse = &padctl->fuse;
 	unsigned int i;
 	int err;
 	u32 value;
 
-	err = tegra_fuse_readl(TEGRA_FUSE_SKU_CALIB_0, &value);
+	err = nvmem_cell_read_u32(padctl->base.dev, "calibration", &value);
 	if (err < 0)
 		return err;
 
@@ -1695,7 +1695,7 @@ tegra124_xusb_padctl_probe(struct device *dev,
 	padctl->base.dev = dev;
 	padctl->base.soc = soc;
 
-	err = tegra124_xusb_read_fuse_calibration(&padctl->fuse);
+	err = tegra124_xusb_read_fuse_calibration(padctl);
 	if (err < 0)
 		return ERR_PTR(err);
 
