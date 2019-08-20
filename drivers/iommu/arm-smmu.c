@@ -2049,6 +2049,17 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	}
 	smmu->dev = dev;
 
+	smmu->mc = devm_memory_controller_get_optional(dev, NULL);
+	if (IS_ERR(smmu->mc)) {
+		err = PTR_ERR(smmu->mc);
+
+		if (err != -EPROBE_DEFER)
+			dev_err(dev, "failed to get memory controller: %d\n",
+				err);
+
+		return err;
+	}
+
 	if (dev->of_node)
 		err = arm_smmu_device_dt_probe(pdev, smmu);
 	else
