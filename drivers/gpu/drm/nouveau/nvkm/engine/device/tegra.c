@@ -319,6 +319,10 @@ nvkm_device_tegra_new(const struct nvkm_device_tegra_func *func,
 		ret = clk_set_rate(tdev->clk, ULONG_MAX);
 		if (ret < 0)
 			goto free;
+
+		rate = clk_get_rate(tdev->clk);
+
+		dev_dbg(&pdev->dev, "GPU clock set to %lu\n", rate);
 	}
 
 	if (func->require_ref_clk)
