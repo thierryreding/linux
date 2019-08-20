@@ -5388,10 +5388,7 @@ static void intel_iommu_get_resv_regions(struct device *device,
 static void intel_iommu_put_resv_regions(struct device *dev,
 					 struct list_head *head)
 {
-	struct iommu_resv_region *entry, *next;
-
-	list_for_each_entry_safe(entry, next, head, list)
-		kfree(entry);
+	iommu_dma_put_resv_regions(dev, head);
 }
 
 int intel_iommu_enable_pasid(struct intel_iommu *iommu, struct device *dev)
