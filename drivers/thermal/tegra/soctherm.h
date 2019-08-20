@@ -93,7 +93,6 @@ struct tegra_tsensor {
 	const char *name;
 	const u32 base;
 	const struct tegra_tsensor_configuration *config;
-	const u32 calib_fuse_offset;
 	/*
 	 * Correction values used to modify values read from
 	 * calibration fuses
@@ -131,9 +130,13 @@ struct tegra_soctherm_soc {
 	struct tsensor_group_thermtrips *thermtrips;
 };
 
-int tegra_calc_shared_calib(const struct tegra_soctherm_fuse *tfuse,
+struct tegra_soctherm;
+
+int tegra_calc_shared_calib(struct device *dev,
+			    const struct tegra_soctherm_fuse *tfuse,
 			    struct tsensor_shared_calib *shared);
-int tegra_calc_tsensor_calib(const struct tegra_tsensor *sensor,
+int tegra_calc_tsensor_calib(struct device *dev,
+			     const struct tegra_tsensor *sensor,
 			     const struct tsensor_shared_calib *shared,
 			     u32 *calib);
 

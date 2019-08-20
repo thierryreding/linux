@@ -2180,13 +2180,13 @@ static int tegra_soctherm_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	/* calculate shared calibration data */
-	err = tegra_calc_shared_calib(soc->tfuse, &shared_calib);
+	err = tegra_calc_shared_calib(&pdev->dev, soc->tfuse, &shared_calib);
 	if (err)
 		return err;
 
 	/* calculate tsensor calibaration data */
 	for (i = 0; i < soc->num_tsensors; ++i) {
-		err = tegra_calc_tsensor_calib(&soc->tsensors[i],
+		err = tegra_calc_tsensor_calib(&pdev->dev, &soc->tsensors[i],
 					       &shared_calib,
 					       &tegra->calib[i]);
 		if (err)
