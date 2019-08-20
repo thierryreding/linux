@@ -6,14 +6,13 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/nvmem-consumer.h>
 #include <linux/of.h>
 #include <linux/phy/phy.h>
 #include <linux/regulator/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/slab.h>
-
-#include <soc/tegra/fuse.h>
 
 #include "xusb.h"
 
@@ -800,7 +799,7 @@ tegra186_xusb_read_fuse_calibration(struct tegra186_xusb_padctl *padctl)
 	if (!level)
 		return -ENOMEM;
 
-	err = tegra_fuse_readl(TEGRA_FUSE_SKU_CALIB_0, &value);
+	err = nvmem_cell_read_u32(dev, "calibration", &value);
 	if (err) {
 		dev_err(dev, "failed to read calibration fuse: %d\n", err);
 		return err;
@@ -819,7 +818,7 @@ tegra186_xusb_read_fuse_calibration(struct tegra186_xusb_padctl *padctl)
 	padctl->calib.hs_term_range_adj = (value >> HS_TERM_RANGE_ADJ_SHIFT) &
 						HS_TERM_RANGE_ADJ_MASK;
 
-	err = tegra_fuse_readl(TEGRA_FUSE_USB_CALIB_EXT_0, &value);
+	err = nvmem_cell_read_u32(dev, "calibration-ext", &value);
 	if (err) {
 		dev_err(dev, "failed to read calibration fuse: %d\n", err);
 		return err;
