@@ -545,6 +545,7 @@
 		power-domains = <&bpmp TEGRA186_POWER_DOMAIN_XUSBC>,
 				<&bpmp TEGRA186_POWER_DOMAIN_XUSBA>;
 		power-domain-names = "xusb_host", "xusb_ss";
+		iommus = <&smmu TEGRA186_SID_XUSB_HOST>;
 		nvidia,xusb-padctl = <&padctl>;
 
 		status = "disabled";
