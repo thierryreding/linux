@@ -278,6 +278,9 @@ struct arm_smmu_device {
 
 	/* IOMMU core code handle */
 	struct iommu_device		iommu;
+
+	unsigned int num_bypass;
+	u32 bypass[16];
 };
 
 enum arm_smmu_context_fmt {

@@ -994,6 +994,8 @@ static int arm_smmu_find_sme(struct arm_smmu_device *smmu, u16 id, u16 mask)
 
 static bool arm_smmu_free_sme(struct arm_smmu_device *smmu, int idx)
 {
+	pr_info("> %s(smmu=%px, idx=%d)\n", __func__, smmu, idx);
+
 	if (--smmu->s2crs[idx].count)
 		return false;
 
@@ -1001,6 +1003,7 @@ static bool arm_smmu_free_sme(struct arm_smmu_device *smmu, int idx)
 	if (smmu->smrs)
 		smmu->smrs[idx].valid = false;
 
+	pr_info("< %s()\n", __func__);
 	return true;
 }
 
@@ -1512,19 +1515,34 @@ out_unlock:
 	return ret;
 }
 
-static int arm_smmu_of_xlate(struct device *dev, struct of_phandle_args *args)
+static u32 arm_smmu_of_parse(struct device_node *np, const u32 *args,
+			     unsigned int count)
 {
-	u32 mask, fwid = 0;
+	u32 fwid = 0, mask;
 
-	if (args->args_count > 0)
-		fwid |= FIELD_PREP(SMR_ID, args->args[0]);
+	if (count > 0)
+		fwid |= FIELD_PREP(SMR_ID, args[0]);
 
-	if (args->args_count > 1)
-		fwid |= FIELD_PREP(SMR_MASK, args->args[1]);
-	else if (!of_property_read_u32(args->np, "stream-match-mask", &mask))
+	if (count > 1)
+		fwid |= FIELD_PREP(SMR_MASK, args[1]);
+	else if (!of_property_read_u32(np, "stream-match-mask", &mask))
 		fwid |= FIELD_PREP(SMR_MASK, mask);
 
-	return iommu_fwspec_add_ids(dev, &fwid, 1);
+	return fwid;
+}
+
+static int arm_smmu_of_xlate(struct device *dev, struct of_phandle_args *args)
+{
+	u32 fwid;
+	int ret;
+
+	pr_info("> %s(dev=%px, args=%px)\n", __func__, dev, args);
+
+	fwid = arm_smmu_of_parse(args->np, args->args, args->args_count);
+	ret = iommu_fwspec_add_ids(dev, &fwid, 1);
+
+	pr_info("< %s() = %d\n", __func__, ret);
+	return ret;
 }
 
 static void arm_smmu_get_resv_regions(struct device *dev,
@@ -1736,8 +1754,23 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 					 GFP_KERNEL);
 	if (!smmu->s2crs)
 		return -ENOMEM;
-	for (i = 0; i < size; i++)
+	pr_info("initializing %u s2crs...\n", size);
+	for (i = 0; i < size; i++) {
+		unsigned int j;
+
 		smmu->s2crs[i] = s2cr_init_val;
+
+		if (smmu->s2crs[i].type != S2CR_TYPE_BYPASS) {
+			for (j = 0; j < smmu->num_bypass; j++) {
+				u32 mask = 0xffff0000 | FIELD_GET(SMR_MASK, smmu->bypass[j]);
+
+				if ((i & ~mask) == (smmu->bypass[j] & ~mask)) {
+					pr_info("  enabling bypass for %u\n", i);
+					smmu->s2crs[i].type = S2CR_TYPE_BYPASS;
+				}
+			}
+		}
+	}
 
 	smmu->num_mapping_groups = size;
 	mutex_init(&smmu->stream_map_mutex);
@@ -1941,7 +1974,10 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev,
 {
 	const struct arm_smmu_match_data *data;
 	struct device *dev = &pdev->dev;
+	struct device_node *np;
 	bool legacy_binding;
+
+	pr_info("> %s(pdev=%px, smmu=%px)\n", __func__, pdev, smmu);
 
 	if (of_property_read_u32(dev->of_node, "#global-interrupts",
 				 &smmu->num_global_irqs)) {
@@ -1968,6 +2004,46 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev,
 	if (of_dma_is_coherent(dev->of_node))
 		smmu->features |= ARM_SMMU_FEAT_COHERENT_WALK;
 
+	for_each_node_with_property(np, "iommus") {
+		struct of_phandle_iterator it;
+		bool bypass = false;
+		int err;
+
+		pr_info("  np: %pOF\n", np);
+
+		of_for_each_phandle(&it, err, np, "memory-region", NULL, 0) {
+			pr_info("    region: %pOF\n", it.node);
+
+			/* XXX check that region is not empty? */
+
+			bypass = true;
+		}
+
+		of_for_each_phandle(&it, err, np, "iommus", "#iommu-cells", 0) {
+			u32 args[MAX_PHANDLE_ARGS], fwid;
+			unsigned int count, i;
+
+			count = of_phandle_iterator_args(&it, args, MAX_PHANDLE_ARGS);
+
+			pr_info("    %pOF: %u arguments\n", it.node, count);
+
+			for (i = 0; i < count; i++)
+				pr_info("      %u: %08x\n", i, args[i]);
+
+			fwid = arm_smmu_of_parse(it.node, args, count);
+
+			if (bypass) {
+				pr_info("        bypass: %08x\n", fwid);
+
+				if (smmu->num_bypass < 16)
+					smmu->bypass[smmu->num_bypass++] = fwid;
+				else
+					pr_warn("too many bypassed masters\n");
+			}
+		}
+	}
+
+	pr_info("< %s()\n", __func__);
 	return 0;
 }
 
