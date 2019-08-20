@@ -346,8 +346,11 @@ static int tegra_ahci_controller_init(struct ahci_host_priv *hpriv)
 	val |= T_SATA0_CFG2NVOOB_2_COMWAKE_IDLE_CNT_LOW;
 	writel(val, tegra->sata_regs + SCFG_OFFSET + T_SATA0_CFG2NVOOB_2);
 
-	if (tegra->soc->ops && tegra->soc->ops->init)
-		tegra->soc->ops->init(hpriv);
+	if (tegra->soc->ops && tegra->soc->ops->init) {
+		ret = tegra->soc->ops->init(hpriv);
+		if (ret < 0)
+			goto power_off;
+	}
 
 	/*
 	 * Program the following SATA configuration registers to
@@ -415,6 +418,10 @@ static int tegra_ahci_controller_init(struct ahci_host_priv *hpriv)
 	writel(val, tegra->sata_regs + SATA_INTR_MASK);
 
 	return 0;
+
+power_off:
+	tegra_ahci_power_off(hpriv);
+	return ret;
 }
 
 static void tegra_ahci_controller_deinit(struct ahci_host_priv *hpriv)
