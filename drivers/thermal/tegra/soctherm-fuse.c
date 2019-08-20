@@ -4,6 +4,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/nvmem-consumer.h>
 #include <linux/platform_device.h>
 #include <soc/tegra/fuse.h>
 
@@ -70,14 +71,15 @@ static s64 div64_s64_precise(s64 a, s32 b)
 	return r >> 16;
 }
 
-int tegra_calc_shared_calib(const struct tegra_soctherm_fuse *tfuse,
+int tegra_calc_shared_calib(struct device *dev,
+			    const struct tegra_soctherm_fuse *tfuse,
 			    struct tsensor_shared_calib *shared)
 {
 	u32 val;
 	s32 shifted_cp, shifted_ft;
 	int err;
 
-	err = tegra_fuse_readl(FUSE_TSENSOR_COMMON, &val);
+	err = nvmem_cell_read_u32(dev, "common", &val);
 	if (err)
 		return err;
 
@@ -90,11 +92,9 @@ int tegra_calc_shared_calib(const struct tegra_soctherm_fuse *tfuse,
 		     tfuse->fuse_shift_ft_shift;
 	shifted_ft = sign_extend32(shifted_ft, 4);
 
-	if (tfuse->fuse_spare_realignment) {
-		err = tegra_fuse_readl(tfuse->fuse_spare_realignment, &val);
-		if (err)
-			return err;
-	}
+	err = nvmem_cell_read_u32(dev, "realignment", &val);
+	if (err != -ENOENT)
+		return err;
 
 	shifted_cp = sign_extend32(val, 5);
 
@@ -104,7 +104,8 @@ int tegra_calc_shared_calib(const struct tegra_soctherm_fuse *tfuse,
 	return 0;
 }
 
-int tegra_calc_tsensor_calib(const struct tegra_tsensor *sensor,
+int tegra_calc_tsensor_calib(struct device *dev,
+			     const struct tegra_tsensor *sensor,
 			     const struct tsensor_shared_calib *shared,
 			     u32 *calibration)
 {
@@ -119,7 +120,7 @@ int tegra_calc_tsensor_calib(const struct tegra_tsensor *sensor,
 
 	sensor_group = sensor->group;
 
-	err = tegra_fuse_readl(sensor->calib_fuse_offset, &val);
+	err = nvmem_cell_read_u32(dev, sensor->name, &val);
 	if (err)
 		return err;
 
