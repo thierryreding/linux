@@ -31,6 +31,7 @@
 #include <linux/iommu.h>
 #include <linux/iopoll.h>
 #include <linux/init.h>
+#include <linux/memory-controller.h>
 #include <linux/moduleparam.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -165,6 +166,7 @@ struct arm_smmu_master_cfg {
 
 struct arm_smmu_device {
 	struct device			*dev;
+	struct memory_controller	*mc;
 
 	void __iomem			*base;
 	void __iomem			*cb_base;
@@ -2180,6 +2182,18 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	smmu->dev = dev;
+
+	smmu->mc = memory_controller_get(dev, NULL);
+	if (IS_ERR(smmu->mc)) {
+		err = PTR_ERR(smmu->mc);
+
+		if (err != -ENODEV) {
+			dev_err(dev, "failed to get memory controller: %d\n", err);
+			return err;
+		}
+
+		smmu->mc = NULL;
+	}
 
 	if (dev->of_node)
 		err = arm_smmu_device_dt_probe(pdev, smmu);
