@@ -12,6 +12,7 @@ int nvkm_mmu_new_(const struct nvkm_mmu_func *, struct nvkm_device *,
 struct nvkm_mmu_func {
 	void (*init)(struct nvkm_mmu *);
 
+	u8  iommu_bit;
 	u8  dma_bits;
 
 	struct {

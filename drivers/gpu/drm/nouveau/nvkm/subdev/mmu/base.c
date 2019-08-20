@@ -416,7 +416,14 @@ void
 nvkm_mmu_ctor(const struct nvkm_mmu_func *func, struct nvkm_device *device,
 	      int index, struct nvkm_mmu *mmu)
 {
+	struct iommu_domain *domain;
+
 	nvkm_subdev_ctor(&nvkm_mmu, device, index, &mmu->subdev);
+
+	domain = iommu_get_domain_for_dev(device->dev);
+	if (domain)
+		mmu->iommu_mask = BIT_ULL(func->iommu_bit);
+
 	mmu->func = func;
 	mmu->dma_bits = func->dma_bits;
 	nvkm_mmu_ptc_init(mmu);

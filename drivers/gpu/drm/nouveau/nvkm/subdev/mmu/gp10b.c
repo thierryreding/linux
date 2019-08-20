@@ -28,6 +28,7 @@
 
 static const struct nvkm_mmu_func
 gp10b_mmu = {
+	.iommu_bit = 36,
 	.dma_bits = 47,
 	.mmu = {{ -1, -1, NVIF_CLASS_MMU_GF100}},
 	.mem = {{ -1, -1, NVIF_CLASS_MEM_GF100}, .umap = gf100_mem_map },
