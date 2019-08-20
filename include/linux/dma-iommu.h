@@ -36,6 +36,7 @@ void iommu_dma_compose_msi_msg(struct msi_desc *desc,
 			       struct msi_msg *msg);
 
 void iommu_dma_get_resv_regions(struct device *dev, struct list_head *list);
+void iommu_dma_put_resv_regions(struct device *dev, struct list_head *list);
 
 #else /* CONFIG_IOMMU_DMA */
 
@@ -75,6 +76,10 @@ static inline void iommu_dma_compose_msi_msg(struct msi_desc *desc,
 }
 
 static inline void iommu_dma_get_resv_regions(struct device *dev, struct list_head *list)
+{
+}
+
+static inline void iommu_dma_put_resv_regions(struct device *dev, struct list_head *list)
 {
 }
 
