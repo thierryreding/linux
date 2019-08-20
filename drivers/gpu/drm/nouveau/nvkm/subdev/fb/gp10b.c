@@ -19,6 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
+#include <subdev/mmu.h>
+
 #include "gf100.h"
 
 static void
@@ -26,6 +29,7 @@ gp10b_fb_init(struct nvkm_fb *base)
 {
 	struct nvkm_device *device = base->subdev.device;
 	struct gf100_fb *fb = gf100_fb(base);
+	struct nvkm_mmu *mmu = device->mmu;
 
 	nvkm_info(&base->subdev, "> %s(base=%px)\n", __func__, base);
 
@@ -45,6 +49,8 @@ gp10b_fb_init(struct nvkm_fb *base)
 					   DMA_TO_DEVICE);
 
 		value = (fb->r100c10 >> 16) & 0xffffff;
+		value |= mmu->iommu_mask >> 16;
+
 		value |= 0x03000000; /* NCOH */
 		nvkm_wr32(device, 0x001700, value);
 
