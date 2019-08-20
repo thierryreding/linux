@@ -162,7 +162,7 @@ struct tegra_ahci_soc {
 };
 
 struct tegra_ahci_priv {
-	struct platform_device	   *pdev;
+	struct device		   *dev;
 	void __iomem		   *sata_regs;
 	void __iomem		   *sata_aux_regs;
 	struct reset_control	   *sata_rst;
@@ -293,7 +293,7 @@ static int tegra_ahci_controller_init(struct ahci_host_priv *hpriv)
 
 	ret = tegra_ahci_power_on(hpriv);
 	if (ret) {
-		dev_err(&tegra->pdev->dev,
+		dev_err(tegra->dev,
 			"failed to power on AHCI controller: %d\n", ret);
 		return ret;
 	}
@@ -495,7 +495,7 @@ static int tegra_ahci_probe(struct platform_device *pdev)
 
 	hpriv->plat_data = tegra;
 
-	tegra->pdev = pdev;
+	tegra->dev = &pdev->dev;
 	tegra->soc = of_device_get_match_data(&pdev->dev);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
