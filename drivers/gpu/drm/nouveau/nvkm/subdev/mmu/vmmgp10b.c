@@ -21,12 +21,27 @@
  */
 #include "vmm.h"
 
+static int
+gp10b_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
+		struct nvkm_vmm_map *map)
+{
+	int ret;
+
+	ret = gp100_vmm_valid(vmm, argv, argc, map);
+	if (ret)
+		return ret;
+
+	map->type |= vmm->mmu->iommu_mask >> 4;
+
+	return 0;
+}
+
 static const struct nvkm_vmm_func
 gp10b_vmm = {
 	.join = gp100_vmm_join,
 	.part = gf100_vmm_part,
 	.aper = gk20a_vmm_aper,
-	.valid = gp100_vmm_valid,
+	.valid = gp10b_vmm_valid,
 	.flush = gp100_vmm_flush,
 	.mthd = gp100_vmm_mthd,
 	.invalidate_pdb = gp100_vmm_invalidate_pdb,

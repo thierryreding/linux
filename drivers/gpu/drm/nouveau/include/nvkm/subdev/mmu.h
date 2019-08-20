@@ -88,6 +88,12 @@ struct nvkm_mmu {
 	const struct nvkm_mmu_func *func;
 	struct nvkm_subdev subdev;
 
+	/*
+	 * If an IOMMU is used, indicates which address bit will trigger an
+	 * IOMMU translation when set (when this bit is not set, the IOMMU is
+	 * bypassed). A value of 0 means an IOMMU is never used.
+	 */
+	u64 iommu_mask;
 	u8  dma_bits;
 
 	int heap_nr;

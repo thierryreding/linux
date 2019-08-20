@@ -53,6 +53,8 @@ struct gk20a_instobj {
 	struct nvkm_mm_node *mn;
 	struct gk20a_instmem *imem;
 
+	u64 iommu_mask;
+
 	/* CPU mapping */
 	u32 *vaddr;
 };
@@ -105,7 +107,6 @@ struct gk20a_instmem {
 	struct nvkm_mm *mm;
 	struct iommu_domain *domain;
 	unsigned long iommu_pgshift;
-	u16 iommu_bit;
 
 	/* Only used by DMA API */
 	unsigned long attrs;
@@ -127,7 +128,8 @@ gk20a_instobj_page(struct nvkm_memory *memory)
 static u64
 gk20a_instobj_addr(struct nvkm_memory *memory)
 {
-	return (u64)gk20a_instobj(memory)->mn->offset << 12;
+	struct gk20a_instobj *instobj = gk20a_instobj(memory);
+	return (u64)instobj->mn->offset << 12 | instobj->iommu_mask;
 }
 
 static u64
@@ -356,9 +358,6 @@ gk20a_instobj_dtor_iommu(struct nvkm_memory *memory)
 
 	mutex_unlock(&imem->lock);
 
-	/* clear IOMMU bit to unmap pages */
-	r->offset &= ~BIT(imem->iommu_bit - imem->iommu_pgshift);
-
 	/* Unmap pages from GPU address space and free them */
 	for (i = 0; i < node->base.mn->length; i++) {
 		iommu_unmap(imem->domain,
@@ -443,6 +442,8 @@ gk20a_instobj_ctor_dma(struct gk20a_instmem *imem, u32 npages, u32 align,
 	node->r.offset = node->handle >> 12;
 	node->r.length = (npages << PAGE_SHIFT) >> 12;
 
+	node->base.iommu_mask = subdev->device->mmu->iommu_mask;
+
 	node->base.mn = &node->r;
 	return 0;
 }
@@ -517,8 +518,7 @@ gk20a_instobj_ctor_iommu(struct gk20a_instmem *imem, u32 npages, u32 align,
 		}
 	}
 
-	/* IOMMU bit tells that an address is to be resolved through the IOMMU */
-	r->offset |= BIT(imem->iommu_bit - imem->iommu_pgshift);
+	node->base.iommu_mask = subdev->device->mmu->iommu_mask;
 
 	node->base.mn = r;
 	return 0;
@@ -620,7 +620,6 @@ gk20a_instmem_new(struct nvkm_device *device, int index,
 		imem->mm = &tdev->iommu.mm;
 		imem->domain = tdev->iommu.domain;
 		imem->iommu_pgshift = tdev->iommu.pgshift;
-		imem->iommu_bit = tdev->func->iommu_bit;
 
 		nvkm_info(&imem->base.subdev, "using IOMMU\n");
 	} else {
