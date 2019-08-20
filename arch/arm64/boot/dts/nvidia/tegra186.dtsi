@@ -139,10 +139,12 @@
 		};
 	};
 
-	memory-controller@2c00000 {
+	mc: memory-controller@2c00000 {
 		compatible = "nvidia,tegra186-mc";
 		reg = <0x0 0x02c00000 0x0 0xb0000>;
 		status = "disabled";
+
+		#memory-controller-cells = <0>;
 	};
 
 	uarta: serial@3100000 {
@@ -866,6 +868,8 @@
 		stream-match-mask = <0x7f80>;
 		#global-interrupts = <1>;
 		#iommu-cells = <1>;
+
+		memory-controllers = <&mc>;
 	};
 
 	host1x@13e00000 {
