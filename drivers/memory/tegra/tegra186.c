@@ -4,6 +4,7 @@
  */
 
 #include <linux/io.h>
+#include <linux/memory-controller.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
@@ -11,6 +12,7 @@
 #include <dt-bindings/memory/tegra186-mc.h>
 
 struct tegra_mc {
+	struct memory_controller base;
 	struct device *dev;
 	void __iomem *regs;
 };
@@ -548,7 +550,7 @@ static int tegra186_mc_probe(struct platform_device *pdev)
 	if (IS_ERR(mc->regs))
 		return PTR_ERR(mc->regs);
 
-	mc->dev = &pdev->dev;
+	mc->base.dev = &pdev->dev;
 
 	for (i = 0; i < ARRAY_SIZE(tegra186_mc_clients); i++) {
 		const struct tegra_mc_client *client = &tegra186_mc_clients[i];
@@ -570,6 +572,10 @@ static int tegra186_mc_probe(struct platform_device *pdev)
 		dev_dbg(&pdev->dev, "client %s: override: %x security: %x\n",
 			client->name, override, security);
 	}
+
+	err = memory_controller_register(&mc->base);
+	if (err < 0)
+		return err;
 
 	platform_set_drvdata(pdev, mc);
 
