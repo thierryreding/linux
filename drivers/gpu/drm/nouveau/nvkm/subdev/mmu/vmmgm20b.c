@@ -21,12 +21,27 @@
  */
 #include "vmm.h"
 
+static int
+gm20b_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
+		struct nvkm_vmm_map *map)
+{
+	int ret;
+
+	ret = gf100_vmm_valid(vmm, argv, argc, map);
+	if (ret)
+		return ret;
+
+	map->type |= vmm->mmu->iommu_mask >> 8;
+
+	return 0;
+}
+
 static const struct nvkm_vmm_func
 gm20b_vmm_17 = {
 	.join = gm200_vmm_join,
 	.part = gf100_vmm_part,
 	.aper = gk20a_vmm_aper,
-	.valid = gf100_vmm_valid,
+	.valid = gm20b_vmm_valid,
 	.flush = gf100_vmm_flush,
 	.invalidate_pdb = gf100_vmm_invalidate_pdb,
 	.page = {
@@ -42,7 +57,7 @@ gm20b_vmm_16 = {
 	.join = gm200_vmm_join,
 	.part = gf100_vmm_part,
 	.aper = gk20a_vmm_aper,
-	.valid = gf100_vmm_valid,
+	.valid = gm20b_vmm_valid,
 	.flush = gf100_vmm_flush,
 	.invalidate_pdb = gf100_vmm_invalidate_pdb,
 	.page = {
