@@ -44,7 +44,7 @@ int tegra_fb_get_tiling(struct drm_framebuffer *framebuffer,
 {
 	uint64_t modifier = framebuffer->modifier;
 
-	switch (modifier) {
+	switch (drm_fourcc_canonicalize_nvidia_format_mod(modifier)) {
 	case DRM_FORMAT_MOD_LINEAR:
 		tiling->mode = TEGRA_BO_TILING_MODE_PITCH;
 		tiling->value = 0;
@@ -55,32 +55,32 @@ int tegra_fb_get_tiling(struct drm_framebuffer *framebuffer,
 		tiling->value = 0;
 		break;
 
-	case DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(0):
+	case DRM_FORMAT_MOD_NVIDIA_BLOCK_LINEAR_2D(0, 0, 0, 0xfe, 0):
 		tiling->mode = TEGRA_BO_TILING_MODE_BLOCK;
 		tiling->value = 0;
 		break;
 
-	case DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(1):
+	case DRM_FORMAT_MOD_NVIDIA_BLOCK_LINEAR_2D(0, 0, 0, 0xfe, 1):
 		tiling->mode = TEGRA_BO_TILING_MODE_BLOCK;
 		tiling->value = 1;
 		break;
 
-	case DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(2):
+	case DRM_FORMAT_MOD_NVIDIA_BLOCK_LINEAR_2D(0, 0, 0, 0xfe, 2):
 		tiling->mode = TEGRA_BO_TILING_MODE_BLOCK;
 		tiling->value = 2;
 		break;
 
-	case DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(3):
+	case DRM_FORMAT_MOD_NVIDIA_BLOCK_LINEAR_2D(0, 0, 0, 0xfe, 3):
 		tiling->mode = TEGRA_BO_TILING_MODE_BLOCK;
 		tiling->value = 3;
 		break;
 
-	case DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(4):
+	case DRM_FORMAT_MOD_NVIDIA_BLOCK_LINEAR_2D(0, 0, 0, 0xfe, 4):
 		tiling->mode = TEGRA_BO_TILING_MODE_BLOCK;
 		tiling->value = 4;
 		break;
 
-	case DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(5):
+	case DRM_FORMAT_MOD_NVIDIA_BLOCK_LINEAR_2D(0, 0, 0, 0xfe, 5):
 		tiling->mode = TEGRA_BO_TILING_MODE_BLOCK;
 		tiling->value = 5;
 		break;
