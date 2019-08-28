@@ -1955,8 +1955,13 @@ tegra210_xusb_read_fuse_calibration(struct tegra210_xusb_padctl *padctl)
 	int err;
 
 	err = nvmem_cell_read_u32(padctl->base.dev, "calibration", &value);
-	if (err < 0)
+	if (err < 0) {
+		if (err != -EPROBE_DEFER)
+			dev_err(padctl->base.dev,
+				"failed to read calibration fuse: %d\n", err);
+
 		return err;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(fuse->hs_curr_level); i++) {
 		fuse->hs_curr_level[i] =
@@ -1969,8 +1974,14 @@ tegra210_xusb_read_fuse_calibration(struct tegra210_xusb_padctl *padctl)
 		FUSE_SKU_CALIB_HS_TERM_RANGE_ADJ_MASK;
 
 	err = nvmem_cell_read_u32(padctl->base.dev, "calibration-ext", &value);
-	if (err < 0)
+	if (err < 0) {
+		if (err != -EPROBE_DEFER)
+			dev_err(padctl->base.dev,
+				"failed to read extended calibration fuse: %d\n",
+				err);
+
 		return err;
+	}
 
 	fuse->rpd_ctrl =
 		(value >> FUSE_USB_CALIB_EXT_RPD_CTRL_SHIFT) &
