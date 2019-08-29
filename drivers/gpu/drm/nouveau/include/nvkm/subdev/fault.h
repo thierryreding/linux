@@ -21,6 +21,7 @@ struct nvkm_fault_data {
 	u64  addr;
 	u64  inst;
 	u64  time;
+	u8 aperture;
 	u8 engine;
 	u8  valid;
 	u8    gpc;
