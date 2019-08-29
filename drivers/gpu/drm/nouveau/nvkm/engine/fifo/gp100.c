@@ -66,6 +66,7 @@ gp100_fifo_intr_fault(struct nvkm_fifo *fifo, int unit)
 	info.addr   = ((u64)vahi << 32) | valo;
 	info.time   = 0;
 	info.engine = unit;
+	info.aperture = 0;
 	info.valid  = 1;
 	info.gpc    = (type & 0x1f000000) >> 24;
 	info.hub    = (type & 0x00100000) >> 20;
