@@ -54,7 +54,8 @@ gf100_bar_bar1_init(struct nvkm_bar *base)
 	struct nvkm_device *device = base->subdev.device;
 	struct gf100_bar *bar = gf100_bar(base);
 	const u32 addr = nvkm_memory_addr(bar->bar[1].inst) >> 12;
-	nvkm_wr32(device, 0x001704, 0x80000000 | addr);
+	u32 target = nvkm_memory_aperture(bar->bar[1].inst) << 28;
+	nvkm_wr32(device, 0x001704, 0x80000000 | target | addr);
 }
 
 struct nvkm_vmm *
