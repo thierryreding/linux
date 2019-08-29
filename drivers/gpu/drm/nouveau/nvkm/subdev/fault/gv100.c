@@ -57,7 +57,7 @@ gv100_fault_buffer_process(struct nvkm_fault_buffer *buffer)
 		info.addr   = ((u64)addrhi << 32) | addrlo;
 		info.inst   = ((u64)insthi << 32) | instlo;
 		info.time   = ((u64)timehi << 32) | timelo;
-		info.engine = (info0 & 0x000000ff);
+		info.engine = (info0 & 0x000001ff);
 		info.aperture = (info0 & 0x00000c00) >> 10;
 		info.valid  = (info1 & 0x80000000) >> 31;
 		info.gpc    = (info1 & 0x1f000000) >> 24;
@@ -138,8 +138,8 @@ gv100_fault_intr_fault(struct nvkm_fault *fault)
 	info.addr = ((u64)addrhi << 32) | addrlo;
 	info.inst = ((u64)insthi << 32) | (info0 & 0xfffff000);
 	info.time = 0;
-	info.engine = (info0 & 0x000000ff);
 	info.aperture = (info0 & 0x00000c00) >> 10;
+	info.engine = (info0 & 0x000001ff);
 	info.valid  = (info1 & 0x80000000) >> 31;
 	info.gpc    = (info1 & 0x1f000000) >> 24;
 	info.hub    = (info1 & 0x00100000) >> 20;
