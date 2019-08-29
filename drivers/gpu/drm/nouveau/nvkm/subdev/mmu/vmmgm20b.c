@@ -40,7 +40,6 @@ static const struct nvkm_vmm_func
 gm20b_vmm_17 = {
 	.join = gm200_vmm_join,
 	.part = gf100_vmm_part,
-	.aper = gk20a_vmm_aper,
 	.valid = gm20b_vmm_valid,
 	.flush = gf100_vmm_flush,
 	.invalidate_pdb = gf100_vmm_invalidate_pdb,
@@ -56,7 +55,6 @@ static const struct nvkm_vmm_func
 gm20b_vmm_16 = {
 	.join = gm200_vmm_join,
 	.part = gf100_vmm_part,
-	.aper = gk20a_vmm_aper,
 	.valid = gm20b_vmm_valid,
 	.flush = gf100_vmm_flush,
 	.invalidate_pdb = gf100_vmm_invalidate_pdb,
