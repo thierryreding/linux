@@ -442,8 +442,6 @@ gk20a_instobj_ctor_dma(struct gk20a_instmem *imem, u32 npages, u32 align,
 	node->r.offset = node->handle >> 12;
 	node->r.length = (npages << PAGE_SHIFT) >> 12;
 
-	node->base.iommu_mask = subdev->device->mmu->iommu_mask;
-
 	node->base.mn = &node->r;
 	return 0;
 }
@@ -518,8 +516,6 @@ gk20a_instobj_ctor_iommu(struct gk20a_instmem *imem, u32 npages, u32 align,
 		}
 	}
 
-	node->base.iommu_mask = subdev->device->mmu->iommu_mask;
-
 	node->base.mn = r;
 	return 0;
 
@@ -547,6 +543,7 @@ gk20a_instobj_new(struct nvkm_instmem *base, u32 size, u32 align, bool zero,
 	struct gk20a_instmem *imem = gk20a_instmem(base);
 	struct nvkm_subdev *subdev = &imem->base.subdev;
 	struct gk20a_instobj *node = NULL;
+	u64 gaddr;
 	int ret;
 
 	nvkm_debug(subdev, "%s (%s): size: %x align: %x\n", __func__,
@@ -566,10 +563,13 @@ gk20a_instobj_new(struct nvkm_instmem *base, u32 size, u32 align, bool zero,
 	if (ret)
 		return ret;
 
+	node->iommu_mask = subdev->device->mmu->iommu_mask;
 	node->imem = imem;
 
+	gaddr = (u64)node->mn->offset << 12 | node->iommu_mask;
+
 	nvkm_debug(subdev, "alloc size: 0x%x, align: 0x%x, gaddr: 0x%llx\n",
-		   size, align, (u64)node->mn->offset << 12);
+		   size, align, gaddr);
 
 	return 0;
 }
