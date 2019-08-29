@@ -519,9 +519,10 @@ gk104_fifo_fault(struct nvkm_fifo *base, struct nvkm_fault_data *info)
 	chan = nvkm_fifo_chan_inst_locked(&fifo->base, info->inst);
 
 	nvkm_error(subdev,
-		   "fault %02x [%s] at %016llx engine %02x [%s] client %02x "
+		   "fault %02x [%s] at %016llx aperture %02x engine %02x [%s] client %02x "
 		   "[%s%s] reason %02x [%s] on channel %d [%010llx %s]\n",
 		   info->access, ea ? ea->name : "", info->addr,
+		   info->aperture,
 		   info->engine, ee ? ee->name : en,
 		   info->client, ct, ec ? ec->name : "",
 		   info->reason, er ? er->name : "", chan ? chan->chid : -1,
