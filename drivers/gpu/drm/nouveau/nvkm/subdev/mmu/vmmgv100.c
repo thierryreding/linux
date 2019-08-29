@@ -63,7 +63,6 @@ static const struct nvkm_vmm_func
 gv100_vmm = {
 	.join = gv100_vmm_join,
 	.part = gf100_vmm_part,
-	.aper = gf100_vmm_aper,
 	.valid = gp100_vmm_valid,
 	.flush = gp100_vmm_flush,
 	.mthd = gp100_vmm_mthd,

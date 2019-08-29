@@ -140,7 +140,6 @@ struct nvkm_vmm_func {
 	int (*join)(struct nvkm_vmm *, struct nvkm_memory *inst);
 	void (*part)(struct nvkm_vmm *, struct nvkm_memory *inst);
 
-	int (*aper)(enum nvkm_memory_target);
 	int (*valid)(struct nvkm_vmm *, void *argv, u32 argc,
 		     struct nvkm_vmm_map *);
 	void (*flush)(struct nvkm_vmm *, int depth);
@@ -206,7 +205,6 @@ int gf100_vmm_new_(const struct nvkm_vmm_func *, const struct nvkm_vmm_func *,
 int gf100_vmm_join_(struct nvkm_vmm *, struct nvkm_memory *, u64 base);
 int gf100_vmm_join(struct nvkm_vmm *, struct nvkm_memory *);
 void gf100_vmm_part(struct nvkm_vmm *, struct nvkm_memory *);
-int gf100_vmm_aper(enum nvkm_memory_target);
 int gf100_vmm_valid(struct nvkm_vmm *, void *, u32, struct nvkm_vmm_map *);
 void gf100_vmm_flush(struct nvkm_vmm *, int);
 void gf100_vmm_invalidate(struct nvkm_vmm *, u32 type);

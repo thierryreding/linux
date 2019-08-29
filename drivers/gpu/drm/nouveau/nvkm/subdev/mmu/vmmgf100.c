@@ -318,18 +318,6 @@ gf100_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
 	return 0;
 }
 
-int
-gf100_vmm_aper(enum nvkm_memory_target target)
-{
-	switch (target) {
-	case NVKM_MEM_TARGET_VRAM: return 0;
-	case NVKM_MEM_TARGET_HOST: return 2;
-	case NVKM_MEM_TARGET_NCOH: return 3;
-	default:
-		return -EINVAL;
-	}
-}
-
 void
 gf100_vmm_part(struct nvkm_vmm *vmm, struct nvkm_memory *inst)
 {
@@ -370,7 +358,6 @@ static const struct nvkm_vmm_func
 gf100_vmm_17 = {
 	.join = gf100_vmm_join,
 	.part = gf100_vmm_part,
-	.aper = gf100_vmm_aper,
 	.valid = gf100_vmm_valid,
 	.flush = gf100_vmm_flush,
 	.invalidate_pdb = gf100_vmm_invalidate_pdb,
@@ -385,7 +372,6 @@ static const struct nvkm_vmm_func
 gf100_vmm_16 = {
 	.join = gf100_vmm_join,
 	.part = gf100_vmm_part,
-	.aper = gf100_vmm_aper,
 	.valid = gf100_vmm_valid,
 	.flush = gf100_vmm_flush,
 	.invalidate_pdb = gf100_vmm_invalidate_pdb,
