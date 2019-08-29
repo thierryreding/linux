@@ -32,11 +32,16 @@ void
 gv100_fifo_runlist_chan(struct gk104_fifo_chan *chan,
 			struct nvkm_memory *memory, u32 offset)
 {
+	struct nvkm_memory *instmem = chan->base.inst->memory;
 	struct nvkm_memory *usermem = chan->fifo->user.mem;
 	const u64 user = nvkm_memory_addr(usermem) + (chan->base.chid * 0x200);
 	const u64 inst = chan->base.inst->addr;
+	u64 target;
 
-	nvkm_wo32(memory, offset + 0x0, lower_32_bits(user));
+	target = (u64)nvkm_memory_aperture(usermem) << 6 |
+		 (u64)nvkm_memory_aperture(instmem) << 4;
+
+	nvkm_wo32(memory, offset + 0x0, lower_32_bits(user) | target);
 	nvkm_wo32(memory, offset + 0x4, upper_32_bits(user));
 	nvkm_wo32(memory, offset + 0x8, lower_32_bits(inst) | chan->base.chid);
 	nvkm_wo32(memory, offset + 0xc, upper_32_bits(inst));
