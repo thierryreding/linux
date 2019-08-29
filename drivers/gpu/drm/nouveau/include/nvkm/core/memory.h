@@ -64,6 +64,34 @@ void nvkm_memory_tags_put(struct nvkm_memory *, struct nvkm_device *,
 #define nvkm_memory_map(p,o,vm,va,av,ac)                                       \
 	(p)->func->map((p),(o),(vm),(va),(av),(ac))
 
+static inline u32
+nvkm_memory_aperture(struct nvkm_memory *mem)
+{
+	enum nvkm_memory_target target = nvkm_memory_target(mem);
+
+	switch (target) {
+	case NVKM_MEM_TARGET_VRAM:
+		return 0;
+
+	case NVKM_MEM_TARGET_HOST:
+		return 2;
+
+	case NVKM_MEM_TARGET_NCOH:
+		return 3;
+
+	default:
+		break;
+	}
+
+	/*
+	 * This is invalid, so warn about this loudly. However, return 0 to
+	 * avoid writing garbage into registers. 0 is the VRAM aperture and
+	 * might still work in most cases.
+	 */
+	WARN(1, "invalid memory target: %d\n", target);
+	return 0;
+}
+
 /* accessor macros - kmap()/done() must bracket use of the other accessor
  * macros to guarantee correct behaviour across all chipsets
  */
