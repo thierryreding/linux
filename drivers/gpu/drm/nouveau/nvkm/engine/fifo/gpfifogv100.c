@@ -132,7 +132,7 @@ gv100_fifo_gpfifo_new_(const struct nvkm_fifo_chan_func *func,
 	unsigned long engm;
 	u64 subdevs = 0;
 	u64 usermem, mthd;
-	u32 size;
+	u32 size, target;
 
 	if (!vmm || runlist < 0 || runlist >= fifo->runlist_nr)
 		return -EINVAL;
@@ -183,6 +183,7 @@ gv100_fifo_gpfifo_new_(const struct nvkm_fifo_chan_func *func,
 		nvkm_wo32(fifo->user.mem, usermem + i, 0x00000000);
 	nvkm_done(fifo->user.mem);
 	usermem = nvkm_memory_addr(fifo->user.mem) + usermem;
+	target = nvkm_memory_target(fifo->user.mem);
 
 	/* Allocate fault method buffer (magics come from nvgpu). */
 	size = nvkm_rd32(device, 0x104028); /* NV_PCE_PCE_MAP */
@@ -200,7 +201,7 @@ gv100_fifo_gpfifo_new_(const struct nvkm_fifo_chan_func *func,
 
 	/* RAMFC */
 	nvkm_kmap(chan->base.inst);
-	nvkm_wo32(chan->base.inst, 0x008, lower_32_bits(usermem));
+	nvkm_wo32(chan->base.inst, 0x008, lower_32_bits(usermem) | target);
 	nvkm_wo32(chan->base.inst, 0x00c, upper_32_bits(usermem));
 	nvkm_wo32(chan->base.inst, 0x010, 0x0000face);
 	nvkm_wo32(chan->base.inst, 0x030, 0x7ffff902);
