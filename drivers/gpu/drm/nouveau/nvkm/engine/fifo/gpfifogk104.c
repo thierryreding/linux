@@ -201,6 +201,7 @@ gk104_fifo_gpfifo_fini(struct nvkm_fifo_chan *base)
 void
 gk104_fifo_gpfifo_init(struct nvkm_fifo_chan *base)
 {
+	u32 aperture = nvkm_memory_aperture(base->inst->memory) << 28;
 	struct gk104_fifo_chan *chan = gk104_fifo_chan(base);
 	struct gk104_fifo *fifo = chan->fifo;
 	struct nvkm_device *device = fifo->base.engine.subdev.device;
@@ -208,7 +209,7 @@ gk104_fifo_gpfifo_init(struct nvkm_fifo_chan *base)
 	u32 coff = chan->base.chid * 8;
 
 	nvkm_mask(device, 0x800004 + coff, 0x000f0000, chan->runl << 16);
-	nvkm_wr32(device, 0x800000 + coff, 0x80000000 | addr);
+	nvkm_wr32(device, 0x800000 + coff, 0x80000000 | aperture | addr);
 
 	if (list_empty(&chan->head) && !chan->killed) {
 		gk104_fifo_runlist_insert(fifo, chan);
@@ -250,6 +251,7 @@ gk104_fifo_gpfifo_new_(struct gk104_fifo *fifo, u64 *runlists, u16 *chid,
 	unsigned long engm;
 	u64 subdevs = 0;
 	u64 usermem;
+	u32 target;
 
 	if (!vmm || runlist < 0 || runlist >= fifo->runlist_nr)
 		return -EINVAL;
@@ -303,10 +305,11 @@ gk104_fifo_gpfifo_new_(struct gk104_fifo *fifo, u64 *runlists, u16 *chid,
 		nvkm_wo32(fifo->user.mem, usermem + i, 0x00000000);
 	nvkm_done(fifo->user.mem);
 	usermem = nvkm_memory_addr(fifo->user.mem) + usermem;
+	target = nvkm_memory_aperture(fifo->user.mem);
 
 	/* RAMFC */
 	nvkm_kmap(chan->base.inst);
-	nvkm_wo32(chan->base.inst, 0x08, lower_32_bits(usermem));
+	nvkm_wo32(chan->base.inst, 0x08, lower_32_bits(usermem) | target);
 	nvkm_wo32(chan->base.inst, 0x0c, upper_32_bits(usermem));
 	nvkm_wo32(chan->base.inst, 0x10, 0x0000face);
 	nvkm_wo32(chan->base.inst, 0x30, 0xfffff902);
