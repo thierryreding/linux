@@ -573,6 +573,7 @@ gk104_fifo_intr_bind(struct gk104_fifo *fifo)
 static const struct nvkm_enum
 gk104_fifo_sched_reason[] = {
 	{ 0x0a, "CTXSW_TIMEOUT" },
+	{ 0x20, "BAD_TSG" },
 	{}
 };
 

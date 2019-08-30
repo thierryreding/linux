@@ -110,7 +110,9 @@ nvkm_device_tegra_probe_iommu(struct nvkm_device_tegra *tdev)
 	struct iommu_domain *domain;
 	int ret;
 
-#if IS_ENABLED(CONFIG_ARM_DMA_USE_IOMMU)
+	dev_info(dev, "> %s(tdev=%px)\n", __func__, tdev);
+
+#if 0 && IS_ENABLED(CONFIG_ARM_DMA_USE_IOMMU)
 	if (dev->archdata.mapping) {
 		struct dma_iommu_mapping *mapping = to_dma_iommu_mapping(dev);
 
@@ -119,14 +121,19 @@ nvkm_device_tegra_probe_iommu(struct nvkm_device_tegra *tdev)
 	}
 #endif
 
-	if (!tdev->func->iommu_bit)
+	if (!tdev->func->iommu_bit) {
+		dev_info(dev, "< %s() no IOMMU bit\n", __func__);
 		return;
+	}
 
 	/* skip IOMMU setup if we're using DMA/IOMMU */
 	domain = iommu_get_domain_for_dev(dev);
-	if (domain && domain->type == IOMMU_DOMAIN_DMA)
+	if (domain /*&& domain->type == IOMMU_DOMAIN_DMA*/) {
+		dev_info(dev, "< %s() attached to DMA/IOMMU\n", __func__);
 		return;
+	}
 
+	dev_info(dev, "  domain: %px type: %u\n", domain, domain->type);
 	mutex_init(&tdev->iommu.mutex);
 
 	if (iommu_present(&platform_bus_type)) {
@@ -162,6 +169,7 @@ nvkm_device_tegra_probe_iommu(struct nvkm_device_tegra *tdev)
 			goto detach_device;
 	}
 
+	dev_info(dev, "< %s()\n", __func__);
 	return;
 
 detach_device:
@@ -174,6 +182,7 @@ error:
 	tdev->iommu.domain = NULL;
 	tdev->iommu.pgshift = 0;
 	dev_err(dev, "cannot initialize IOMMU MM\n");
+	dev_info(dev, "< %s() failed\n", __func__);
 #endif
 }
 

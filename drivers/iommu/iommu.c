@@ -1355,6 +1355,8 @@ struct iommu_group *iommu_group_get_for_dev(struct device *dev)
 	struct iommu_group *group;
 	int ret;
 
+	dev_info(dev, "> %s(dev=%px)\n", __func__, dev);
+
 	group = iommu_group_get(dev);
 	if (group)
 		return group;
@@ -1376,8 +1378,11 @@ struct iommu_group *iommu_group_get_for_dev(struct device *dev)
 	if (!group->default_domain) {
 		struct iommu_domain *dom;
 
+		dev_info(dev, "  allocating new domain: %u\n", iommu_def_domain_type);
+
 		dom = __iommu_domain_alloc(dev->bus, iommu_def_domain_type);
 		if (!dom && iommu_def_domain_type != IOMMU_DOMAIN_DMA) {
+			dev_info(dev, "  allocating new DMA domain...\n");
 			dom = __iommu_domain_alloc(dev->bus, IOMMU_DOMAIN_DMA);
 			if (dom) {
 				dev_warn(dev,
@@ -1385,6 +1390,8 @@ struct iommu_group *iommu_group_get_for_dev(struct device *dev)
 					 iommu_def_domain_type);
 			}
 		}
+
+		dev_info(dev, "  domain: %px type: %u\n", dom, dom ? dom->type : 0);
 
 		group->default_domain = dom;
 		if (!group->domain)
@@ -1404,6 +1411,7 @@ struct iommu_group *iommu_group_get_for_dev(struct device *dev)
 		return ERR_PTR(ret);
 	}
 
+	dev_info(dev, "< %s() = %px\n", __func__, group);
 	return group;
 }
 
@@ -1593,6 +1601,9 @@ static struct iommu_domain *__iommu_domain_alloc(struct bus_type *bus,
 {
 	struct iommu_domain *domain;
 
+	pr_info("> %s(bus=%px, type=%u)\n", __func__, bus, type);
+	pr_info("  iommu_ops: %ps\n", bus ? bus->iommu_ops : NULL);
+
 	if (bus == NULL || bus->iommu_ops == NULL)
 		return NULL;
 
@@ -1605,6 +1616,7 @@ static struct iommu_domain *__iommu_domain_alloc(struct bus_type *bus,
 	/* Assume all sizes by default; the driver may override this later */
 	domain->pgsize_bitmap  = bus->iommu_ops->pgsize_bitmap;
 
+	pr_info("< %s() = %px\n", __func__, domain);
 	return domain;
 }
 

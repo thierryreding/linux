@@ -2244,8 +2244,12 @@ static bool arm_setup_iommu_dma_ops(struct device *dev, u64 dma_base, u64 size,
 {
 	struct dma_iommu_mapping *mapping;
 
-	if (!iommu)
+	dev_info(dev, "> %s(dev=%px, dma_base=%016llx, size=%016llx, iommu=%px)\n", __func__, dev, dma_base, size, iommu);
+
+	if (!iommu) {
+		dev_info(dev, "< %s() no IOMMU\n", __func__);
 		return false;
+	}
 
 	mapping = arm_iommu_create_mapping(dev->bus, dma_base, size);
 	if (IS_ERR(mapping)) {
@@ -2261,6 +2265,7 @@ static bool arm_setup_iommu_dma_ops(struct device *dev, u64 dma_base, u64 size,
 		return false;
 	}
 
+	dev_info(dev, "< %s()\n", __func__);
 	return true;
 }
 

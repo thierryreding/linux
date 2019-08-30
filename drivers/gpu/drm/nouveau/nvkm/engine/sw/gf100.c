@@ -43,8 +43,14 @@ gf100_sw_chan_vblsem_release(struct nvkm_notify *notify)
 	struct nvkm_sw *sw = chan->base.sw;
 	struct nvkm_device *device = sw->engine.subdev.device;
 	u32 inst = chan->base.fifo->inst->addr >> 12;
+	/* XXX really needed? */
+#if 0
+	u32 target = 0x30000000;
+#else
+	u32 target = 0x00000000;
+#endif
 
-	nvkm_wr32(device, 0x001718, 0x80000000 | inst);
+	nvkm_wr32(device, 0x001718, 0x80000000 | target | inst);
 	nvkm_bar_flush(device->bar);
 	nvkm_wr32(device, 0x06000c, upper_32_bits(chan->vblank.offset));
 	nvkm_wr32(device, 0x060010, lower_32_bits(chan->vblank.offset));

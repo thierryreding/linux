@@ -282,40 +282,57 @@ static struct iommu_domain *tegra_smmu_domain_alloc(unsigned type)
 	struct tegra_smmu_as *as;
 	int ret;
 
+	pr_info("> %s(type=%u)\n", __func__, type);
+
 	if (type != IOMMU_DOMAIN_UNMANAGED &&
 	    type != IOMMU_DOMAIN_DMA &&
-	    type != IOMMU_DOMAIN_IDENTITY)
+	    type != IOMMU_DOMAIN_IDENTITY) {
+		pr_info("  bad type\n");
+		pr_info("< %s() = NULL\n", __func__);
 		return NULL;
+	}
 
 	as = kzalloc(sizeof(*as), GFP_KERNEL);
-	if (!as)
+	if (!as) {
+		pr_info("  out of memory\n");
+		pr_info("< %s() = NULL\n", __func__);
 		return NULL;
+	}
 
 	as->attr = SMMU_PD_READABLE | SMMU_PD_WRITABLE | SMMU_PD_NONSECURE;
 
 	if (type == IOMMU_DOMAIN_DMA) {
 		ret = iommu_get_dma_cookie(&as->domain);
-		if (ret)
+		if (ret) {
+			pr_info("  failed to get DMA cookie\n");
 			goto free_as;
+		}
 	}
 
 	as->pd = alloc_page(GFP_KERNEL | __GFP_DMA | __GFP_ZERO);
-	if (!as->pd)
+	if (!as->pd) {
+		pr_info("  failed to alloc_page()\n");
 		goto put_dma_cookie;
+	}
 
 	as->count = kcalloc(SMMU_NUM_PDE, sizeof(u32), GFP_KERNEL);
-	if (!as->count)
+	if (!as->count) {
+		pr_info("  failed to alloc count\n");
 		goto free_pd_range;
+	}
 
 	as->pts = kcalloc(SMMU_NUM_PDE, sizeof(*as->pts), GFP_KERNEL);
-	if (!as->pts)
+	if (!as->pts) {
+		pr_info("  failed to alloc PTS\n");
 		goto free_pts;
+	}
 
 	/* setup aperture */
 	as->domain.geometry.aperture_start = 0;
 	as->domain.geometry.aperture_end = 0xffffffff;
 	as->domain.geometry.force_aperture = true;
 
+	pr_info("< %s() = %px\n", __func__, &as->domain);
 	return &as->domain;
 
 free_pts:
@@ -328,6 +345,7 @@ put_dma_cookie:
 free_as:
 	kfree(as);
 
+	pr_info("< %s() = NULL\n", __func__);
 	return NULL;
 }
 

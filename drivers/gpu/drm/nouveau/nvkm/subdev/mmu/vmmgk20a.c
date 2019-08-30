@@ -23,11 +23,27 @@
 
 #include <core/memory.h>
 
+static int
+gk20a_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
+		struct nvkm_vmm_map *map)
+{
+	int ret;
+
+	ret = gf100_vmm_valid(vmm, argv, argc, map);
+	if (ret)
+		return ret;
+
+	pr_info("%s(): IOMMU mask: %016llx\n", __func__, vmm->mmu->iommu_mask);
+	map->type |= vmm->mmu->iommu_mask >> 8;
+
+	return 0;
+}
+
 static const struct nvkm_vmm_func
 gk20a_vmm_17 = {
 	.join = gf100_vmm_join,
 	.part = gf100_vmm_part,
-	.valid = gf100_vmm_valid,
+	.valid = gk20a_vmm_valid,
 	.flush = gf100_vmm_flush,
 	.invalidate_pdb = gf100_vmm_invalidate_pdb,
 	.page = {
@@ -41,7 +57,7 @@ static const struct nvkm_vmm_func
 gk20a_vmm_16 = {
 	.join = gf100_vmm_join,
 	.part = gf100_vmm_part,
-	.valid = gf100_vmm_valid,
+	.valid = gk20a_vmm_valid,
 	.flush = gf100_vmm_flush,
 	.invalidate_pdb = gf100_vmm_invalidate_pdb,
 	.page = {
