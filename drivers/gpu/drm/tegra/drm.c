@@ -20,10 +20,6 @@
 #include <drm/drm_prime.h>
 #include <drm/drm_vblank.h>
 
-#if IS_ENABLED(CONFIG_ARM_DMA_USE_IOMMU)
-#include <asm/dma-iommu.h>
-#endif
-
 #include "drm.h"
 #include "gem.h"
 
@@ -89,6 +85,7 @@ tegra_drm_mode_config_helpers = {
 static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 {
 	struct host1x_device *device = to_host1x_device(drm->dev);
+	struct iommu_domain *domain;
 	struct tegra_drm *tegra;
 	int err;
 
@@ -96,7 +93,36 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 	if (!tegra)
 		return -ENOMEM;
 
-	if (iommu_present(&platform_bus_type)) {
+	/*
+	 * If the Tegra DRM clients are backed by an IOMMU, push buffers are
+	 * likely to be allocated beyond the 32-bit boundary if sufficient
+	 * system memory is available. This is problematic on earlier Tegra
+	 * generations where host1x supports a maximum of 32 address bits in
+	 * the GATHER opcode. In this case, unless host1x is behind an IOMMU
+	 * as well it won't be able to process buffers allocated beyond the
+	 * 32-bit boundary.
+	 *
+	 * The DMA API will use bounce buffers in this case, so that could
+	 * perhaps still be made to work, even if less efficient, but there
+	 * is another catch: in order to perform cache maintenance on pages
+	 * allocated for discontiguous buffers we need to map and unmap the
+	 * SG table representing these buffers. This is fine for something
+	 * small like a push buffer, but it exhausts the bounce buffer pool
+	 * (typically on the order of a few MiB) for framebuffers (many MiB
+	 * for any modern resolution).
+	 *
+	 * Work around this by making sure that Tegra DRM clients only use
+	 * an IOMMU if the parent host1x also uses an IOMMU.
+	 *
+	 * Note that there's still a small gap here that we don't cover: if
+	 * the DMA API is backed by an IOMMU there's no way to control which
+	 * device is attached to an IOMMU and which isn't, except via wiring
+	 * up the device tree appropriately. This is considered an problem
+	 * of integration, so care must be taken for the DT to be consistent.
+	 */
+	domain = iommu_get_domain_for_dev(drm->dev->parent);
+
+	if (domain && iommu_present(&platform_bus_type)) {
 		tegra->domain = iommu_domain_alloc(&platform_bus_type);
 		if (!tegra->domain) {
 			err = -ENOMEM;
@@ -139,7 +165,7 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 	if (err < 0)
 		goto fbdev;
 
-	if (tegra->domain) {
+	if (tegra->group) {
 		u64 carveout_start, carveout_end, gem_start, gem_end;
 		u64 dma_mask = dma_get_mask(&device->dev);
 		dma_addr_t start, end;
@@ -167,6 +193,10 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 		DRM_DEBUG_DRIVER("  GEM: %#llx-%#llx\n", gem_start, gem_end);
 		DRM_DEBUG_DRIVER("  Carveout: %#llx-%#llx\n", carveout_start,
 				 carveout_end);
+	} else if (tegra->domain) {
+		iommu_domain_free(tegra->domain);
+		tegra->domain = NULL;
+		iova_cache_put();
 	}
 
 	if (tegra->hub) {
@@ -1074,10 +1104,14 @@ int tegra_drm_unregister_client(struct tegra_drm *tegra,
 
 int host1x_client_iommu_attach(struct host1x_client *client, bool shared)
 {
+	struct iommu_domain *domain = iommu_get_domain_for_dev(client->dev);
 	struct drm_device *drm = dev_get_drvdata(client->parent);
 	struct tegra_drm *tegra = drm->dev_private;
 	struct iommu_group *group = NULL;
 	int err;
+
+	if (domain && domain != tegra->domain)
+		return 0;
 
 	if (tegra->domain) {
 		group = iommu_group_get(client->dev);
@@ -1087,14 +1121,6 @@ int host1x_client_iommu_attach(struct host1x_client *client, bool shared)
 		}
 
 		if (!shared || (shared && (group != tegra->group))) {
-#if IS_ENABLED(CONFIG_ARM_DMA_USE_IOMMU)
-			if (client->dev->archdata.mapping) {
-				struct dma_iommu_mapping *mapping =
-					to_dma_iommu_mapping(client->dev);
-				arm_iommu_detach_device(client->dev);
-				arm_iommu_release_mapping(mapping);
-			}
-#endif
 			err = iommu_attach_group(tegra->domain, group);
 			if (err < 0) {
 				iommu_group_put(group);
@@ -1123,6 +1149,7 @@ void host1x_client_iommu_detach(struct host1x_client *client)
 		}
 
 		iommu_group_put(client->group);
+		client->group = NULL;
 	}
 }
 
