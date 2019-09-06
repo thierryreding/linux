@@ -100,12 +100,14 @@ struct gk20a_instmem {
 	unsigned int vaddr_max;
 	struct list_head vaddr_lru;
 
+	/* IOMMU mapping */
+	unsigned int page_shift;
+	u64 iommu_mask;
+
 	/* Only used if IOMMU if present */
 	struct mutex *mm_mutex;
 	struct nvkm_mm *mm;
 	struct iommu_domain *domain;
-	unsigned long iommu_pgshift;
-	u16 iommu_bit;
 
 	/* Only used by DMA API */
 	unsigned long attrs;
@@ -329,12 +331,12 @@ gk20a_instobj_dtor_iommu(struct nvkm_memory *memory)
 	mutex_unlock(&imem->lock);
 
 	/* clear IOMMU bit to unmap pages */
-	r->offset &= ~BIT(imem->iommu_bit - imem->iommu_pgshift);
+	r->offset &= ~imem->iommu_mask;
 
 	/* Unmap pages from GPU address space and free them */
 	for (i = 0; i < node->base.mn->length; i++) {
 		iommu_unmap(imem->domain,
-			    (r->offset + i) << imem->iommu_pgshift, PAGE_SIZE);
+			    (r->offset + i) << imem->page_shift, PAGE_SIZE);
 		dma_unmap_page(dev, node->dma_addrs[i], PAGE_SIZE,
 			       DMA_BIDIRECTIONAL);
 		__free_page(node->pages[i]);
@@ -410,7 +412,7 @@ gk20a_instobj_ctor_dma(struct gk20a_instmem *imem, u32 npages, u32 align,
 
 	/* present memory for being mapped using small pages */
 	node->r.type = 12;
-	node->r.offset = node->handle >> 12;
+	node->r.offset = imem->iommu_mask | node->handle >> 12;
 	node->r.length = (npages << PAGE_SHIFT) >> 12;
 
 	node->base.mn = &node->r;
@@ -463,7 +465,7 @@ gk20a_instobj_ctor_iommu(struct gk20a_instmem *imem, u32 npages, u32 align,
 	mutex_lock(imem->mm_mutex);
 	/* Reserve area from GPU address space */
 	ret = nvkm_mm_head(imem->mm, 0, 1, npages, npages,
-			   align >> imem->iommu_pgshift, &r);
+			   align >> imem->page_shift, &r);
 	mutex_unlock(imem->mm_mutex);
 	if (ret) {
 		nvkm_error(subdev, "IOMMU space is full!\n");
@@ -472,7 +474,7 @@ gk20a_instobj_ctor_iommu(struct gk20a_instmem *imem, u32 npages, u32 align,
 
 	/* Map into GPU address space */
 	for (i = 0; i < npages; i++) {
-		u32 offset = (r->offset + i) << imem->iommu_pgshift;
+		u32 offset = (r->offset + i) << imem->page_shift;
 
 		ret = iommu_map(imem->domain, offset, node->dma_addrs[i],
 				PAGE_SIZE, IOMMU_READ | IOMMU_WRITE);
@@ -488,7 +490,7 @@ gk20a_instobj_ctor_iommu(struct gk20a_instmem *imem, u32 npages, u32 align,
 	}
 
 	/* IOMMU bit tells that an address is to be resolved through the IOMMU */
-	r->offset |= BIT(imem->iommu_bit - imem->iommu_pgshift);
+	r->offset |= imem->iommu_mask;
 
 	node->base.mn = r;
 	return 0;
@@ -589,16 +591,29 @@ gk20a_instmem_new(struct nvkm_device *device, int index,
 		imem->mm_mutex = &tdev->iommu.mutex;
 		imem->mm = &tdev->iommu.mm;
 		imem->domain = tdev->iommu.domain;
-		imem->iommu_pgshift = tdev->iommu.pgshift;
-		imem->iommu_bit = tdev->func->iommu_bit;
+		imem->page_shift = tdev->iommu.pgshift;
 
 		nvkm_info(&imem->base.subdev, "using IOMMU\n");
 	} else {
+		imem->page_shift = PAGE_SHIFT;
+
 		imem->attrs = DMA_ATTR_NON_CONSISTENT |
 			      DMA_ATTR_WEAK_ORDERING |
 			      DMA_ATTR_WRITE_COMBINE;
 
 		nvkm_info(&imem->base.subdev, "using DMA API\n");
+	}
+
+	/*
+	 * The IOMMU mask needs to be set if an IOMMU is used explicitly (via
+	 * direct IOMMU API usage) or implicitly (via the DMA API). In both
+	 * cases the device will have been attached to an IOMMU domain.
+	 */
+	if (iommu_get_domain_for_dev(device->dev)) {
+		imem->iommu_mask = BIT_ULL(tdev->func->iommu_bit -
+					   imem->page_shift);
+		nvkm_debug(&imem->base.subdev, "IOMMU mask: %016llx\n",
+			   imem->iommu_mask);
 	}
 
 	return 0;
