@@ -19,6 +19,8 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
+
+#include "gk20a.h"
 #include "mem.h"
 #include "vmm.h"
 
@@ -41,5 +43,5 @@ gp10b_mmu_new(struct nvkm_device *device, int index, struct nvkm_mmu **pmmu)
 {
 	if (!nvkm_boolopt(device->cfgopt, "GP100MmuLayout", true))
 		return gm20b_mmu_new(device, index, pmmu);
-	return nvkm_mmu_new_(&gp10b_mmu, device, index, pmmu);
+	return gk20a_mmu_new_(&gp10b_mmu, device, index, pmmu);
 }
