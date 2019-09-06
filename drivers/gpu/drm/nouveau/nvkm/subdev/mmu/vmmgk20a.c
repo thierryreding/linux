@@ -26,16 +26,6 @@
 #include <core/memory.h>
 
 int
-gk20a_vmm_aper(enum nvkm_memory_target target)
-{
-	switch (target) {
-	case NVKM_MEM_TARGET_NCOH: return 0;
-	default:
-		return -EINVAL;
-	}
-}
-
-int
 gk20a_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
 		struct nvkm_vmm_map *map)
 {
