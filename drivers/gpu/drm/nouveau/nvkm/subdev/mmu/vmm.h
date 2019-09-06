@@ -213,6 +213,7 @@ void gf100_vmm_invalidate(struct nvkm_vmm *, u32 type);
 void gf100_vmm_invalidate_pdb(struct nvkm_vmm *, u64 addr);
 
 int gk20a_vmm_aper(enum nvkm_memory_target);
+int gk20a_vmm_valid(struct nvkm_vmm *, void *, u32, struct nvkm_vmm_map *);
 
 int gm200_vmm_new_(const struct nvkm_vmm_func *, const struct nvkm_vmm_func *,
 		   struct nvkm_mmu *, bool, u64, u64, void *, u32,

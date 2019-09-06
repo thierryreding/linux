@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Red Hat Inc.
+ * Copyright (c) 2019 NVIDIA Corporation.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,38 +20,25 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "gk20a.h"
-#include "mem.h"
-#include "vmm.h"
+#ifndef __NVKM_MMU_GK20A_H__
+#define __NVKM_MMU_GK20A_H__
 
-#include <subdev/fb.h>
+#include "priv.h"
 
-#include <nvif/class.h>
+struct gk20a_mmu {
+	struct nvkm_mmu base;
 
-static const struct nvkm_mmu_func
-gm20b_mmu = {
-	.dma_bits = 40,
-	.mmu = {{ -1, -1, NVIF_CLASS_MMU_GF100}},
-	.mem = {{ -1, -1, NVIF_CLASS_MEM_GF100}, .umap = gf100_mem_map },
-	.vmm = {{ -1,  0, NVIF_CLASS_VMM_GM200}, gm20b_vmm_new },
-	.kind = gm200_mmu_kind,
-	.kind_sys = true,
+	/*
+	 * If an IOMMU is used, indicates which address bit will trigger an
+	 * IOMMU translation when set (when this bit is not set, the IOMMU is
+	 * bypassed). A value of 0 means an IOMMU is never used.
+	 */
+	u64 iommu_mask;
 };
 
-static const struct nvkm_mmu_func
-gm20b_mmu_fixed = {
-	.dma_bits = 40,
-	.mmu = {{ -1, -1, NVIF_CLASS_MMU_GF100}},
-	.mem = {{ -1, -1, NVIF_CLASS_MEM_GF100}, .umap = gf100_mem_map },
-	.vmm = {{ -1, -1, NVIF_CLASS_VMM_GM200}, gm20b_vmm_new_fixed },
-	.kind = gm200_mmu_kind,
-	.kind_sys = true,
-};
+#define gk20a_mmu(mmu) container_of(mmu, struct gk20a_mmu, base)
 
-int
-gm20b_mmu_new(struct nvkm_device *device, int index, struct nvkm_mmu **pmmu)
-{
-	if (device->fb->page)
-		return gk20a_mmu_new_(&gm20b_mmu_fixed, device, index, pmmu);
-	return gk20a_mmu_new_(&gm20b_mmu, device, index, pmmu);
-}
+int gk20a_mmu_new_(const struct nvkm_mmu_func *, struct nvkm_device *,
+		   int index, struct nvkm_mmu **);
+
+#endif
