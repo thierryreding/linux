@@ -97,7 +97,7 @@ nvkm_device_tegra_power_down(struct nvkm_device_tegra *tdev)
 	return 0;
 }
 
-static void
+static int
 nvkm_device_tegra_probe_iommu(struct nvkm_device_tegra *tdev)
 {
 #if IS_ENABLED(CONFIG_IOMMU_API)
@@ -111,47 +111,65 @@ nvkm_device_tegra_probe_iommu(struct nvkm_device_tegra *tdev)
 	 * IOMMU.
 	 */
 	if (dev_address_space_managed(dev))
-		return;
+		return -ENODEV;
 
 	if (!tdev->func->iommu_bit)
-		return;
+		return -ENODEV;
+
+	if (!iommu_present(&platform_bus_type))
+		return -ENODEV;
 
 	mutex_init(&tdev->iommu.mutex);
 
-	if (iommu_present(&platform_bus_type)) {
-		tdev->iommu.domain = iommu_domain_alloc(&platform_bus_type);
-		if (!tdev->iommu.domain)
-			goto error;
+	tdev->iommu.domain = iommu_domain_alloc(&platform_bus_type);
+	if (!tdev->iommu.domain)
+		return -ENOMEM;
 
-		/*
-		 * A IOMMU is only usable if it supports page sizes smaller
-		 * or equal to the system's PAGE_SIZE, with a preference if
-		 * both are equal.
-		 */
-		pgsize_bitmap = tdev->iommu.domain->ops->pgsize_bitmap;
-		if (pgsize_bitmap & PAGE_SIZE) {
-			tdev->iommu.pgshift = PAGE_SHIFT;
-		} else {
-			tdev->iommu.pgshift = fls(pgsize_bitmap & ~PAGE_MASK);
-			if (tdev->iommu.pgshift == 0) {
-				dev_warn(dev, "unsupported IOMMU page size\n");
-				goto free_domain;
-			}
-			tdev->iommu.pgshift -= 1;
+	/*
+	 * An IOMMU is only usable if it supports page sizes smaller or equal
+	 * to the system's PAGE_SIZE, with a preference if both are equal.
+	 */
+	pgsize_bitmap = tdev->iommu.domain->ops->pgsize_bitmap;
+	if (pgsize_bitmap & PAGE_SIZE) {
+		tdev->iommu.pgshift = PAGE_SHIFT;
+	} else {
+		tdev->iommu.pgshift = fls(pgsize_bitmap & ~PAGE_MASK);
+		if (tdev->iommu.pgshift == 0) {
+			dev_warn(dev, "unsupported IOMMU page size\n");
+			ret = -ENOTSUPP;
+			goto free_domain;
 		}
 
-		ret = iommu_attach_device(tdev->iommu.domain, dev);
-		if (ret)
-			goto free_domain;
-
-		ret = nvkm_mm_init(&tdev->iommu.mm, 0, 0,
-				   (1ULL << tdev->func->iommu_bit) >>
-				   tdev->iommu.pgshift, 1);
-		if (ret)
-			goto detach_device;
+		tdev->iommu.pgshift -= 1;
 	}
 
-	return;
+	ret = iommu_attach_device(tdev->iommu.domain, dev);
+	if (ret) {
+		dev_warn(dev, "failed to attach to IOMMU: %d\n", ret);
+		goto free_domain;
+	}
+
+	ret = nvkm_mm_init(&tdev->iommu.mm, 0, 0,
+			   (1ULL << tdev->func->iommu_bit) >>
+			   tdev->iommu.pgshift, 1);
+	if (ret) {
+		dev_warn(dev, "failed to initialize IOVA space: %d\n", ret);
+		goto detach_device;
+	}
+
+	/*
+	 * The IOMMU bit defines the upper limit of the GPU-addressable space.
+	 */
+	ret = dma_set_mask(dev, DMA_BIT_MASK(tdev->func->iommu_bit));
+	if (ret) {
+		dev_warn(dev, "failed to set DMA mask: %d\n", ret);
+		goto fini_mm;
+	}
+
+	return 0;
+
+fini_mm:
+	nvkm_mm_fini(&tdev->iommu.mm);
 
 detach_device:
 	iommu_detach_device(tdev->iommu.domain, dev);
@@ -159,10 +177,15 @@ detach_device:
 free_domain:
 	iommu_domain_free(tdev->iommu.domain);
 
-error:
+	/* reset these so that the DMA API code paths are executed */
 	tdev->iommu.domain = NULL;
 	tdev->iommu.pgshift = 0;
-	dev_err(dev, "cannot initialize IOMMU MM\n");
+
+	dev_warn(dev, "cannot initialize IOMMU MM\n");
+
+	return ret;
+#else
+	return -ENOTSUPP;
 #endif
 }
 
@@ -327,14 +350,20 @@ nvkm_device_tegra_new(const struct nvkm_device_tegra_func *func,
 		goto free;
 	}
 
-	/**
-	 * The IOMMU bit defines the upper limit of the GPU-addressable space.
-	 */
-	ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(tdev->func->iommu_bit));
-	if (ret)
-		goto free;
-
-	nvkm_device_tegra_probe_iommu(tdev);
+	ret = nvkm_device_tegra_probe_iommu(tdev);
+	if (ret) {
+		/*
+		 * If we fail to set up an IOMMU, fall back to a 32-bit DMA
+		 * mask. This is not necessary for the GPU to work because it
+		 * can usually address all of system memory. However, if the
+		 * buffers allocated by Nouveau are meant to be shared with
+		 * the display controller, we need to restrict where they can
+		 * come from.
+		 */
+		ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
+		if (ret)
+			goto free;
+	}
 
 	ret = nvkm_device_tegra_power_up(tdev);
 	if (ret)
