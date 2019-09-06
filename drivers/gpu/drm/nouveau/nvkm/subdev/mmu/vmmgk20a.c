@@ -19,6 +19,8 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
+
+#include "gk20a.h"
 #include "vmm.h"
 
 #include <core/memory.h>
@@ -33,12 +35,28 @@ gk20a_vmm_aper(enum nvkm_memory_target target)
 	}
 }
 
+int
+gk20a_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
+		struct nvkm_vmm_map *map)
+{
+	struct gk20a_mmu *mmu = gk20a_mmu(vmm->mmu);
+	int ret;
+
+	ret = gf100_vmm_valid(vmm, argv, argc, map);
+	if (ret < 0)
+		return ret;
+
+	map->type |= mmu->iommu_mask >> 8;
+
+	return 0;
+}
+
 static const struct nvkm_vmm_func
 gk20a_vmm_17 = {
 	.join = gf100_vmm_join,
 	.part = gf100_vmm_part,
 	.aper = gf100_vmm_aper,
-	.valid = gf100_vmm_valid,
+	.valid = gk20a_vmm_valid,
 	.flush = gf100_vmm_flush,
 	.invalidate_pdb = gf100_vmm_invalidate_pdb,
 	.page = {
@@ -53,7 +71,7 @@ gk20a_vmm_16 = {
 	.join = gf100_vmm_join,
 	.part = gf100_vmm_part,
 	.aper = gf100_vmm_aper,
-	.valid = gf100_vmm_valid,
+	.valid = gk20a_vmm_valid,
 	.flush = gf100_vmm_flush,
 	.invalidate_pdb = gf100_vmm_invalidate_pdb,
 	.page = {
