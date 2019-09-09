@@ -494,6 +494,7 @@ struct sdhci_host {
 	/* Internal data */
 	struct mmc_host *mmc;	/* MMC structure */
 	struct mmc_host_ops mmc_host_ops;	/* MMC host ops */
+	struct device_dma_parameters dma_params; /* DMA parameters */
 	u64 dma_mask;		/* custom DMA mask */
 
 #if IS_ENABLED(CONFIG_LEDS_CLASS)

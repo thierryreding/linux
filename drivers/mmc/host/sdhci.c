@@ -3555,6 +3555,10 @@ struct sdhci_host *sdhci_alloc_host(struct device *dev,
 	 */
 	host->adma_table_cnt = SDHCI_MAX_SEGS * 2 + 1;
 
+	/* ADMA supports a maximum of 64 KiB per descriptor */
+	dev->dma_parms = &host->dma_params;
+	dma_set_max_seg_size(dev, SZ_64K);
+
 	return host;
 }
 
@@ -4410,6 +4414,7 @@ EXPORT_SYMBOL_GPL(sdhci_remove_host);
 
 void sdhci_free_host(struct sdhci_host *host)
 {
+	host->mmc->parent->dma_parms = NULL;
 	mmc_free_host(host->mmc);
 }
 
