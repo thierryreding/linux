@@ -738,12 +738,8 @@ void blk_queue_segment_boundary(struct request_queue *q, unsigned long mask)
 }
 EXPORT_SYMBOL(blk_queue_segment_boundary);
 
-/**
- * blk_queue_virt_boundary - set boundary rules for bio merging
- * @q:  the request queue for the device
- * @mask:  the memory boundary mask
- **/
-void blk_queue_virt_boundary(struct request_queue *q, unsigned long mask)
+void __blk_queue_virt_boundary(struct request_queue *q, unsigned long mask,
+			       unsigned int max_segment_size)
 {
 	q->limits.virt_boundary_mask = mask;
 
@@ -754,7 +750,17 @@ void blk_queue_virt_boundary(struct request_queue *q, unsigned long mask)
 	 * of that they are not limited by our notion of "segment size".
 	 */
 	if (mask)
-		q->limits.max_segment_size = UINT_MAX;
+		q->limits.max_segment_size = max_segment_size;
+}
+
+/**
+ * blk_queue_virt_boundary - set boundary rules for bio merging
+ * @q:  the request queue for the device
+ * @mask:  the memory boundary mask
+ **/
+void blk_queue_virt_boundary(struct request_queue *q, unsigned long mask)
+{
+	__blk_queue_virt_boundary(q, mask, UINT_MAX);
 }
 EXPORT_SYMBOL(blk_queue_virt_boundary);
 
@@ -843,13 +849,13 @@ EXPORT_SYMBOL_GPL(blk_queue_write_cache);
 bool blk_queue_can_use_dma_map_merging(struct request_queue *q,
 				       struct device *dev)
 {
+	unsigned int max_segment_size = dma_get_max_seg_size(dev);
 	unsigned long boundary = dma_get_merge_boundary(dev);
 
 	if (!boundary)
 		return false;
 
-	/* No need to update max_segment_size. see blk_queue_virt_boundary() */
-	blk_queue_virt_boundary(q, boundary);
+	__blk_queue_virt_boundary(q, boundary, max_segment_size);
 
 	return true;
 }
