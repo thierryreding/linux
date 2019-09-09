@@ -154,17 +154,23 @@ nvkm_mem_new_host(struct nvkm_mmu *mmu, int type, u8 page, u64 size,
 	struct nvkm_mem *mem;
 	gfp_t gfp = GFP_USER | __GFP_ZERO;
 
+	pr_info("> %s(mmu=%px, type=%d, page=%u, size=%llu, argv=%px, argc=%d, pmemory=%px)\n", __func__, mmu, type, page, size, argv, argc, pmemory);
+
 	if ( (mmu->type[type].type & NVKM_MEM_COHERENT) &&
 	    !(mmu->type[type].type & NVKM_MEM_UNCACHED))
 		target = NVKM_MEM_TARGET_HOST;
 	else
 		target = NVKM_MEM_TARGET_NCOH;
 
-	if (page != PAGE_SHIFT)
+	if (page != PAGE_SHIFT) {
+		pr_info("< %s() = -EINVAL\n", __func__);
 		return -EINVAL;
+	}
 
-	if (!(mem = kzalloc(sizeof(*mem), GFP_KERNEL)))
+	if (!(mem = kzalloc(sizeof(*mem), GFP_KERNEL))) {
+		pr_info("< %s() = -ENOMEM\n", __func__);
 		return -ENOMEM;
+	}
 	mem->target = target;
 	mem->mmu = mmu;
 	*pmemory = &mem->memory;
@@ -178,13 +184,19 @@ nvkm_mem_new_host(struct nvkm_mmu *mmu, int type, u8 page, u64 size,
 			mem->sgl = args->v0.sgl;
 		}
 
-		if (!IS_ALIGNED(size, PAGE_SIZE))
+		if (!IS_ALIGNED(size, PAGE_SIZE)) {
+			pr_info("  unaligned\n");
+			pr_info("< %s() = -EINVAL\n", __func__);
 			return -EINVAL;
+		}
 		mem->pages = size >> PAGE_SHIFT;
+		pr_info("  done\n");
+		pr_info("< %s()\n", __func__);
 		return 0;
 	} else
 	if ( (ret = nvif_unvers(ret, &argv, &argc, args->vn))) {
 		kfree(mem);
+		pr_info("< %s() = %d\n", __func__, ret);
 		return ret;
 	}
 
@@ -217,6 +229,7 @@ nvkm_mem_new_host(struct nvkm_mmu *mmu, int type, u8 page, u64 size,
 		mem->mem[mem->pages] = p;
 	}
 
+	pr_info("< %s()\n", __func__);
 	return 0;
 }
 

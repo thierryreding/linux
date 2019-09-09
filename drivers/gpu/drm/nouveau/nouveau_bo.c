@@ -292,11 +292,11 @@ nouveau_bo_init(struct nouveau_bo *nvbo, u64 size, int align, u32 flags,
 	size_t acc_size;
 	int ret;
 
-	acc_size = ttm_bo_dma_acc_size(nvbo->bo.bdev, size, sizeof(*nvbo));
-
 	nouveau_bo_fixup_align(nvbo, flags, &align, &size);
 	nvbo->bo.mem.num_pages = size >> PAGE_SHIFT;
 	nouveau_bo_placement_set(nvbo, flags, 0);
+
+	acc_size = ttm_bo_dma_acc_size(nvbo->bo.bdev, size, sizeof(*nvbo));
 
 	ret = ttm_bo_init(nvbo->bo.bdev, &nvbo->bo, size, type,
 			  &nvbo->placement, align >> PAGE_SHIFT, false,
@@ -1582,6 +1582,8 @@ nouveau_ttm_tt_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 	int r;
 	bool slave = !!(ttm->page_flags & TTM_PAGE_FLAG_SG);
 
+	pr_info("> %s(ttm=%px, ctx=%px)\n", __func__, ttm, ctx);
+
 	if (ttm->state != tt_unpopulated)
 		return 0;
 
@@ -1613,6 +1615,8 @@ nouveau_ttm_tt_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 		return r;
 	}
 
+	pr_info("  mapping %lu pages\n", ttm->num_pages);
+
 	for (i = 0; i < ttm->num_pages; i++) {
 		dma_addr_t addr;
 
@@ -1631,6 +1635,8 @@ nouveau_ttm_tt_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 
 		ttm_dma->dma_address[i] = addr;
 	}
+
+	pr_info("< %s()\n", __func__);
 	return 0;
 }
 

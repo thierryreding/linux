@@ -123,19 +123,19 @@ gk20a_instobj_target(struct nvkm_memory *memory)
 static u8
 gk20a_instobj_page(struct nvkm_memory *memory)
 {
-	return 12;
+	return PAGE_SHIFT;
 }
 
 static u64
 gk20a_instobj_addr(struct nvkm_memory *memory)
 {
-	return (u64)gk20a_instobj(memory)->mn->offset << 12;
+	return (u64)gk20a_instobj(memory)->mn->offset << PAGE_SHIFT;
 }
 
 static u64
 gk20a_instobj_size(struct nvkm_memory *memory)
 {
-	return (u64)gk20a_instobj(memory)->mn->length << 12;
+	return (u64)gk20a_instobj(memory)->mn->length << PAGE_SHIFT;
 }
 
 /*
@@ -441,9 +441,9 @@ gk20a_instobj_ctor_dma(struct gk20a_instmem *imem, u32 npages, u32 align,
 			  &node->handle, align);
 
 	/* present memory for being mapped using small pages */
-	node->r.type = 12;
-	node->r.offset = imem->iommu_mask | node->handle >> 12;
-	node->r.length = (npages << PAGE_SHIFT) >> 12;
+	node->r.type = PAGE_SHIFT;
+	node->r.offset = imem->iommu_mask | node->handle >> PAGE_SHIFT;
+	node->r.length = (npages << PAGE_SHIFT) >> PAGE_SHIFT;
 
 	node->base.mn = &node->r;
 	return 0;

@@ -622,7 +622,11 @@ static int tegra_client_open(struct tegra_drm_file *fpriv,
 {
 	int err;
 
+	pr_info("> %s(fpriv=%px, client=%px, context=%px)\n", __func__, fpriv, client, context);
+	pr_info("  calling %ps()...\n", client->ops->open_channel);
+
 	err = client->ops->open_channel(client, context);
+	pr_info("  done: %d\n", err);
 	if (err < 0)
 		return err;
 
@@ -635,6 +639,7 @@ static int tegra_client_open(struct tegra_drm_file *fpriv,
 	context->client = client;
 	context->id = err;
 
+	pr_info("< %s()\n", __func__);
 	return 0;
 }
 
@@ -648,14 +653,20 @@ static int tegra_open_channel(struct drm_device *drm, void *data,
 	struct tegra_drm_client *client;
 	int err = -ENODEV;
 
+	pr_info("> %s(drm=%px, data=%px, file=%px)\n", __func__, drm, data, file);
+	pr_info("  class: %02x\n", args->client);
+
 	context = kzalloc(sizeof(*context), GFP_KERNEL);
 	if (!context)
 		return -ENOMEM;
 
 	mutex_lock(&fpriv->lock);
 
-	list_for_each_entry(client, &tegra->clients, list)
+	list_for_each_entry(client, &tegra->clients, list) {
+		pr_info("  client: %px\n", client);
+		pr_info("    class: %02x\n", client->base.class);
 		if (client->base.class == args->client) {
+			pr_info("      match!\n");
 			err = tegra_client_open(fpriv, client, context);
 			if (err < 0)
 				break;
@@ -663,6 +674,7 @@ static int tegra_open_channel(struct drm_device *drm, void *data,
 			args->context = context->id;
 			break;
 		}
+	}
 
 	if (err < 0)
 		kfree(context);
