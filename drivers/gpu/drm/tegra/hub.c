@@ -17,6 +17,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_probe_helper.h>
 
 #include "drm.h"
@@ -521,6 +522,7 @@ static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
 }
 
 static const struct drm_plane_helper_funcs tegra_shared_plane_helper_funcs = {
+	.prepare_fb = drm_gem_fb_prepare_fb,
 	.atomic_check = tegra_shared_plane_atomic_check,
 	.atomic_update = tegra_shared_plane_atomic_update,
 	.atomic_disable = tegra_shared_plane_atomic_disable,
