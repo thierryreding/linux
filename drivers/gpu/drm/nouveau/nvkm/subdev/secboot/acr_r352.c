@@ -269,6 +269,9 @@ acr_r352_ls_ucode_img_load(const struct acr_r352 *acr,
 	if (img->base.sig_size != sizeof(img->lsb_header.signature)) {
 		nvkm_error(subdev, "invalid signature size for %s falcon!\n",
 			   nvkm_secboot_falcon_name[falcon_id]);
+		nvkm_error(subdev, "got %u, expected %zu\n",
+			   img->base.sig_size,
+			   sizeof(img->lsb_header.signature));
 		return ERR_PTR(-EINVAL);
 	}
 

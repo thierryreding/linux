@@ -25,51 +25,11 @@
 #include "gf100.h"
 #include "ram.h"
 
-static void
-gv11b_fb_init(struct nvkm_fb *base)
-{
-	struct nvkm_device *device = base->subdev.device;
-	struct gf100_fb *fb = gf100_fb(base);
-	struct nvkm_mmu *mmu = device->mmu;
-
-	nvkm_info(&base->subdev, "> %s(base=%px)\n", __func__, base);
-
-	gm200_fb_init(base);
-
-	if (1) {
-		u32 *data = page_address(fb->r100c10_page);
-		u32 value;
-
-		nvkm_info(&fb->base.subdev, "sysmem: %pad\n", &fb->r100c10);
-
-		nvkm_info(&fb->base.subdev, "DATA[0]: %08x\n", data[0]);
-		data[0] = 0xdeadbeef;
-		nvkm_info(&fb->base.subdev, "DATA[0]: %08x\n", data[0]);
-
-		dma_sync_single_for_device(device->dev, fb->r100c10, SZ_64K,
-					   DMA_TO_DEVICE);
-
-		value = (fb->r100c10 >> 16) & 0xffffff;
-		value |= mmu->iommu_mask >> 16;
-
-		value |= 0x03000000; /* NCOH */
-		nvkm_wr32(device, 0x001700, value);
-
-		value = nvkm_rd32(device, 0x001700);
-		nvkm_info(&fb->base.subdev, "PRAM: %08x\n", value);
-
-		value = nvkm_rd32(device, 0x700000);
-		nvkm_info(&fb->base.subdev, "PRAM[0]: %08x\n", value);
-	}
-
-	nvkm_info(&base->subdev, "< %s()\n", __func__);
-}
-
 static const struct nvkm_fb_func
 gv11b_fb = {
 	.dtor = gf100_fb_dtor,
 	.oneinit = gf100_fb_oneinit,
-	.init = gv11b_fb_init,
+	.init = gm200_fb_init,
 	.init_page = gm200_fb_init_page,
 	.intr = gf100_fb_intr,
 };
