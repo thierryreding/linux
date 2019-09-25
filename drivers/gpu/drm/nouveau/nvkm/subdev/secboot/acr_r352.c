@@ -711,7 +711,7 @@ cleanup:
  *
  * The HS ucode unload blob is only used on dGPU if the WPR region is variable.
  */
-int
+static int
 acr_r352_load_blobs(struct acr_r352 *acr, struct nvkm_secboot *sb)
 {
 	struct nvkm_subdev *subdev = &sb->subdev;
