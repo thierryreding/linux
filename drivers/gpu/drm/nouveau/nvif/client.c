@@ -69,7 +69,7 @@ nvif_client_init(struct nvif_client *parent, const char *name, u64 device,
 	} nop = {};
 	int ret;
 
-	strncpy(args.name, name, sizeof(args.name));
+	strlcpy(args.name, name, sizeof(args.name));
 	ret = nvif_object_init(parent != client ? &parent->object : NULL,
 			       0, NVIF_CLASS_CLIENT, &args, sizeof(args),
 			       &client->object);
