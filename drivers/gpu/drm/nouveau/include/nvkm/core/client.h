@@ -37,8 +37,7 @@ int nvkm_client_notify_put(struct nvkm_client *, int index);
 #define nvif_printk(o,l,p,f,a...) do {                                         \
 	const struct nvkm_object *_object = (o);                               \
 	const struct nvkm_client *_client = _object->client;                   \
-	u32 level = NV_DBG_##l;                                                \
-	if (_client->debug >= level)                                           \
+	if (_client->debug >= NV_DBG_##l)                                      \
 		printk(KERN_##p "nouveau: %s:%08x:%08x: "f, _client->name,     \
 		       _object->handle, _object->oclass, ##a);                 \
 } while(0)
