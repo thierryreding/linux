@@ -278,8 +278,9 @@ int gv11b_vmm_new(struct nvkm_mmu *, bool, u64, u64, void *, u32,
 
 #define VMM_PRINT(l,v,p,f,a...) do {                                           \
 	struct nvkm_vmm *_vmm = (v);                                           \
-	if (CONFIG_NOUVEAU_DEBUG >= (l) && _vmm->debug >= (l)) {               \
-		nvkm_printk_(&_vmm->mmu->subdev, 0, p, "%s: "f"\n",            \
+	u32 level = l;                                                         \
+	if (CONFIG_NOUVEAU_DEBUG >= level && _vmm->debug >= level) {           \
+		nvkm_printk_(&_vmm->mmu->subdev, level, p, "%s: "f"\n",        \
 			     _vmm->name, ##a);                                 \
 	}                                                                      \
 } while(0)
