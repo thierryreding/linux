@@ -2122,6 +2122,7 @@ static int tegra_pmc_irq_init(struct tegra_pmc *pmc)
 	pmc->irq.irq_mask = irq_chip_mask_parent;
 	pmc->irq.irq_unmask = irq_chip_unmask_parent;
 	pmc->irq.irq_eoi = irq_chip_eoi_parent;
+	pmc->irq.irq_retrigger = irq_chip_retrigger_hierarchy;
 	pmc->irq.irq_set_affinity = irq_chip_set_affinity_parent;
 	pmc->irq.irq_set_type = pmc->soc->irq_set_type;
 	pmc->irq.irq_set_wake = pmc->soc->irq_set_wake;
