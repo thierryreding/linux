@@ -98,8 +98,11 @@ nvkm_secboot_falcon_name[] = {
 	[NVKM_SECBOOT_FALCON_SEC2] = "SEC2",
 	[NVKM_SECBOOT_FALCON_END] = "<invalid>",
 };
+
 /**
  * nvkm_secboot_reset() - reset specified falcon
+ * @sb: secboot object
+ * @falcon_mask: mask indicating which falcons to reset
  */
 int
 nvkm_secboot_reset(struct nvkm_secboot *sb, unsigned long falcon_mask)
@@ -115,6 +118,8 @@ nvkm_secboot_reset(struct nvkm_secboot *sb, unsigned long falcon_mask)
 
 /**
  * nvkm_secboot_is_managed() - check whether a given falcon is securely-managed
+ * @sb: secboot object
+ * @fid: ID of falcon to check
  */
 bool
 nvkm_secboot_is_managed(struct nvkm_secboot *sb, enum nvkm_secboot_falcon fid)

@@ -31,7 +31,9 @@
 
 /**
  * gm200_secboot_run_blob() - run the given high-secure blob
- *
+ * @sb: secboot object
+ * @blob: buffer containing the high-secure blob
+ * @falcon: falcon instance to run the high-secure blob on
  */
 int
 gm200_secboot_run_blob(struct nvkm_secboot *sb, struct nvkm_gpuobj *blob,

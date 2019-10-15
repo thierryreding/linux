@@ -29,6 +29,9 @@
 /**
  * hs_ucode_patch_signature() - patch HS blob with correct signature for
  * specified falcon.
+ * @falcon: falcon instance
+ * @acr_image: ACR firmware image to patch
+ * @new_format: flag to indicate the format used
  */
 static void
 hs_ucode_patch_signature(const struct nvkm_falcon *falcon, void *acr_image,

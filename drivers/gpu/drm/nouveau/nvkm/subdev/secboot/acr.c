@@ -25,6 +25,11 @@
 #include <core/firmware.h>
 
 /**
+ * nvkm_acr_load_firmware() - duplicate firmware file in memory and check size
+ * @subdev: subdevice
+ * @name: name of firmware to load
+ * @min_size: minimum size for the firmware
+ *
  * Convenience function to duplicate a firmware file in memory and check that
  * it has the required minimum size.
  */

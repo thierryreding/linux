@@ -35,12 +35,26 @@
 
 /**
  * struct acr_r367_lsf_lsb_header - LS firmware header
+ * @signature: LS falcon signatures
+ * @ucode_off:		offset of the ucode blob in the WPR region. The ucode
+ *                      blob contains the bootloader, code and data of the
+ *                      LS falcon
+ * @ucode_size:		size of the ucode blob, including bootloader
+ * @data_size:		size of the ucode blob data
+ * @bl_code_size:	size of the bootloader code
+ * @bl_imem_off:	offset in imem of the bootloader
+ * @bl_data_off:	offset of the bootloader data in WPR region
+ * @bl_data_size:	size of the bootloader data
+ * @app_code_off:	offset of the app code relative to ucode_off
+ * @app_code_size:	size of the app code
+ * @app_data_off:	offset of the app data relative to ucode_off
+ * @app_data_size:	size of the app data
+ * @flags:		flags for the secure bootloader
  *
  * See also struct acr_r352_lsf_lsb_header for documentation.
  */
 struct acr_r367_lsf_lsb_header {
 	/**
-	 * LS falcon signatures
 	 * @prd_keys:		signature to use in production mode
 	 * @dgb_keys:		signature to use in debug mode
 	 * @b_prd_present:	whether the production key is present
@@ -75,6 +89,12 @@ struct acr_r367_lsf_lsb_header {
 
 /**
  * struct acr_r367_lsf_wpr_header - LS blob WPR Header
+ * @falcon_id: LS falcon ID
+ * @lsb_offset: offset of the lsb_lsf_header in the WPR region
+ * @bootstrap_owner: secure falcon reponsible for bootstrapping the LS falcon
+ * @lazy_bootstrap: skip bootstrapping by ACR
+ * @bin_version: binary version
+ * @status: bootstrapping status
  *
  * See also struct acr_r352_lsf_wpr_header for documentation.
  */
@@ -97,6 +117,10 @@ struct acr_r367_lsf_wpr_header {
 
 /**
  * struct ls_ucode_img_r367 - ucode image augmented with r367 headers
+ * @base: base ucode image
+ * @func: LS firmware callbacks and parameters
+ * @wpr_header: LS blob WPR header
+ * @lsb_header: LS firmware header
  */
 struct ls_ucode_img_r367 {
 	struct ls_ucode_img base;

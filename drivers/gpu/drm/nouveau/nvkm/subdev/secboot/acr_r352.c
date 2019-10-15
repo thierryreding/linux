@@ -32,22 +32,27 @@
 
 /**
  * struct acr_r352_flcn_bl_desc - DMEM bootloader descriptor
- * @signature:		16B signature for secure code. 0s if no secure code
- * @ctx_dma:		DMA context to be used by BL while loading code/data
- * @code_dma_base:	256B-aligned Physical FB Address where code is located
- *			(falcon's $xcbase register)
- * @non_sec_code_off:	offset from code_dma_base where the non-secure code is
- *                      located. The offset must be multiple of 256 to help perf
- * @non_sec_code_size:	the size of the nonSecure code part.
- * @sec_code_off:	offset from code_dma_base where the secure code is
- *                      located. The offset must be multiple of 256 to help perf
- * @sec_code_size:	offset from code_dma_base where the secure code is
- *                      located. The offset must be multiple of 256 to help perf
- * @code_entry_point:	code entry point which will be invoked by BL after
- *                      code is loaded.
- * @data_dma_base:	256B aligned Physical FB Address where data is located.
- *			(falcon's $xdbase register)
- * @data_size:		size of data block. Should be multiple of 256B
+ * @reserved: reserved for future use
+ * @signature: 16B signature for secure code. 0s if no secure code
+ * @ctx_dma: DMA context to be used by BL while loading code/data
+ * @code_dma_base: 256B-aligned Physical FB Address where code is located
+ *                 (falcon's $xcbase register)
+ * @non_sec_code_off: offset from code_dma_base where the non-secure code is
+ *                    located. The offset must be multiple of 256 to help perf
+ * @non_sec_code_size: the size of the nonSecure code part.
+ * @sec_code_off:  offset from code_dma_base where the secure code is
+ *                 located. The offset must be multiple of 256 to help perf
+ * @sec_code_size: offset from code_dma_base where the secure code is
+ *                 located. The offset must be multiple of 256 to help perf
+ * @code_entry_point: code entry point which will be invoked by BL after
+ *                    code is loaded.
+ * @data_dma_base: 256B aligned Physical FB Address where data is located.
+ *                 (falcon's $xdbase register)
+ * @data_size: size of data block. Should be multiple of 256B
+ * @code_dma_base1: 256B aligned Physical FB Address where code is located.
+ *                  (falcon's $xdbase register)
+ * @data_dma_base1: 256B aligned Physical FB Address where data is located.
+ *                  (falcon's $xdbase register)
  *
  * Structure used by the bootloader to load the rest of the code. This has
  * to be filled by host and copied into DMEM at offset provided in the
@@ -71,6 +76,10 @@ struct acr_r352_flcn_bl_desc {
 
 /**
  * acr_r352_generate_flcn_bl_desc - generate generic BL descriptor for LS image
+ * @acr: ACR context
+ * @img: firmware image
+ * @wpr_addr: physical address of WPR region
+ * @_desc: return address for the generated bootloader descriptor
  */
 static void
 acr_r352_generate_flcn_bl_desc(const struct nvkm_acr *acr,
@@ -99,17 +108,22 @@ acr_r352_generate_flcn_bl_desc(const struct nvkm_acr *acr,
 
 /**
  * struct hsflcn_acr_desc - data section of the HS firmware
+ * @ucode_reserved_space: reserved space
+ * @wpr_region_id: region ID holding the WPR header and its details
+ * @wpr_offset: offset from the WPR region holding the wpr header
+ * @mmu_mem_range: memory range of the MMU MMU
+ * @regions: region descriptors
+ * @ucode_blob_size: size of LS blob
+ * @ucode_blob_base: FB location of LS blob
+ * @vpr_desc: VPR descriptor
  *
  * This header is to be copied at the beginning of DMEM by the HS bootloader.
- *
- * @signature:		signature of ACR ucode
- * @wpr_region_id:	region ID holding the WPR header and its details
- * @wpr_offset:		offset from the WPR region holding the wpr header
- * @regions:		region descriptors
- * @nonwpr_ucode_blob_size:	size of LS blob
- * @nonwpr_ucode_blob_start:	FB location of LS blob is
  */
 struct hsflcn_acr_desc {
+	/**
+	 * @reserved_dmem: reserved data memory
+	 * @signatures: signature of ACR ucode
+	 */
 	union {
 		u8 reserved_dmem[0x200];
 		u32 signatures[4];
@@ -118,8 +132,20 @@ struct hsflcn_acr_desc {
 	u32 wpr_offset;
 	u32 mmu_mem_range;
 #define FLCN_ACR_MAX_REGIONS 2
+	/**
+	 * @no_regions: number of regions
+	 * @region_props: region descriptors
+	 */
 	struct {
 		u32 no_regions;
+		/**
+		 * @start_addr: start address of region
+		 * @end_addr: end address of region
+		 * @region_id: region ID
+		 * @read_mask: read mask for region
+		 * @write_mask: write mask for region
+		 * @client_mask: client mask for region
+		 */
 		struct {
 			u32 start_addr;
 			u32 end_addr;
@@ -131,6 +157,12 @@ struct hsflcn_acr_desc {
 	} regions;
 	u32 ucode_blob_size;
 	u64 ucode_blob_base __aligned(8);
+	/**
+	 * @vpr_enabled: flag whether or not VPR is enabled
+	 * @vpr_start: start of VPR region
+	 * @vpr_end: end of VPR region
+	 * @hdcp_policies: HDCP policies for VPR region
+	 */
 	struct {
 		u32 vpr_enabled;
 		u32 vpr_start;
@@ -168,7 +200,6 @@ struct hsflcn_acr_desc {
  */
 struct acr_r352_lsf_lsb_header {
 	/**
-	 * LS falcon signatures
 	 * @prd_keys:		signature to use in production mode
 	 * @dgb_keys:		signature to use in debug mode
 	 * @b_prd_present:	whether the production key is present
@@ -198,11 +229,11 @@ struct acr_r352_lsf_lsb_header {
 
 /**
  * struct acr_r352_lsf_wpr_header - LS blob WPR Header
- * @falcon_id:		LS falcon ID
- * @lsb_offset:		offset of the lsb_lsf_header in the WPR region
- * @bootstrap_owner:	secure falcon reponsible for bootstrapping the LS falcon
- * @lazy_bootstrap:	skip bootstrapping by ACR
- * @status:		bootstrapping status
+ * @falcon_id: LS falcon ID
+ * @lsb_offset: offset of the lsb_lsf_header in the WPR region
+ * @bootstrap_owner: secure falcon reponsible for bootstrapping the LS falcon
+ * @lazy_bootstrap: skip bootstrapping by ACR
+ * @status: bootstrapping status
  *
  * An array of these is written at the beginning of the WPR region, one for
  * each managed falcon. The array is terminated by an instance which falcon_id
@@ -225,6 +256,10 @@ struct acr_r352_lsf_wpr_header {
 
 /**
  * struct ls_ucode_img_r352 - ucode image augmented with r352 headers
+ * @base: base ucode image
+ * @func: LS firmware callbacks and parameters
+ * @wpr_header: LS blob WPR header
+ * @lsb_header: LS firmware header
  */
 struct ls_ucode_img_r352 {
 	struct ls_ucode_img base;
@@ -238,6 +273,9 @@ struct ls_ucode_img_r352 {
 
 /**
  * ls_ucode_img_load() - create a lsf_ucode_img and load it
+ * @acr: ACR context
+ * @sb: secboot object
+ * @falcon_id: ID of falcon to load
  */
 struct ls_ucode_img *
 acr_r352_ls_ucode_img_load(const struct acr_r352 *acr,
@@ -376,6 +414,8 @@ acr_r352_ls_img_fill_headers(struct acr_r352 *acr,
 
 /**
  * acr_r352_ls_fill_headers - fill WPR and LSB headers of all managed images
+ * @acr: ACR context
+ * @imgs: list of ucode images
  */
 int
 acr_r352_ls_fill_headers(struct acr_r352 *acr, struct list_head *imgs)
@@ -410,6 +450,10 @@ acr_r352_ls_fill_headers(struct acr_r352 *acr, struct list_head *imgs)
 
 /**
  * acr_r352_ls_write_wpr - write the WPR blob contents
+ * @acr: ACR context
+ * @imgs: list of ucode images
+ * @wpr_blob: buffer for WPR binary
+ * @wpr_addr: address of WPR region
  */
 int
 acr_r352_ls_write_wpr(struct acr_r352 *acr, struct list_head *imgs,
@@ -469,8 +513,11 @@ acr_r352_ls_write_wpr(struct acr_r352 *acr, struct list_head *imgs,
 
 /* Both size and address of WPR need to be 256K-aligned */
 #define WPR_ALIGNMENT	0x40000
+
 /**
  * acr_r352_prepare_ls_blob() - prepare the LS blob
+ * @acr: ACR context
+ * @sb: secboot object
  *
  * For each securely managed falcon, load the FW, signatures and bootloaders and
  * prepare a ucode blob. Then, compute the offsets in the WPR region for each
@@ -590,9 +637,6 @@ cleanup:
 	return ret;
 }
 
-
-
-
 void
 acr_r352_fixup_hs_desc(struct acr_r352 *acr, struct nvkm_secboot *sb,
 		       void *_desc)
@@ -642,12 +686,12 @@ acr_r352_generate_hs_bl_desc(const struct hsf_load_header *hdr, void *_bl_desc,
 
 /**
  * acr_r352_prepare_hs_blob - load and prepare a HS blob and BL descriptor
- *
- * @sb secure boot instance to prepare for
- * @fw name of the HS firmware to load
- * @blob pointer to gpuobj that will be allocated to receive the HS FW payload
- * @bl_desc pointer to the BL descriptor to write for this firmware
- * @patch whether we should patch the HS descriptor (only for HS loaders)
+ * @acr: ACR context
+ * @sb: secure boot instance to prepare for
+ * @fw: name of the HS firmware to load
+ * @blob: pointer to gpuobj that will be allocated to receive the HS FW payload
+ * @load_header: pointer to the BL descriptor to write for this firmware
+ * @patch: whether we should patch the HS descriptor (only for HS loaders)
  */
 static int
 acr_r352_prepare_hs_blob(struct acr_r352 *acr, struct nvkm_secboot *sb,
@@ -706,6 +750,8 @@ cleanup:
 
 /**
  * acr_r352_load_blobs - load blobs common to all ACR V1 versions.
+ * @acr: ACR context
+ * @sb: secboot object
  *
  * This includes the LS blob, HS ucode loading blob, and HS bootloader.
  *
@@ -774,6 +820,10 @@ acr_r352_load_blobs(struct acr_r352 *acr, struct nvkm_secboot *sb)
 
 /**
  * acr_r352_load() - prepare HS falcon to run the specified blob, mapped.
+ * @_acr: ACR context
+ * @falcon: HS falcon to prepare
+ * @blob: HS blob to load
+ * @offset: offset to load the HS blob to
  *
  * Returns the start address to use, or a negative error value.
  */
@@ -870,6 +920,10 @@ acr_r352_shutdown(struct acr_r352 *acr, struct nvkm_secboot *sb)
 }
 
 /**
+ * acr_r352_wpr_is_set() - check if the WPR region has been set
+ * @acr: ACR context
+ * @sb: secboot object
+ *
  * Check if the WPR region has been indeed set by the ACR firmware, and
  * matches where it should be.
  */
@@ -951,6 +1005,9 @@ acr_r352_bootstrap(struct acr_r352 *acr, struct nvkm_secboot *sb)
 
 /**
  * acr_r352_reset_nopmu - dummy reset method when no PMU firmware is loaded
+ * @acr: ACR context
+ * @sb: secboot object
+ * @falcon_mask: mask of falcons to reset
  *
  * Reset is done by re-executing secure boot from scratch, with lazy bootstrap
  * disabled. This has the effect of making all managed falcons ready-to-run.
@@ -986,6 +1043,9 @@ end:
 
 /*
  * acr_r352_reset() - execute secure boot from the prepared state
+ * @acr: ACR context
+ * @sb: secboot object
+ * @falcon_mask: mask of falcons to reset
  *
  * Load the HS bootloader and ask the falcon to run it. This will in turn
  * load the HS firmware and run it, so once the falcon stops all the managed
@@ -1101,16 +1161,19 @@ acr_r352_ls_gpccs_func = {
 
 /**
  * struct acr_r352_pmu_bl_desc - PMU DMEM bootloader descriptor
- * @dma_idx:		DMA context to be used by BL while loading code/data
- * @code_dma_base:	256B-aligned Physical FB Address where code is located
- * @total_code_size:	total size of the code part in the ucode
- * @code_size_to_load:	size of the code part to load in PMU IMEM.
- * @code_entry_point:	entry point in the code.
- * @data_dma_base:	Physical FB address where data part of ucode is located
- * @data_size:		Total size of the data portion.
- * @overlay_dma_base:	Physical Fb address for resident code present in ucode
- * @argc:		Total number of args
- * @argv:		offset where args are copied into PMU's DMEM.
+ * @dma_idx: DMA context to be used by BL while loading code/data
+ * @code_dma_base: 256B-aligned Physical FB Address where code is located
+ * @code_size_total: total size of the code part in the ucode
+ * @code_size_to_load: size of the code part to load in PMU IMEM.
+ * @code_entry_point: entry point in the code.
+ * @data_dma_base: Physical FB address where data part of ucode is located
+ * @data_size: Total size of the data portion.
+ * @overlay_dma_base: Physical Fb address for resident code present in ucode
+ * @argc: Total number of args
+ * @argv: offset where args are copied into PMU's DMEM.
+ * @code_dma_base1: 256B-aligned Physical FB Address where code is located
+ * @data_dma_base1: Physical FB address where data part of ucode is located
+ * @overlay_dma_base1: Physical FB address for resident code present in ucode
  *
  * Structure used by the PMU bootloader to load the rest of the code
  */
@@ -1132,7 +1195,10 @@ struct acr_r352_pmu_bl_desc {
 
 /**
  * acr_r352_generate_pmu_bl_desc() - populate a DMEM BL descriptor for PMU LS image
- *
+ * @acr: ACR context
+ * @img: ucode image
+ * @wpr_addr: address of WPR region
+ * @_desc: return location for the descriptor
  */
 static void
 acr_r352_generate_pmu_bl_desc(const struct nvkm_acr *acr,

@@ -33,6 +33,10 @@
 
 /**
  * acr_ls_ucode_load_msgqueue - load and prepare a ucode img for a msgqueue fw
+ * @subdev: subdevice
+ * @name: name of firmware to load
+ * @maxver: maximum supported version number
+ * @img: microcode image
  *
  * Load the LS microcode, desc and signature and pack them into a single
  * blob.

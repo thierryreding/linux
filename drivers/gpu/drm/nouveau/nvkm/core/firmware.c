@@ -24,9 +24,11 @@
 
 /**
  * nvkm_firmware_get - load firmware from the official nvidia/chip/ directory
- * @subdev	subdevice that will use that firmware
- * @fwname	name of firmware file to load
- * @fw		firmware structure to load to
+ * @subdev: subdevice that will use that firmware
+ * @fwname: name of firmware file to load
+ * @min_version: minimum supported version
+ * @max_version: maximum supported version
+ * @fw: firmware structure to load to
  *
  * Use this function to load firmware files in the form nvidia/chip/fwname.bin.
  * Firmware files released by NVIDIA will always follow this format.
@@ -77,6 +79,7 @@ nvkm_firmware_get(const struct nvkm_subdev *subdev, const char *fwname,
 
 /**
  * nvkm_firmware_put - release firmware loaded with nvkm_firmware_get
+ * @fw: firmware structure to release
  */
 void
 nvkm_firmware_put(const struct firmware *fw)

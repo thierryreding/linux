@@ -85,6 +85,10 @@ ls_ucode_img_build(const struct firmware *bl, const struct firmware *code,
 
 /**
  * ls_ucode_img_load_gr() - load and prepare a LS GR ucode image
+ * @subdev: subdevice
+ * @maxver: maximum supported version number
+ * @img: microcode image
+ * @falcon_name: name of falcon for which to load the microcode
  *
  * Load the LS microcode, bootloader and signature and pack them into a single
  * blob. Also generate the corresponding ucode descriptor.

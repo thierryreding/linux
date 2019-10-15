@@ -26,6 +26,7 @@
 #ifdef CONFIG_ARCH_TEGRA
 /**
  * gm20b_secboot_tegra_read_wpr() - read the WPR registers on Tegra
+ * @gsb: secboot object
  *
  * On dGPU, we can manage the WPR region ourselves, but on Tegra this region
  * is allocated from system memory by the secure firmware. The region is then
