@@ -597,10 +597,10 @@ static int drm_dp_link_clock_recovery(struct drm_dp_link *link)
 			return err;
 		}
 
-		drm_dp_link_train_adjust(&link->train);
-
 		if (link->train.clock_recovered)
 			break;
+
+		drm_dp_link_train_adjust(&link->train);
 	}
 
 	return 0;
@@ -656,10 +656,10 @@ static int drm_dp_link_channel_equalization(struct drm_dp_link *link)
 			return err;
 		}
 
-		drm_dp_link_train_adjust(&link->train);
-
 		if (link->train.channel_equalized)
 			break;
+
+		drm_dp_link_train_adjust(&link->train);
 	}
 
 	return 0;
@@ -824,6 +824,8 @@ out:
 int drm_dp_link_train(struct drm_dp_link *link)
 {
 	int err;
+
+	drm_dp_link_train_init(&link->train);
 
 	if (link->caps.fast_training) {
 		if (drm_dp_link_train_valid(&link->train)) {
