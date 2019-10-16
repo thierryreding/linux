@@ -190,6 +190,27 @@ struct iommu_sva_ops {
 	iommu_mm_exit_handler_t mm_exit;
 };
 
+/**
+ * struct iommu_fwspec - per-device IOMMU instance data
+ * @ops: ops for this device's IOMMU
+ * @iommu_fwnode: firmware handle for this device's IOMMU
+ * @iommu_priv: IOMMU driver private data for this device
+ * @flags: IOMMU flags associated with this device
+ * @num_ids: number of associated device IDs
+ * @ids: IDs which this device may present to the IOMMU
+ */
+struct iommu_fwspec {
+	const struct iommu_ops	*ops;
+	struct fwnode_handle	*iommu_fwnode;
+	void			*iommu_priv;
+	u32			flags;
+	unsigned int		num_ids;
+	u32			ids[1];
+};
+
+/* ATS is supported */
+#define IOMMU_FWSPEC_PCI_RC_ATS			(1 << 0)
+
 #ifdef CONFIG_IOMMU_API
 
 /**
@@ -566,27 +587,6 @@ extern struct iommu_group *generic_device_group(struct device *dev);
 struct iommu_group *fsl_mc_device_group(struct device *dev);
 
 /**
- * struct iommu_fwspec - per-device IOMMU instance data
- * @ops: ops for this device's IOMMU
- * @iommu_fwnode: firmware handle for this device's IOMMU
- * @iommu_priv: IOMMU driver private data for this device
- * @flags: IOMMU flags associated with this device
- * @num_ids: number of associated device IDs
- * @ids: IDs which this device may present to the IOMMU
- */
-struct iommu_fwspec {
-	const struct iommu_ops	*ops;
-	struct fwnode_handle	*iommu_fwnode;
-	void			*iommu_priv;
-	u32			flags;
-	unsigned int		num_ids;
-	u32			ids[1];
-};
-
-/* ATS is supported */
-#define IOMMU_FWSPEC_PCI_RC_ATS			(1 << 0)
-
-/**
  * struct iommu_sva - handle to a device-mm bond
  */
 struct iommu_sva {
@@ -634,7 +634,6 @@ int iommu_sva_get_pasid(struct iommu_sva *handle);
 
 struct iommu_ops {};
 struct iommu_group {};
-struct iommu_fwspec {};
 struct iommu_device {};
 struct iommu_fault_param {};
 struct iommu_iotlb_gather {};
@@ -976,6 +975,11 @@ static inline int iommu_fwspec_add_ids(struct device *dev, u32 *ids,
 
 static inline
 const struct iommu_ops *iommu_ops_from_fwnode(struct fwnode_handle *fwnode)
+{
+	return NULL;
+}
+
+static inline struct iommu_fwspec *dev_iommu_fwspec_get(struct device *dev)
 {
 	return NULL;
 }
