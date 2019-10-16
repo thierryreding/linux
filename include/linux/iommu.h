@@ -1083,6 +1083,21 @@ static inline size_t iommu_map_sgtable(struct iommu_domain *domain,
 	return iommu_map_sg(domain, iova, sgt->sgl, sgt->orig_nents, prot);
 }
 
+/**
+ * dev_address_space_managed - check if a device's address space is managed
+ * @dev: device to check
+ *
+ * Return %true if the device's address space is managed by the DMA API, or
+ * %false otherwise. This is useful for drivers that can fall back to using
+ * the IOMMU API explicitly if the DMA API isn't backed by an IOMMU.
+ */
+static inline bool dev_address_space_managed(struct device *dev)
+{
+	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
+
+	return domain && domain->type != IOMMU_DOMAIN_IDENTITY;
+}
+
 #ifdef CONFIG_IOMMU_DEBUGFS
 extern	struct dentry *iommu_debugfs_dir;
 void iommu_debugfs_setup(void);
