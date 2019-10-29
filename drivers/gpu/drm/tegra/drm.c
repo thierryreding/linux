@@ -120,6 +120,247 @@ host1x_bo_lookup(struct drm_file *file, u32 handle)
 	return &bo->base;
 }
 
+static int
+host1x_reloc_legacy_copy_from_user(struct host1x_reloc *dest,
+				   struct drm_tegra_reloc_legacy __user *src,
+				   struct drm_file *file)
+{
+	u32 cmdbuf, target;
+	int err;
+
+	err = get_user(cmdbuf, &src->cmdbuf.handle);
+	if (err < 0)
+		return err;
+
+	err = get_user(dest->cmdbuf.offset, &src->cmdbuf.offset);
+	if (err < 0)
+		return err;
+
+	err = get_user(target, &src->target.handle);
+	if (err < 0)
+		return err;
+
+	err = get_user(dest->target.offset, &src->target.offset);
+	if (err < 0)
+		return err;
+
+	err = get_user(dest->shift, &src->shift);
+	if (err < 0)
+		return err;
+
+	dest->flags = HOST1X_RELOC_READ | HOST1X_RELOC_WRITE;
+
+	dest->cmdbuf.bo = host1x_bo_lookup(file, cmdbuf);
+	if (!dest->cmdbuf.bo)
+		return -ENOENT;
+
+	dest->target.bo = host1x_bo_lookup(file, target);
+	if (!dest->target.bo)
+		return -ENOENT;
+
+	return 0;
+}
+
+int tegra_drm_submit_legacy(struct tegra_drm_context *context,
+			    struct drm_tegra_submit_legacy *args,
+			    struct drm_device *drm,
+			    struct drm_file *file)
+{
+	struct host1x *host1x = dev_get_drvdata(drm->dev->parent);
+	struct host1x_client *client = &context->client->base;
+	struct drm_tegra_cmdbuf_legacy __user *user_cmdbufs;
+	struct drm_tegra_reloc_legacy __user *user_relocs;
+	unsigned int num_cmdbufs = args->num_cmdbufs;
+	struct drm_tegra_syncpt __user *user_syncpt;
+	unsigned int num_relocs = args->num_relocs;
+	struct drm_tegra_syncpt syncpt;
+	struct drm_gem_object **refs;
+	bool valid_syncpt = false;
+	struct host1x_syncpt *sp;
+	unsigned int num_refs, i;
+	struct host1x_job *job;
+	int err;
+
+	user_cmdbufs = u64_to_user_ptr(args->cmdbufs);
+	user_relocs = u64_to_user_ptr(args->relocs);
+	user_syncpt = u64_to_user_ptr(args->syncpts);
+
+	/* We don't yet support other than one syncpt_incr struct per submit */
+	if (args->num_syncpts != 1)
+		return -EINVAL;
+
+	/* We don't yet support waitchks */
+	if (args->num_waitchks != 0)
+		return -EINVAL;
+
+	/* XXX determine number of buffers and create indices */
+
+	job = host1x_job_alloc(context->channel, 0, args->num_cmdbufs,
+			       args->num_relocs, 1, 0, 0, NULL);
+	if (!job)
+		return -ENOMEM;
+
+	job->serialize = true;
+
+	/*
+	 * Track referenced BOs so that they can be unreferenced after the
+	 * submission is complete.
+	 */
+	num_refs = num_cmdbufs + num_relocs * 2;
+
+	refs = kmalloc_array(num_refs, sizeof(*refs), GFP_KERNEL);
+	if (!refs) {
+		err = -ENOMEM;
+		goto put;
+	}
+
+	/* reuse as an iterator later */
+	num_refs = 0;
+
+	while (num_cmdbufs) {
+		struct drm_tegra_cmdbuf_legacy cmdbuf;
+		struct host1x_bo *bo;
+		struct tegra_bo *obj;
+		u64 offset;
+
+		if (copy_from_user(&cmdbuf, user_cmdbufs, sizeof(cmdbuf))) {
+			err = -EFAULT;
+			goto fail;
+		}
+
+		/*
+		 * The maximum number of CDMA gather fetches is 16383, a higher
+		 * value means the words count is malformed.
+		 */
+		if (cmdbuf.words > CDMA_GATHER_FETCHES_MAX_NB) {
+			err = -EINVAL;
+			goto fail;
+		}
+
+		bo = host1x_bo_lookup(file, cmdbuf.handle);
+		if (!bo) {
+			err = -ENOENT;
+			goto fail;
+		}
+
+		offset = (u64)cmdbuf.offset + (u64)cmdbuf.words * sizeof(u32);
+		obj = host1x_to_tegra_bo(bo);
+		refs[num_refs++] = &obj->gem;
+
+		/*
+		 * Gather buffer base address must be 4-bytes aligned,
+		 * unaligned offset is malformed and cause commands stream
+		 * corruption on the buffer address relocation.
+		 */
+		if (offset & 3 || offset > obj->gem.size) {
+			err = -EINVAL;
+			goto fail;
+		}
+
+		host1x_job_add_gather(job, bo, cmdbuf.words, cmdbuf.offset,
+				      NULL, 0);
+		num_cmdbufs--;
+		user_cmdbufs++;
+	}
+
+	/* copy and resolve relocations from submit */
+	while (num_relocs--) {
+		struct host1x_reloc *reloc;
+		struct tegra_bo *obj;
+
+		err = host1x_reloc_legacy_copy_from_user(&job->relocs[num_relocs],
+							 &user_relocs[num_relocs],
+							 file);
+		if (err < 0)
+			goto fail;
+
+		reloc = &job->relocs[num_relocs];
+		obj = host1x_to_tegra_bo(reloc->cmdbuf.bo);
+		refs[num_refs++] = &obj->gem;
+
+		/*
+		 * The unaligned cmdbuf offset will cause an unaligned write
+		 * during of the relocations patching, corrupting the commands
+		 * stream.
+		 */
+		if (reloc->cmdbuf.offset & 3 ||
+		    reloc->cmdbuf.offset >= obj->gem.size) {
+			err = -EINVAL;
+			goto fail;
+		}
+
+		obj = host1x_to_tegra_bo(reloc->target.bo);
+		refs[num_refs++] = &obj->gem;
+
+		if (reloc->target.offset >= obj->gem.size) {
+			err = -EINVAL;
+			goto fail;
+		}
+	}
+
+	if (copy_from_user(&syncpt, user_syncpt, sizeof(syncpt))) {
+		err = -EFAULT;
+		goto fail;
+	}
+
+	/* check whether syncpoint ID is valid */
+	sp = host1x_syncpt_get(host1x, syncpt.id);
+	if (!sp) {
+		err = -ENOENT;
+		goto fail;
+	}
+
+	for (i = 0; i < client->num_syncpts; i++) {
+		u32 id = host1x_syncpt_id(client->syncpts[i]);
+
+		if (id == syncpt.id) {
+			job->checkpoints[i].value = syncpt.incrs;
+			valid_syncpt = true;
+		}
+	}
+
+	if (!valid_syncpt) {
+		err = -EINVAL;
+		goto put;
+	}
+
+	job->is_addr_reg = context->client->ops->is_addr_reg;
+	job->is_valid_class = context->client->ops->is_valid_class;
+	job->timeout = 10000;
+
+	if (args->timeout && args->timeout < 10000)
+		job->timeout = args->timeout;
+
+	err = host1x_job_pin(job, context->client->base.dev);
+	if (err)
+		goto fail;
+
+	err = host1x_job_submit(job);
+	if (err) {
+		host1x_job_unpin(job);
+		goto fail;
+	}
+
+	for (i = 0; i < client->num_syncpts; i++) {
+		u32 id = host1x_syncpt_id(client->syncpts[i]);
+
+		if (id == syncpt.id) {
+			args->fence = job->checkpoints[i].threshold;
+			break;
+		}
+	}
+
+fail:
+	while (num_refs--)
+		drm_gem_object_put_unlocked(refs[num_refs]);
+
+	kfree(refs);
+
+put:
+	host1x_job_put(job);
+	return err;
+}
+
 static int host1x_reloc_copy_from_user(struct host1x_job *job,
 				       struct host1x_reloc *dest,
 				       struct drm_tegra_reloc __user *src)
@@ -682,6 +923,39 @@ static int tegra_client_open(struct tegra_drm_file *fpriv,
 	return 0;
 }
 
+static int tegra_open_channel_legacy(struct drm_device *drm, void *data,
+				     struct drm_file *file)
+{
+	struct drm_tegra_open_channel_legacy *args = data;
+	struct tegra_drm_file *fpriv = file->driver_priv;
+	struct tegra_drm *tegra = drm->dev_private;
+	struct tegra_drm_context *context;
+	struct tegra_drm_client *client;
+	int err = -ENODEV;
+
+	context = kzalloc(sizeof(*context), GFP_KERNEL);
+	if (!context)
+		return -ENOMEM;
+
+	mutex_lock(&fpriv->lock);
+
+	list_for_each_entry(client, &tegra->clients, list)
+		if (client->base.class == args->client) {
+			err = tegra_client_open(fpriv, client, context);
+			if (err < 0)
+				break;
+
+			args->context = context->id;
+			break;
+		}
+
+	if (err < 0)
+		kfree(context);
+
+	mutex_unlock(&fpriv->lock);
+	return err;
+}
+
 static int tegra_close_channel(struct drm_device *drm, void *data,
 			       struct drm_file *file)
 {
@@ -700,6 +974,28 @@ static int tegra_close_channel(struct drm_device *drm, void *data,
 
 	idr_remove(&fpriv->contexts, context->id);
 	tegra_drm_context_free(context);
+
+unlock:
+	mutex_unlock(&fpriv->lock);
+	return err;
+}
+
+static int tegra_submit_legacy(struct drm_device *drm, void *data, struct drm_file *file)
+{
+	struct tegra_drm_file *fpriv = file->driver_priv;
+	struct drm_tegra_submit_legacy *args = data;
+	struct tegra_drm_context *context;
+	int err;
+
+	mutex_lock(&fpriv->lock);
+
+	context = idr_find(&fpriv->contexts, args->context);
+	if (!context) {
+		err = -ENODEV;
+		goto unlock;
+	}
+
+	err = context->client->ops->submit_legacy(context, args, drm, file);
 
 unlock:
 	mutex_unlock(&fpriv->lock);
@@ -769,7 +1065,11 @@ static const struct drm_ioctl_desc tegra_drm_ioctls[] = {
 			  DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(TEGRA_GEM_MMAP, tegra_gem_mmap,
 			  DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(TEGRA_OPEN_CHANNEL_LEGACY, tegra_open_channel_legacy,
+			  DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(TEGRA_CLOSE_CHANNEL, tegra_close_channel,
+			  DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(TEGRA_SUBMIT_LEGACY, tegra_submit_legacy,
 			  DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(TEGRA_OPEN_CHANNEL, tegra_open_channel,
 			  DRM_RENDER_ALLOW),

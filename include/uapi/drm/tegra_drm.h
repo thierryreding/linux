@@ -93,6 +93,35 @@ struct drm_tegra_gem_mmap {
 };
 
 /**
+ * struct drm_tegra_open_channel_legacy - parameters for the deprecated open
+ *   channel IOCTL
+ */
+struct drm_tegra_open_channel_legacy {
+	/**
+	 * @client:
+	 *
+	 * The client ID for this channel.
+	 */
+	__u32 client;
+
+	/**
+	 * @pad:
+	 *
+	 * Structure padding that may be used in the future. Must be 0.
+	 */
+	__u32 pad;
+
+	/**
+	 * @context:
+	 *
+	 * The application context of this channel. Set by the kernel upon
+	 * successful completion of the IOCTL. This context needs to be passed
+	 * to the DRM_TEGRA_CHANNEL_CLOSE or the DRM_TEGRA_SUBMIT IOCTLs.
+	 */
+	__u64 context;
+};
+
+/**
  * struct drm_tegra_close_channel - parameters for the close channel IOCTL
  */
 struct drm_tegra_close_channel {
@@ -122,6 +151,244 @@ struct drm_tegra_syncpt {
 	 * Number of increments to perform for the syncpoint.
 	 */
 	__u32 incrs;
+};
+
+/**
+ * struct drm_tegra_cmdbuf_legacy - structure describing a command buffer
+ */
+struct drm_tegra_cmdbuf_legacy {
+	/**
+	 * @handle:
+	 *
+	 * Handle to a GEM object containing the command buffer.
+	 */
+	__u32 handle;
+
+	/**
+	 * @offset:
+	 *
+	 * Offset, in bytes, into the GEM object identified by @handle at
+	 * which the command buffer starts.
+	 */
+	__u32 offset;
+
+	/**
+	 * @words:
+	 *
+	 * Number of 32-bit words in this command buffer.
+	 */
+	__u32 words;
+
+	/**
+	 * @pad:
+	 *
+	 * Structure padding that may be used in the future. Must be 0.
+	 */
+	__u32 pad;
+};
+
+/**
+ * struct drm_tegra_reloc_legacy - GEM object relocation structure
+ */
+struct drm_tegra_reloc_legacy {
+	struct {
+		/**
+		 * @cmdbuf.handle:
+		 *
+		 * Handle to the GEM object containing the command buffer for
+		 * which to perform this GEM object relocation.
+		 */
+		__u32 handle;
+
+		/**
+		 * @cmdbuf.offset:
+		 *
+		 * Offset, in bytes, into the command buffer at which to
+		 * insert the relocated address.
+		 */
+		__u32 offset;
+	} cmdbuf;
+	struct {
+		/**
+		 * @target.handle:
+		 *
+		 * Handle to the GEM object to be relocated.
+		 */
+		__u32 handle;
+
+		/**
+		 * @target.offset:
+		 *
+		 * Offset, in bytes, into the target GEM object at which the
+		 * relocated data starts.
+		 */
+		__u32 offset;
+	} target;
+
+	/**
+	 * @shift:
+	 *
+	 * The number of bits by which to shift relocated addresses.
+	 */
+	__u32 shift;
+
+	/**
+	 * @pad:
+	 *
+	 * Structure padding that may be used in the future. Must be 0.
+	 */
+	__u32 pad;
+};
+
+/**
+ * struct drm_tegra_waitchk - wait check structure (deprecated)
+ */
+struct drm_tegra_waitchk {
+	/**
+	 * @handle:
+	 *
+	 * Handle to the GEM object containing a command stream on which to
+	 * perform the wait check.
+	 */
+	__u32 handle;
+
+	/**
+	 * @offset:
+	 *
+	 * Offset, in bytes, of the location in the command stream to perform
+	 * the wait check on.
+	 */
+	__u32 offset;
+
+	/**
+	 * @syncpt:
+	 *
+	 * ID of the syncpoint to wait check.
+	 */
+	__u32 syncpt;
+
+	/**
+	 * @thresh:
+	 *
+	 * Threshold value for which to check.
+	 */
+	__u32 thresh;
+};
+
+/**
+ * struct drm_tegra_submit_legacy - job submission structure (deprecated)
+ */
+struct drm_tegra_submit_legacy {
+	/**
+	 * @context:
+	 *
+	 * The application context identifying the channel to use for the
+	 * execution of this job.
+	 */
+	__u64 context;
+
+	/**
+	 * @num_syncpts:
+	 *
+	 * The number of syncpoints operated on by this job. This defines the
+	 * length of the array pointed to by @syncpts.
+	 */
+	__u32 num_syncpts;
+
+	/**
+	 * @num_cmdbufs:
+	 *
+	 * The number of command buffers to execute as part of this job. This
+	 * defines the length of the array pointed to by @cmdbufs.
+	 */
+	__u32 num_cmdbufs;
+
+	/**
+	 * @num_relocs:
+	 *
+	 * The number of relocations to perform before executing this job.
+	 * This defines the length of the array pointed to by @relocs.
+	 */
+	__u32 num_relocs;
+
+	/**
+	 * @num_waitchks:
+	 *
+	 * The number of wait checks to perform as part of this job. This
+	 * defines the length of the array pointed to by @waitchks.
+	 */
+	__u32 num_waitchks;
+
+	/**
+	 * @waitchk_mask:
+	 *
+	 * Bitmask of valid wait checks.
+	 */
+	__u32 waitchk_mask;
+
+	/**
+	 * @timeout:
+	 *
+	 * Timeout, in milliseconds, before this job is cancelled.
+	 */
+	__u32 timeout;
+
+	/**
+	 * @syncpts:
+	 *
+	 * A pointer to an array of &struct drm_tegra_syncpt structures that
+	 * specify the syncpoint operations performed as part of this job.
+	 * The number of elements in the array must be equal to the value
+	 * given by @num_syncpts.
+	 */
+	__u64 syncpts;
+
+	/**
+	 * @cmdbufs:
+	 *
+	 * A pointer to an array of &struct drm_tegra_cmdbuf structures that
+	 * define the command buffers to execute as part of this job. The
+	 * number of elements in the array must be equal to the value given
+	 * by @num_syncpts.
+	 */
+	__u64 cmdbufs;
+
+	/**
+	 * @relocs:
+	 *
+	 * A pointer to an array of &struct drm_tegra_reloc structures that
+	 * specify the relocations that need to be performed before executing
+	 * this job. The number of elements in the array must be equal to the
+	 * value given by @num_relocs.
+	 */
+	__u64 relocs;
+
+	/**
+	 * @waitchks:
+	 *
+	 * A pointer to an array of &struct drm_tegra_waitchk structures that
+	 * specify the wait checks to be performed while executing this job.
+	 * The number of elements in the array must be equal to the value
+	 * given by @num_waitchks.
+	 */
+	__u64 waitchks;
+
+	/**
+	 * @fence:
+	 *
+	 * The threshold of the syncpoint associated with this job after it
+	 * has been completed. Set by the kernel upon successful completion of
+	 * the IOCTL. This can be used with the DRM_TEGRA_SYNCPT_WAIT IOCTL to
+	 * wait for this job to be finished.
+	 */
+	__u32 fence;
+
+	/**
+	 * @reserved:
+	 *
+	 * This field is reserved for future use. Must be 0.
+	 */
+	__u32 reserved[5];
 };
 
 #define DRM_TEGRA_CHANNEL_FLAGS (0)
@@ -484,13 +751,17 @@ struct drm_tegra_submit {
 
 #define DRM_TEGRA_GEM_CREATE		0x00
 #define DRM_TEGRA_GEM_MMAP		0x01
+#define DRM_TEGRA_OPEN_CHANNEL_LEGACY	0x05
 #define DRM_TEGRA_CLOSE_CHANNEL		0x06
+#define DRM_TEGRA_SUBMIT_LEGACY		0x08
 #define DRM_TEGRA_OPEN_CHANNEL		0x0e
 #define DRM_TEGRA_SUBMIT		0x0f
 
 #define DRM_IOCTL_TEGRA_GEM_CREATE DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_GEM_CREATE, struct drm_tegra_gem_create)
 #define DRM_IOCTL_TEGRA_GEM_MMAP DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_GEM_MMAP, struct drm_tegra_gem_mmap)
+#define DRM_IOCTL_TEGRA_OPEN_CHANNEL_LEGACY DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_OPEN_CHANNEL_LEGACY, struct drm_tegra_open_channel_legacy)
 #define DRM_IOCTL_TEGRA_CLOSE_CHANNEL DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_CLOSE_CHANNEL, struct drm_tegra_close_channel)
+#define DRM_IOCTL_TEGRA_SUBMIT_LEGACY DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_SUBMIT_LEGACY, struct drm_tegra_submit_legacy)
 #define DRM_IOCTL_TEGRA_OPEN_CHANNEL DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_OPEN_CHANNEL, struct drm_tegra_open_channel)
 #define DRM_IOCTL_TEGRA_SUBMIT DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_SUBMIT, struct drm_tegra_submit)
 
