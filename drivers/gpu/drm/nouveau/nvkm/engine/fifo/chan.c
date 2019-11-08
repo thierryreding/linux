@@ -310,7 +310,7 @@ nvkm_fifo_chan_init(struct nvkm_object *object)
 }
 
 static void *
-nvkm_fifo_chan_dtor(struct nvkm_object *object)
+__nvkm_fifo_chan_dtor(struct nvkm_object *object)
 {
 	struct nvkm_fifo_chan *chan = nvkm_fifo_chan(object);
 	struct nvkm_fifo *fifo = chan->fifo;
@@ -324,9 +324,6 @@ nvkm_fifo_chan_dtor(struct nvkm_object *object)
 	}
 	spin_unlock_irqrestore(&fifo->lock, flags);
 
-	if (chan->user)
-		iounmap(chan->user);
-
 	if (chan->vmm) {
 		nvkm_vmm_part(chan->vmm, chan->inst->memory);
 		nvkm_vmm_unref(&chan->vmm);
@@ -335,6 +332,17 @@ nvkm_fifo_chan_dtor(struct nvkm_object *object)
 	nvkm_gpuobj_del(&chan->push);
 	nvkm_gpuobj_del(&chan->inst);
 	return data;
+}
+
+static void *
+nvkm_fifo_chan_dtor(struct nvkm_object *object)
+{
+	struct nvkm_fifo_chan *chan = nvkm_fifo_chan(object);
+
+	if (chan->user)
+		iounmap(chan->user);
+
+	return __nvkm_fifo_chan_dtor(object);
 }
 
 static const struct nvkm_object_func
@@ -349,12 +357,98 @@ nvkm_fifo_chan_func = {
 	.sclass = nvkm_fifo_chan_child_get,
 };
 
+static void *
+nvkm_fifo_chan_mem_dtor(struct nvkm_object *object)
+{
+	return __nvkm_fifo_chan_dtor(object);
+}
+
+static int
+nvkm_fifo_chan_mem_map(struct nvkm_object *object, void *argv, u32 argc,
+		       enum nvkm_object_map *type, u64 *addr, u64 *size)
+{
+	struct nvkm_fifo_chan *chan = nvkm_fifo_chan(object);
+
+	pr_info("> %s(object=%px, argv=%px, argc=%u, type=%px, addr=%px, size=%px)\n", __func__, object, argv, argc, type, addr, size);
+
+	*type = NVKM_OBJECT_MAP_VA;
+	*addr = (u64)nvkm_kmap(chan->mem);
+	*size = chan->size;
+
+	pr_info("  type: %d\n", *type);
+	pr_info("  addr: %016llx\n", *addr);
+	pr_info("  size: %016llx\n", *size);
+	pr_info("< %s()\n", __func__);
+	return 0;
+}
+
+static int
+nvkm_fifo_chan_mem_unmap(struct nvkm_object *object)
+{
+	struct nvkm_fifo_chan *chan = nvkm_fifo_chan(object);
+
+	pr_info("> %s(object=%px)\n", __func__, object);
+
+	nvkm_done(chan->mem);
+
+	pr_info("< %s()\n", __func__);
+	return 0;
+}
+
+static int
+nvkm_fifo_chan_mem_rd32(struct nvkm_object *object, u64 addr, u32 *data)
+{
+	struct nvkm_fifo_chan *chan = nvkm_fifo_chan(object);
+
+	pr_info("> %s(object=%px, addr=%016llx, data=%px)\n", __func__, object, addr, data);
+
+	if (unlikely(addr + 4 > chan->size))
+		return -EINVAL;
+
+	*data = nvkm_ro32(chan->mem, addr);
+
+	pr_info("  data: %08x\n", *data);
+	pr_info("< %s()\n", __func__);
+	return 0;
+}
+
+static int
+nvkm_fifo_chan_mem_wr32(struct nvkm_object *object, u64 addr, u32 data)
+{
+	struct nvkm_fifo_chan *chan = nvkm_fifo_chan(object);
+
+	pr_info("> %s(object=%px, addr=%016llx, data=%08x)\n", __func__, object, addr, data);
+
+	if (unlikely(addr + 4 > chan->size))
+		return -EINVAL;
+
+	nvkm_wo32(chan->mem, addr, data);
+
+	/* XXX add barrier */
+
+	pr_info("< %s()\n", __func__);
+	return 0;
+}
+
+static const struct nvkm_object_func
+nvkm_fifo_chan_mem_func = {
+	.dtor = nvkm_fifo_chan_mem_dtor,
+	.init = nvkm_fifo_chan_init,
+	.fini = nvkm_fifo_chan_fini,
+	.ntfy = nvkm_fifo_chan_ntfy,
+	.map = nvkm_fifo_chan_mem_map,
+	.unmap = nvkm_fifo_chan_mem_unmap,
+	.rd32 = nvkm_fifo_chan_mem_rd32,
+	.wr32 = nvkm_fifo_chan_mem_wr32,
+	.sclass = nvkm_fifo_chan_child_get,
+};
+
 int
-nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *func,
-		    struct nvkm_fifo *fifo, u32 size, u32 align, bool zero,
-		    u64 hvmm, u64 push, u64 engines, int bar, u32 base,
-		    u32 user, const struct nvkm_oclass *oclass,
-		    struct nvkm_fifo_chan *chan)
+__nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *func,
+		      struct nvkm_fifo *fifo, u32 size, u32 align, bool zero,
+		      u64 hvmm, u64 push, u64 engines,
+		      const struct nvkm_oclass *oclass,
+		      struct nvkm_fifo_chan *chan)
 {
 	struct nvkm_client *client = oclass->client;
 	struct nvkm_device *device = fifo->engine.subdev.device;
@@ -362,7 +456,6 @@ nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *func,
 	unsigned long flags;
 	int ret;
 
-	nvkm_object_ctor(&nvkm_fifo_chan_func, oclass, &chan->object);
 	chan->func = func;
 	chan->fifo = fifo;
 	chan->engines = engines;
@@ -412,9 +505,53 @@ nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *func,
 	__set_bit(chan->chid, fifo->mask);
 	spin_unlock_irqrestore(&fifo->lock, flags);
 
+	return 0;
+}
+
+int
+nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *func,
+		    struct nvkm_fifo *fifo, u32 size, u32 align, bool zero,
+		    u64 hvmm, u64 push, u64 engines, int bar, u32 base,
+		    u32 user, const struct nvkm_oclass *oclass,
+		    struct nvkm_fifo_chan *chan)
+{
+	struct nvkm_device *device = fifo->engine.subdev.device;
+	int ret;
+
+	nvkm_object_ctor(&nvkm_fifo_chan_func, oclass, &chan->object);
+
+	ret = __nvkm_fifo_chan_ctor(func, fifo, size, align, zero, hvmm, push,
+				    engines, oclass, chan);
+	if (ret)
+		return ret;
+
 	/* determine address of this channel's user registers */
 	chan->addr = device->func->resource_addr(device, bar) +
 		     base + user * chan->chid;
+	chan->size = user;
+
+	nvkm_fifo_cevent(fifo);
+	return 0;
+}
+
+int nvkm_fifo_chan_mem_ctor(const struct nvkm_fifo_chan_func *func,
+			    struct nvkm_fifo *fifo, u32 size, u32 align,
+			    bool zero, u64 hvmm, u64 push, u64 engines,
+			    struct nvkm_memory *mem, u32 user,
+			    const struct nvkm_oclass *oclass,
+			    struct nvkm_fifo_chan *chan)
+{
+	int ret;
+
+	nvkm_object_ctor(&nvkm_fifo_chan_mem_func, oclass, &chan->object);
+
+	ret = __nvkm_fifo_chan_ctor(func, fifo, size, align, zero, hvmm, push,
+				    engines, oclass, chan);
+	if (ret)
+		return ret;
+
+	chan->mem = mem;
+	chan->addr = user * chan->chid;
 	chan->size = user;
 
 	nvkm_fifo_cevent(fifo);

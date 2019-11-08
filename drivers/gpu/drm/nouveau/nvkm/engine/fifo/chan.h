@@ -24,6 +24,12 @@ int nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *, struct nvkm_fifo *,
 			u32 size, u32 align, bool zero, u64 vm, u64 push,
 			u64 engines, int bar, u32 base, u32 user,
 			const struct nvkm_oclass *, struct nvkm_fifo_chan *);
+int nvkm_fifo_chan_mem_ctor(const struct nvkm_fifo_chan_func *,
+			    struct nvkm_fifo *, u32 size, u32 align,
+			    bool zero, u64 vm, u64 push, u64 engines,
+			    struct nvkm_memory *mem, u32 user,
+			    const struct nvkm_oclass *,
+			    struct nvkm_fifo_chan *);
 
 struct nvkm_fifo_chan_oclass {
 	int (*ctor)(struct nvkm_fifo *, const struct nvkm_oclass *,

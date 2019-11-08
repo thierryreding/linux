@@ -906,7 +906,6 @@ gk104_fifo_oneinit(struct nvkm_fifo *base)
 	struct gk104_fifo *fifo = gk104_fifo(base);
 	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
-	struct nvkm_vmm *bar = nvkm_bar_bar1_vmm(device);
 	int engn, runl, pbid, ret, i, j;
 	enum nvkm_devidx engidx;
 	u32 *map;
@@ -967,12 +966,19 @@ gk104_fifo_oneinit(struct nvkm_fifo *base)
 	if (ret)
 		return ret;
 
-	ret = nvkm_vmm_get(bar, 12, nvkm_memory_size(fifo->user.mem),
-			   &fifo->user.bar);
-	if (ret)
-		return ret;
+	if (device->bar) {
+		struct nvkm_vmm *bar = nvkm_bar_bar1_vmm(device);
 
-	return nvkm_memory_map(fifo->user.mem, 0, bar, fifo->user.bar, NULL, 0);
+		ret = nvkm_vmm_get(bar, 12, nvkm_memory_size(fifo->user.mem),
+				   &fifo->user.bar);
+		if (ret)
+			return ret;
+
+		return nvkm_memory_map(fifo->user.mem, 0, bar, fifo->user.bar,
+				       NULL, 0);
+	}
+
+	return 0;
 }
 
 static void
@@ -998,7 +1004,12 @@ gk104_fifo_init(struct nvkm_fifo *base)
 		nvkm_wr32(device, 0x04014c + (i * 0x2000), 0xffffffff); /* INTREN */
 	}
 
-	nvkm_wr32(device, 0x002254, 0x10000000 | fifo->user.bar->addr >> 12);
+	/* obsolete on GV100 and later */
+	if (fifo->user.bar) {
+		u32 value = 0x10000000 | fifo->user.bar->addr >> 12;
+
+		nvkm_wr32(device, 0x002254, value);
+	}
 
 	if (fifo->func->pbdma->init_timeout)
 		fifo->func->pbdma->init_timeout(fifo);
@@ -1014,7 +1025,9 @@ gk104_fifo_dtor(struct nvkm_fifo *base)
 	struct nvkm_device *device = fifo->base.engine.subdev.device;
 	int i;
 
-	nvkm_vmm_put(nvkm_bar_bar1_vmm(device), &fifo->user.bar);
+	if (fifo->user.bar)
+		nvkm_vmm_put(nvkm_bar_bar1_vmm(device), &fifo->user.bar);
+
 	nvkm_memory_unref(&fifo->user.mem);
 
 	for (i = 0; i < fifo->runlist_nr; i++) {
