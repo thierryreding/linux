@@ -2438,7 +2438,6 @@ nv140_chipset = {
 static const struct nvkm_device_chip
 nv15b_chipset = {
 	.name = "GV11B",
-	.bar = gm20b_bar_new,
 	.bus = gf100_bus_new,
 	.fault = gv11b_fault_new,
 	.fb = gv11b_fb_new,

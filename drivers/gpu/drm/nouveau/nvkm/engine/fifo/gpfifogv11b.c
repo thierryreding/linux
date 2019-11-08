@@ -75,9 +75,9 @@ gv11b_fifo_gpfifo_new_(const struct nvkm_fifo_chan_func *func,
 	chan->runl = runlist;
 	INIT_LIST_HEAD(&chan->head);
 
-	ret = nvkm_fifo_chan_ctor(func, &fifo->base, 0x1000, 0x1000, true, vmm,
-				  0, subdevs, 1, fifo->user.bar->addr, 0x200,
-				  oclass, &chan->base);
+	ret = nvkm_fifo_chan_mem_ctor(func, &fifo->base, 0x1000, 0x1000,
+				      true, vmm, 0, subdevs, fifo->user.mem,
+				      0x200, oclass, &chan->base);
 	if (ret)
 		return ret;
 
