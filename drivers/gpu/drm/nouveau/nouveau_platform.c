@@ -69,7 +69,7 @@ static const struct nvkm_device_tegra_func gp10b_platform_data = {
 };
 
 static const struct nvkm_device_tegra_func gv11b_platform_data = {
-	.iommu_bit = 36,
+	.iommu_bit = 0,
 	.require_vdd = false,
 };
 
