@@ -997,7 +997,7 @@
 	/* WIFI/BT module */
 	sdhci@700b0000 {
 		power-gpios = <&gpio TEGRA_GPIO(X, 7) GPIO_ACTIVE_HIGH>;
-		reset-gpios = <&gpio TEGRA_GPIO(CC, 5) GPIO_ACTIVE_LOW>;
+		mmc-pwrseq = <&sdio_pwrseq>;
 
 		bus-width = <4>;
 		non-removable;
@@ -1121,6 +1121,11 @@
 		compatible = "innolux,n116bge", "simple-panel";
 		backlight = <&backlight>;
 		ddc-i2c-bus = <&dpaux>;
+	};
+
+	sdio_pwrseq: power-sequence {
+		compatible = "mmc-pwrseq-simple";
+		reset-gpios = <&gpio TEGRA_GPIO(CC, 5) GPIO_ACTIVE_LOW>;
 	};
 
 	regulators {
