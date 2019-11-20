@@ -5,7 +5,7 @@
 #include "tegra132.dtsi"
 
 / {
-	model = "NVIDIA Tegra132 Norrin";
+	model = "NVIDIA Tegra132 Norrin FFD";
 	compatible = "nvidia,norrin", "nvidia,tegra132", "nvidia,tegra124";
 
 	aliases {
