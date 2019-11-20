@@ -1069,6 +1069,18 @@
 		};
 	};
 
+	cpus {
+		cpu@0 {
+			enable-method = "spin-table";
+			cpu-release-addr = <0x0 0x8000fff8>;
+		};
+
+		cpu@1 {
+			enable-method = "spin-table";
+			cpu-release-addr = <0x0 0x8000fff8>;
+		};
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 
