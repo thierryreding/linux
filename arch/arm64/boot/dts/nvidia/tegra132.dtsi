@@ -583,7 +583,7 @@
 	};
 
 	fuse@7000f800 {
-		compatible = "nvidia,tegra124-efuse";
+		compatible = "nvidia,tegra132-efuse", "nvidia,tegra124-efuse";
 		reg = <0x0 0x7000f800 0x0 0x400>;
 		clocks = <&tegra_car TEGRA124_CLK_FUSE>;
 		clock-names = "fuse";
