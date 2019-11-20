@@ -996,7 +996,22 @@
 
 	/* WIFI/BT module */
 	sdhci@700b0000 {
-		status = "disabled";
+		power-gpios = <&gpio TEGRA_GPIO(X, 7) GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio TEGRA_GPIO(CC, 5) GPIO_ACTIVE_LOW>;
+
+		bus-width = <4>;
+		non-removable;
+		disable-wp;
+
+		status = "okay";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		wifi@1 {
+			compatible = "marvell,sd8797";
+			reg = <1>;
+		};
 	};
 
 	/* external SD/MMC */
