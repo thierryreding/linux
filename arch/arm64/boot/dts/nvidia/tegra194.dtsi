@@ -36,6 +36,8 @@
 			interrupt-controller;
 			#gpio-cells = <2>;
 			gpio-controller;
+
+			gpio-ranges = <&pinmux TEGRA194_MAIN_GPIO(GG, 0) 0 2>;
 		};
 
 		ethernet@2490000 {
