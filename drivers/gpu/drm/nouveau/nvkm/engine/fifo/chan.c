@@ -372,7 +372,7 @@ nvkm_fifo_chan_mem_map(struct nvkm_object *object, void *argv, u32 argc,
 	pr_info("> %s(object=%px, argv=%px, argc=%u, type=%px, addr=%px, size=%px)\n", __func__, object, argv, argc, type, addr, size);
 
 	*type = NVKM_OBJECT_MAP_VA;
-	*addr = (u64)nvkm_kmap(chan->mem);
+	*addr = 0; //(u64)nvkm_kmap(chan->mem);
 	*size = chan->size;
 
 	pr_info("  type: %d\n", *type);
