@@ -1523,24 +1523,18 @@ static void tegra_xusb_restore_context(struct tegra_xusb *tegra)
 static int tegra_xusb_enter_elpg(struct tegra_xusb *tegra, bool wakeup)
 {
 	struct xhci_hcd *xhci = hcd_to_xhci(tegra->hcd);
-	u32 value;
 	int err;
-
-	/* disable event interrupts */
-	value = readl(&xhci->op_regs->command);
-	value &= ~CMD_EIE;
-	writel(value, &xhci->op_regs->command);
 
 	err = tegra_xusb_check_ports(tegra);
 	if (err < 0) {
 		dev_err(tegra->dev, "not all ports suspended: %d\n", err);
-		goto out;
+		return err;
 	}
 
 	err = xhci_suspend(xhci, wakeup);
 	if (err < 0) {
 		dev_err(tegra->dev, "failed to suspend XHCI: %d\n", err);
-		goto out;
+		return err;
 	}
 
 	tegra_xusb_save_context(tegra);
@@ -1548,20 +1542,11 @@ static int tegra_xusb_enter_elpg(struct tegra_xusb *tegra, bool wakeup)
 	tegra_xusb_clk_disable(tegra);
 
 	return 0;
-
-out:
-	/* enable event interrupts */
-	value = readl(&xhci->op_regs->command);
-	value |= CMD_EIE;
-	writel(value, &xhci->op_regs->command);
-
-	return err;
 }
 
 static int tegra_xusb_exit_elpg(struct tegra_xusb *tegra, bool wakeup)
 {
 	struct xhci_hcd *xhci = hcd_to_xhci(tegra->hcd);
-	u32 value;
 	int err;
 
 	err = tegra_xusb_clk_enable(tegra);
@@ -1596,11 +1581,6 @@ static int tegra_xusb_exit_elpg(struct tegra_xusb *tegra, bool wakeup)
 		dev_err(tegra->dev, "failed to resume XHCI: %d\n", err);
 		goto disable_phy;
 	}
-
-	/* enable event interrupts */
-	value = readl(&xhci->op_regs->command);
-	value |= CMD_EIE;
-	writel(value, &xhci->op_regs->command);
 
 	return 0;
 
