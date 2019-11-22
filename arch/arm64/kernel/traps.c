@@ -30,6 +30,7 @@
 
 #include <asm/atomic.h>
 #include <asm/bug.h>
+#include <asm/cpu.h>
 #include <asm/cpufeature.h>
 #include <asm/daifflags.h>
 #include <asm/debug-monitors.h>
@@ -857,14 +858,44 @@ asmlinkage void handle_bad_stack(struct pt_regs *regs)
 }
 #endif
 
+#define MIDR_CPU_MASK    0xff0ffff0
+#define MIDR_CPU_DENVER2 0x4e0f0030
+#define MIDR_CPU_A57     0x410fd070
+
+static bool cpu_is_tegra186_denver(int cpu)
+{
+	struct cpuinfo_arm64 *info = &per_cpu(cpu_data, cpu);
+	u32 cpu_id = info->reg_midr & MIDR_CPU_MASK;
+
+	if (cpu_id == MIDR_CPU_DENVER2)
+		return true;
+
+	return false;
+}
+
 void __noreturn arm64_serror_panic(struct pt_regs *regs, u32 esr)
 {
+	int cpu = smp_processor_id();
+
 	console_verbose();
 
 	pr_crit("SError Interrupt on CPU%d, code 0x%08x -- %s\n",
 		smp_processor_id(), esr, esr_get_class_string(esr));
 	if (regs)
 		__show_regs(regs);
+
+	if (cpu_is_tegra186_denver(cpu)) {
+		u64 status;
+
+		asm volatile("mrs %0, s3_0_c15_c3_1" : "=r" (status));
+		pr_crit("status: %016llx\n", status);
+
+		if (status & 0x4) {
+			pr_crit("  Denver MCA\n");
+			status = 0;
+			asm volatile("msr s3_0_c15_c3_1, %0" : : "r" (status));
+		}
+	}
 
 	nmi_panic(regs, "Asynchronous SError Interrupt");
 
@@ -1055,3 +1086,26 @@ void __init trap_init(void)
 	register_kernel_break_hook(&kasan_break_hook);
 #endif
 }
+
+static void denver_setup_mca(void *info)
+{
+	unsigned long enable = 1;
+
+	asm volatile("msr s3_0_c15_c3_2, %0" : : "r" (enable));
+}
+
+int __init arm64_serror_init(void)
+{
+	int cpu;
+
+	pr_info("> %s()\n", __func__);
+
+	for_each_online_cpu(cpu) {
+		if (cpu_is_tegra186_denver(cpu))
+			smp_call_function_single(cpu, denver_setup_mca, NULL, 1);
+	}
+
+	pr_info("< %s()\n", __func__);
+	return 0;
+}
+core_initcall(arm64_serror_init);
