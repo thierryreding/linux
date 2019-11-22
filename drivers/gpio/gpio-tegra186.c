@@ -15,6 +15,9 @@
 #include <dt-bindings/gpio/tegra186-gpio.h>
 #include <dt-bindings/gpio/tegra194-gpio.h>
 
+/* for struct gpio_device */
+#include "gpiolib.h"
+
 /* security registers */
 #define TEGRA186_GPIO_CTL_SCR 0x0c
 #define  TEGRA186_GPIO_CTL_SCR_SEC_WEN BIT(28)
@@ -109,6 +112,20 @@ static void __iomem *tegra186_gpio_get_base(struct tegra_gpio *gpio,
 	offset = port->bank * 0x1000 + port->port * 0x200;
 
 	return gpio->base + offset + pin * 0x20;
+}
+
+static int tegra186_gpio_request(struct gpio_chip *chip, unsigned int offset)
+{
+	/* XXX enable GPIO mode */
+
+	return gpiochip_generic_request(chip, offset);
+}
+
+static void tegra186_gpio_free(struct gpio_chip *chip, unsigned int offset)
+{
+	/* XXX disable GPIO mode */
+
+	gpiochip_generic_free(chip, offset);
 }
 
 static int tegra186_gpio_get_direction(struct gpio_chip *chip,
@@ -571,6 +588,8 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 	gpio->gpio.label = gpio->soc->name;
 	gpio->gpio.parent = &pdev->dev;
 
+	gpio->gpio.request = tegra186_gpio_request;
+	gpio->gpio.free = tegra186_gpio_free;
 	gpio->gpio.get_direction = tegra186_gpio_get_direction;
 	gpio->gpio.direction_input = tegra186_gpio_direction_input;
 	gpio->gpio.direction_output = tegra186_gpio_direction_output;
