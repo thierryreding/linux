@@ -1584,17 +1584,27 @@ out_unlock:
 	return ret;
 }
 
-static int arm_smmu_of_xlate(struct device *dev, struct of_phandle_args *args)
+static u32 arm_smmu_of_parse(struct device_node *np, const u32 *args,
+			     unsigned int count)
 {
-	u32 mask, fwid = 0;
+	u32 fwid = 0, mask;
 
-	if (args->args_count > 0)
-		fwid |= FIELD_PREP(ARM_SMMU_SMR_ID, args->args[0]);
+	if (count > 0)
+		fwid |= FIELD_PREP(ARM_SMMU_SMR_ID, args[0]);
 
-	if (args->args_count > 1)
-		fwid |= FIELD_PREP(ARM_SMMU_SMR_MASK, args->args[1]);
+	if (count > 1)
+		fwid |= FIELD_PREP(ARM_SMMU_SMR_MASK, args[1]);
 	else if (!of_property_read_u32(args->np, "stream-match-mask", &mask))
 		fwid |= FIELD_PREP(ARM_SMMU_SMR_MASK, mask);
+
+	return fwid;
+}
+
+static int arm_smmu_of_xlate(struct device *dev, struct of_phandle_args *args)
+{
+	u32 fwid;
+
+	fwid = arm_smmu_of_parse(args->np, args->args, args->args_count);
 
 	return iommu_fwspec_add_ids(dev, &fwid, 1);
 }
