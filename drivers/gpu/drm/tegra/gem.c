@@ -23,31 +23,6 @@
 
 MODULE_IMPORT_NS(DMA_BUF);
 
-static unsigned int sg_dma_count_chunks(struct scatterlist *sgl, unsigned int nents)
-{
-	dma_addr_t next = ~(dma_addr_t)0;
-	unsigned int count = 0, i;
-	struct scatterlist *s;
-
-	for_each_sg(sgl, s, nents, i) {
-		/* sg_dma_address(s) is only valid for entries that have sg_dma_len(s) != 0. */
-		if (!sg_dma_len(s))
-			continue;
-
-		if (sg_dma_address(s) != next) {
-			next = sg_dma_address(s) + sg_dma_len(s);
-			count++;
-		}
-	}
-
-	return count;
-}
-
-static inline unsigned int sgt_dma_count_chunks(struct sg_table *sgt)
-{
-	return sg_dma_count_chunks(sgt->sgl, sgt->nents);
-}
-
 static void tegra_bo_put(struct host1x_bo *bo)
 {
 	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
