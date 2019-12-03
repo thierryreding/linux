@@ -100,6 +100,7 @@ EXPORT_SYMBOL(host1x_job_add_gather);
 
 static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 {
+	unsigned long mask = HOST1X_RELOC_READ | HOST1X_RELOC_WRITE;
 	struct host1x_client *client = job->client;
 	struct device *dev = client->dev;
 	struct iommu_domain *domain;
@@ -111,8 +112,9 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 
 	for (i = 0; i < job->num_relocs; i++) {
 		struct host1x_reloc *reloc = &job->relocs[i];
-		dma_addr_t phys_addr, *phys;
-		struct sg_table *sgt;
+		enum dma_data_direction direction;
+		struct host1x_bo_mapping *map;
+		struct host1x_bo *bo;
 
 		reloc->target.bo = host1x_bo_get(reloc->target.bo);
 		if (!reloc->target.bo) {
@@ -120,75 +122,58 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 			goto unpin;
 		}
 
-		/*
-		 * If the client device is not attached to an IOMMU, the
-		 * physical address of the buffer object can be used.
-		 *
-		 * Similarly, when an IOMMU domain is shared between all
-		 * host1x clients, the IOVA is already available, so no
-		 * need to map the buffer object again.
-		 *
-		 * XXX Note that this isn't always safe to do because it
-		 * relies on an assumption that no cache maintenance is
-		 * needed on the buffer objects.
-		 */
-		if (!domain || client->group)
-			phys = &phys_addr;
-		else
-			phys = NULL;
+		bo = reloc->target.bo;
 
-		sgt = host1x_bo_pin(dev, reloc->target.bo, phys);
-		if (IS_ERR(sgt)) {
-			err = PTR_ERR(sgt);
+		switch (reloc->flags & mask) {
+		case HOST1X_RELOC_READ:
+			direction = DMA_TO_DEVICE;
+			break;
+
+		case HOST1X_RELOC_WRITE:
+			direction = DMA_FROM_DEVICE;
+			break;
+
+		case HOST1X_RELOC_READ | HOST1X_RELOC_WRITE:
+			direction = DMA_BIDIRECTIONAL;
+			break;
+
+		default:
+			err = -EINVAL;
 			goto unpin;
 		}
 
-		if (sgt) {
-			unsigned long mask = HOST1X_RELOC_READ |
-					     HOST1X_RELOC_WRITE;
-			enum dma_data_direction dir;
+		map = host1x_bo_pin(dev, bo, direction);
+		if (IS_ERR(map)) {
+			err = PTR_ERR(map);
+			goto unpin;
+		}
 
-			switch (reloc->flags & mask) {
-			case HOST1X_RELOC_READ:
-				dir = DMA_TO_DEVICE;
-				break;
-
-			case HOST1X_RELOC_WRITE:
-				dir = DMA_FROM_DEVICE;
-				break;
-
-			case HOST1X_RELOC_READ | HOST1X_RELOC_WRITE:
-				dir = DMA_BIDIRECTIONAL;
-				break;
-
-			default:
+		if (!client->group) {
+			/*
+			 * host1x clients are generally not able to do
+			 * scatter-gather themselves, so fail if the buffer is
+			 * discontiguous and we fail to map its SG table a
+			 * single contiguous chunk of I/O virtual memory.
+			 */
+			if (map->chunks > 1) {
 				err = -EINVAL;
 				goto unpin;
 			}
 
-			err = dma_map_sg(dev, sgt->sgl, sgt->nents, dir);
-			if (!err) {
-				err = -ENOMEM;
-				goto unpin;
-			}
-
-			job->unpins[job->num_unpins].dev = dev;
-			job->unpins[job->num_unpins].dir = dir;
-			phys_addr = sg_dma_address(sgt->sgl);
+			job->addr_phys[job->num_unpins] = map->phys;
+		} else {
+			job->addr_phys[job->num_unpins] = bo->iova;
 		}
 
-		job->addr_phys[job->num_unpins] = phys_addr;
-		job->unpins[job->num_unpins].bo = reloc->target.bo;
-		job->unpins[job->num_unpins].sgt = sgt;
+		job->unpins[job->num_unpins].map = map;
 		job->num_unpins++;
 	}
 
 	for (i = 0; i < job->num_gathers; i++) {
 		struct host1x_job_gather *g = &job->gathers[i];
+		struct host1x_bo_mapping *map;
 		size_t gather_size = 0;
 		struct scatterlist *sg;
-		struct sg_table *sgt;
-		dma_addr_t phys_addr;
 		unsigned long shift;
 		struct iova *alloc;
 		dma_addr_t *phys;
@@ -200,25 +185,16 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 			goto unpin;
 		}
 
-		/**
-		 * If the host1x is not attached to an IOMMU, there is no need
-		 * to map the buffer object for the host1x, since the physical
-		 * address can simply be used.
-		 */
-		if (!iommu_get_domain_for_dev(host->dev))
-			phys = &phys_addr;
-		else
-			phys = NULL;
-
-		sgt = host1x_bo_pin(host->dev, g->bo, phys);
-		if (IS_ERR(sgt)) {
-			err = PTR_ERR(sgt);
+		map = host1x_bo_pin(host->dev, g->bo, DMA_TO_DEVICE);
+		if (IS_ERR(map)) {
+			err = PTR_ERR(map);
 			goto unpin;
 		}
 
 		if (!IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL) && host->domain) {
-			for_each_sg(sgt->sgl, sg, sgt->nents, j)
+			for_each_sg(map->sgt->sgl, sg, map->sgt->nents, j)
 				gather_size += sg->length;
+
 			gather_size = iova_align(&host->iova, gather_size);
 
 			shift = iova_shift(&host->iova);
@@ -230,35 +206,24 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 			}
 
 			err = iommu_map_sg(host->domain,
-					iova_dma_addr(&host->iova, alloc),
-					sgt->sgl, sgt->nents, IOMMU_READ);
+					   iova_dma_addr(&host->iova, alloc),
+					   map->sgt->sgl, map->sgt->nents,
+					   IOMMU_READ);
 			if (err == 0) {
 				__free_iova(&host->iova, alloc);
 				err = -EINVAL;
 				goto unpin;
 			}
 
-			job->unpins[job->num_unpins].size = gather_size;
-			phys_addr = iova_dma_addr(&host->iova, alloc);
-		} else if (sgt) {
-			err = dma_map_sg(host->dev, sgt->sgl, sgt->nents,
-					 DMA_TO_DEVICE);
-			if (!err) {
-				err = -ENOMEM;
-				goto unpin;
-			}
-
-			job->unpins[job->num_unpins].dir = DMA_TO_DEVICE;
-			job->unpins[job->num_unpins].dev = host->dev;
-			phys_addr = sg_dma_address(sgt->sgl);
+			map->phys = iova_dma_addr(&host->iova, alloc);
+			map->size = gather_size;
 		}
 
-		job->addr_phys[job->num_unpins] = phys_addr;
-		job->gather_addr_phys[i] = phys_addr;
-
-		job->unpins[job->num_unpins].bo = g->bo;
-		job->unpins[job->num_unpins].sgt = sgt;
+		job->addr_phys[job->num_unpins] = map->phys;
+		job->unpins[job->num_unpins].map = map;
 		job->num_unpins++;
+
+		job->gather_addr_phys[i] = map->phys;
 	}
 
 	return 0;
@@ -634,24 +599,19 @@ void host1x_job_unpin(struct host1x_job *job)
 	unsigned int i;
 
 	for (i = 0; i < job->num_unpins; i++) {
-		struct host1x_job_unpin_data *unpin = &job->unpins[i];
-		struct device *dev = unpin->dev ?: host->dev;
-		struct sg_table *sgt = unpin->sgt;
+		struct host1x_bo_mapping *map = job->unpins[i].map;
+		struct host1x_bo *bo = map->bo;
 
 		if (!IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL) &&
-		    unpin->size && host->domain) {
+		    map->size && host->domain) {
 			iommu_unmap(host->domain, job->addr_phys[i],
-				    unpin->size);
+				    map->size);
 			free_iova(&host->iova,
-				iova_pfn(&host->iova, job->addr_phys[i]));
+				  iova_pfn(&host->iova, job->addr_phys[i]));
 		}
 
-		if (unpin->dev && sgt)
-			dma_unmap_sg(unpin->dev, sgt->sgl, sgt->nents,
-				     unpin->dir);
-
-		host1x_bo_unpin(dev, unpin->bo, sgt);
-		host1x_bo_put(unpin->bo);
+		host1x_bo_unpin(map);
+		host1x_bo_put(bo);
 	}
 
 	job->num_unpins = 0;
