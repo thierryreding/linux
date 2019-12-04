@@ -52,48 +52,6 @@ static void vic_writel(struct vic *vic, u32 value, unsigned int offset)
 	writel(value, vic->regs + offset);
 }
 
-static int vic_runtime_resume(struct device *dev)
-{
-	struct vic *vic = dev_get_drvdata(dev);
-	int err;
-
-	err = clk_prepare_enable(vic->clk);
-	if (err < 0)
-		return err;
-
-	usleep_range(10, 20);
-
-	err = reset_control_deassert(vic->rst);
-	if (err < 0)
-		goto disable;
-
-	usleep_range(10, 20);
-
-	return 0;
-
-disable:
-	clk_disable_unprepare(vic->clk);
-	return err;
-}
-
-static int vic_runtime_suspend(struct device *dev)
-{
-	struct vic *vic = dev_get_drvdata(dev);
-	int err;
-
-	err = reset_control_assert(vic->rst);
-	if (err < 0)
-		return err;
-
-	usleep_range(2000, 4000);
-
-	clk_disable_unprepare(vic->clk);
-
-	vic->booted = false;
-
-	return 0;
-}
-
 static int vic_boot(struct vic *vic)
 {
 #ifdef CONFIG_IOMMU_API
@@ -240,9 +198,62 @@ static int vic_exit(struct host1x_client *client)
 	return 0;
 }
 
+static int vic_runtime_suspend(struct host1x_client *client)
+{
+	struct tegra_drm_client *drm = host1x_to_drm_client(client);
+	struct vic *vic = to_vic(drm);
+	int err;
+
+	err = reset_control_assert(vic->rst);
+	if (err < 0)
+		return err;
+
+	usleep_range(2000, 4000);
+
+	clk_disable_unprepare(vic->clk);
+	pm_runtime_put_sync(vic->dev);
+
+	vic->booted = false;
+
+	return 0;
+}
+
+static int vic_runtime_resume(struct host1x_client *client)
+{
+	struct tegra_drm_client *drm = host1x_to_drm_client(client);
+	struct vic *vic = to_vic(drm);
+	int err;
+
+	err = pm_runtime_get_sync(vic->dev);
+	if (err < 0)
+		return err;
+
+	err = clk_prepare_enable(vic->clk);
+	if (err < 0)
+		goto put_rpm;
+
+	usleep_range(10, 20);
+
+	err = reset_control_deassert(vic->rst);
+	if (err < 0)
+		goto disable;
+
+	usleep_range(10, 20);
+
+	return 0;
+
+put_rpm:
+	pm_runtime_put_sync(vic->dev);
+disable:
+	clk_disable_unprepare(vic->clk);
+	return err;
+}
+
 static const struct host1x_client_ops vic_client_ops = {
 	.init = vic_init,
 	.exit = vic_exit,
+	.suspend = vic_runtime_suspend,
+	.resume = vic_runtime_resume,
 };
 
 static int vic_load_firmware(struct vic *vic)
@@ -314,38 +325,37 @@ static int vic_open_channel(struct tegra_drm_client *client,
 	struct vic *vic = to_vic(client);
 	int err;
 
-	err = pm_runtime_get_sync(vic->dev);
+	err = host1x_client_resume(&client->base);
 	if (err < 0)
 		return err;
 
 	err = vic_load_firmware(vic);
 	if (err < 0)
-		goto rpm_put;
+		goto suspend;
 
 	err = vic_boot(vic);
 	if (err < 0)
-		goto rpm_put;
+		goto suspend;
 
 	context->channel = host1x_channel_get(vic->channel);
 	if (!context->channel) {
 		err = -ENOMEM;
-		goto rpm_put;
+		goto suspend;
 	}
 
 	return 0;
 
-rpm_put:
-	pm_runtime_put(vic->dev);
+suspend:
+	host1x_client_suspend(&client->base);
 	return err;
 }
 
 static void vic_close_channel(struct tegra_drm_context *context)
 {
-	struct vic *vic = to_vic(context->client);
+	struct host1x_client *client = &context->client->base;
 
 	host1x_channel_put(context->channel);
-
-	pm_runtime_put(vic->dev);
+	host1x_client_suspend(client);
 }
 
 static const struct tegra_drm_client_ops vic_ops = {
@@ -472,16 +482,9 @@ static int vic_probe(struct platform_device *pdev)
 	}
 
 	pm_runtime_enable(&pdev->dev);
-	if (!pm_runtime_enabled(&pdev->dev)) {
-		err = vic_runtime_resume(&pdev->dev);
-		if (err < 0)
-			goto unregister_client;
-	}
 
 	return 0;
 
-unregister_client:
-	host1x_client_unregister(&vic->client.base);
 exit_falcon:
 	falcon_exit(&vic->falcon);
 
@@ -493,6 +496,8 @@ static int vic_remove(struct platform_device *pdev)
 	struct vic *vic = platform_get_drvdata(pdev);
 	int err;
 
+	pm_runtime_disable(&pdev->dev);
+
 	err = host1x_client_unregister(&vic->client.base);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to unregister host1x client: %d\n",
@@ -500,25 +505,15 @@ static int vic_remove(struct platform_device *pdev)
 		return err;
 	}
 
-	if (pm_runtime_enabled(&pdev->dev))
-		pm_runtime_disable(&pdev->dev);
-	else
-		vic_runtime_suspend(&pdev->dev);
-
 	falcon_exit(&vic->falcon);
 
 	return 0;
 }
 
-static const struct dev_pm_ops vic_pm_ops = {
-	SET_RUNTIME_PM_OPS(vic_runtime_suspend, vic_runtime_resume, NULL)
-};
-
 struct platform_driver tegra_vic_driver = {
 	.driver = {
 		.name = "tegra-vic",
 		.of_match_table = tegra_vic_of_match,
-		.pm = &vic_pm_ops
 	},
 	.probe = vic_probe,
 	.remove = vic_remove,
