@@ -2167,6 +2167,7 @@ static void tegra_sor_hdmi_scdc_stop(struct tegra_sor *sor)
 	if (sor->scdc_enabled) {
 		cancel_delayed_work_sync(&sor->scdc);
 		tegra_sor_hdmi_scdc_disable(sor);
+		sor->scdc_enabled = false;
 	}
 }
 
@@ -2210,9 +2211,13 @@ static void tegra_sor_hdmi_scdc_start(struct tegra_sor *sor)
 
 	mode = &sor->output.encoder.crtc->state->adjusted_mode;
 
-	if (mode->clock >= 340000 && scdc->supported) {
-		schedule_delayed_work(&sor->scdc, msecs_to_jiffies(5000));
-		tegra_sor_hdmi_scdc_enable(sor);
+	if (mode->clock >= 340000 && scdc->scrambling.supported) {
+		/*
+		 * Some monitors will not acknowledge SCDC transactions when
+		 * they are asleep. Give them some time to wake up before the
+		 * first attempt to enable SCDC scrambling.
+		 */
+		schedule_delayed_work(&sor->scdc, msecs_to_jiffies(1000));
 		sor->scdc_enabled = true;
 	}
 }
