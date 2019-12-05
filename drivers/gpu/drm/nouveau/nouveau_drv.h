@@ -236,6 +236,8 @@ struct drm_device *
 nouveau_platform_device_create(const struct nvkm_device_tegra_func *,
 			       struct platform_device *, struct nvkm_device **);
 void nouveau_drm_device_remove(struct drm_device *dev);
+int nouveau_drm_suspend(struct drm_device *dev, bool runtime);
+int nouveau_drm_resume(struct drm_device *dev, bool runtime);
 
 #define NV_PRINTK(l,c,f,a...) do {                                             \
 	struct nouveau_cli *_cli = (c);                                        \

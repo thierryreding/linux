@@ -739,8 +739,8 @@ nouveau_drm_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-static int
-nouveau_do_suspend(struct drm_device *dev, bool runtime)
+int
+nouveau_drm_suspend(struct drm_device *dev, bool runtime)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	int ret;
@@ -801,8 +801,8 @@ fail_display:
 	return ret;
 }
 
-static int
-nouveau_do_resume(struct drm_device *dev, bool runtime)
+int
+nouveau_drm_resume(struct drm_device *dev, bool runtime)
 {
 	int ret = 0;
 	struct nouveau_drm *drm = nouveau_drm(dev);
@@ -844,7 +844,7 @@ nouveau_pmops_suspend(struct device *dev)
 	    drm_dev->switch_power_state == DRM_SWITCH_POWER_DYNAMIC_OFF)
 		return 0;
 
-	ret = nouveau_do_suspend(drm_dev, false);
+	ret = nouveau_drm_suspend(drm_dev, false);
 	if (ret)
 		return ret;
 
@@ -873,7 +873,7 @@ nouveau_pmops_resume(struct device *dev)
 		return ret;
 	pci_set_master(pdev);
 
-	ret = nouveau_do_resume(drm_dev, false);
+	ret = nouveau_drm_resume(drm_dev, false);
 
 	/* Monitors may have been connected / disconnected during suspend */
 	schedule_work(&nouveau_drm(drm_dev)->hpd_work);
@@ -886,7 +886,7 @@ nouveau_pmops_freeze(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
-	return nouveau_do_suspend(drm_dev, false);
+	return nouveau_drm_suspend(drm_dev, false);
 }
 
 static int
@@ -894,7 +894,7 @@ nouveau_pmops_thaw(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
-	return nouveau_do_resume(drm_dev, false);
+	return nouveau_drm_resume(drm_dev, false);
 }
 
 bool
@@ -918,7 +918,7 @@ nouveau_pmops_runtime_suspend(struct device *dev)
 	}
 
 	nouveau_switcheroo_optimus_dsm();
-	ret = nouveau_do_suspend(drm_dev, true);
+	ret = nouveau_drm_suspend(drm_dev, true);
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
 	pci_ignore_hotplug(pdev);
@@ -948,7 +948,7 @@ nouveau_pmops_runtime_resume(struct device *dev)
 		return ret;
 	pci_set_master(pdev);
 
-	ret = nouveau_do_resume(drm_dev, true);
+	ret = nouveau_drm_resume(drm_dev, true);
 	if (ret) {
 		NV_ERROR(drm, "resume failed with: %d\n", ret);
 		return ret;
