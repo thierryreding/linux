@@ -69,6 +69,7 @@ static void tegra_atomic_commit_tail(struct drm_atomic_state *old_state)
 		tegra_display_hub_atomic_commit(drm, old_state);
 		drm_atomic_helper_commit_planes(drm, old_state, 0);
 		drm_atomic_helper_commit_modeset_enables(drm, old_state);
+		drm_atomic_helper_fake_vblank(old_state);
 		drm_atomic_helper_commit_hw_done(old_state);
 		drm_atomic_helper_wait_for_vblanks(drm, old_state);
 		drm_atomic_helper_cleanup_planes(drm, old_state);
