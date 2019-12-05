@@ -123,6 +123,7 @@ static void tegra_dpaux_read_fifo(struct tegra_dpaux *dpaux, u8 *buffer,
 	}
 }
 
+/* XXX Do we need locking here? */
 static ssize_t tegra_dpaux_transfer(struct drm_dp_aux *aux,
 				    struct drm_dp_aux_msg *msg)
 {
@@ -132,6 +133,8 @@ static ssize_t tegra_dpaux_transfer(struct drm_dp_aux *aux,
 	ssize_t ret = 0;
 	u8 reply = 0;
 	u32 value;
+
+	/* XXX call drm_dp_aux_enable()? */
 
 	/* Tegra has 4x4 byte DP AUX transmit and receive FIFOs. */
 	if (msg->size > 16)
@@ -265,6 +268,8 @@ static ssize_t tegra_dpaux_transfer(struct drm_dp_aux *aux,
 	}
 
 	msg->reply = reply;
+
+	/* XXX call drm_dp_aux_disable()? */
 
 out:
 	return ret;
