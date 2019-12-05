@@ -1608,7 +1608,7 @@ static void commit_tail(struct drm_atomic_state *old_state)
 
 	/*
 	 * We cannot safely access new_crtc_state after
-	 * drm_atomic_helper_commit_hw_done() so figure out which crtc's have
+	 * drm_atomic_helper_commit_hw_done() so figure out which CRTCs have
 	 * self-refresh active beforehand:
 	 */
 	for_each_new_crtc_in_state(old_state, crtc, new_crtc_state, i)
