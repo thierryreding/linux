@@ -126,6 +126,8 @@ static int channel_submit(struct host1x_job *job)
 	struct host1x_waitlist *completed_waiter = NULL;
 	struct host1x *host = dev_get_drvdata(ch->dev->parent);
 
+	pr_info("> %s(job=%px)\n", __func__, job);
+
 	sp = host->syncpt + job->syncpt_id;
 	trace_host1x_channel_submit(dev_name(ch->dev),
 				    job->num_gathers, job->num_relocs,
@@ -139,6 +141,8 @@ static int channel_submit(struct host1x_job *job)
 	if (err)
 		goto error;
 
+	pr_info("  locked\n");
+
 	completed_waiter = kzalloc(sizeof(*completed_waiter), GFP_KERNEL);
 	if (!completed_waiter) {
 		mutex_unlock(&ch->submitlock);
@@ -148,12 +152,16 @@ static int channel_submit(struct host1x_job *job)
 
 	host1x_channel_set_streamid(ch);
 
+	pr_info("  stream ID set\n");
+
 	/* begin a CDMA submit */
 	err = host1x_cdma_begin(&ch->cdma, job);
 	if (err) {
 		mutex_unlock(&ch->submitlock);
 		goto error;
 	}
+
+	pr_info("  CDMA started\n");
 
 	if (job->serialize) {
 		/*
@@ -165,28 +173,39 @@ static int channel_submit(struct host1x_job *job)
 					host1x_uclass_wait_syncpt_r(), 1),
 				 host1x_class_host_wait_syncpt(job->syncpt_id,
 					host1x_syncpt_read_max(sp)));
+
+		pr_info("  serialized\n");
 	}
 
 	/* Synchronize base register to allow using it for relative waiting */
-	if (sp->base)
+	if (sp->base) {
 		synchronize_syncpt_base(job);
+		pr_info("  base sync'ed\n");
+	}
 
 	syncval = host1x_syncpt_incr_max(sp, user_syncpt_incrs);
 
 	host1x_hw_syncpt_assign_to_channel(host, sp, ch);
 
+	pr_info("  syncpoint %u assigned to channel %u\n", sp->id, ch->id);
+
 	job->syncpt_end = syncval;
 
 	/* add a setclass for modules that require it */
-	if (job->class)
+	if (job->class) {
 		host1x_cdma_push(&ch->cdma,
 				 host1x_opcode_setclass(job->class, 0, 0),
 				 HOST1X_OPCODE_NOP);
+		pr_info("  SETCLASS pushed\n");
+	}
 
+	pr_info("  submitting gathers...\n");
 	submit_gathers(job);
+	pr_info("  done\n");
 
 	/* end CDMA submit & stash pinned hMems into sync queue */
 	host1x_cdma_end(&ch->cdma, job);
+	pr_info("  CDMA ended\n");
 
 	trace_host1x_channel_submitted(dev_name(ch->dev), prev_max, syncval);
 
@@ -195,10 +214,12 @@ static int channel_submit(struct host1x_job *job)
 				     HOST1X_INTR_ACTION_SUBMIT_COMPLETE, ch,
 				     completed_waiter, NULL);
 	completed_waiter = NULL;
+	pr_info("  interrupt action added\n");
 	WARN(err, "Failed to set submit complete interrupt");
 
 	mutex_unlock(&ch->submitlock);
 
+	pr_info("< %s()\n", __func__);
 	return 0;
 
 error:

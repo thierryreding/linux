@@ -177,9 +177,14 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 	unsigned int num_refs;
 	int err;
 
+	dev_info(client->dev, "> %s(context=%px, args=%px, drm=%px, file=%px)\n", __func__, context, args, drm, file);
+
 	user_cmdbufs = u64_to_user_ptr(args->cmdbufs);
 	user_relocs = u64_to_user_ptr(args->relocs);
 	user_syncpt = u64_to_user_ptr(args->syncpts);
+
+	dev_info(client->dev, "  num_cmdbufs: %u\n", args->num_cmdbufs);
+	dev_info(client->dev, "  num_relocs: %u\n", args->num_relocs);
 
 	/* We don't yet support other than one syncpt_incr struct per submit */
 	if (args->num_syncpts != 1)
@@ -335,6 +340,7 @@ fail:
 
 put:
 	host1x_job_put(job);
+	dev_info(client->dev, "< %s() = %d\n", __func__, err);
 	return err;
 }
 
@@ -409,14 +415,20 @@ static int tegra_syncpt_wait(struct drm_device *drm, void *data,
 	struct host1x *host1x = dev_get_drvdata(drm->dev->parent);
 	struct drm_tegra_syncpt_wait *args = data;
 	struct host1x_syncpt *sp;
+	int err;
+
+	dev_info(drm->dev, "> %s(drm=%px, data=%px, file=%px)\n", __func__, drm, data, file);
 
 	sp = host1x_syncpt_get(host1x, args->id);
 	if (!sp)
 		return -EINVAL;
 
-	return host1x_syncpt_wait(sp, args->thresh,
-				  msecs_to_jiffies(args->timeout),
-				  &args->value);
+	err = host1x_syncpt_wait(sp, args->thresh,
+				 msecs_to_jiffies(args->timeout),
+				 &args->value);
+
+	dev_info(drm->dev, "< %s() = %d\n", __func__, err);
+	return err;
 }
 
 static int tegra_client_open(struct tegra_drm_file *fpriv,
@@ -536,6 +548,8 @@ static int tegra_submit(struct drm_device *drm, void *data,
 	struct tegra_drm_context *context;
 	int err;
 
+	dev_info(drm->dev, "> %s(drm=%px, data=%px, file=%px)\n", __func__, drm, data, file);
+
 	mutex_lock(&fpriv->lock);
 
 	context = idr_find(&fpriv->contexts, args->context);
@@ -548,6 +562,7 @@ static int tegra_submit(struct drm_device *drm, void *data,
 
 unlock:
 	mutex_unlock(&fpriv->lock);
+	dev_info(drm->dev, "< %s() = %d\n", __func__, err);
 	return err;
 }
 

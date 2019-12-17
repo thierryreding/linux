@@ -492,9 +492,13 @@ int host1x_cdma_begin(struct host1x_cdma *cdma, struct host1x_job *job)
 {
 	struct host1x *host1x = cdma_to_host1x(cdma);
 
+	pr_info("> %s(cdma=%px, job=%px)\n", __func__, cdma, job);
+
 	mutex_lock(&cdma->lock);
 
 	if (job->timeout) {
+		pr_info("  timeout: %u\n", job->timeout);
+
 		/* init state on first submit with timeout value */
 		if (!cdma->timeout.initialized) {
 			int err;
@@ -505,17 +509,22 @@ int host1x_cdma_begin(struct host1x_cdma *cdma, struct host1x_job *job)
 				mutex_unlock(&cdma->lock);
 				return err;
 			}
+
+			pr_info("  initialized\n");
 		}
 	}
 
-	if (!cdma->running)
+	if (!cdma->running) {
 		host1x_hw_cdma_start(host1x, cdma);
+		pr_info("  started\n");
+	}
 
 	cdma->slots_free = 0;
 	cdma->slots_used = 0;
 	cdma->first_get = cdma->push_buffer.pos;
 
 	trace_host1x_cdma_begin(dev_name(job->channel->dev));
+	pr_info("< %s()\n", __func__);
 	return 0;
 }
 

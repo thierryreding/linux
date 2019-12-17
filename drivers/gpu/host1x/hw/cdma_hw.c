@@ -45,6 +45,8 @@ static void cdma_start(struct host1x_cdma *cdma)
 	struct host1x_channel *ch = cdma_to_channel(cdma);
 	u64 start, end;
 
+	pr_info("> %s(cdma=%px)\n", __func__, cdma);
+
 	if (cdma->running)
 		return;
 
@@ -79,6 +81,7 @@ static void cdma_start(struct host1x_cdma *cdma)
 	host1x_ch_writel(ch, 0, HOST1X_CHANNEL_DMACTRL);
 
 	cdma->running = true;
+	pr_info("< %s()\n", __func__);
 }
 
 /*

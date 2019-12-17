@@ -888,6 +888,7 @@ revalidate:
 			if (ret != -ERESTARTSYS)
 				NV_PRINTK(err, cli, "validate: %d\n", ret);
 			goto out_prevalid;
+		}
 	}
 
 	if (request->num_fences > 0) {
@@ -922,6 +923,7 @@ revalidate:
 			if (ret) {
 				NV_PRINTK(err, cli, "reloc apply: %d\n", ret);
 				goto out;
+			}
 		}
 
 		if (chan->dma.ib_max) {

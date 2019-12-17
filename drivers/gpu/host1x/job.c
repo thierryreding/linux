@@ -105,7 +105,11 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 	unsigned int i;
 	int err;
 
+	dev_info(dev, "> %s(host=%px, job=%px)\n", __func__, host, job);
+
 	job->num_unpins = 0;
+
+	dev_info(dev, "  relocs: %u\n", job->num_relocs);
 
 	for (i = 0; i < job->num_relocs; i++) {
 		struct host1x_reloc *reloc = &job->relocs[i];
@@ -147,6 +151,8 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 		job->num_unpins++;
 	}
 
+	dev_info(dev, "  gathers: %u\n", job->num_gathers);
+
 	for (i = 0; i < job->num_gathers; i++) {
 		struct host1x_job_gather *g = &job->gathers[i];
 		struct host1x_bo_mapping *map;
@@ -162,11 +168,16 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 			goto unpin;
 		}
 
+		dev_info(dev, "  %u: bo: %px\n", i, g->bo);
+
 		map = host1x_bo_pin(host->dev, g->bo, DMA_TO_DEVICE);
 		if (IS_ERR(map)) {
 			err = PTR_ERR(map);
 			goto unpin;
 		}
+
+		dev_info(dev, "    map: %px\n", map);
+		dev_info(dev, "      sgt: %px\n", map->sgt);
 
 		if (!IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL) && host->domain) {
 			for_each_sg(map->sgt->sgl, sg, map->sgt->nents, j)
@@ -203,10 +214,12 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 		job->gather_addr_phys[i] = map->phys;
 	}
 
+	dev_info(dev, "< %s()\n", __func__);
 	return 0;
 
 unpin:
 	host1x_job_unpin(job);
+	dev_info(dev, "< %s() = %d\n", __func__, err);
 	return err;
 }
 
@@ -526,16 +539,22 @@ int host1x_job_pin(struct host1x_job *job, struct device *dev)
 	unsigned int i, j;
 	struct host1x *host = dev_get_drvdata(dev->parent);
 
+	dev_info(dev, "> %s(job=%px, dev=%px)\n", __func__, job, dev);
+
 	/* pin memory */
 	err = pin_job(host, job);
 	if (err)
 		goto out;
+
+	dev_info(dev, "  memory pinned\n");
 
 	if (IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL)) {
 		err = copy_gathers(host->dev, job, dev);
 		if (err)
 			goto out;
 	}
+
+	dev_info(dev, "  gathers copied\n");
 
 	/* patch gathers */
 	for (i = 0; i < job->num_gathers; i++) {
@@ -556,16 +575,22 @@ int host1x_job_pin(struct host1x_job *job, struct device *dev)
 			}
 		}
 
+		dev_info(dev, "  relocating...\n");
 		err = do_relocs(job, g);
+		dev_info(dev, "  done: %d\n", err);
 		if (err)
 			break;
 	}
 
 out:
-	if (err)
+	if (err) {
+		dev_info(dev, "  unpinning\n");
 		host1x_job_unpin(job);
+	}
+
 	wmb();
 
+	dev_info(dev, "< %s() = %d\n", __func__, err);
 	return err;
 }
 EXPORT_SYMBOL(host1x_job_pin);
