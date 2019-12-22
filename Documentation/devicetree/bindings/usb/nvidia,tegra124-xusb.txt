@@ -73,6 +73,10 @@ For Tegra210 and Tegra186:
 
 Optional properties:
 --------------------
+- interconnects: Description of the interconnect paths for the XHCI controller;
+  see ../interconnect/interconnect.txt for details.
+- interconnect-names: A list of names identifying each entry listed in the
+  "interconnects" property.
 - phys: Must contain an entry for each entry in phy-names.
   See ../phy/phy-bindings.txt for details.
 - phy-names: Should include an entry for each PHY used by the controller. The

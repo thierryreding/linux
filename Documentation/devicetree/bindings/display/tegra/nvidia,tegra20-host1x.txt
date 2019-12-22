@@ -20,6 +20,12 @@ Required properties:
 - reset-names: Must include the following entries:
   - host1x
 
+Optional properties:
+- interconnects: Description of the interconnect paths for the host1x
+  controller; see ../interconnect/interconnect.txt for details.
+- interconnect-names: A list of names identifying each entry listed in the
+  "interconnects" property.
+
 The host1x top-level node defines a number of children, each representing one
 of the following host1x client modules:
 
@@ -122,6 +128,10 @@ of the following host1x client modules:
     See ../reset/reset.txt for details.
   - reset-names: Must include the following entries:
     - dc
+  - interconnects: Description of the interconnect paths for the display
+    controller; see ../interconnect/interconnect.txt for details.
+  - interconnect-names: A list of names identifying each entry listed in the
+    "interconnects" property.
   - nvidia,head: The number of the display controller head. This is used to
     setup the various types of output to receive video data from the given
     head.
@@ -280,6 +290,64 @@ of the following host1x client modules:
     See ../reset/reset.txt for details.
   - reset-names: Must include the following entries:
     - vic
+  - interconnects: Description of the interconnect paths for the VIC; see
+    ../../interconnect/interconnect.txt for details.
+  - interconnect-names: A list of names identifying each entry listed in the
+    "interconnects" property.
+
+- display-hub: display controller hub
+  Required properties:
+  - compatible: "nvidia,tegra<chip>-display"
+  - reg: Physical base address and length of the controller's registers.
+  - interrupts: The interrupt outputs from the controller.
+  - clocks: Must contain an entry for each entry in clock-names.
+    See ../clocks/clock-bindings.txt for details.
+  - clock-names: Must include the following entries:
+    - disp
+    - dsc
+    - hub
+  - resets: Must contain an entry for each entry in reset-names.
+    See ../reset/reset.txt for details.
+  - reset-names: Must include the following entries:
+    - misc
+    - wgrp0
+    - wgrp1
+    - wgrp2
+    - wgrp3
+    - wgrp4
+    - wgrp5
+  - power-domains: A list of phandle and specifiers identifying the power
+    domains that the display hub is part of.
+  - ranges: Range of registers used for the display controllers.
+
+  Each subnode of the display hub represents one of the display controllers
+  available:
+
+  - display: display controller
+    - compatible: "nvidia,tegra<chip>-dc"
+    - reg: Physical base address and length of the controller's registers.
+    - interrupts: The interrupt outputs from the controller.
+    - clocks: Must contain an entry for each entry in clock-names.
+      See ../clocks/clock-bindings.txt for details.
+    - clock-names: Must include the following entries:
+      - dc
+    - resets: Must contain an entry for each entry in reset-names.
+      See ../reset/reset.txt for details.
+    - reset-names: Must include the following entries:
+      - dc
+    - power-domains: A list of phandle and specifiers that identify the power
+      domains that this display controller is part of.
+    - interconnects: Description of the interconnect paths for the display
+      controller; see ../interconnect/interconnect.txt for details.
+    - interconnect-names: A list of names identifying each entry listed in the
+      "interconnects" property.
+    - iommus: A phandle and specifier identifying the SMMU master interface of
+      this display controller.
+    - nvidia,outputs: A list of phandles of outputs that this display
+      controller can drive.
+    - nvidia,head: The number of the display controller head. This is used to
+      setup the various types of output to receive video data from the given
+      head.
 
 Example:
 

@@ -14,6 +14,10 @@ Required properties:
 - reset-names : Must include the following entries: hda, hda2hdmi, hda2codec_2x
 
 Optional properties:
+- interconnects: Description of the interconnect paths for the HDA controller;
+  see ../interconnect/interconnect.txt for details.
+- interconnect-names: A list of names identifying each entry listed in the
+  "interconnects" property.
 - nvidia,model : The user-visible name of this sound complex. Since the property
   is optional, legacy boards can use default name provided in hda driver.
 

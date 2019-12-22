@@ -38,6 +38,19 @@ properties:
   interrupts:
     maxItems: 1
 
+  "#memory-controller-cells":
+    const: 0
+
+  "#interconnect-cells":
+    const: 1
+    description:
+      Each interconnect node for the memory controller takes a phandle to the
+      memory controller and a single cell as the specifier, identifying the
+      memory client by its ID.
+
+      For a list of valid IDs, see dt-bindings/memory/tegra186-mc.h and
+      dt-bindings/memory/tegra194-mc.h.
+
   "#address-cells":
     const: 2
 

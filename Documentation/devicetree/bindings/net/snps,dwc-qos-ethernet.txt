@@ -117,6 +117,10 @@ Optional properties:
 - snps,en-tx-lpi-clockgating: Enable gating of the MAC TX clock during
   TX low-power mode.
 - phy-handle: See ethernet.txt file in the same directory
+- interconnects: Description of the interconnect paths for the ethernet
+  controller; see ../interconnect/interconnect.txt for details.
+- interconnect-names: A list of names identifying each entry listed in the
+  "interconnects" property.
 - mdio device tree subnode: When the GMAC has a phy connected to its local
     mdio, there must be device tree subnode with the following
     required properties:
