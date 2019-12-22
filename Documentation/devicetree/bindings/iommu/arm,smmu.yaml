@@ -127,6 +127,13 @@ properties:
   power-domains:
     maxItems: 1
 
+  memory-controllers:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    description:
+      A list of phandles to memory controllers that this IOMMU serves. These
+      memory controller can require programming before IOMMU translations can
+      be enabled.
+
 required:
   - compatible
   - reg
