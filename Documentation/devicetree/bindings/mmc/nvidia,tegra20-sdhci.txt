@@ -24,6 +24,10 @@ Required properties:
 
 Optional properties:
 - power-gpios : Specify GPIOs for power control
+- interconnects: Description of the interconnect paths for the SDHCI
+  controller; see ../interconnect/interconnect.txt for details.
+- interconnect-names: A list of names identifying each entry listed in the
+  "interconnects" property.
 
 Example:
 

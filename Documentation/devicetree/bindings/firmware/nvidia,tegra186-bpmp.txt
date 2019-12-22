@@ -19,6 +19,12 @@ Required properties:
 - #power-domain-cells : Should be 1.
 - #reset-cells : Should be 1.
 
+Optional properties:
+- interconnects: Description of the interconnect paths for the BPMP; see
+  ../interconnect/interconnect.txt for details.
+- interconnect-names: A list of names identifying each entry listed in the
+  "interconnects" property.
+
 This node is a mailbox consumer. See the following files for details of
 the mailbox subsystem, and the specifiers implemented by the relevant
 provider(s):

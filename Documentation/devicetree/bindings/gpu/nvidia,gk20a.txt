@@ -34,6 +34,10 @@ is also required:
 
 Optional properties:
 - iommus: A reference to the IOMMU. See ../iommu/iommu.txt for details.
+- interconnects: Description of the interconnect paths for the GPU; see
+  ../interconnect/interconnect.txt for details.
+- interconnect-names: A list of names identifying each entry listed in the
+  "interconnects" property.
 
 Example for GK20A:
 

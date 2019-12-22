@@ -66,6 +66,10 @@ Required properties:
   - pcie_x
 
 Optional properties:
+- interconnects: Description of the interconnect paths for the PCIe controller;
+  see ../interconnect/interconnect.txt for details.
+- interconnect-names: A list of names identifying each entry listed in the
+  "interconnects" property.
 - pinctrl-names: A list of pinctrl state names. Must contain the following
   entries:
   - "default": active state, puts PCIe I/O out of deep power down state
