@@ -35,9 +35,15 @@ properties:
               - arm,gic-400
               - arm,pl390
               - arm,tc11mp-gic
-              - nvidia,tegra210-agic
               - qcom,msm-8660-qgic
               - qcom,msm-qgic2
+
+      - items:
+          - enum:
+              - nvidia,tegra194-agic
+              - nvidia,tegra186-agic
+          - enum:
+              - nvidia,tegra210-agic
 
       - items:
           - const: arm,arm1176jzf-devchip-gic
