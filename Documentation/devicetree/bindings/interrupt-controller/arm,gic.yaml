@@ -53,6 +53,13 @@ properties:
           - const: brcm,brahma-b15-gic
           - const: arm,cortex-a15-gic
 
+      - items:
+          - enum:
+              - nvidia,tegra186-agic
+              - nvidia,tegra194-agic
+          - enum:
+              - nvidia,tegra210-agic
+
   interrupt-controller: true
 
   "#address-cells":
