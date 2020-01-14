@@ -43,6 +43,24 @@ properties:
       - enum:
           - nvidia,tegra186-bpmp
 
+  interconnects:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    description: A list of phandle and specifier pairs that describe the
+      interconnect paths to and from the BPMP.
+
+  interconnect-names:
+    $ref: /schemas/types.yaml#/definitions/non-unique-string-array
+    description: One string for each pair of phandle and specifier in the
+      "interconnects" property.
+    # XXX We need at least one of these to be named dma-mem so that the core
+    # will set the DMA mask based on the DMA parent, but all of these go to
+    # system memory eventually.
+    items:
+      - const: dma-mem
+      - const: dma-mem
+      - const: dma-mem
+      - const: dma-mem
+
   iommus:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     description: |
@@ -157,6 +175,12 @@ examples:
 
     bpmp {
         compatible = "nvidia,tegra186-bpmp";
+        interconnects = <&emc &mc TEGRA186_MEMORY_CLIENT_BPMPR>,
+                        <&mc TEGRA186_MEMORY_CLIENT_BPMPR &emc>,
+                        <&emc &mc TEGRA186_MEMORY_CLIENT_BPMPDMAR>,
+                        <&mc TEGRA186_MEMORY_CLIENT_BPMPDMAW &emc>;
+        interconnect-names = "dma-mem", "dma-mem", "dma-mem", "dma-mem";
+
         iommus = <&smmu TEGRA186_SID_BPMP>;
         mboxes = <&hsp_top0 TEGRA_HSP_MBOX_TYPE_DB TEGRA_HSP_DB_MASTER_BPMP>;
         shmem = <&cpu_bpmp_tx &cpu_bpmp_rx>;
