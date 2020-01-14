@@ -43,6 +43,19 @@ properties:
       - enum:
           - nvidia,tegra186-bpmp
 
+  interconnects:
+    description: A list of phandle and specifier pairs that describe the
+      interconnect paths to and from the BPMP.
+
+  interconnect-names:
+    description: One string for each pair of phandle and specifier in the
+      "interconnects" property.
+    items:
+      - const: read
+      - const: write
+      - const: dma-mem # dma-read
+      - const: dma-write
+
   iommus:
     description: |
       The phandle of the IOMMU and the IOMMU specifier. See ../iommu/iommu.txt
@@ -145,6 +158,12 @@ examples:
 
     bpmp {
         compatible = "nvidia,tegra186-bpmp";
+        interconnects = <&mc TEGRA186_MEMORY_CLIENT_BPMPR &emc>,
+                        <&mc TEGRA186_MEMORY_CLIENT_BPMPW &emc>,
+                        <&mc TEGRA186_MEMORY_CLIENT_BPMPDMAR &emc>,
+                        <&mc TEGRA186_MEMORY_CLIENT_BPMPDMAW &emc>;
+        interconnect-names = "read", "write", "dma-mem", "dma-write";
+
         iommus = <&smmu TEGRA186_SID_BPMP>;
         mboxes = <&hsp_top0 TEGRA_HSP_MBOX_TYPE_DB TEGRA_HSP_DB_MASTER_BPMP>;
         shmem = <&cpu_bpmp_tx &cpu_bpmp_rx>;
