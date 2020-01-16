@@ -105,6 +105,31 @@ required:
 
 additionalProperties: false
 
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: nvidia,tegra194-mc
+    then:
+      properties:
+        reg:
+          maxItems: 3
+
+  - if:
+      patternProperties:
+        "^external-memory-controller@[0-9a-f]+$":
+          properties:
+            compatible:
+              contains:
+                const: nvidia,tegra194-emc
+    then:
+      patternProperties:
+        "^external-memory-controller@[0-9a-f]+$":
+          properties:
+            reg:
+              maxItems: 2
+
 examples:
   - |
     #include <dt-bindings/clock/tegra186-clock.h>
