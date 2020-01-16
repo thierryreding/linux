@@ -120,6 +120,15 @@ properties:
     description: Enable gating of the MAC TX clock during TX low-power mode.
     $ref: /schemas/types.yaml#/definitions/flag
 
+  interconnects:
+    description: Description of the interconnect paths for the ethernet
+      controller; see ../interconnect/interconnect.txt for details.
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+
+  interconnect-names:
+    description: A list of names identifying each entry listed in the
+      "interconnects" property.
+
   mdio:
     description: A subnode representing the GMAC's MDIO bus.
     type: object
