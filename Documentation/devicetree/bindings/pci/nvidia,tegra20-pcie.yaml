@@ -124,6 +124,14 @@ properties:
       - const: afi
       - const: pcie_x
 
+  interconnects:
+    description: Description of the interconnect paths for the PCIe controller;
+      see ../interconnect/interconnect.txt for details.
+
+  interconnect-names:
+    description: A list of names identifying each entry listed in the
+      "interconnects" property.
+
   pinctrl-names:
     items:
       # active state, puts PCIe I/O out of deep power down state
