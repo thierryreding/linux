@@ -74,6 +74,14 @@ properties:
       the USB pads used by the XHCI controller
 
   # optional
+  interconnects:
+    description: Description of the interconnect paths for the XHCI
+      controller; see ../interconnect/interconnect.txt for details.
+
+  interconnect-names:
+    description: A list of names identifying each entry listed in the
+      "interconnects" property.
+
   phys:
     description: Must contain an entry for each entry in phy-names. See
       ../phy/phy-bindings.txt for details.
