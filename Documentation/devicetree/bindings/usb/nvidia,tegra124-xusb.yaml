@@ -74,6 +74,16 @@ properties:
   iommus:
     maxItems: 1
 
+  interconnects:
+    maxItems: 2
+
+  interconnect-names:
+    description: A list of names identifying each entry listed in the
+      "interconnects" property.
+    items:
+      - const: dma-mem # read
+      - const: write
+
   phys: true
   phy-names: true
 
