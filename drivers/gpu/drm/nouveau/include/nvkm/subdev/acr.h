@@ -62,6 +62,7 @@ int gm20b_acr_new(struct nvkm_device *, int, struct nvkm_acr **);
 int gp102_acr_new(struct nvkm_device *, int, struct nvkm_acr **);
 int gp108_acr_new(struct nvkm_device *, int, struct nvkm_acr **);
 int gp10b_acr_new(struct nvkm_device *, int, struct nvkm_acr **);
+int gv11b_acr_new(struct nvkm_device *, int, struct nvkm_acr **);
 int tu102_acr_new(struct nvkm_device *, int, struct nvkm_acr **);
 
 struct nvkm_acr_lsfw {

@@ -2462,6 +2462,7 @@ nv140_chipset = {
 static const struct nvkm_device_chip
 nv15b_chipset = {
 	.name = "GV11B",
+	.acr = gv11b_acr_new,
 	.bus = gf100_bus_new,
 	.fault = gv11b_fault_new,
 	.fb = gv11b_fb_new,
@@ -2471,8 +2472,7 @@ nv15b_chipset = {
 	.ltc = gp102_ltc_new,
 	.mc = gp10b_mc_new,
 	.mmu = gv11b_mmu_new,
-	.pmu = gm20b_pmu_new,
-	.secboot = gv11b_secboot_new,
+	.pmu = gv11b_pmu_new,
 	.timer = gk20a_timer_new,
 	.top = gk104_top_new,
 	.ce[0] = gv100_ce_new,
