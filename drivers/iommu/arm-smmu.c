@@ -1594,7 +1594,7 @@ static u32 arm_smmu_of_parse(struct device_node *np, const u32 *args,
 
 	if (count > 1)
 		fwid |= FIELD_PREP(ARM_SMMU_SMR_MASK, args[1]);
-	else if (!of_property_read_u32(args->np, "stream-match-mask", &mask))
+	else if (!of_property_read_u32(np, "stream-match-mask", &mask))
 		fwid |= FIELD_PREP(ARM_SMMU_SMR_MASK, mask);
 
 	return fwid;
