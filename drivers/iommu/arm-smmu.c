@@ -2002,8 +2002,8 @@ static int arm_smmu_identity_add_master(struct arm_smmu_device *smmu,
 		return 0;
 
 	fwid = arm_smmu_of_parse(args->np, args->args, args->args_count);
-	sid = FIELD_GET(SMR_ID, fwid);
-	mask = FIELD_GET(SMR_MASK, fwid);
+	sid = FIELD_GET(ARM_SMMU_SMR_ID, fwid);
+	mask = FIELD_GET(ARM_SMMU_SMR_MASK, fwid);
 
 	ret = arm_smmu_find_sme(smmu, sid, mask);
 	if (ret < 0) {
