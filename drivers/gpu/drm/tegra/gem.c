@@ -45,23 +45,6 @@ tegra_bo_pin(struct device *dev, struct host1x_bo *bo,
 	map->bo = bo;
 
 	/*
-	 * If we've manually mapped the buffer object through the IOMMU, make
-	 * sure to return the IOVA address of our mapping.
-	 *
-	 * Similarly, for buffers that have been allocated by the DMA API the
-	 * physical address can be used for devices that are not attached to
-	 * an IOMMU. For these devices, callers must pass a valid pointer via
-	 * the @phys argument.
-	 *
-	 * Imported buffers were also already mapped at import time, so the
-	 * existing mapping can be reused.
-	 */
-	if (obj->mm) {
-		map->phys = obj->iova;
-		return map;
-	}
-
-	/*
 	 * Imported buffers need special treatment to satisfy the semantics of
 	 * DMA-BUF.
 	 */
@@ -81,11 +64,10 @@ tegra_bo_pin(struct device *dev, struct host1x_bo *bo,
 			goto free;
 		}
 
-		map->chunks = sgt_dma_count_chunks(map->sgt);
-		map->phys = sg_dma_address(map->sgt->sgl);
+		err = sgt_dma_count_chunks(map->sgt);
 		map->size = gem->size;
 
-		return map;
+		goto out;
 	}
 
 	/*
@@ -126,7 +108,16 @@ tegra_bo_pin(struct device *dev, struct host1x_bo *bo,
 		goto free_sgt;
 	}
 
-	map->phys = sg_dma_address(map->sgt->sgl);
+out:
+	/*
+	 * If we've manually mapped the buffer object through the IOMMU, make
+	 * sure to return the existing IOVA address of our mapping.
+	 */
+	if (!obj->mm)
+		map->phys = sg_dma_address(map->sgt->sgl);
+	else
+		map->phys = obj->iova;
+
 	map->size = gem->size;
 	map->chunks = err;
 
