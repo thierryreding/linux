@@ -697,17 +697,24 @@ static struct device_node *__of_get_dma_parent(const struct device_node *np)
 	struct of_phandle_args args;
 	int ret, index;
 
+	ret = of_parse_phandle_with_args(np, "memory-controllers",
+					 "#memory-controller-cells",
+					 0, &args);
+	if (!ret) {
+		return of_node_get(args.np);
+	}
+
 	index = of_property_match_string(np, "interconnect-names", "dma-mem");
-	if (index < 0)
-		return of_get_parent(np);
+	if (index >= 0) {
+		ret = of_parse_phandle_with_args(np, "interconnects",
+						 "#interconnect-cells",
+						 index, &args);
+		if (!ret) {
+			return of_node_get(args.np);
+		}
+	}
 
-	ret = of_parse_phandle_with_args(np, "interconnects",
-					 "#interconnect-cells",
-					 index, &args);
-	if (ret < 0)
-		return of_get_parent(np);
-
-	return of_node_get(args.np);
+	return of_get_parent(np);
 }
 
 static struct device_node *of_get_next_dma_parent(struct device_node *np)
