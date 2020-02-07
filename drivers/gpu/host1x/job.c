@@ -148,23 +148,18 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 			goto unpin;
 		}
 
-		if (!client->group) {
-			/*
-			 * host1x clients are generally not able to do
-			 * scatter-gather themselves, so fail if the buffer is
-			 * discontiguous and we fail to map its SG table a
-			 * single contiguous chunk of I/O virtual memory.
-			 */
-			if (map->chunks > 1) {
-				err = -EINVAL;
-				goto unpin;
-			}
-
-			job->addr_phys[job->num_unpins] = map->phys;
-		} else {
-			job->addr_phys[job->num_unpins] = bo->iova;
+		/*
+		 * host1x clients are generally not able to do
+		 * scatter-gather themselves, so fail if the buffer is
+		 * discontiguous and we fail to map its SG table a
+		 * single contiguous chunk of I/O virtual memory.
+		 */
+		if (map->chunks > 1) {
+			err = -EINVAL;
+			goto unpin;
 		}
 
+		job->addr_phys[job->num_unpins] = map->phys;
 		job->unpins[job->num_unpins].map = map;
 		job->num_unpins++;
 	}
@@ -176,7 +171,6 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 		struct scatterlist *sg;
 		unsigned long shift;
 		struct iova *alloc;
-		dma_addr_t *phys;
 		unsigned int j;
 
 		g->bo = host1x_bo_get(g->bo);

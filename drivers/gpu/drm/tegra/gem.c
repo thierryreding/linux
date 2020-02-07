@@ -113,13 +113,15 @@ out:
 	 * If we've manually mapped the buffer object through the IOMMU, make
 	 * sure to return the existing IOVA address of our mapping.
 	 */
-	if (!obj->mm)
+	if (!obj->mm) {
 		map->phys = sg_dma_address(map->sgt->sgl);
-	else
+		map->chunks = err;
+	} else {
 		map->phys = obj->iova;
+		map->chunks = 1;
+	}
 
 	map->size = gem->size;
-	map->chunks = err;
 
 	return map;
 

@@ -109,7 +109,6 @@ const struct drm_plane_funcs tegra_plane_funcs = {
 
 static int tegra_dc_pin(struct tegra_dc *dc, struct tegra_plane_state *state)
 {
-	struct iommu_domain *domain = iommu_get_domain_for_dev(dc->dev);
 	unsigned int i;
 	int err;
 
