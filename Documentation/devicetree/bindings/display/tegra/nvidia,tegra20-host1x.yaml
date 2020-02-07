@@ -13,56 +13,65 @@ maintainers:
 description: The host1x top-level node defines a number of children, each
   representing one of the host1x client modules defined in this binding.
 
+select:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - nvidia,tegra20-host1x
+          - nvidia,tegra30-host1x
+          - nvidia,tegra114-host1x
+          - nvidia,tegra124-host1x
+          - nvidia,tegra132-host1x
+          - nvidia,tegra210-host1x
+          - nvidia,tegra186-host1x
+          - nvidia,tegra194-host1x
+  required:
+    - compatible
+
 properties:
   # required
   compatible:
     oneOf:
       - description: NVIDIA Tegra20
-        allOf:
-          - enum:
-              - nvidia,tegra20-host1x
+        items:
+          - const: nvidia,tegra20-host1x
           - const: simple-bus
 
       - description: NVIDIA Tegra30
-        allOf:
-          - enum:
-              - nvidia,tegra30-host1x
+        items:
+          - const: nvidia,tegra30-host1x
           - const: simple-bus
 
       - description: NVIDIA Tegra114
-        allOf:
-          - enum:
-              - nvidia,tegra114-host1x
+        items:
+          - const: nvidia,tegra114-host1x
           - const: simple-bus
 
       - description: NVIDIA Tegra124
-        allOf:
-          - enum:
-              - nvidia,tegra124-host1x
+        items:
+          - const: nvidia,tegra124-host1x
           - const: simple-bus
 
       - description: NVIDIA Tegra132
-        allOf:
-          - enum:
-              - nvidia,tegra132-host1x
+        items:
+          - const: nvidia,tegra132-host1x
+          - const: nvidia,tegra124-host1x
           - const: simple-bus
 
       - description: NVIDIA Tegra210
-        allOf:
-          - enum:
-              - nvidia,tegra210-host1x
+        items:
+          - const: nvidia,tegra210-host1x
           - const: simple-bus
 
       - description: NVIDIA Tegra186
-        allOf:
-          - enum:
-              - nvidia,tegra186-host1x
+        items:
+          - const: nvidia,tegra186-host1x
           - const: simple-bus
 
       - description: NVIDIA Tegra194
-        allOf:
-          - enum:
-              - nvidia,tegra194-host1x
+        items:
+          - const: nvidia,tegra194-host1x
           - const: simple-bus
 
   interrupts:
@@ -71,6 +80,11 @@ properties:
       - description: host1x general interrupt
     minItems: 1
     maxItems: 2
+
+  interrupt-names:
+    items:
+      - const: syncpt
+      - const: host1x
 
   '#address-cells':
     description: The number of cells used to represent physical base addresses
@@ -82,13 +96,21 @@ properties:
       range in the host1x address space.
     enum: [1, 2]
 
+  # required
   ranges:
     description: The mapping of the host1x address space to the CPU address
       space.
 
+  reg: true
+  reg-names: true
+
   clocks:
     description: Must contain one entry, for the module clock. See
       ../clocks/clock-bindings.txt for details.
+
+  clock-names:
+    items:
+      - const: host1x
 
   resets:
     description: Must contain an entry for each entry in reset-names. See
@@ -99,6 +121,9 @@ properties:
       - const: host1x
 
   # optional
+  iommus:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+
   interconnects:
     description: Description of the interconnect paths for the host1x
       controller; see ../interconnect/interconnect.txt for details.
@@ -106,8 +131,12 @@ properties:
     description: A list of names identifying each entry listed in the
       "interconnects" property.
 
-  # host1x clients
-  vi:
+  memory-controllers:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+
+# host1x clients
+patternProperties:
+  "^vi@[0-9a-f]+$":
     description: video input
     type: object
     properties:
@@ -117,23 +146,28 @@ properties:
           - const: nvidia,tegra30-vi
           - const: nvidia,tegra114-vi
           - const: nvidia,tegra124-vi
-          - allOf:
+          - items:
               - const: nvidia,tegra132-vi
               - const: nvidia,tegra124-vi
           - const: nvidia,tegra210-vi
           - const: nvidia,tegra186-vi
           - const: nvidia,tegra194-vi
 
-      reg: true
-      interrupts: true
-      clocks: true
+      reg:
+        maxItems: 1
+      interrupts:
+        maxItems: 1
+      clocks:
+        maxItems: 1
 
       resets: true
       reset-names:
         items:
           - const: vi
 
-  isp:
+    additionalProperties: false
+
+  "^isp@[0-9a-f]+$":
     description: image signal processor
     type: object
     properties:
@@ -143,29 +177,50 @@ properties:
           - const: nvidia,tegra30-isp
           - const: nvidia,tegra114-isp
           - const: nvidia,tegra124-isp
-          - allOf:
+          - items:
               - const: nvidia,tegra132-isp
               - const: nvidia,tegra124-isp
           - const: nvidia,tegra210-isp
           - const: nvidia,tegra186-isp
           - const: nvidia,tegra194-isp
 
-      reg: true
-      interrupts: true
-      clocks: true
-      resets: true
+      reg:
+        maxItems: 1
+      interrupts:
+        maxItems: 1
+      clocks:
+        maxItems: 1
+
+      resets:
+        items:
+          - description: module reset
       reset-names:
         items:
           - const: isp
+
+    additionalProperties: false
+
+required:
+  - compatible
+  - interrupts
+  - interrupt-names
+  - '#address-cells'
+  - '#size-cells'
+  - ranges
+  - reg
+  - clocks
+  - clock-names
+  - resets
+  - reset-names
 
 allOf:
   - if:
       properties:
         compatible:
           contains:
-            oneOf:
-              - const: nvidia,tegra186-host1x
-              - const: nvidia,tegra194-host1x
+            enum:
+              - nvidia,tegra186-host1x
+              - nvidia,tegra194-host1x
     then:
       properties:
         reg-names:
@@ -178,48 +233,56 @@ allOf:
                 region assigned to the VM
             - description: physical base address and length of the register
                 region used by the hypervisor
+      required:
+        - reg-names
     else:
       properties:
         reg:
-          items:
-            - description: physical base address and length of the controller
-                registers
+          maxItems: 1
 
   - if:
       properties:
         compatible:
           contains:
-            oneOf:
-              - const: nvidia,tegra20-host1x
-              - const: nvidia,tegra30-host1x
+            enum:
+              - nvidia,tegra20-host1x
+              - nvidia,tegra30-host1x
     then:
-      properties:
-        epp:
+      patternProperties:
+        "^epp@[0-9a-f]+$":
           description: encoder pre-processor
           type: object
           properties:
             compatible:
-              oneOf:
-                - const: nvidia,tegra20-epp
-                - const: nvidia,tegra30-epp
-                - const: nvidia,tegra114-epp
-            reg: true
-            interrupts: true
-            clocks: true
-            resets: true
+              enum:
+                - nvidia,tegra20-epp
+                - nvidia,tegra30-epp
+                - nvidia,tegra114-epp
+            reg:
+              maxItems: 1
+            interrupts:
+              maxItems: 1
+            clocks:
+              maxItems: 1
+
+            resets:
+              items:
+                - description: module reset
             reset-names:
               items:
                 - const: epp
 
-        mpe:
+          additionalProperties: false
+
+        "^mpe@[0-9a-f]+$":
           description: video encoder
           type: object
           properties:
             compatible:
-              oneOf:
-                - const: nvidia,tegra20-mpe
-                - const: nvidia,tegra30-mpe
-                - const: nvidia,tegra114-mpe
+              enum:
+                - nvidia,tegra20-mpe
+                - nvidia,tegra30-mpe
+                - nvidia,tegra114-mpe
             reg: true
             interrupts: true
             clocks: true
@@ -228,91 +291,129 @@ allOf:
               items:
                 - const: mpe
 
-        gr2d:
+          additionalProperties: false
+
+        "^gr2d@[0-9a-f]+$":
           description: 2D graphics engine
           type: object
           properties:
             compatible:
-              oneOf:
-                - const: nvidia,tegra20-gr2d
-                - const: nvidia,tegra30-gr2d
-                - const: nvidia,tegra114-gr2d
-            reg: true
-            interrupts: true
-            clocks: true
-            resets: true
+              enum:
+                - nvidia,tegra20-gr2d
+                - nvidia,tegra30-gr2d
+                - nvidia,tegra114-gr2d
+            reg:
+              maxItems: 1
+            interrupts:
+              maxItems: 1
+            clocks:
+              maxItems: 1
+
+            resets:
+              items:
+                - description: module reset
             reset-names:
               items:
                 - const: 2d
 
-        gr3d:
+          additionalProperties: false
+
+        "^gr3d@[0-9a-f]+$":
           description: 3D graphics engine
           type: object
           properties:
             compatible:
-              oneOf:
-                - const: nvidia,tegra20-gr3d
-                - const: nvidia,tegra30-gr3d
-                - const: nvidia,tegra114-gr3d
-            reg: true
+              enum:
+                - nvidia,tegra20-gr3d
+                - nvidia,tegra30-gr3d
+                - nvidia,tegra114-gr3d
+            reg:
+              maxItems: 1
+
             clocks: true
+            clock-names: true
             resets: true
+            reset-names: true
 
           allOf:
             - if:
                 properties:
                   compatible:
                     contains:
-                      oneOf:
-                        - const: nvidia,tegra30-gr3d
+                      const: nvidia,tegra30-gr3d
               then:
                 properties:
+                  clocks:
+                    items:
+                      - description: primary module clock
+                      - description: secondary module clock
                   clock-names:
                     items:
                       - const: 3d
                       - const: 3d2
+                  resets:
+                    items:
+                      - description: primary module reset
+                      - description: secondary module reset
                   reset-names:
                     items:
                       - const: 3d
                       - const: 3d2
               else:
                 properties:
+                  clocks:
+                    items:
+                      - description: module clock
                   clock-names:
                     items:
                       - const: 3d
+                  resets:
+                    items:
+                      - description: module reset
                   reset-names:
                     items:
                       - const: 3d
 
-        tvo:
+          additionalProperties: false
+
+        "^tvo@[0-9a-f]+$":
           description: TV encoder output
           type: object
           properties:
             # required
             compatible:
-              oneOf:
-                - const: nvidia,tegra20-tvo
-                - const: nvidia,tegra30-tvo
-                - const: nvidia,tegra114-tvo
-            reg: true
-            interrupts: true
-            clocks: true
+              enum:
+                - nvidia,tegra20-tvo
+                - nvidia,tegra30-tvo
+                - nvidia,tegra114-tvo
+            status:
+              allOf:
+                - $ref: /schemas/types.yaml#/definitions/string
+                - items:
+                    - enum: [ okay, disabled ]
+            reg:
+              maxItems: 1
+            interrupts:
+              maxItems: 1
+            clocks:
+              maxItems: 1
 
+          additionalProperties: false
 
   - if:
       properties:
         compatible:
           contains:
-            oneOf:
-              - const: nvidia,tegra20-host1x
-              - const: nvidia,tegra30-host1x
-              - const: nvidia,tegra114-host1x
-              - const: nvidia,tegra124-host1x
-              - const: nvidia,tegra132-host1x
-              - const: nvidia,tegra210-host1x
+            enum:
+              - nvidia,tegra20-host1x
+              - nvidia,tegra30-host1x
+              - nvidia,tegra114-host1x
+              - nvidia,tegra124-host1x
+              - nvidia,tegra132-host1x
+              - nvidia,tegra210-host1x
     then:
-      properties:
-        dc:
+      patternProperties:
+        "^dc@[0-9a-f]+$":
           description: display controller
           type: object
           properties:
@@ -322,89 +423,138 @@ allOf:
                 - const: nvidia,tegra30-dc
                 - const: nvidia,tegra114-dc
                 - const: nvidia,tegra124-dc
-                - allOf:
+                - items:
                     - const: nvidia,tegra124-dc
                     - const: nvidia,tegra132-dc
                 - const: nvidia,tegra210-dc
-            reg: true
-            interrupts: true
-            clocks: true
+            reg:
+              maxItems: 1
+            interrupts:
+              maxItems: 1
+
+            clocks:
+              items:
+                - description: display controller pixel clock
             clock-names:
               items:
                 - const: dc
-                - const: parent
-            resets: true
+
+            resets:
+              items:
+                - description: module reset
             reset-names:
               items:
                 - const: dc
-            interconnects: true
+
+            iommus:
+              $ref: /schemas/types.yaml#/definitions/phandle-array
+
+            interconnects:
+              items:
+                - description: memory read client for window A
+                - description: memory read client for window B
+                - description: memory read client for window C
+                - description: memory read client for cursor
+                # disp only
+                - description: memory read client for window T
+                - description: memory read client for window D
             interconnect-names:
               items:
-                - const: XXX
-                - const: XXX
+                - const: wina
+                - const: winb
+                - const: winc
+                - const: cursor
+                # disp only
+                - const: wint
+                - const: wind
+
             nvidia,head:
               description: The number of the display controller head. This is
                 used to setup the various types of output to receive video
                 data from the given head.
               $ref: /schemas/types.yaml#/definitions/uint32
 
-          if:
-            properties:
-              compatible:
-                contains:
-                  oneOf:
-                    - const: nvidia,tegra20-dc
-                    - const: nvidia,tegra30-dc
-                    - const: nvidia,tegra114-dc
-          then:
-            properties:
-              rgb:
-                description: Each display controller node has a child node,
-                  named "rgb", that represents the RGB output associated with
-                  the controller.
-                type: object
+          allOf:
+            - if:
                 properties:
-                  nvidia,ddc-i2c-bus:
-                    $ref: /schemas/types.yaml#/definitions/phandle
-                    description: phandle of an I2C controller used for DDC
-                      EDID probing
+                  compatible:
+                    contains:
+                      enum:
+                        - nvidia,tegra20-dc
+                        - nvidia,tegra30-dc
+                        - nvidia,tegra114-dc
+              then:
+                properties:
+                  rgb:
+                    description: Each display controller node has a child node,
+                      named "rgb", that represents the RGB output associated
+                      with the controller.
+                    type: object
+                    properties:
+                      nvidia,ddc-i2c-bus:
+                        $ref: /schemas/types.yaml#/definitions/phandle
+                        description: phandle of an I2C controller used for DDC
+                          EDID probing
 
-                  nvidia,hpd-gpio:
-                    $ref: /schemas/types.yaml#/definitions/phandle-array
-                    description: specifies a GPIO used for hotplug detection
+                      nvidia,hpd-gpio:
+                        $ref: /schemas/types.yaml#/definitions/phandle-array
+                        description: specifies a GPIO used for hotplug
+                          detection
 
-                  nvidia,edid:
-                    $ref: /schemas/types.yaml#/definitions/uint8-array
-                    description: supplies a binary EDID blob
+                      nvidia,edid:
+                        $ref: /schemas/types.yaml#/definitions/uint8-array
+                        description: supplies a binary EDID blob
 
-                  nvidia,panel:
-                    $ref: /schemas/types.yaml#/definitions/phandle
-                    description: phandle of a display panel
+                      nvidia,panel:
+                        $ref: /schemas/types.yaml#/definitions/phandle
+                        description: phandle of a display panel
 
-                  # XXX
-    else:
+          additionalProperties: false
+
+  - if:
       properties:
-        display-hub:
+        compatible:
+          contains:
+            const: nvidia,tegra186-host1x
+    then:
+      patternProperties:
+        "^display-hub@[0-9a-f]+$":
           description: display controller hub
           type: object
           properties:
             compatible:
-              oneOf:
-                - allOf:
-                    - const: nvidia,tegra186-display
-                    - const: simple-bus
-                - allOf:
-                    - const: nvidia,tegra194-display
-                    - const: simple-bus
-            reg: true
-            interrupts: true
-            clocks: true
-            clock-names:
               items:
-                - const: disp
-                - const: dsc
-                - const: hub
-            resets: true
+                - enum:
+                    - nvidia,tegra186-display
+                    - nvidia,tegra194-display
+                - const: simple-bus
+            status:
+              allOf:
+                - $ref: /schemas/types.yaml#/definitions/string
+                - items:
+                    - enum: [ okay, disabled ]
+
+            '#address-cells':
+              const: 1
+
+            '#size-cells':
+              const: 1
+
+            reg:
+              maxItems: 1
+            interrupts:
+              maxItems: 1
+            clocks: true
+            clock-names: true
+            resets:
+              items:
+                - description: display hub reset
+                - description: window group 0 reset
+                - description: window group 1 reset
+                - description: window group 2 reset
+                - description: window group 3 reset
+                - description: window group 4 reset
+                - description: window group 5 reset
             reset-names:
               items:
                 - const: misc
@@ -414,43 +564,62 @@ allOf:
                 - const: wgrp3
                 - const: wgrp4
                 - const: wgrp5
-            power-domains: true
+
+            power-domains:
+              $ref: /schemas/types.yaml#/definitions/phandle-array
             ranges: true
 
-            display:
-              #$nodename: display@[0-9a-f]+
+          patternProperties:
+            "^display@[0-9a-f]+$":
               description: display controller
               type: object
               properties:
                 compatible:
-                  oneOf:
-                    - const: nvidia,tegra186-dc
-                    - const: nvidia,tegra194-dc
-                reg: true
-                interrupts: true
-                clocks: true
+                  enum:
+                    - nvidia,tegra186-dc
+                    - nvidia,tegra194-dc
+                reg:
+                  maxItems: 1
+                interrupts:
+                  maxItems: 1
+
+                clocks:
+                  items:
+                    - description: display controller pixel clock
                 clock-names:
                   items:
                     - const: dc
-                    - const: parent
-                resets: true
+
+                resets:
+                  items:
+                    - description: display controller reset
                 reset-names:
                   items:
                     - const: dc
+
                 power-domains:
                   description: A list of phandle and specifiers that identify
                     the power domains that this display controller is part of.
-
-                interconnects: true
-                interconnect-names:
-                  items:
-                    - const: read-0
-                    - const: read-1
+                  $ref: /schemas/types.yaml#/definitions/phandle-array
 
                 iommus:
                   $ref: /schemas/types.yaml#/definitions/phandle-array
                   description: a phandle and specifier identifying the SMMU
                     master interface of this display controller.
+
+                interconnects:
+                  type: array
+                  items:
+                    - $ref: /schemas/types.yaml#/definitions/phandle-array
+                    - $ref: /schemas/types.yaml#/definitions/phandle-array
+                interconnect-names:
+                  items:
+                    - const: read-0
+                    - const: read-1
+
+                memory-controllers:
+                  $ref: /schemas/types.yaml#/definitions/phandle-array
+
                 nvidia,outputs:
                   description: A list of phandles of outputs that this display
                     controller can drive.
@@ -461,18 +630,51 @@ allOf:
                     video data from the given head.
                   $ref: /schemas/types.yaml#/definitions/uint32
 
+              additionalProperties: false
+
+          allOf:
+            - if:
+                properties:
+                  compatible:
+                    contains:
+                      const: nvidia,tegra186-display
+              then:
+                properties:
+                  clocks:
+                    items:
+                      - description: display clock
+                      - description: display stream compression clock
+                      - description: display hub clock
+                  clock-names:
+                    items:
+                      - const: disp
+                      - const: dsc
+                      - const: hub
+              else:
+                properties:
+                  clocks:
+                    items:
+                      - description: display clock
+                      - description: display hub clock
+                  clock-names:
+                    items:
+                      - const: disp
+                      - const: hub
+
+          additionalProperties: false
+
   - if:
       properties:
         compatible:
           contains:
-            oneOf:
-              - const: nvidia,tegra20-host1x
-              - const: nvidia,tegra30-host1x
-              - const: nvidia,tegra114-host1x
-              - const: nvidia,tegra124-host1x
+            enum:
+              - nvidia,tegra20-host1x
+              - nvidia,tegra30-host1x
+              - nvidia,tegra114-host1x
+              - nvidia,tegra124-host1x
     then:
-      properties:
-        hdmi:
+      patternProperties:
+        "^hdmi@[0-9a-f]+$":
           description: High Definition Multimedia Interface
           type: object
           properties:
@@ -483,20 +685,35 @@ allOf:
                 - const: nvidia,tegra30-hdmi
                 - const: nvidia,tegra114-hdmi
                 - const: nvidia,tegra124-hdmi
-                - allOf:
+                - items:
                     - const: nvidia,tegra132-hdmi
                     - const: nvidia,tegra124-hdmi
-            reg: true
-            interrupts: true
-            clocks: true
+            status:
+              allOf:
+                - $ref: /schemas/types.yaml#/definitions/string
+                - items:
+                    - enum: [ okay, disabled ]
+            reg:
+              maxItems: 1
+            interrupts:
+              maxItems: 1
+
+            clocks:
+              items:
+                - description: module clock
+                - description: parent clock
             clock-names:
               items:
                 - const: hdmi
                 - const: parent
-            resets: true
+
+            resets:
+              items:
+                - description: module reset
             reset-names:
               items:
                 - const: hdmi
+
             hdmi-supply:
               description: supply for the +5V HDMI connector pin
             vdd-supply:
@@ -519,18 +736,20 @@ allOf:
               description: phandle of a display panel
               $ref: /schemas/types.yaml#/definitions/phandle
 
+          additionalProperties: false
+
   - if:
       properties:
         compatible:
           contains:
-            oneOf:
-              - const: nvidia,tegra124-host1x
-              - const: nvidia,tegra210-host1x
-              - const: nvidia,tegra186-host1x
-              - const: nvidia,tegra194-host1x
+            enum:
+              - nvidia,tegra124-host1x
+              - nvidia,tegra210-host1x
+              - nvidia,tegra186-host1x
+              - nvidia,tegra194-host1x
     then:
-      properties:
-        sor:
+      patternProperties:
+        "^sor@[0-9a-f]+$":
           description: The Serial Output Resource (SOR) can be used to drive
             HDMI, LVDS, eDP and DP outputs.
 
@@ -542,7 +761,7 @@ allOf:
             compatible:
               oneOf:
                 - const: nvidia,tegra124-sor
-                - allOf:
+                - items:
                     - const: nvidia,tegra132-sor
                     - const: nvidia,tegra124-sor
                 - const: nvidia,tegra210-sor
@@ -550,34 +769,33 @@ allOf:
                 - const: nvidia,tegra186-sor
                 - const: nvidia,tegra186-sor1
                 - const: nvidia,tegra194-sor
-            reg: true
-            interrupts: true
+            reg:
+              maxItems: 1
+            interrupts:
+              maxItems: 1
+
             clocks: true
-            clock-names:
-              items:
-                - description: clock input for the SOR hardware
-                  const: sor
-                - description: SOR output clock
-                  const: out
-                - description: input for the pixel clock
-                  const: parent
-                - description: reference clock for the SOR clock
-                  const: dp
-                - description: safe reference clock for the SOR clock during
-                    power up
-                  const: safe
-                  # deprecated
-                - description: source clock for the SOR clock (obsolete, use
-                    "out" instead)
-                  const: source
-                  # Tegra186 and later
-                - description: SOR pad output clock
-                  const: pad
-            resets: true
-            reset-names:
+            clock-names: true
+            phandle: true
+            status:
+              allOf:
+                - $ref: /schemas/types.yaml#/definitions/string
+                - items:
+                    - enum: [ okay, disabled ]
+
+            resets:
               items:
                 - description: module reset
-                  const: sor
+            reset-names:
+              items:
+                - const: sor
+
+            power-domains:
+              $ref: /schemas/types.yaml#/definitions/phandle-array
+
+            avdd-io-hdmi-dp-supply: true
+            vdd-hdmi-dp-pll-supply: true
+            hdmi-supply: true
 
             # Tegra186 and later
             nvidia,interface:
@@ -614,84 +832,183 @@ allOf:
               $ref: /schemas/types.yaml#/definitions/phandle
               description: phandle to a DispayPort AUX interface
 
-        dpaux:
+            pinctrl-names: true
+
+          patternProperties:
+            "^pinctrl-[0-9]+$": true
+
+          allOf:
+            - if:
+                properties:
+                  compatible:
+                    contains:
+                      enum:
+                        - nvidia,tegra186-sor
+                        - nvidia,tegra194-sor
+              then:
+                properties:
+                  clocks:
+                    items:
+                      - description: clock input for the SOR hardware
+                      - description: SOR output clock
+                      - description: input for the pixel clock
+                      - description: reference clock for the SOR clock
+                      - description: safe reference clock for the SOR clock
+                          during power up
+                      - description: SOR pad output clock
+                  clock-names:
+                    items:
+                      - const: sor
+                      - enum:
+                          - source # deprecated
+                          - out
+                      - const: parent
+                      - const: dp
+                      - const: safe
+                      - const: pad
+              else:
+                properties:
+                  clocks:
+                    items:
+                      - description: clock input for the SOR hardware
+                      - description: SOR output clock
+                      - description: input for the pixel clock
+                      - description: reference clock for the SOR clock
+                      - description: safe reference clock for the SOR clock
+                          during power up
+                  clock-names:
+                    items:
+                      - const: sor
+                      - enum:
+                          - source # deprecated
+                          - out
+                      - const: parent
+                      - const: dp
+                      - const: safe
+
+          additionalProperties: false
+
+        "^dpaux@[0-9a-f]+$":
           description: DisplayPort AUX interface
           type: object
           properties:
             compatible:
               oneOf:
                 - const: nvidia,tegra124-dpaux
-                - allOf:
+                - items:
                     - const: nvidia,tegra132-dpaux
                     - const: nvidia,tegra124-dpaux
                 - const: nvidia,tegra210-dpaux
                 - const: nvidia,tegra186-dpaux
                 - const: nvidia,tegra194-dpaux
-            reg: true
-            interrupts: true
-            clocks: true
-            clock-names:
+            status:
+              allOf:
+                - $ref: /schemas/types.yaml#/definitions/string
+                - items:
+                    - enum: [ okay, disabled ]
+            phandle: true
+            reg:
+              maxItems: 1
+            interrupts:
+              maxItems: 1
+
+            clocks:
               items:
                 - description: clock input for the DPAUX hardware
-                  const: dpaux
                 - description: reference clock
-                  const: parent
-            resets: true
+            clock-names:
+              items:
+                - const: dpaux
+                - const: parent
+
+            resets:
+              items:
+                - description: module reset
             reset-names:
               items:
                 - const: dpaux
-            vdd-supply:
-              description: phandle of a supply that powers the DisplayPort
-                link
+
+            power-domains:
+              $ref: /schemas/types.yaml#/definitions/phandle-array
+
             i2c-bus:
               description: Subnode where I2C slave devices are listed. This
                 subnode must be always present. If there are no I2C slave
                 devices, an empty node should be added. See ../../i2c/i2c.yaml
                 for more information.
 
-        vic:
+            vdd-supply:
+              description: phandle of a supply that powers the DisplayPort
+                link
+
+          patternProperties:
+            "^pinmux-.*$":
+              type: object
+
+          additionalProperties: false
+
+        "^vic@[0-9a-f]+$":
           description: Video Image Compositor
           type: object
           properties:
             compatible:
               oneOf:
                 - const: nvidia,tegra124-vic
-                - allOf:
+                - items:
                     - const: nvidia,tegra132-vic
                     - const: nvidia,tegra124-vic
                 - const: nvidia,tegra210-vic
                 - const: nvidia,tegra186-vic
                 - const: nvidia,tegra194-vic
-            reg: true
-            interrupts: true
-            clocks: true
-            clock-names:
+            reg:
+              maxItems: 1
+            interrupts:
+              maxItems: 1
+
+            clocks:
               items:
                 - description: clock input for the VIC hardware
-                - const: vic
-            resets: true
+            clock-names:
+              items:
+                  const: vic
+
+            resets:
+              items:
+                - description: module reset
             reset-names:
               items:
                 - const: vic
+
+            power-domains:
+              $ref: /schemas/types.yaml#/definitions/phandle-array
+
+            iommus:
+              $ref: /schemas/types.yaml#/definitions/phandle-array
+
             interconnects: true
             interconnect-names:
               items:
                 - const: read
                 - const: write
 
+            memory-controllers:
+              $ref: /schemas/types.yaml#/definitions/phandle-array
+
+          additionalProperties: false
+
   - if:
       properties:
         compatible:
           contains:
-            oneOf:
-              - const: nvidia,tegra30-host1x
-              - const: nvidia,tegra114-host1x
-              - const: nvidia,tegra124-host1x
-              - const: nvidia,tegra210-host1x
-              - const: nvidia,tegra186-host1x
+            enum:
+              - nvidia,tegra30-host1x
+              - nvidia,tegra114-host1x
+              - nvidia,tegra124-host1x
+              - nvidia,tegra210-host1x
+              - nvidia,tegra186-host1x
     then:
-      properties:
-        dsi:
+      patternProperties:
+        "^dsi@[0-9a-f]+$":
           description: display serial interface
           type: object
           properties:
@@ -701,27 +1018,51 @@ allOf:
                 - const: nvidia,tegra30-dsi
                 - const: nvidia,tegra114-dsi
                 - const: nvidia,tegra124-dsi
-                - allOf:
+                - items:
                     - const: nvidia,tegra132-dsi
                     - const: nvidia,tegra124-dsi
                 - const: nvidia,tegra210-dsi
                 - const: nvidia,tegra186-dsi
-            reg: true
-            clocks: true
-            clock-names:
+            status:
+              allOf:
+                - $ref: /schemas/types.yaml#/definitions/string
+                - items:
+                    - enum: [ okay, disabled ]
+            phandle:
+              $ref: /schemas/types.yaml#/definitions/uint32
+
+            '#address-cells':
+              const: 1
+            '#size-cells':
+              const: 0
+
+            reg:
+              maxItems: 1
+            interrupts:
+              maxItems: 1
+
+            clocks:
               items:
                 - description: DSI module clock
-                  const: dsi
                 - description: low-power module clock
-                  const: lp
                 - description: input for the pixel clock
-                  const: parent
-            resets: true
-            reset-names:
+            clock-names:
+              items:
+                - const: dsi
+                - const: lp
+                - const: parent
+
+            resets:
               items:
                 - description: module reset
+            reset-names:
+              items:
                 - const: dsi
-            avdd-dsi-supply:
+
+            power-domains:
+              $ref: /schemas/types.yaml#/definitions/phandle-array
+
+            avdd-dsi-csi-supply:
               description: phandle of a supply that powers the DSI controller
               $ref: /schemas/types.yaml#/definitions/phandle
 
@@ -750,16 +1091,26 @@ allOf:
               description: contains a phandle to a second DSI controller to
                 gang up with in order to support up to 8 data lanes
 
+          patternProperties:
+            "^panel@[0-9]+$":
+              type: object
+
+          additionalProperties: false
+
+additionalProperties: false
+
 examples:
   - |
     #include <dt-bindings/clock/tegra20-car.h>
 
-    host1x {
+    host1x@50000000 {
         compatible = "nvidia,tegra20-host1x", "simple-bus";
         reg = <0x50000000 0x00024000>;
         interrupts = <0 65 0x04   /* mpcore syncpt */
                       0 67 0x04>; /* mpcore general */
+        interrupt-names = "syncpt", "host1x";
         clocks = <&tegra_car TEGRA20_CLK_HOST1X>;
+        clock-names = "host1x";
         resets = <&tegra_car 28>;
         reset-names = "host1x";
 
@@ -768,7 +1119,7 @@ examples:
 
         ranges = <0x54000000 0x54000000 0x04000000>;
 
-        mpe {
+        mpe@54040000 {
                 compatible = "nvidia,tegra20-mpe";
                 reg = <0x54040000 0x00040000>;
                 interrupts = <0 68 0x04>;
@@ -777,7 +1128,7 @@ examples:
                 reset-names = "mpe";
         };
 
-        vi {
+        vi@54080000 {
                 compatible = "nvidia,tegra20-vi";
                 reg = <0x54080000 0x00040000>;
                 interrupts = <0 69 0x04>;
@@ -786,7 +1137,7 @@ examples:
                 reset-names = "vi";
         };
 
-        epp {
+        epp@540c0000 {
                 compatible = "nvidia,tegra20-epp";
                 reg = <0x540c0000 0x00040000>;
                 interrupts = <0 70 0x04>;
@@ -795,7 +1146,7 @@ examples:
                 reset-names = "epp";
         };
 
-        isp {
+        isp@54100000 {
                 compatible = "nvidia,tegra20-isp";
                 reg = <0x54100000 0x00040000>;
                 interrupts = <0 71 0x04>;
@@ -804,7 +1155,7 @@ examples:
                 reset-names = "isp";
         };
 
-        gr2d {
+        gr2d@54140000 {
                 compatible = "nvidia,tegra20-gr2d";
                 reg = <0x54140000 0x00040000>;
                 interrupts = <0 72 0x04>;
@@ -813,7 +1164,7 @@ examples:
                 reset-names = "2d";
         };
 
-        gr3d {
+        gr3d@54180000 {
                 compatible = "nvidia,tegra20-gr3d";
                 reg = <0x54180000 0x00040000>;
                 clocks = <&tegra_car TEGRA20_CLK_GR3D>;
@@ -825,9 +1176,8 @@ examples:
                 compatible = "nvidia,tegra20-dc";
                 reg = <0x54200000 0x00040000>;
                 interrupts = <0 73 0x04>;
-                clocks = <&tegra_car TEGRA20_CLK_DISP1>,
-                         <&tegra_car TEGRA20_CLK_PLL_P>;
-                clock-names = "dc", "parent";
+                clocks = <&tegra_car TEGRA20_CLK_DISP1>;
+                clock-names = "dc";
                 resets = <&tegra_car 27>;
                 reset-names = "dc";
 
@@ -840,9 +1190,8 @@ examples:
                 compatible = "nvidia,tegra20-dc";
                 reg = <0x54240000 0x00040000>;
                 interrupts = <0 74 0x04>;
-                clocks = <&tegra_car TEGRA20_CLK_DISP2>,
-                         <&tegra_car TEGRA20_CLK_PLL_P>;
-                clock-names = "dc", "parent";
+                clocks = <&tegra_car TEGRA20_CLK_DISP2>;
+                clock-names = "dc";
                 resets = <&tegra_car 26>;
                 reset-names = "dc";
 
@@ -851,7 +1200,7 @@ examples:
                 };
         };
 
-        hdmi {
+        hdmi@54280000 {
                 compatible = "nvidia,tegra20-hdmi";
                 reg = <0x54280000 0x00040000>;
                 interrupts = <0 75 0x04>;
@@ -863,7 +1212,7 @@ examples:
                 status = "disabled";
         };
 
-        tvo {
+        tvo@542c0000 {
                 compatible = "nvidia,tegra20-tvo";
                 reg = <0x542c0000 0x00040000>;
                 interrupts = <0 76 0x04>;
@@ -871,7 +1220,7 @@ examples:
                 status = "disabled";
         };
 
-        dsi {
+        dsi@54300000 {
                 compatible = "nvidia,tegra20-dsi";
                 reg = <0x54300000 0x00040000>;
                 clocks = <&tegra_car TEGRA20_CLK_DSI>,

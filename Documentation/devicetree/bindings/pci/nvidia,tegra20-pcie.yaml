@@ -19,8 +19,13 @@ properties:
       - description: NVIDIA Tegra30
         const: nvidia,tegra30-pcie
 
-      - description: NVIDIA Tegra124 and NVIDIA Tegra132
+      - description: NVIDIA Tegra124
         const: nvidia,tegra124-pcie
+
+      - description: NVIDIA Tegra132
+        items:
+          - const: nvidia,tegra132-pcie
+          - const: nvidia,tegra124-pcie
 
       - description: NVIDIA Tegra210
         const: nvidia,tegra210-pcie
@@ -134,10 +139,10 @@ properties:
 
   pinctrl-names:
     items:
-      # active state, puts PCIe I/O out of deep power down state
-      - const: default
-      # puts PCIe I/O into deep power down state
-      - const: idle
+      - description: active state, puts PCIe I/O out of deep power down state
+        const: default
+      - description: puts PCIe I/O into deep power down state
+        const: idle
 
 required:
   - reg
@@ -205,19 +210,21 @@ allOf:
             clocks. Must supply 3.3 V.
 
         # optional
-        # if lanes 0 to 3 are used
         avdd-pexa-supply:
           description: Power supply for analog PCIe logic. Must supply 1.05 V.
+            Required if lanes 0 through 3 are used.
 
         vdd-pexa-supply:
           description: Power supply for digital PCIe I/O. Must supply 1.05 V.
+            Required if lanes 0 through 3 are used.
 
-        # if lanes 4 or 5 are used
         avdd-pexb-supply:
           description: Power supply for analog PCIe logic. Must supply 1.05 V.
+            Required if lanes 4 and 5 are used.
 
         vdd-pexb-supply:
           description: Power supply for digital PCIe I/O. Must supply 1.05 V.
+            Required if lanes 4 and 5 are used.
 
   - if:
       properties:
