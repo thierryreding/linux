@@ -248,15 +248,6 @@
 			clocks = <&tegra_car TEGRA30_CLK_TVO>;
 			status = "disabled";
 		};
-
-		dsi@54300000 {
-			compatible = "nvidia,tegra30-dsi";
-			reg = <0x54300000 0x00040000>;
-			clocks = <&tegra_car TEGRA30_CLK_DSIA>;
-			resets = <&tegra_car 48>;
-			reset-names = "dsi";
-			status = "disabled";
-		};
 	};
 
 	timer@50040600 {
