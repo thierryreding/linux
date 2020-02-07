@@ -2960,15 +2960,52 @@ static const struct drm_encoder_helper_funcs tegra_sor_dp_helpers = {
 	.atomic_check = tegra_sor_encoder_atomic_check,
 };
 
+static struct regulator *devm_regulator_get_any(struct device *dev,
+						const char * const *consumers,
+						unsigned int num_consumers)
+{
+	struct regulator *supply;
+	unsigned int i;
+	char *name;
+
+	for (i = 0; i < num_consumers; i++) {
+		name = kasprintf(GFP_KERNEL, "%s-supply", consumers[i]);
+
+		if (!of_get_property(dev->of_node, name, NULL)) {
+			kfree(name);
+			continue;
+		}
+
+		kfree(name);
+
+		supply = devm_regulator_get(dev, consumers[i]);
+		if (PTR_ERR(supply) == -ENOENT)
+			continue;
+
+		return supply;
+	}
+
+	return ERR_PTR(-ENOENT);
+}
+
 static int tegra_sor_hdmi_probe(struct tegra_sor *sor)
 {
+	static const char *avdd_io_supplies[] = {
+		"avdd-io-hdmi-dp",
+		"avdd-io",
+	};
+	static const char *vdd_pll_supplies[] = {
+		"vdd-hdmi-dp-pll",
+		"vdd-pll",
+	};
 	int err;
 
-	sor->avdd_io_supply = devm_regulator_get(sor->dev, "avdd-io");
+	sor->avdd_io_supply = devm_regulator_get_any(sor->dev, avdd_io_supplies,
+						     ARRAY_SIZE(avdd_io_supplies));
 	if (IS_ERR(sor->avdd_io_supply)) {
-		dev_err(sor->dev, "cannot get AVDD I/O supply: %ld\n",
-			PTR_ERR(sor->avdd_io_supply));
-		return PTR_ERR(sor->avdd_io_supply);
+		err = PTR_ERR(sor->avdd_io_supply);
+		dev_err(sor->dev, "cannot get AVDD I/O supply: %d\n", err);
+		return err;
 	}
 
 	err = regulator_enable(sor->avdd_io_supply);
@@ -2978,11 +3015,12 @@ static int tegra_sor_hdmi_probe(struct tegra_sor *sor)
 		return err;
 	}
 
-	sor->vdd_pll_supply = devm_regulator_get(sor->dev, "vdd-pll");
+	sor->vdd_pll_supply = devm_regulator_get_any(sor->dev, vdd_pll_supplies,
+						     ARRAY_SIZE(vdd_pll_supplies));
 	if (IS_ERR(sor->vdd_pll_supply)) {
-		dev_err(sor->dev, "cannot get VDD PLL supply: %ld\n",
-			PTR_ERR(sor->vdd_pll_supply));
-		return PTR_ERR(sor->vdd_pll_supply);
+		err = PTR_ERR(sor->vdd_pll_supply);
+		dev_err(sor->dev, "cannot get VDD PLL supply: %d\n", err);
+		return err;
 	}
 
 	err = regulator_enable(sor->vdd_pll_supply);
@@ -2994,9 +3032,9 @@ static int tegra_sor_hdmi_probe(struct tegra_sor *sor)
 
 	sor->hdmi_supply = devm_regulator_get(sor->dev, "hdmi");
 	if (IS_ERR(sor->hdmi_supply)) {
-		dev_err(sor->dev, "cannot get HDMI supply: %ld\n",
-			PTR_ERR(sor->hdmi_supply));
-		return PTR_ERR(sor->hdmi_supply);
+		err = PTR_ERR(sor->hdmi_supply);
+		dev_err(sor->dev, "cannot get HDMI supply: %d\n", err);
+		return err;
 	}
 
 	err = regulator_enable(sor->hdmi_supply);
