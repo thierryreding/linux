@@ -40,6 +40,7 @@ tegra_bo_pin(struct device *dev, struct host1x_bo *bo,
 	if (!map)
 		return ERR_PTR(-ENOMEM);
 
+	kref_init(&map->ref);
 	map->direction = direction;
 	map->dev = dev;
 	map->bo = bo;
@@ -135,9 +136,6 @@ free:
 
 static void tegra_bo_unpin(struct host1x_bo_mapping *map)
 {
-	if (!map)
-		return;
-
 	if (map->attach) {
 		dma_buf_unmap_attachment(map->attach, map->sgt, map->direction);
 		dma_buf_detach(map->attach->dmabuf, map->attach);
@@ -463,7 +461,17 @@ free:
 void tegra_bo_free_object(struct drm_gem_object *gem)
 {
 	struct tegra_drm *tegra = gem->dev->dev_private;
+	struct host1x_bo_mapping *mapping, *tmp;
 	struct tegra_bo *bo = to_tegra_bo(gem);
+
+	/* remove all mappings of this buffer object from any caches */
+	list_for_each_entry_safe(mapping, tmp, &bo->base.mappings, list) {
+		if (mapping->cache)
+			host1x_bo_unpin(mapping);
+		else
+			pr_info("ERROR: mapping %px (dev: %s) stale\n",
+				mapping, dev_name(mapping->dev));
+	}
 
 	if (tegra->domain)
 		tegra_bo_iommu_unmap(tegra, bo);
