@@ -185,7 +185,7 @@
 	};
 
 	pcie@141a0000 {
-		status = "okay";
+		status = "disabled";
 
 		vddio-pex-ctl-supply = <&vdd_1v8ao>;
 		vpcie3v3-supply = <&vdd_3v3_pcie>;
@@ -200,7 +200,7 @@
 	};
 
 	pcie_ep@141a0000 {
-		status = "disabled";
+		status = "okay";
 
 		vddio-pex-ctl-supply = <&vdd_1v8ao>;
 
