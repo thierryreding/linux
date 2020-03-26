@@ -127,6 +127,9 @@ struct clocksource {
 	u64			wd_last;
 #endif
 	struct module		*owner;
+#ifdef CONFIG_DEBUG_FS
+	struct dentry *debugfs;
+#endif
 };
 
 /*
