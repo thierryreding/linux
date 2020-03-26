@@ -1142,6 +1142,63 @@ void __clocksource_update_freq_scale(struct clocksource *cs, u32 scale, u32 freq
 }
 EXPORT_SYMBOL_GPL(__clocksource_update_freq_scale);
 
+#ifdef CONFIG_DEBUG_FS
+#include <linux/debugfs.h>
+
+static struct dentry *debugfs_root;
+
+static int clocksource_debugfs_counter_show(struct seq_file *s, void *data)
+{
+	struct clocksource *cs = s->private;
+
+	seq_printf(s, "%llu\n", cs->read(cs));
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(clocksource_debugfs_counter);
+
+static void clocksource_debugfs_add(struct clocksource *cs)
+{
+	if (!debugfs_root)
+		return;
+
+	cs->debugfs = debugfs_create_dir(cs->name, debugfs_root);
+
+	debugfs_create_file("counter", 0444, cs->debugfs, cs,
+			    &clocksource_debugfs_counter_fops);
+}
+
+static void clocksource_debugfs_remove(struct clocksource *cs)
+{
+	debugfs_remove_recursive(cs->debugfs);
+}
+
+static int __init init_clocksource_debugfs(void)
+{
+	struct clocksource *cs;
+
+	debugfs_root = debugfs_create_dir("clocksource", NULL);
+
+	mutex_lock(&clocksource_mutex);
+
+	list_for_each_entry(cs, &clocksource_list, list)
+		clocksource_debugfs_add(cs);
+
+	mutex_unlock(&clocksource_mutex);
+
+	return 0;
+}
+late_initcall(init_clocksource_debugfs);
+#else
+static inline void clocksource_debugfs_add(struct clocksource *cs)
+{
+}
+
+static inline void clocksource_debugfs_remove(struct clocksource *cs)
+{
+}
+#endif
+
 /**
  * __clocksource_register_scale - Used to install new clocksources
  * @cs:		clocksource to be registered
@@ -1182,6 +1239,7 @@ int __clocksource_register_scale(struct clocksource *cs, u32 scale, u32 freq)
 	clocksource_select();
 	clocksource_select_watchdog(false);
 	__clocksource_suspend_select(cs);
+	clocksource_debugfs_add(cs);
 	mutex_unlock(&clocksource_mutex);
 	return 0;
 }
@@ -1221,6 +1279,8 @@ EXPORT_SYMBOL(clocksource_change_rating);
 static int clocksource_unbind(struct clocksource *cs)
 {
 	unsigned long flags;
+
+	clocksource_debugfs_remove(cs);
 
 	if (clocksource_is_watchdog(cs)) {
 		/* Select and try to install a replacement watchdog. */
