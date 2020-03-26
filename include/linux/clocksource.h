@@ -130,6 +130,9 @@ struct clocksource {
 	unsigned long		wd_bogus_count;
 #endif
 	struct module		*owner;
+#ifdef CONFIG_DEBUG_FS
+	struct dentry *debugfs;
+#endif
 };
 
 /*
