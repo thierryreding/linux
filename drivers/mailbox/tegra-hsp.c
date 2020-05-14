@@ -322,7 +322,11 @@ static int tegra_hsp_doorbell_startup(struct mbox_chan *chan)
 	if (!ccplex)
 		return -ENODEV;
 
-	if (!tegra_hsp_doorbell_can_ring(db))
+	/*
+	 * XXX The BPMP doorbell isn't marked as being ringable by the CCPLEX
+	 * on Tegra234, so we need to skip this here.
+	 */
+	if (0 && !tegra_hsp_doorbell_can_ring(db))
 		return -ENODEV;
 
 	spin_lock_irqsave(&hsp->lock, flags);
