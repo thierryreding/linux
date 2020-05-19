@@ -8,6 +8,7 @@
 	compatible = "nvidia,tegra234-vdk", "nvidia,tegra234";
 
 	aliases {
+		ethernet0 = "/cbb@0/ethernet@2850000";
 		sdhci3 = "/cbb@0/sdhci@3460000";
 		serial0 = &uarta;
 	};
@@ -18,6 +19,15 @@
 	};
 
 	cbb@0 {
+		ethernet@2850000 {
+			status = "disabled";
+
+			fixed-link {
+				speed = <1000>;
+				full-duplex;
+			};
+		};
+
 		serial@3100000 {
 			status = "okay";
 		};
