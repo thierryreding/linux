@@ -67,6 +67,24 @@ properties:
 
   iommus: {}
 
+  interconnects:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    description: A list of phandle and specifier pairs that describe the
+      interconnect paths to and from the GPU.
+
+  interconnect-names:
+    $ref: /schemas/types.yaml#/definitions/non-unique-string-array
+    description: One string for each pair of phandle and specifier in the
+      "interconnects" property.
+    # XXX We need at least one of these to be named dma-mem so that the core
+    # will set the DMA mask based on the DMA parent, but all of these go to
+    # system memory eventually.
+    items:
+      - const: dma-mem
+      - const: dma-mem
+      - const: dma-mem
+      - const: dma-mem
+
 required:
   - compatible
   - reg
