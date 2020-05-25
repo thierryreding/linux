@@ -67,6 +67,19 @@ properties:
   iommus:
     maxItems: 1
 
+  interconnects:
+    description: A list of phandle and specifier pairs that describe the
+      interconnect paths to and from the SDHCI controller.
+    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+
+  interconnect-names:
+    description: One string for each pair of phandle and specifier in the
+      "interconnects" property.
+    $ref: "/schemas/types.yaml#/definitions/string-array"
+    items:
+      - const: dma-mem # read
+      - const: write
+
   nvidia,default-tap:
     description: Specify the default inbound sampling clock trimmer value for
       non-tunable modes.
