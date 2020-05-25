@@ -101,3 +101,7 @@ properties:
           - enum:
               - nvidia,p2972-0000
           - const: nvidia,tegra194
+      - items:
+          - enum:
+              - nvidia,tegra234-vdk
+          - const: nvidia,tegra234
