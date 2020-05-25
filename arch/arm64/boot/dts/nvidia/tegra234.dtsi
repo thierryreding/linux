@@ -131,6 +131,13 @@
 			status = "disabled";
 		};
 
+		fuse@3810000 {
+			compatible = "nvidia,tegra234-efuse";
+			reg = <0x03810000 0x10000>;
+			clocks = <&bpmp TEGRA194_CLK_FUSE>;
+			clock-names = "fuse";
+		};
+
 		hsp_top0: hsp@3c00000 {
 			compatible = "nvidia,tegra234-hsp", "nvidia,tegra194-hsp";
 			reg = <0x03c00000 0xa0000>;
