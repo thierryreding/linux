@@ -80,6 +80,16 @@ properties:
         - hda2hdmi
         - hda2codec_2x
 
+  interconnects:
+    description: Description of the interconnect paths for the HDA controller;
+      see ../interconnect/interconnect.txt for details.
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+
+  interconnect-names:
+    description: A list of names identifying each entry listed in the
+      "interconnects" property.
+    $ref: /schemas/types.yaml#/definitions/non-unique-string-array
+
   nvidia,model:
     description: The user-visible name of this sound complex. Since the
       property is optional, legacy boards can use default name provided in HDA
