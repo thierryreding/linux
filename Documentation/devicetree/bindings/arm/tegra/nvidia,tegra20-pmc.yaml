@@ -212,7 +212,7 @@ properties:
         patternProperties:
           clocks:
             minItems: 1
-            maxItems: 8
+            maxItems: 10
             description:
               Must contain an entry for each clock required by the PMC
               for controlling a power-gate.
