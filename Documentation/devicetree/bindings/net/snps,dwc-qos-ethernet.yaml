@@ -82,43 +82,46 @@ properties:
 
   dma-coherent:
     description: Present if DMA operations are coherent.
-    $ref: /schemas/types.yaml#/definitions/flag
+    $ref: "/schemas/types.yaml#/definitions/flag"
+
+  iommus:
+    $ref: "/schemas/types.yaml#/definitions/phandle-array"
 
   phy-reset-gpios:
     description: A list of phandle and specifier for any GPIO used to reset
       the PHY. See ../gpio/gpio.txt.
-    $ref: /schemas/types.yaml#/definitions/phandle-array
+    $ref: "/schemas/types.yaml#/definitions/phandle-array"
 
   snps,en-lpi:
     description: If present it enables use of the AXI low-power interface.
-    $ref: /schemas/types.yaml#/definitions/flag
+    $ref: "/schemas/types.yaml#/definitions/flag"
 
   snps,write-requests:
     description: Number of write requests that the AXI port can issue. It
       depends on the SoC configuration.
-    $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: "/schemas/types.yaml#/definitions/uint32"
 
   snps,read-requests:
     description: Number of read requests that the AXI port can issue. It
       depends on the SoC configuration.
-    $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: "/schemas/types.yaml#/definitions/uint32"
 
   snps,burst-map:
     description: Bitmap of allowed AXI burst lengts, with the LSB representing
       4, then 8 etc.
-    $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: "/schemas/types.yaml#/definitions/uint32"
 
   snps,txpbl:
     description: DMA Programmable burst length for the TX DMA.
-    $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: "/schemas/types.yaml#/definitions/uint32"
 
   snps,rxpbl:
     description: DMA Programmable burst length for the RX DMA.
-    $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: "/schemas/types.yaml#/definitions/uint32"
 
   snps,en-tx-lpi-clockgating:
     description: Enable gating of the MAC TX clock during TX low-power mode.
-    $ref: /schemas/types.yaml#/definitions/flag
+    $ref: "/schemas/types.yaml#/definitions/flag"
 
   interconnects:
     description: Description of the interconnect paths for the ethernet
@@ -142,13 +145,15 @@ properties:
 
     patternProperties:
       "^phy@[0-9a-f]+$":
-        $ref: ethernet-phy.yaml
+        $ref: "ethernet-phy.yaml"
         description: Each PHY on the MDIO bus is represented by one of these
           nodes.
 
     required:
       - "#address-cells"
       - "#size-cells"
+
+    additionalProperties: false
 
 required:
   - compatible
@@ -159,7 +164,7 @@ required:
   - phy-mode
 
 allOf:
-  - $ref: ethernet-controller.yaml
+  - $ref: "ethernet-controller.yaml"
   - if:
       properties:
         compatible:
@@ -272,6 +277,8 @@ allOf:
             - const: phy_ref_clk
             - const: apb_pclk
 
+unevaluatedProperties: false
+
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
@@ -303,6 +310,7 @@ examples:
             phy2: phy@1 {
                 compatible = "ethernet-phy-ieee802.3-c22";
                 device_type = "ethernet-phy";
+                #phy-cells = <0>;
                 reg = <0x1>;
             };
         };
