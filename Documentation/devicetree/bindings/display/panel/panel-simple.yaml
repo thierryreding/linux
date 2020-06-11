@@ -275,7 +275,7 @@ properties:
   port: true
   power-supply: true
 
-additionalProperties: false
+unevaluatedProperties: false
 
 required:
   - compatible
