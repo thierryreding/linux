@@ -29,6 +29,32 @@ allOf:
       required:
         - reg-shift
   - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - nvidia,tegra20-uart
+    then:
+      properties:
+        clock-names:
+          $ref: "/schemas/types.yaml#/definitions/string-array"
+          items:
+            - const: serial
+
+        dmas:
+          $ref: "/schemas/types.yaml#/definitions/phandle-array"
+
+        dma-names:
+          $ref: "/schemas/types.yaml#/definitions/string-array"
+          items:
+            - const: rx
+            - const: tx
+
+        reset-names:
+          $ref: "/schemas/types.yaml#/definitions/string-array"
+          items:
+            - const: serial
+  - if:
       not:
         properties:
           compatible:
