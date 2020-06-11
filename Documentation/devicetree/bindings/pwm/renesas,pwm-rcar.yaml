@@ -57,8 +57,10 @@ properties:
 required:
   - compatible
   - reg
-  - '#pwm-cells'
   - clocks
+
+allOf:
+  - $ref: pwm.yaml#
 
 additionalProperties: false
 

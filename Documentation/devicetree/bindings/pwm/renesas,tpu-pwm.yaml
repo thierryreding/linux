@@ -56,7 +56,9 @@ properties:
 required:
   - compatible
   - reg
-  - '#pwm-cells'
+
+allOf:
+  - $ref: pwm.yaml#
 
 additionalProperties: false
 
