@@ -1,4 +1,4 @@
-# SPDX-Licens-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
 $id: http://devicetree.org/schemas/mmc/nvidia,tegra20-sdhci.yaml#
@@ -20,19 +20,55 @@ description: |
 properties:
   # required properties
   compatible:
-    items:
-      - enum:
-          - nvidia,tegra20-sdhci # for Tegra20
-          - nvidia,tegra30-sdhci # for Tegra30
-          - nvidia,tegra114-sdhci # for Tegra114
-          - nvidia,tegra124-sdhci # for Tegra124 and Tegra132
-          - nvidia,tegra210-sdhci # for Tegra210
-          - nvidia,tegra186-sdhci # for Tegra186
-          - nvidia,tegra194-sdhci # for Tegra194
+    oneOf:
+      - description: NVIDIA Tegra20
+        const: nvidia,tegra20-sdhci
+
+      - description: NVIDIA Tegra30
+        const: nvidia,tegra30-sdhci
+
+      - description: NVIDIA Tegra114
+        const: nvidia,tegra114-sdhci
+
+      - description: NVIDIA Tegra124
+        const: nvidia,tegra124-sdhci
+
+      - description: NVIDIA Tegra132
+        items:
+          - const: nvidia,tegra132-sdhci
+          - const: nvidia,tegra124-sdhci
+
+      - description: NVIDIA Tegra210
+        const: nvidia,tegra210-sdhci
+
+      - description: NVIDIA Tegra186
+        const: nvidia,tegra186-sdhci
+
+      - description: NVIDIA Tegra194
+        const: nvidia,tegra194-sdhci
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  assigned-clocks:
+    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+
+  assigned-clock-parents:
+    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+
+  assigned-clock-rates:
+    $ref: "/schemas/types.yaml#/definitions/uint32-array"
 
   clocks:
     items:
       - description: module clock
+
+  clock-names:
+    items:
+      - const: sdhci
 
   resets:
     items:
@@ -45,6 +81,10 @@ properties:
   # optional properties
   power-gpios:
     description: specify GPIOs for power control
+    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+
+  iommus:
+    $ref: "/schemas/types.yaml#/definitions/phandle-array"
 
   interconnects:
     $ref: /schemas/types.yaml#/definitions/phandle-array
@@ -62,153 +102,149 @@ properties:
       - const: dma-mem
       - const: dma-mem
 
+  nvidia,default-tap:
+    description: Specify the default inbound sampling clock trimmer value for
+      non-tunable modes.
+
+      The values are used for compensating trace length differences by
+      adjusting the sampling point. The values are programmed to the Vendor
+      Clock Control Register. Please refer to the reference manual of the SoC
+      for correct values.
+
+      The DQS trim values are only used on controllers which support HS400
+      timing. Only SDMMC4 on Tegra210 and Tegra186 supports HS400.
+    $ref: "/schemas/types.yaml#definitions/uint32"
+
+  nvidia,default-trim:
+    description: Specify the default outbound clock trimmer value.
+    $ref: "/schemas/types.yaml#definitions/uint32"
+
+  nvidia,dqs-trim:
+    description: Specify DQS trim value for HS400 timing.
+    $ref: "/schemas/types.yaml#definitions/uint32"
+
+  nvidia,pad-autocal-pull-down-offset-1v8:
+    description: Specify drive strength calibration offsets for 1.8 V
+      signaling modes.
+    $ref: "/schemas/types.yaml#definitions/uint32"
+
+  nvidia,pad-autocal-pull-down-offset-1v8-timeout:
+    description: Specify drive strength used as a fallback in case the
+      automatic calibration times out on a 1.8 V signaling mode.
+    $ref: "/schemas/types.yaml#definitions/uint32"
+
+  nvidia,pad-autocal-pull-down-offset-3v3:
+    description: Specify drive strength calibration offsets for 3.3 V
+      signaling modes.
+    $ref: "/schemas/types.yaml#definitions/uint32"
+
+  nvidia,pad-autocal-pull-down-offset-3v3-timeout:
+    description: Specify drive strength used as a fallback in case the
+      automatic calibration times out on a 3.3 V signaling mode.
+    $ref: "/schemas/types.yaml#definitions/uint32"
+
+  nvidia,pad-autocal-pull-down-offset-sdr104:
+    description: Specify drive strength calibration offsets for SDR104 mode.
+    $ref: "/schemas/types.yaml#definitions/uint32"
+
+  nvidia,pad-autocal-pull-down-offset-hs400:
+    description: Specify drive strength calibration offsets for HS400 mode.
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+
+  nvidia,pad-autocal-pull-up-offset-1v8:
+    description: Specify drive strength calibration offsets for 1.8 V
+      signaling modes.
+    $ref: "/schemas/types.yaml#definitions/uint32"
+
+  nvidia,pad-autocal-pull-up-offset-1v8-timeout:
+    description: Specify drive strength used as a fallback in case the
+      automatic calibration times out on a 1.8 V signaling mode.
+    $ref: "/schemas/types.yaml#definitions/uint32"
+
+  nvidia,pad-autocal-pull-up-offset-3v3:
+    description: Specify drive strength calibration offsets for 3.3 V
+      signaling modes.
+
+      The property values are drive codes which are programmed into the
+      PD_OFFSET and PU_OFFSET sections of the SDHCI_TEGRA_AUTO_CAL_CONFIG
+      register. A higher value corresponds to higher drive strength. Please
+      refer to the reference manual of the SoC for correct values. The SDR104
+      and HS400 timing specific values are used in corresponding modes if
+      specified.
+    $ref: "/schemas/types.yaml#definitions/uint32"
+
+  nvidia,pad-autocal-pull-up-offset-3v3-timeout:
+    description: Specify drive strength used as a fallback in case the
+      automatic calibration times out on a 3.3 V signaling mode.
+    $ref: "/schemas/types.yaml#definitions/uint32"
+
+  nvidia,pad-autocal-pull-up-offset-sdr104:
+    description: Specify drive strength calibration offsets for SDR104 mode.
+    $ref: "/schemas/types.yaml#definitions/uint32"
+
+  nvidia,pad-autocal-pull-up-offset-hs400:
+    description: Specify drive strength calibration offsets for HS400 mode.
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+
+  nvidia,only-1-8v:
+    description: The presence of this property indicates that the controller
+      operates at a 1.8 V fixed I/O voltage.
+    $ref: "/schemas/types.yaml#/definitions/flag"
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+  - resets
+  - reset-names
+
 allOf:
+  - $ref: "mmc-controller.yaml"
   - if:
       properties:
         compatible:
           contains:
             const: nvidia,tegra210-sdhci
-
     then:
       properties:
         pinctrl-names:
-          $ref: /schemas/types.yaml#/definitions/string-array
+          oneOf:
+            - items:
+                - const: sdmmc-3v3
+                  description: pad configuration for 3.3 V
+                - const: sdmmc-1v8
+                  description: pad configuration for 1.8 V
+                - const: sdmmc-3v3-drv
+                  description: pull-up/down configuration for 3.3 V
+                - const: sdmmc-1v8-drv
+                  description: pull-up/down configuration for 1.8 V
+            - items:
+                - const: sdmmc-3v3-drv
+                  description: pull-up/down configuration for 3.3 V
+                - const: sdmmc-1v8-drv
+                  description: pull-up/down configuration for 1.8 V
+            - items:
+                - const: sdmmc-1v8-drv
+                  description: pull-up/down configuration for 1.8 V
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - nvidia,tegra186-sdhci
+              - nvidia,tegra194-sdhci
+    then:
+      properties:
+        pinctrl-names:
           items:
             - const: sdmmc-3v3
               description: pad configuration for 3.3 V
             - const: sdmmc-1v8
               description: pad configuration for 1.8 V
-            - const: sdmmc-3v3-drv
-              description: pull-up/down configuration for 3.3 V
-            - const: sdmmc-1v8-drv
-              description: pull-up/down configuration for 1.8 V
 
-  - if:
-      properties:
-        compatible:
-          contains:
-            anyOf:
-              - const: nvidia,tegra186-sdhci
-              - const: nvidia,tegra194-sdhci
-
-    then:
-      properties:
-        pinctrl-names:
-          $ref: /schemas/types.yaml#/definitions/string-array
-          items:
-            - const: sdmmc-3v3
-              description: pad configuration for 3.3 V
-            - const: sdmmc-1v8
-              description: pad configuration for 1.8 V
-
-  - if:
-      properties:
-        compatible:
-          contains:
-            anyOf:
-              - const: nvidia,tegra210-sdhci
-              - const: nvidia,tegra186-sdhci
-              - const: nvidia,tegra194-sdhci
-
-    then:
-      properties:
-        nvidia,only-1-8v:
-          $ref: /schemas/types.yaml#/definitions/flag
-          description: The presence of this property indicates that the
-            controller operates at a 1.8 V fixed I/O voltage.
-
-        nvidia,pad-autocal-pull-up-offset-3v3:
-          $ref: /schemas/types.yaml#/definitions/uint32
-          description: Specify drive strength calibration offsets for 3.3 V
-            signaling modes.
-
-            The property values are drive codes which are programmed into the
-            PD_OFFSET and PU_OFFSET sections of the SDHCI_TEGRA_AUTO_CAL_CONFIG
-            register. A higher value corresponds to higher drive strength.
-            Please refer to the reference manual of the SoC for correct values.
-            The SDR104 and HS400 timing specific values are used in
-            corresponding modes if specified.
-
-        nvidia,pad-autocal-pull-down-offset-3v3:
-          $ref: /schemas/types.yaml#/definitions/uint32
-          description: Specify drive strength calibration offsets for 3.3 V
-            signaling modes.
-
-        nvidia,pad-autocal-pull-up-offset-1v8:
-          $ref: /schemas/types.yaml#/definitions/uint32
-          description: Specify drive strength calibration offsets for 1.8 V
-            signaling modes.
-
-        nvidia,pad-autocal-pull-down-offset-1v8:
-          $ref: /schemas/types.yaml#/definitions/uint32
-          description: Specify drive strength calibration offsets for 1.8 V
-            signaling modes.
-
-        nvidia,pad-autocal-pull-up-offset-3v3-timeout:
-          $ref: /schemas/types.yaml#/definitions/uint32
-          description: Specify drive strength used as a fallback in case the
-            automatic calibration times out on a 3.3 V signaling mode.
-
-        nvidia,pad-autocal-pull-down-offset-3v3-timeout:
-          $ref: /schemas/types.yaml#/definitions/uint32
-          description: Specify drive strength used as a fallback in case the
-            automatic calibration times out on a 3.3 V signaling mode.
-
-        nvidia,pad-autocal-pull-up-offset-1v8-timeout:
-          $ref: /schemas/types.yaml#/definitions/uint32
-          description: Specify drive strength used as a fallback in case the
-            automatic calibration times out on a 1.8 V signaling mode.
-
-        nvidia,pad-autocal-pull-down-offset-1v8-timeout:
-          $ref: /schemas/types.yaml#/definitions/uint32
-          description: Specify drive strength used as a fallback in case the
-            automatic calibration times out on a 1.8 V signaling mode.
-
-        nvidia,pad-autocal-pull-up-offset-sdr104:
-          $ref: /schemas/types.yaml#/definitions/uint32
-          description: Specify drive strength calibration offsets for SDR104
-            mode.
-
-        nvidia,pad-autocal-pull-down-offset-sdr104:
-          $ref: /schemas/types.yaml#/definitions/uint32
-          description: Specify drive strength calibration offsets for SDR104
-            mode.
-
-        nvidia,pad-autocal-pull-up-offset-hs400:
-          $ref: /schemas/types.yaml#/definitions/uint32
-          description: Specify drive strength calibration offsets for HS400
-            mode.
-
-        nvidia,pad-autocal-pull-down-offset-hs400:
-          $ref: /schemas/types.yaml#/definitions/uint32
-          description: Specify drive strength calibration offsets for HS400
-            mode.
-
-        nvidia,default-tap:
-          $ref: /schemas/types.yaml#/definitions/uint32
-          description: Specify the default inbound sampling clock trimmer
-            value for non-tunable modes.
-
-            The values are used for compensating trace length differences
-            by adjusting the sampling point. The values are programmed to the
-            Vendor Clock Control Register. Please refer to the reference
-            manual of the SoC for correct values.
-
-            The DQS trim values are only used on controllers which support
-            HS400 timing. Only SDMMC4 on Tegra210 and Tegra186 supports
-            HS400.
-
-        nvidia,default-trim:
-          description: Specify the default outbound clock trimmer value.
-
-        nvidia,dqs-trim:
-          description: Specify DQS trim value for HS400 timing.
-
-required:
-  - compatible
-  - clocks
-  - resets
-  - reset-names
+unevaluatedProperties: false
 
 examples:
   - |
