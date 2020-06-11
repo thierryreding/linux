@@ -100,13 +100,14 @@ properties:
   interconnects:
     description: Description of the interconnect paths for the host1x
       controller; see ../interconnect/interconnect.txt for details.
+    items:
+      - description: memory read client for host1x
 
   interconnect-names:
     description: A list of names identifying each entry listed in the
       "interconnects" property.
-
-  memory-controllers:
-    $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - const: dma-mem # read
 
 required:
   - compatible
@@ -497,24 +498,25 @@ allOf:
             iommus:
               $ref: "/schemas/types.yaml#/definitions/phandle-array"
 
-            interconnects:
-              items:
-                - description: memory read client for window A
-                - description: memory read client for window B
-                - description: memory read client for window C
-                - description: memory read client for cursor
-                # disp only
-                - description: memory read client for window T
-                - description: memory read client for window D
-            interconnect-names:
-              items:
-                - const: wina
-                - const: winb
-                - const: winc
-                - const: cursor
-                # disp only
-                - const: wint
-                - const: wind
+            #interconnects:
+            #  items:
+            #    - description: memory read client for window A
+            #    - description: memory read client for window B
+            #    - description: memory read client for window C
+            #    - description: memory read client for cursor
+            #    # disp only
+            #    - description: memory read client for window T
+            #    - description: memory read client for window D
+
+            #interconnect-names:
+            #  items:
+            #    - const: wina
+            #    - const: winb
+            #    - const: winc
+            #    - const: cursor
+            #    # disp only
+            #    - const: wint
+            #    - const: wind
 
             nvidia,head:
               description: The number of the display controller head. This is
@@ -662,17 +664,14 @@ allOf:
                   $ref: "/schemas/types.yaml#/definitions/phandle-array"
 
                 interconnects:
-                  type: array
-                  items:
-                    - $ref: /schemas/types.yaml#/definitions/phandle-array
-                    - $ref: /schemas/types.yaml#/definitions/phandle-array
+                  description: Description of the interconnect paths for the
+                    display controller; see ../interconnect/interconnect.txt
+                    for details.
+
                 interconnect-names:
                   items:
-                    - const: read-0
+                    - const: dma-mem # read-0
                     - const: read-1
-
-                memory-controllers:
-                  $ref: /schemas/types.yaml#/definitions/phandle-array
 
                 nvidia,outputs:
                   description: A list of phandles of outputs that this display
@@ -1065,13 +1064,11 @@ allOf:
               $ref: "/schemas/types.yaml#/definitions/phandle-array"
 
             interconnects: true
+
             interconnect-names:
               items:
-                - const: read
+                - const: dma-mem # read
                 - const: write
-
-            memory-controllers:
-              $ref: /schemas/types.yaml#/definitions/phandle-array
 
           unevaluatedProperties: false
 
