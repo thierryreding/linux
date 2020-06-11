@@ -27,13 +27,15 @@ properties:
     pattern: "^memory-controller@[0-9a-f]+$"
 
   compatible:
-    items:
-      - enum:
-          - nvidia,tegra186-mc
-          - nvidia,tegra194-mc
+    oneOf:
+      - description: NVIDIA Tegra186 memory controller
+        const: nvidia,tegra186-mc
+      - description: NVIDIA Tegra194 memory controller
+        const: nvidia,tegra194-mc
 
   reg:
-    maxItems: 1
+    minItems: 1
+    maxItems: 3
 
   interrupts:
     maxItems: 1
@@ -74,11 +76,12 @@ patternProperties:
               - nvidia,tegra186-emc
               - nvidia,tegra194-emc
 
-      reg:
-        maxItems: 1
-
       interrupts:
         maxItems: 1
+
+      reg:
+        minItems: 1
+        maxItems: 2
 
       clocks:
         items:
@@ -107,11 +110,18 @@ allOf:
       properties:
         compatible:
           contains:
-            const: nvidia,tegra194-mc
+            anyOf:
+              - const: nvidia,tegra194-mc
     then:
       properties:
         reg:
+          minItems: 3
           maxItems: 3
+    else:
+      properties:
+        reg:
+          minItems: 1
+          maxItems: 1
 
   - if:
       patternProperties:
@@ -119,13 +129,22 @@ allOf:
           properties:
             compatible:
               contains:
-                const: nvidia,tegra194-emc
+                anyOf:
+                  - const: nvidia,tegra194-emc
     then:
       patternProperties:
         "^external-memory-controller@[0-9a-f]+$":
           properties:
             reg:
+              minItems: 2
               maxItems: 2
+    else:
+      patternProperties:
+        "^external-memory-controller@[0-9a-f]+$":
+          properties:
+            reg:
+              minItems: 1
+              maxItems: 1
 
 examples:
   - |
