@@ -93,12 +93,15 @@ properties:
   interconnects:
     description: Description of the interconnect paths for the HDA controller;
       see ../interconnect/interconnect.txt for details.
-    $ref: /schemas/types.yaml#/definitions/phandle-array
+    $ref: "/schemas/types.yaml#/definitions/phandle-array"
 
   interconnect-names:
     description: A list of names identifying each entry listed in the
       "interconnects" property.
-    $ref: /schemas/types.yaml#/definitions/non-unique-string-array
+    $ref: "/schemas/types.yaml#/definitions/string-array"
+    items:
+      - const: dma-mem # read
+      - const: write
 
   nvidia,model:
     description: The user-visible name of this sound complex. Since the
