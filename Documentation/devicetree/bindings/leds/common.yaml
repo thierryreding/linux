@@ -100,6 +100,8 @@ properties:
           - pattern
         # LED is triggered by SD/MMC activity
       - pattern: "^mmc[0-9]+$"
+        # LED is triggered by RFKILL switch
+      - pattern: "^rfkill[0-9]+$"
 
   led-pattern:
     description: |
