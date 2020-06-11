@@ -18,6 +18,7 @@ properties:
     oneOf:
       - items:
           - enum:
+              - ti,bq20z45
               - ti,bq20z65
               - ti,bq20z75
           - enum:
@@ -60,7 +61,10 @@ required:
   - compatible
   - reg
 
-additionalProperties: false
+allOf:
+  - $ref: power-supply.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |
