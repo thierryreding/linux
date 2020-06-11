@@ -80,6 +80,16 @@ properties:
         - hda2hdmi
         - hda2codec_2x
 
+  power-domains:
+    description: A list of PM domain specifiers that reference each
+      power-domain used by the xHCI controller. This list must comprise
+      of a specifier for the XUSBA and XUSBC power-domains. See
+      ../power/power_domain.txt and ../arm/tegra/nvidia,tegra20-pmc.txt
+      for details.
+
+  iommus:
+    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+
   interconnects:
     description: Description of the interconnect paths for the HDA controller;
       see ../interconnect/interconnect.txt for details.
@@ -94,7 +104,7 @@ properties:
     description: The user-visible name of this sound complex. Since the
       property is optional, legacy boards can use default name provided in HDA
       driver.
-    $ref: /schemas/types.yaml#/definitions/string
+    $ref: "/schemas/types.yaml#/definitions/string"
 
 required:
   - compatible
@@ -104,6 +114,8 @@ required:
   - clock-names
   - resets
   - reset-names
+
+additionalProperties: false
 
 examples:
   - |
