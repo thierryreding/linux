@@ -126,7 +126,7 @@ properties:
   interconnects:
     description: Description of the interconnect paths for the ethernet
       controller; see ../interconnect/interconnect.txt for details.
-    $ref: /schemas/types.yaml#/definitions/phandle-array
+    $ref: "/schemas/types.yaml#/definitions/phandle-array"
 
   interconnect-names:
     description: A list of names identifying each entry listed in the
@@ -216,6 +216,11 @@ allOf:
             - const: rx
             - const: tx
             - const: ptp_ref
+
+        interconnect-names:
+          items:
+            - const: dma-mem # read
+            - const: write
 
       required:
         - resets
