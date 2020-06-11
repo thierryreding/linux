@@ -20,12 +20,12 @@
 	pcie@3000 {
 		compatible = "nvidia,tegra30-pcie";
 		device_type = "pci";
-		reg = <0x00003000 0x00000800   /* PADS registers */
-		       0x00003800 0x00000200   /* AFI registers */
-		       0x10000000 0x10000000>; /* configuration space */
+		reg = <0x00003000 0x00000800>, /* PADS registers */
+		      <0x00003800 0x00000200>, /* AFI registers */
+		      <0x10000000 0x10000000>; /* configuration space */
 		reg-names = "pads", "afi", "cs";
-		interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH   /* controller interrupt */
-			      GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>; /* MSI interrupt */
+		interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>, /* controller interrupt */
+			     <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>; /* MSI interrupt */
 		interrupt-names = "intr", "msi";
 
 		#interrupt-cells = <1>;
@@ -36,12 +36,12 @@
 		#address-cells = <3>;
 		#size-cells = <2>;
 
-		ranges = <0x82000000 0 0x00000000 0x00000000 0 0x00001000   /* port 0 configuration space */
-			  0x82000000 0 0x00001000 0x00001000 0 0x00001000   /* port 1 configuration space */
-			  0x82000000 0 0x00004000 0x00004000 0 0x00001000   /* port 2 configuration space */
-			  0x81000000 0 0          0x02000000 0 0x00010000   /* downstream I/O */
-			  0x82000000 0 0x20000000 0x20000000 0 0x08000000   /* non-prefetchable memory */
-			  0xc2000000 0 0x28000000 0x28000000 0 0x18000000>; /* prefetchable memory */
+		ranges = <0x02000000 0 0x00000000 0x00000000 0 0x00001000>, /* port 0 configuration space */
+			 <0x02000000 0 0x00001000 0x00001000 0 0x00001000>, /* port 1 configuration space */
+			 <0x02000000 0 0x00004000 0x00004000 0 0x00001000>, /* port 2 configuration space */
+			 <0x01000000 0 0          0x02000000 0 0x00010000>, /* downstream I/O */
+			 <0x02000000 0 0x20000000 0x20000000 0 0x08000000>, /* non-prefetchable memory */
+			 <0x42000000 0 0x28000000 0x28000000 0 0x18000000>; /* prefetchable memory */
 
 		clocks = <&tegra_car TEGRA30_CLK_PCIE>,
 			 <&tegra_car TEGRA30_CLK_AFI>,
@@ -183,8 +183,8 @@
 		gr3d@54180000 {
 			compatible = "nvidia,tegra30-gr3d";
 			reg = <0x54180000 0x00040000>;
-			clocks = <&tegra_car TEGRA30_CLK_GR3D
-				  &tegra_car TEGRA30_CLK_GR3D2>;
+			clocks = <&tegra_car TEGRA30_CLK_GR3D>,
+				 <&tegra_car TEGRA30_CLK_GR3D2>;
 			clock-names = "3d", "3d2";
 			resets = <&tegra_car 24>,
 				 <&tegra_car 98>;
@@ -273,8 +273,8 @@
 
 	intc: interrupt-controller@50041000 {
 		compatible = "arm,cortex-a9-gic";
-		reg = <0x50041000 0x1000
-		       0x50040100 0x0100>;
+		reg = <0x50041000 0x1000>,
+		      <0x50040100 0x0100>;
 		interrupt-controller;
 		#interrupt-cells = <3>;
 		interrupt-parent = <&intc>;
