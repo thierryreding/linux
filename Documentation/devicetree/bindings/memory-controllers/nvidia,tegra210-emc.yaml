@@ -34,15 +34,24 @@ properties:
       - description: EMC general interrupt
 
   memory-region:
-    $ref: /schemas/types.yaml#/definitions/phandle
-    description:
-      phandle to a reserved memory region describing the table of EMC
-      frequencies trained by the firmware
+    description: List of phandles to reserved memory regions describing the
+      nominal and derated tables of EMC frequencies trained by the firmware.
+    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+
+  memory-region-names:
+    $ref: "/schemas/types.yaml#/definitions/string-array"
+    items:
+      - const: nominal
+      - const: derated
 
   nvidia,memory-controller:
-    $ref: /schemas/types.yaml#/definitions/phandle
+    $ref: "/schemas/types.yaml#/definitions/phandle"
     description:
       phandle of the memory controller node
+
+  "#cooling-cells":
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    const: 2
 
 required:
   - compatible
@@ -51,7 +60,10 @@ required:
   - clock-names
   - nvidia,memory-controller
 
-additionalProperties: false
+dependencies:
+  memory-region-names: [ memory-region ]
+
+unevaluatedProperties: false
 
 examples:
   - |
@@ -63,9 +75,14 @@ examples:
         #size-cells = <1>;
         ranges;
 
-        emc_table: emc-table@83400000 {
+        nominal: emc-table@83400000 {
             compatible = "nvidia,tegra210-emc-table";
             reg = <0x83400000 0x10000>;
+        };
+
+        derated: emc-table@83410000 {
+            compatible = "nvidia,tegar210-emc-table";
+            reg = <0x83410000 0x10000>;
         };
     };
 
@@ -77,6 +94,7 @@ examples:
         clocks = <&tegra_car TEGRA210_CLK_EMC>;
         clock-names = "emc";
         interrupts = <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>;
-        memory-region = <&emc_table>;
+        memory-region-names = "nominal", "derated";
+        memory-region = <&nominal>, <&derated>;
         nvidia,memory-controller = <&mc>;
     };
