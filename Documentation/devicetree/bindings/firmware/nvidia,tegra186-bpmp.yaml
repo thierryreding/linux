@@ -62,27 +62,28 @@ properties:
       - const: dma-mem
 
   iommus:
-    $ref: /schemas/types.yaml#/definitions/phandle-array
     description: |
       The phandle of the IOMMU and the IOMMU specifier. See ../iommu/iommu.txt
       for details.
+    $ref: "/schemas/types.yaml#/definitions/phandle-array"
 
   mboxes:
-    $ref: /schemas/types.yaml#/definitions/phandle-array
     description: |
       The phandle of the mailbox controller and the mailbox specifier. See
       ../mailbox/mailbox.txt and ../mailbox/nvidia,tegra186-hsp.txt for
       details.
+    $ref: "/schemas/types.yaml#/definitions/phandle-array"
 
   shmem:
-    $ref: /schemas/types.yaml#/definitions/phandle-array
-    description: List of phandles for the TX and RX shared memory areas used
-      for interprocess communication between the CPU and the BPMP.
+    description: |
+      List of phandles for the TX and RX shared memory areas used for
+      interprocess communication between the CPU and the BPMP.
 
       The shared memory area for the IPC TX and RX between CPU and BPMP are
       predefined and work on top of sysram, which is an SRAM inside the chip.
 
       See ../sram/sram.yaml for the bindings.
+    $ref: "/schemas/types.yaml#/definitions/phandle-array"
 
   "#clock-cells":
     const: 1
@@ -112,8 +113,8 @@ properties:
         const: 0
 
       nvidia,bpmp-bus-id:
-        $ref: /schemas/types.yaml#/definitions/uint32
         description: The bus ID of the I2C controller.
+        $ref: "/schemas/types.yaml#/definitions/uint32"
 
     required:
       - compatible
