@@ -143,3 +143,29 @@ properties:
           - enum:
               - nvidia,p2972-0000
           - const: nvidia,tegra194
+
+allOf:
+  # Nyan Blaze and Nyan Big have bootloaders that rely on the top-level memory
+  # node not having a unit-address
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - google.nyan-blaze
+              - google,nyan-big
+    then:
+      properties:
+        memory:
+          type: object
+          properties:
+            device_type:
+              const: memory
+
+            reg:
+              minItems: 1
+              maxItems: 1024
+
+          required:
+            - device_type
+            - reg
