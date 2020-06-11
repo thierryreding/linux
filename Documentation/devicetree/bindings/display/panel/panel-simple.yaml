@@ -267,6 +267,9 @@ properties:
         # Winstar Display Corporation 3.5" QVGA (320x240) TFT LCD panel
       - winstar,wf35ltiacd
 
+  reg:
+    description: virtual channel for DSI panels
+
   backlight: true
   enable-gpios: true
   port: true
