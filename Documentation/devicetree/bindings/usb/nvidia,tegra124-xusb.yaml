@@ -15,7 +15,6 @@ description: |
   the Tegra XUSB pad controller.
 
 properties:
-  # required
   compatible:
     oneOf:
       - description: NVIDIA Tegra124
@@ -35,26 +34,38 @@ properties:
       - description: NVIDIA Tegra194
         const: nvidia,tegra194-xusb
 
+  reg:
+    minItems: 1
+    maxItems: 3
+
+  reg-names:
+    minItems: 1
+    maxItems: 3
+
   interrupts:
     items:
       - description: xHCI host interrupt
       - description: mailbox interrupt
 
-  clocks: true
+  clocks:
+    minItems: 9
+    maxItems: 11
 
-  clocks-names:
-    items:
-      - const: xusb_host
-      - const: xusb_host_src
-      - const: xusb_falcon_src
-      - const: xusb_ss
-      - const: xusb_ss_src
-      - const: xusb_ss_div2
-      - const: xusb_hs_src
-      - const: xusb_fs_src
-      - const: pll_u_480m
-      - const: clk_m
-      - const: pll_e
+  clock-names:
+    minItems: 9
+    maxItems: 11
+
+  nvidia,xusb-padctl:
+    description: phandle to the XUSB pad controller that is used to configure
+      the USB pads used by the XHCI controller
+    $ref: "/schemas/types.yaml#/definitions/phandle"
+
+  # optional
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 0
 
   resets:
     items:
@@ -68,12 +79,9 @@ properties:
       - const: xusb_ss
       - const: xusb_src
 
-  nvidia,xusb-padctl:
-    $ref: /schemas/types.yaml#/definitions/phandle
-    description: phandle to the XUSB pad controller that is used to configure
-      the USB pads used by the XHCI controller
+  iommus:
+    $ref: "/schemas/types.yaml#/definitions/phandle-array"
 
-  # optional
   interconnects:
     description: Description of the interconnect paths for the XHCI
       controller; see ../interconnect/interconnect.txt for details.
@@ -89,6 +97,34 @@ properties:
   phy-names:
     description: Should include an entry for each PHY used by the controller.
 
+  power-domains:
+    description: A list of PM domain specifiers that reference each
+      power-domain used by the xHCI controller. This list must comprise
+      of a specifier for the XUSBA and XUSBC power-domains. See
+      ../power/power_domain.txt and ../arm/tegra/nvidia,tegra20-pmc.txt
+      for details.
+
+  power-domain-names:
+    description: A list of names that represent each of the specifiers
+      in the 'power-domains' property. See ../power/power_domain.txt for
+      details.
+
+patternProperties:
+  # USB device nodes can have arbitrary names, but always need a unit-address
+  "^.*@[0-9]+$":
+    type: object
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - interrupts
+  - clocks
+  - clock-names
+  - nvidia,xusb-padctl
+
+unevaluatedProperties: false
+
 allOf:
   - if:
       properties:
@@ -97,6 +133,35 @@ allOf:
             const: nvidia,tegra124-xusb
     then:
       properties:
+        reg:
+          items:
+            - description: base and length of the xHCI host registers
+            - description: base and length of the XUSB FPCI registers
+            - description: base and length of the XUSB IPFS registers
+
+        reg-names:
+          items:
+            - const: hcd
+            - const: fpci
+            - const: ipfs
+
+        clocks:
+          minItems: 11
+
+        clock-names:
+          items:
+            - const: xusb_host
+            - const: xusb_host_src
+            - const: xusb_falcon_src
+            - const: xusb_ss
+            - const: xusb_ss_src
+            - const: xusb_ss_div2
+            - const: xusb_hs_src
+            - const: xusb_fs_src
+            - const: pll_u_480m
+            - const: clk_m
+            - const: pll_e
+
         phy-names:
           contains:
             anyOf:
@@ -119,20 +184,12 @@ allOf:
         avdd-usb-supply:
           description: USB controller power supply. Must supply 3.3 V.
 
-        avdd-pll-utmip-supply:
-          description: UTMI PLL power supply. Must supply 1.8 V.
-
-        avdd-pll-erefe-supply:
-          description: PLLE reference PLL power supply. Must supply 1.05 V.
-
-        avdd-usb-ss-pll-supply:
-          description: PCIe/USB3 PLL power supply. Must supply 1.05 V.
-
         hvdd-usb-ss-supply:
           description: High-voltage PCIe/USB3 power supply. Must supply 3.3 V.
 
-        hvdd-usb-ss-pll-e-supply:
-          description: High-voltage PLLE power supply. Must supply 3.3 V.
+      required:
+        - resets
+        - reset-names
 
   - if:
       properties:
@@ -141,6 +198,35 @@ allOf:
             const: nvidia,tegra210-xusb
     then:
       properties:
+        reg:
+          items:
+            - description: base and length of the xHCI host registers
+            - description: base and length of the XUSB FPCI registers
+            - description: base and length of the XUSB IPFS registers
+
+        reg-names:
+          items:
+            - const: hcd
+            - const: fpci
+            - const: ipfs
+
+        clocks:
+          minItems: 11
+
+        clock-names:
+          items:
+            - const: xusb_host
+            - const: xusb_host_src
+            - const: xusb_falcon_src
+            - const: xusb_ss
+            - const: xusb_ss_src
+            - const: xusb_ss_div2
+            - const: xusb_hs_src
+            - const: xusb_fs_src
+            - const: pll_u_480m
+            - const: clk_m
+            - const: pll_e
+
         phy-names:
           contains:
             anyOf:
@@ -164,33 +250,61 @@ allOf:
         avdd-usb-supply:
           description: USB controller power supply. Must supply 3.3 V.
 
-        avdd-pll-utmip-supply:
-          description: UTMI PLL power supply. Must supply 1.8 V.
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - nvidia,tegra210-xusb
+              - nvidia,tegra186-xusb
+              - nvidia,tegra194-xusb
+    then:
+      properties:
+        power-domain-names:
+          items:
+            - description: the XUSBC power domain
+              const: xusb_host
+            - description: the XUSBA power domain
+              const: xusb_ss
 
-        avdd-pll-uerefe-supply:
-          description: PLLE reference PLL power supply. Must supply 1.05 V.
-
-        dvdd-pex-pll-supply:
-          description: PCIe/USB3 PLL power supply. Must supply 1.05 V.
-
-        hvdd-pex-pll-e-supply:
-          description: High-voltage PLLE power supply. Must supply 1.8 V.
+      required:
+        - power-domains
+        - power-domain-names
 
   - if:
       properties:
         compatible:
           contains:
-            const: nvidia,tegra186-xusb
+            enum:
+              - nvidia,tegra186-xusb
+              - nvidia,tegra194-xusb
     then:
       properties:
         # Tegra186 doesn't have the IPFS registers
         reg:
-          maxItems: 2
-          minItems: 2
+          items:
+            - description: base and length of the xHCI host registers
+            - description: base and length of the XUSB FPCI registers
 
         reg-names:
-          maxItems: 2
-          minItems: 2
+          items:
+            - const: hcd
+            - const: fpci
+
+        clocks:
+          maxItems: 9
+
+        clock-names:
+          items:
+            - const: xusb_host
+            - const: xusb_falcon_src
+            - const: xusb_ss
+            - const: xusb_ss_src
+            - const: xusb_hs_src
+            - const: xusb_fs_src
+            - const: pll_u_480m
+            - const: clk_m
+            - const: pll_e
 
         phy-names:
           contains:
@@ -202,63 +316,6 @@ allOf:
               - const: usb3-0
               - const: usb3-1
               - const: usb3-2
-
-  - if:
-      properties:
-        compatible:
-          contains:
-            anyOf:
-              - const: nvidia,tegra210-xusb
-              - const: nvidia,tegra186-xusb
-    then:
-      properties:
-        power-domains:
-          description: A list of PM domain specifiers that reference each
-            power-domain used by the xHCI controller. This list must comprise
-            of a specifier for the XUSBA and XUSBC power-domains. See
-            ../power/power_domain.txt and ../arm/tegra/nvidia,tegra20-pmc.txt
-            for details.
-
-        power-domain-names:
-          description: A list of names that represent each of the specifiers
-            in the 'power-domains' property. See ../power/power_domain.txt for
-            details.
-          items:
-            - description: the XUSBC power domain
-              const: xusb_host
-            - description: the XUSBA power domain
-              const: xusb_ss
-
-  - if:
-      properties:
-        compatible:
-          contains:
-            const: nvidia,tegra186-xusb
-    then:
-      properties:
-        # Tegra186 doesn't have the IPFS registers
-        reg:
-          items:
-            - description: base and length of the xHCI host registers
-            - description: base and length of the XUSB FPCI registers
-
-        reg-names:
-          items:
-            - const: hcd
-            - const: fpci
-    else:
-      properties:
-        reg:
-          items:
-            - description: base and length of the xHCI host registers
-            - description: base and length of the XUSB FPCI registers
-            - description: base and length of the XUSB IPFS registers
-
-        reg-names:
-          items:
-            - const: hcd
-            - const: fpci
-            - const: ipfs
 
 examples:
   - |
