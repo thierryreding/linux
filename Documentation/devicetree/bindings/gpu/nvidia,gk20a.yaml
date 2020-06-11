@@ -63,9 +63,13 @@ properties:
     description: GPUs that make use of power domains can define this property
       instead of vdd-supply. Currently "nvidia,gp10b" makes use of this.
 
-  vdd-supply: true
+  vdd-supply:
+    description: GPU power supply.
 
-  iommus: {}
+  iommus:
+    description: The phandle of the IOMMU and the IOMMU specifier. See
+      ../iommu/iommu.txt for details.
+    $ref: "/schemas/types.yaml#/definitions/phandle-array"
 
   interconnects:
     $ref: /schemas/types.yaml#/definitions/phandle-array
@@ -126,6 +130,8 @@ allOf:
     then:
       required:
         - power-domains
+
+unevaluatedProperties: false
 
 examples:
   - |
