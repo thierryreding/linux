@@ -25,7 +25,9 @@ properties:
 
 required:
   - compatible
-  - '#pwm-cells'
+
+allOf:
+  - $ref: pwm.yaml#
 
 additionalProperties: false
 

@@ -89,7 +89,6 @@ required:
   - clock-names
   - compatible
   - interrupts
-  - "#pwm-cells"
   - reg
 
 additionalProperties: false

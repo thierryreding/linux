@@ -50,33 +50,34 @@ properties:
   resets:
     maxItems: 1
 
-if:
-  properties:
-    compatible:
-      contains:
-        const: allwinner,sun50i-h6-pwm
+allOf:
+  - $ref: pwm.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: allwinner,sun50i-h6-pwm
 
-then:
-  properties:
-    clocks:
-      maxItems: 2
+    then:
+      properties:
+        clocks:
+          maxItems: 2
 
-    clock-names:
-      items:
-        - const: mod
-        - const: bus
+        clock-names:
+          items:
+            - const: mod
+            - const: bus
 
-  required:
-    - clock-names
-    - resets
+      required:
+        - clock-names
+        - resets
 
-else:
-  properties:
-    clocks:
-      maxItems: 1
+    else:
+      properties:
+        clocks:
+          maxItems: 1
 
 required:
-  - "#pwm-cells"
   - compatible
   - reg
   - clocks
