@@ -133,6 +133,8 @@ properties:
       - pattern: "^mmc[0-9]+$"
         # LED is triggered by WLAN activity
       - pattern: "^phy[0-9]+tx$"
+        # LED is triggered by RFKILL switch
+      - pattern: "^rfkill[0-9]+$"
 
   led-pattern:
     description: |
