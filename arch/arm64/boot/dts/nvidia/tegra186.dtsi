@@ -62,7 +62,7 @@
 		reset-names = "eqos";
 		interconnects = <&mc TEGRA186_MEMORY_CLIENT_EQOSR &emc>,
 				<&mc TEGRA186_MEMORY_CLIENT_EQOSW &emc>;
-		interconnect-names = "read", "write";
+		interconnect-names = "dma-mem", "write";
 		iommus = <&smmu TEGRA186_SID_EQOS>;
 		status = "disabled";
 
