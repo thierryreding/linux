@@ -116,8 +116,8 @@
 			reg = <0x50>;
 
 			vcc-supply = <&vdd_1v8>;
-			address-bits = <8>;
-			page-size = <8>;
+			address-width = <8>;
+			pagesize = <8>;
 			size = <256>;
 			read-only;
 		};
@@ -127,8 +127,8 @@
 			reg = <0x57>;
 
 			vcc-supply = <&vdd_1v8>;
-			address-bits = <8>;
-			page-size = <8>;
+			address-width = <8>;
+			pagesize = <8>;
 			size = <256>;
 			read-only;
 		};
