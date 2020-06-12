@@ -1262,6 +1262,7 @@
 				<&mc TEGRA186_MEMORY_CLIENT_GPUSRD2 &emc>,
 				<&mc TEGRA186_MEMORY_CLIENT_GPUSWR2 &emc>;
 		interconnect-names = "dma-mem", "write-0", "read-1", "write-1";
+		iommus = <&smmu TEGRA186_SID_GPU>;
 	};
 
 	sram@30000000 {
