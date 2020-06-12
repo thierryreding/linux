@@ -1581,7 +1581,7 @@
 		status = "okay";
 	};
 
-	sdhci@700b0600 {
+	mmc@700b0600 {
 		bus-width = <8>;
 		non-removable;
 		status = "okay";
