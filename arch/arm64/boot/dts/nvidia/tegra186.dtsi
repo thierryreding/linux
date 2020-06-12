@@ -1257,11 +1257,11 @@
 		status = "disabled";
 
 		power-domains = <&bpmp TEGRA186_POWER_DOMAIN_GPU>;
-		interconnects = <&emc &mc TEGRA186_MEMORY_CLIENT_GPUSRD>,
+		interconnects = <&mc TEGRA186_MEMORY_CLIENT_GPUSRD &emc>,
 				<&mc TEGRA186_MEMORY_CLIENT_GPUSWR &emc>,
-				<&emc &mc TEGRA186_MEMORY_CLIENT_GPUSRD2>,
+				<&mc TEGRA186_MEMORY_CLIENT_GPUSRD2 &emc>,
 				<&mc TEGRA186_MEMORY_CLIENT_GPUSWR2 &emc>;
-		interconnect-names = "dma-mem", "dma-mem", "dma-mem", "dma-mem";
+		interconnect-names = "dma-mem", "write-0", "read-1", "write-1";
 	};
 
 	sysram@30000000 {
