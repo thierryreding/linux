@@ -61,7 +61,7 @@
 			reset-names = "eqos";
 			interconnects = <&mc TEGRA194_MEMORY_CLIENT_EQOSR &emc>,
 					<&mc TEGRA194_MEMORY_CLIENT_EQOSW &emc>;
-			interconnect-names = "dma-mem", "dma-mem";
+			interconnect-names = "dma-mem", "write";
 			status = "disabled";
 
 			snps,write-requests = <1>;
@@ -466,7 +466,7 @@
 			reset-names = "sdhci";
 			interconnects = <&mc TEGRA194_MEMORY_CLIENT_SDMMCRA &emc>,
 					<&mc TEGRA194_MEMORY_CLIENT_SDMMCWA &emc>;
-			interconnect-names = "dma-mem", "dma-mem";
+			interconnect-names = "dma-mem", "write";
 			nvidia,pad-autocal-pull-up-offset-3v3-timeout =
 									<0x07>;
 			nvidia,pad-autocal-pull-down-offset-3v3-timeout =
@@ -491,7 +491,7 @@
 			reset-names = "sdhci";
 			interconnects = <&mc TEGRA194_MEMORY_CLIENT_SDMMCR &emc>,
 					<&mc TEGRA194_MEMORY_CLIENT_SDMMCW &emc>;
-			interconnect-names = "dma-mem", "dma-mem";
+			interconnect-names = "dma-mem", "write";
 			nvidia,pad-autocal-pull-up-offset-1v8 = <0x00>;
 			nvidia,pad-autocal-pull-down-offset-1v8 = <0x7a>;
 			nvidia,pad-autocal-pull-up-offset-3v3-timeout = <0x07>;
@@ -521,7 +521,7 @@
 			reset-names = "sdhci";
 			interconnects = <&mc TEGRA194_MEMORY_CLIENT_SDMMCRAB &emc>,
 					<&mc TEGRA194_MEMORY_CLIENT_SDMMCWAB &emc>;
-			interconnect-names = "dma-mem", "dma-mem";
+			interconnect-names = "dma-mem", "write";
 			nvidia,pad-autocal-pull-up-offset-hs400 = <0x00>;
 			nvidia,pad-autocal-pull-down-offset-hs400 = <0x00>;
 			nvidia,pad-autocal-pull-up-offset-1v8-timeout = <0x0a>;
@@ -552,7 +552,7 @@
 			power-domains = <&bpmp TEGRA194_POWER_DOMAIN_DISP>;
 			interconnects = <&mc TEGRA194_MEMORY_CLIENT_HDAR &emc>,
 					<&mc TEGRA194_MEMORY_CLIENT_HDAW &emc>;
-			interconnect-names = "dma-mem", "dma-mem";
+			interconnect-names = "dma-mem", "write";
 			status = "disabled";
 		};
 
@@ -1090,7 +1090,7 @@
 					power-domains = <&bpmp TEGRA194_POWER_DOMAIN_DISP>;
 					interconnects = <&mc TEGRA194_MEMORY_CLIENT_NVDISPLAYR &emc>,
 							<&mc TEGRA194_MEMORY_CLIENT_NVDISPLAYR1 &emc>;
-					interconnect-names = "dma-mem", "dma-mem";
+					interconnect-names = "dma-mem", "read-1";
 
 					nvidia,outputs = <&sor0 &sor1 &sor2 &sor3>;
 					nvidia,head = <0>;
@@ -1108,7 +1108,7 @@
 					power-domains = <&bpmp TEGRA194_POWER_DOMAIN_DISPB>;
 					interconnects = <&mc TEGRA194_MEMORY_CLIENT_NVDISPLAYR &emc>,
 							<&mc TEGRA194_MEMORY_CLIENT_NVDISPLAYR1 &emc>;
-					interconnect-names = "dma-mem", "dma-mem";
+					interconnect-names = "dma-mem", "read-1";
 
 					nvidia,outputs = <&sor0 &sor1 &sor2 &sor3>;
 					nvidia,head = <1>;
@@ -1126,7 +1126,7 @@
 					power-domains = <&bpmp TEGRA194_POWER_DOMAIN_DISPC>;
 					interconnects = <&mc TEGRA194_MEMORY_CLIENT_NVDISPLAYR &emc>,
 							<&mc TEGRA194_MEMORY_CLIENT_NVDISPLAYR1 &emc>;
-					interconnect-names = "dma-mem", "dma-mem";
+					interconnect-names = "dma-mem", "read-1";
 
 					nvidia,outputs = <&sor0 &sor1 &sor2 &sor3>;
 					nvidia,head = <2>;
@@ -1144,7 +1144,7 @@
 					power-domains = <&bpmp TEGRA194_POWER_DOMAIN_DISPC>;
 					interconnects = <&mc TEGRA194_MEMORY_CLIENT_NVDISPLAYR &emc>,
 							<&mc TEGRA194_MEMORY_CLIENT_NVDISPLAYR1 &emc>;
-					interconnect-names = "dma-mem", "dma-mem";
+					interconnect-names = "dma-mem", "read-1";
 
 					nvidia,outputs = <&sor0 &sor1 &sor2 &sor3>;
 					nvidia,head = <3>;
@@ -1163,7 +1163,7 @@
 				power-domains = <&bpmp TEGRA194_POWER_DOMAIN_VIC>;
 				interconnects = <&mc TEGRA194_MEMORY_CLIENT_VICSRD &emc>,
 						<&mc TEGRA194_MEMORY_CLIENT_VICSWR &emc>;
-				interconnect-names = "dma-mem", "dma-mem";
+				interconnect-names = "dma-mem", "write";
 			};
 
 			dpaux0: dpaux@155c0000 {
@@ -1426,10 +1426,10 @@
 					<&mc TEGRA194_MEMORY_CLIENT_NVL4R &emc>,
 					<&mc TEGRA194_MEMORY_CLIENT_NVL4RHP &emc>,
 					<&mc TEGRA194_MEMORY_CLIENT_NVL4W &emc>;
-			interconnect-names = "dma-mem", "dma-mem", "dma-mem",
-					     "dma-mem", "dma-mem", "dma-mem",
-					     "dma-mem", "dma-mem", "dma-mem",
-					     "dma-mem", "dma-mem", "dma-mem";
+			interconnect-names = "dma-mem", "read-0-hp", "write-0",
+					     "read-1", "read-1-hp", "write-1",
+					     "read-2", "read-2-hp", "write-2",
+					     "read-3", "read-3-hp", "write-3";
 		};
 	};
 
@@ -1476,6 +1476,10 @@
 		ranges = <0x01000000 0x0  0x30100000 0x0  0x30100000 0x0 0x00100000>, /* downstream I/O (1MB) */
 			 <0x43000000 0x12 0x00000000 0x12 0x00000000 0x0 0x30000000>, /* prefetchable memory (768MB) */
 			 <0x02000000 0x0  0x40000000 0x12 0x30000000 0x0 0x10000000>; /* non-prefetchable memory (256MB) */
+
+		interconnects = <&mc TEGRA194_MEMORY_CLIENT_PCIE1R &emc>,
+				<&mc TEGRA194_MEMORY_CLIENT_PCIE1W &emc>;
+		interconnect-names = "read", "write";
 	};
 
 	pcie@14120000 {
@@ -1521,6 +1525,10 @@
 		ranges = <0x01000000 0x0  0x32100000 0x0  0x32100000 0x0 0x00100000>, /* downstream I/O (1MB) */
 			 <0x43000000 0x12 0x40000000 0x12 0x40000000 0x0 0x30000000>, /* prefetchable memory (768MB) */
 			 <0x02000000 0x0  0x40000000 0x12 0x70000000 0x0 0x10000000>; /* non-prefetchable memory (256MB) */
+
+		interconnects = <&mc TEGRA194_MEMORY_CLIENT_PCIE2AR &emc>,
+				<&mc TEGRA194_MEMORY_CLIENT_PCIE2AW &emc>;
+		interconnect-names = "read", "write";
 	};
 
 	pcie@14140000 {
@@ -1566,6 +1574,10 @@
 		ranges = <0x01000000 0x0  0x34100000 0x0  0x34100000 0x0 0x00100000>, /* downstream I/O (1MB) */
 			 <0x43000000 0x12 0x80000000 0x12 0x80000000 0x0 0x30000000>, /* prefetchable memory (768MB) */
 			 <0x02000000 0x0  0x40000000 0x12 0xb0000000 0x0 0x10000000>; /* non-prefetchable memory (256MB) */
+
+		interconnects = <&mc TEGRA194_MEMORY_CLIENT_PCIE3R &emc>,
+				<&mc TEGRA194_MEMORY_CLIENT_PCIE3W &emc>;
+		interconnect-names = "read", "write";
 	};
 
 	pcie@14160000 {
@@ -1611,6 +1623,10 @@
 		ranges = <0x01000000 0x0  0x36100000 0x0  0x36100000 0x0 0x00100000>, /* downstream I/O (1MB) */
 			 <0x43000000 0x14 0x00000000 0x14 0x00000000 0x3 0x40000000>, /* prefetchable memory (13GB) */
 			 <0x02000000 0x0  0x40000000 0x17 0x40000000 0x0 0xc0000000>; /* non-prefetchable memory (3GB) */
+
+		interconnects = <&mc TEGRA194_MEMORY_CLIENT_PCIE4R &emc>,
+				<&mc TEGRA194_MEMORY_CLIENT_PCIE4W &emc>;
+		interconnect-names = "read", "write";
 	};
 
 	pcie@14180000 {
@@ -1656,6 +1672,10 @@
 		ranges = <0x01000000 0x0  0x38100000 0x0  0x38100000 0x0 0x00100000>, /* downstream I/O (1MB) */
 			 <0x43000000 0x18 0x00000000 0x18 0x00000000 0x3 0x40000000>, /* prefetchable memory (13GB) */
 			 <0x02000000 0x0  0x40000000 0x1b 0x40000000 0x0 0xc0000000>; /* non-prefetchable memory (3GB) */
+
+		interconnects = <&mc TEGRA194_MEMORY_CLIENT_PCIE0R &emc>,
+				<&mc TEGRA194_MEMORY_CLIENT_PCIE0W &emc>;
+		interconnect-names = "read", "write";
 	};
 
 	pcie@141a0000 {
@@ -1705,6 +1725,10 @@
 		ranges = <0x01000000 0x0  0x3a100000 0x0  0x3a100000 0x0 0x00100000>, /* downstream I/O (1MB) */
 			 <0x43000000 0x1c 0x00000000 0x1c 0x00000000 0x3 0x40000000>, /* prefetchable memory (13GB) */
 			 <0x02000000 0x0  0x40000000 0x1f 0x40000000 0x0 0xc0000000>; /* non-prefetchable memory (3GB) */
+
+		interconnects = <&mc TEGRA194_MEMORY_CLIENT_PCIE5R &emc>,
+				<&mc TEGRA194_MEMORY_CLIENT_PCIE5W &emc>;
+		interconnect-names = "read", "write";
 	};
 
 	pcie_ep@14160000 {
@@ -1838,7 +1862,7 @@
 				<&mc TEGRA194_MEMORY_CLIENT_BPMPW &emc>,
 				<&mc TEGRA194_MEMORY_CLIENT_BPMPDMAR &emc>,
 				<&mc TEGRA194_MEMORY_CLIENT_BPMPDMAW &emc>;
-		interconnect-names = "dma-mem", "dma-mem", "dma-mem", "dma-mem";
+		interconnect-names = "read", "write", "dma-mem", "dma-write";
 
 		bpmp_i2c: i2c {
 			compatible = "nvidia,tegra186-bpmp-i2c";
