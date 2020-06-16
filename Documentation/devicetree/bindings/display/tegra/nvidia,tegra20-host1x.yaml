@@ -73,6 +73,18 @@ properties:
   iommus:
     maxItems: 1
 
+  interconnects:
+    description: Description of the interconnect paths for the host1x
+      controller; see ../interconnect/interconnect.txt for details.
+    items:
+      - description: memory read client for host1x
+
+  interconnect-names:
+    description: A list of names identifying each entry listed in the
+      "interconnects" property.
+    items:
+      - const: dma-mem # read
+
 required:
   - compatible
   - interrupts
@@ -596,6 +608,16 @@ allOf:
                 iommus:
                   maxItems: 1
 
+                interconnects:
+                  description: Description of the interconnect paths for the
+                    display controller; see ../interconnect/interconnect.txt
+                    for details.
+
+                interconnect-names:
+                  items:
+                    - const: dma-mem # read-0
+                    - const: read-1
+
                 nvidia,outputs:
                   description: A list of phandles of outputs that this display
                     controller can drive.
@@ -973,6 +995,18 @@ allOf:
 
             iommus:
               maxItems: 1
+
+            interconnects:
+              description: Description of the interconnect paths for the VIC;
+                see ../interconnect/interconnect.txt for details.
+              items:
+                - description: memory read client for VIC
+                - description: memory write client for VIC
+
+            interconnect-names:
+              items:
+                - const: dma-mem # read
+                - const: write
 
           unevaluatedProperties: false
 
