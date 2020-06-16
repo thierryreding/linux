@@ -476,6 +476,26 @@ allOf:
             iommus:
               maxItems: 1
 
+            #interconnects:
+            #  items:
+            #    - description: memory read client for window A
+            #    - description: memory read client for window B
+            #    - description: memory read client for window C
+            #    - description: memory read client for cursor
+            #    # disp only
+            #    - description: memory read client for window T
+            #    - description: memory read client for window D
+
+            #interconnect-names:
+            #  items:
+            #    - const: wina
+            #    - const: winb
+            #    - const: winc
+            #    - const: cursor
+            #    # disp only
+            #    - const: wint
+            #    - const: wind
+
             nvidia,head:
               description: The number of the display controller head. This is
                 used to setup the various types of output to receive video
