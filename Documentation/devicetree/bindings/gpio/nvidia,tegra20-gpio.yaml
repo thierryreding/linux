@@ -56,13 +56,6 @@ properties:
 
   interrupt-controller: true
 
-patternProperties:
-  # GPIO hogs; /schemas/gpio/gpio-hog.yaml will match
-  "^gpios(-[a-zA-Z0-9-]+)?$":
-    type: object
-    required:
-      - gpio-hog
-
 allOf:
   - if:
       properties:
@@ -89,7 +82,10 @@ required:
   - "#interrupt-cells"
   - interrupt-controller
 
-unevaluatedProperties: false
+unevaluatedProperties:
+  type: object
+  required:
+    - gpio-hog
 
 examples:
   - |
