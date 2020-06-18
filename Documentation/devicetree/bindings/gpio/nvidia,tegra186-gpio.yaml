@@ -93,6 +93,7 @@ properties:
 
   reg:
     items:
+      - description: Security configuration registers.
       - description: |
           GPIO control registers. This may cover either:
 
@@ -100,7 +101,6 @@ properties:
             b) All physical aliases that exist in the controller. This is
                appropriate when the OS is responsible for managing assignment
                of the physical aliases.
-      - description: Security configuration registers.
     minItems: 1
     maxItems: 2
 
@@ -109,9 +109,7 @@ properties:
       ports, in the order the HW manual describes them. The number of entries
       required varies depending on compatible value.
 
-  gpio-controller:
-    description: Marks the device node as a GPIO controller/provider.
-    type: boolean
+  gpio-controller: true
 
   "#gpio-cells":
     description: |
@@ -126,9 +124,7 @@ properties:
             - 1: Active-low (inverted).
     const: 2
 
-  interrupt-controller:
-    description: Marks the device node as an interrupt controller/provider.
-    type: boolean
+  interrupt-controller: true
 
   "#interrupt-cells":
     description: |
@@ -188,13 +184,13 @@ examples:
     gpio@2200000 {
         compatible = "nvidia,tegra186-gpio";
         reg-names = "security", "gpio";
-        reg = <0x0 0x2200000 0x0 0x10000>,
-              <0x0 0x2210000 0x0 0x10000>;
-        interrupts = <0 47 IRQ_TYPE_LEVEL_HIGH>,
-                     <0 50 IRQ_TYPE_LEVEL_HIGH>,
-                     <0 53 IRQ_TYPE_LEVEL_HIGH>,
-                     <0 56 IRQ_TYPE_LEVEL_HIGH>,
-                     <0 59 IRQ_TYPE_LEVEL_HIGH>,
+        reg = <0x2200000 0x10000>,
+              <0x2210000 0x10000>;
+        interrupts = <0  47 IRQ_TYPE_LEVEL_HIGH>,
+                     <0  50 IRQ_TYPE_LEVEL_HIGH>,
+                     <0  53 IRQ_TYPE_LEVEL_HIGH>,
+                     <0  56 IRQ_TYPE_LEVEL_HIGH>,
+                     <0  59 IRQ_TYPE_LEVEL_HIGH>,
                      <0 180 IRQ_TYPE_LEVEL_HIGH>;
         gpio-controller;
         #gpio-cells = <2>;
@@ -205,8 +201,8 @@ examples:
     gpio@c2f0000 {
         compatible = "nvidia,tegra186-gpio-aon";
         reg-names = "security", "gpio";
-        reg = <0x0 0xc2f0000 0x0 0x1000>,
-              <0x0 0xc2f1000 0x0 0x1000>;
+        reg = <0xc2f0000 0x1000>,
+              <0xc2f1000 0x1000>;
         interrupts = <0 60 IRQ_TYPE_LEVEL_HIGH>;
         gpio-controller;
         #gpio-cells = <2>;
