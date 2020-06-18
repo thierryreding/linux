@@ -54,22 +54,19 @@ properties:
       - description: GPU reset
 
   reset-names:
-    minItems: 1
-    maxItems: 1
     items:
       - const: gpu
 
   power-domains:
     description: GPUs that make use of power domains can define this property
       instead of vdd-supply. Currently "nvidia,gp10b" makes use of this.
+    maxItems: 1
 
   vdd-supply:
     description: GPU power supply.
 
   iommus:
-    description: The phandle of the IOMMU and the IOMMU specifier. See
-      ../iommu/iommu.txt for details.
-    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    maxItems: 1
 
 required:
   - compatible
@@ -123,8 +120,8 @@ examples:
 
     gpu@57000000 {
         compatible = "nvidia,gk20a";
-        reg = <0x0 0x57000000 0x0 0x01000000>,
-              <0x0 0x58000000 0x0 0x01000000>;
+        reg = <0x57000000 0x01000000>,
+              <0x58000000 0x01000000>;
         interrupts = <GIC_SPI 157 IRQ_TYPE_LEVEL_HIGH>,
                      <GIC_SPI 158 IRQ_TYPE_LEVEL_HIGH>;
         interrupt-names = "stall", "nonstall";
@@ -150,8 +147,8 @@ examples:
 
     gpu@57000000 {
         compatible = "nvidia,gm20b";
-        reg = <0x0 0x57000000 0x0 0x01000000>,
-              <0x0 0x58000000 0x0 0x01000000>;
+        reg = <0x57000000 0x01000000>,
+              <0x58000000 0x01000000>;
         interrupts = <GIC_SPI 157 IRQ_TYPE_LEVEL_HIGH>,
                      <GIC_SPI 158 IRQ_TYPE_LEVEL_HIGH>;
         interrupt-names = "stall", "nonstall";
@@ -174,8 +171,8 @@ examples:
 
     gpu@17000000 {
         compatible = "nvidia,gp10b";
-        reg = <0x0 0x17000000 0x0 0x1000000>,
-              <0x0 0x18000000 0x0 0x1000000>;
+        reg = <0x17000000 0x1000000>,
+              <0x18000000 0x1000000>;
         interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>,
                      <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
         interrupt-names = "stall", "nonstall";
