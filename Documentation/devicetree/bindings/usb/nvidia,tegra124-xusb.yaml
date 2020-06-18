@@ -17,22 +17,15 @@ description: |
 properties:
   compatible:
     oneOf:
-      - description: NVIDIA Tegra124
-        const: nvidia,tegra124-xusb
+      - enum:
+          - nvidia,tegra124-xusb
+          - nvidia,tegra210-xusb
+          - nvidia,tegra186-xusb
+          - nvidia,tegra194-xusb
 
-      - description: NVIDIA Tegra132
-        items:
+      - items:
           - const: nvidia,tegra132-xusb
           - const: nvidia,tegra124-xusb
-
-      - description: NVIDIA Tegra210
-        const: nvidia,tegra210-xusb
-
-      - description: NVIDIA Tegra186
-        const: nvidia,tegra186-xusb
-
-      - description: NVIDIA Tegra194
-        const: nvidia,tegra194-xusb
 
   reg:
     minItems: 1
@@ -60,7 +53,6 @@ properties:
       the USB pads used by the XHCI controller
     $ref: "/schemas/types.yaml#/definitions/phandle"
 
-  # optional
   "#address-cells":
     const: 1
 
@@ -80,14 +72,10 @@ properties:
       - const: xusb_src
 
   iommus:
-    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    maxItems: 1
 
-  phys:
-    description: Must contain an entry for each entry in phy-names. See
-      ../phy/phy-bindings.txt for details.
-
-  phy-names:
-    description: Should include an entry for each PHY used by the controller.
+  phys: true
+  phy-names: true
 
   power-domains:
     description: A list of PM domain specifiers that reference each
@@ -95,11 +83,13 @@ properties:
       of a specifier for the XUSBA and XUSBC power-domains. See
       ../power/power_domain.txt and ../arm/tegra/nvidia,tegra20-pmc.txt
       for details.
+    maxItems: 2
 
   power-domain-names:
     description: A list of names that represent each of the specifiers
       in the 'power-domains' property. See ../power/power_domain.txt for
       details.
+    maxItems: 2
 
 patternProperties:
   # USB device nodes can have arbitrary names, but always need a unit-address
@@ -316,9 +306,9 @@ examples:
 
     usb@0,70090000 {
         compatible = "nvidia,tegra124-xusb";
-        reg = <0x0 0x70090000 0x0 0x8000>,
-              <0x0 0x70098000 0x0 0x1000>,
-              <0x0 0x70099000 0x0 0x1000>;
+        reg = <0x70090000 0x8000>,
+              <0x70098000 0x1000>,
+              <0x70099000 0x1000>;
         reg-names = "hcd", "fpci", "ipfs";
 
         interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>,
