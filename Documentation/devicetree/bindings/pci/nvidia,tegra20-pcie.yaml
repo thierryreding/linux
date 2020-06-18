@@ -13,25 +13,16 @@ maintainers:
 properties:
   compatible:
     oneOf:
-      - description: NVIDIA Tegra20
-        const: nvidia,tegra20-pcie
+      - enum:
+          - nvidia,tegra20-pcie
+          - nvidia,tegra30-pcie
+          - nvidia,tegra124-pcie
+          - nvidia,tegra210-pcie
+          - nvidia,tegra186-pcie
 
-      - description: NVIDIA Tegra30
-        const: nvidia,tegra30-pcie
-
-      - description: NVIDIA Tegra124
-        const: nvidia,tegra124-pcie
-
-      - description: NVIDIA Tegra132
-        items:
+      - items:
           - const: nvidia,tegra132-pcie
           - const: nvidia,tegra124-pcie
-
-      - description: NVIDIA Tegra210
-        const: nvidia,tegra210-pcie
-
-      - description: NVIDIA Tegra186
-        const: nvidia,tegra186-pcie
 
   reg:
     items:
@@ -102,7 +93,7 @@ properties:
       - const: pcie_x
 
   iommus:
-    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    maxItems: 1
 
   pinctrl-names:
     items:
