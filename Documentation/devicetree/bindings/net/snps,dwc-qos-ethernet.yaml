@@ -80,17 +80,15 @@ properties:
     description: A list of names corresponding to each entry in the resets
       property.
 
-  dma-coherent:
-    description: Present if DMA operations are coherent.
-    $ref: "/schemas/types.yaml#/definitions/flag"
+  dma-coherent: true
 
   iommus:
-    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    maxItems: 1
 
   phy-reset-gpios:
     description: A list of phandle and specifier for any GPIO used to reset
       the PHY. See ../gpio/gpio.txt.
-    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    maxItems: 1
 
   snps,en-lpi:
     description: If present it enables use of the AXI low-power interface.
