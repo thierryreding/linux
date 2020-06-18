@@ -14,41 +14,20 @@ description: The host1x top-level node defines a number of children, each
   representing one of the host1x client modules defined in this binding.
 
 properties:
-  # required
   compatible:
     oneOf:
-      - description: NVIDIA Tegra20
-        items:
-          - const: nvidia,tegra20-host1x
+      - enum:
+          - nvidia,tegra20-host1x
+          - nvidia,tegra30-host1x
+          - nvidia,tegra114-host1x
+          - nvidia,tegra124-host1x
+          - nvidia,tegra210-host1x
+          - nvidia,tegra186-host1x
+          - nvidia,tegra194-host1x
 
-      - description: NVIDIA Tegra30
-        items:
-          - const: nvidia,tegra30-host1x
-
-      - description: NVIDIA Tegra114
-        items:
-          - const: nvidia,tegra114-host1x
-
-      - description: NVIDIA Tegra124
-        items:
-          - const: nvidia,tegra124-host1x
-
-      - description: NVIDIA Tegra132
-        items:
+      - items:
           - const: nvidia,tegra132-host1x
           - const: nvidia,tegra124-host1x
-
-      - description: NVIDIA Tegra210
-        items:
-          - const: nvidia,tegra210-host1x
-
-      - description: NVIDIA Tegra186
-        items:
-          - const: nvidia,tegra186-host1x
-
-      - description: NVIDIA Tegra194
-        items:
-          - const: nvidia,tegra194-host1x
 
   interrupts:
     items:
@@ -72,10 +51,8 @@ properties:
       range in the host1x address space.
     enum: [1, 2]
 
-  # required
   ranges:
-    description: The mapping of the host1x address space to the CPU address
-      space.
+    maxItems: 1
 
   clocks:
     description: Must contain one entry, for the module clock. See
@@ -93,9 +70,8 @@ properties:
     items:
       - const: host1x
 
-  # optional
   iommus:
-    $ref: "/schemas/iommu/iommu.yaml#/properties/iommus"
+    maxItems: 1
 
 required:
   - compatible
@@ -145,11 +121,11 @@ allOf:
       properties:
         compatible:
           contains:
-            oneOf:
-              - const: nvidia,tegra20-host1x
-              - const: nvidia,tegra30-host1x
-              - const: nvidia,tegra114-host1x
-              - const: nvidia,tegra124-host1x
+            enum:
+              - nvidia,tegra20-host1x
+              - nvidia,tegra30-host1x
+              - nvidia,tegra114-host1x
+              - nvidia,tegra124-host1x
 
     then:
       patternProperties:
@@ -159,10 +135,12 @@ allOf:
           properties:
             compatible:
               oneOf:
-                - const: nvidia,tegra20-vi
-                - const: nvidia,tegra30-vi
-                - const: nvidia,tegra114-vi
-                - const: nvidia,tegra124-vi
+                - enum:
+                  - nvidia,tegra20-vi
+                  - nvidia,tegra30-vi
+                  - nvidia,tegra114-vi
+                  - nvidia,tegra124-vi
+
                 - items:
                     - const: nvidia,tegra132-vi
                     - const: nvidia,tegra124-vi
@@ -188,10 +166,10 @@ allOf:
           type: object
           properties:
             compatible:
-              oneOf:
-                - const: nvidia,tegra210-vi
-                - const: nvidia,tegra186-vi
-                - const: nvidia,tegra194-vi
+              enum:
+                - nvidia,tegra210-vi
+                - nvidia,tegra186-vi
+                - nvidia,tegra194-vi
 
             reg:
               maxItems: 1
@@ -202,17 +180,18 @@ allOf:
             clocks:
               maxItems: 1
 
-            power-domains: true
+            power-domains:
+              maxItems: 1
 
   - if:
       properties:
         compatible:
           contains:
-            oneOf:
-              - const: nvidia,tegra210-host1x
+            const: nvidia,tegra210-host1x
     then:
       patternProperties:
         "^vi@[0-9a-f]+$":
+          type: object
           patternProperties:
             "^csi@[0-9a-f]+$":
               description: camera sensor interface
@@ -234,7 +213,8 @@ allOf:
                     - const: cile
                     - const: csi_tpg
 
-                power-domains: true
+                power-domains:
+                  maxItems: 1
 
   - if:
       properties:
@@ -274,9 +254,9 @@ allOf:
                 - const: epp
 
             iommus:
-              $ref: "/schemas/iommu/iommu.yaml#/properties/iommus"
+              maxItems: 1
 
-          unevaluatedProperties: false
+          additionalProperties: false
 
         "^mpe@[0-9a-f]+$":
           description: video encoder
@@ -309,9 +289,9 @@ allOf:
                 - const: mpe
 
             iommus:
-              $ref: "/schemas/iommu/iommu.yaml#/properties/iommus"
+              maxItems: 1
 
-          unevaluatedProperties: false
+          additionalProperties: false
 
         "^gr2d@[0-9a-f]+$":
           description: 2D graphics engine
@@ -341,9 +321,9 @@ allOf:
                 - const: 2d
 
             iommus:
-              $ref: "/schemas/iommu/iommu.yaml#/properties/iommus"
+              maxItems: 1
 
-          unevaluatedProperties: false
+          additionalProperties: false
 
         "^gr3d@[0-9a-f]+$":
           description: 3D graphics engine
@@ -359,7 +339,7 @@ allOf:
               maxItems: 1
 
             iommus:
-              $ref: "/schemas/iommu/iommu.yaml#/properties/iommus"
+              maxItems: 1
 
           allOf:
             - if:
@@ -412,7 +392,6 @@ allOf:
           description: TV encoder output
           type: object
           properties:
-            # required
             compatible:
               enum:
                 - nvidia,tegra20-tvo
@@ -428,10 +407,7 @@ allOf:
             clocks:
               maxItems: 1
 
-            status:
-              $ref: "/schemas/dt-core.yaml#/properties/status"
-
-          unevaluatedProperties: false
+          additionalProperties: false
 
   - if:
       properties:
@@ -452,14 +428,16 @@ allOf:
           properties:
             compatible:
               oneOf:
-                - const: nvidia,tegra20-dc
-                - const: nvidia,tegra30-dc
-                - const: nvidia,tegra114-dc
-                - const: nvidia,tegra124-dc
+                - enum:
+                    - nvidia,tegra20-dc
+                    - nvidia,tegra30-dc
+                    - nvidia,tegra114-dc
+                    - nvidia,tegra124-dc
+                    - nvidia,tegra210-dc
+
                 - items:
                     - const: nvidia,tegra124-dc
                     - const: nvidia,tegra132-dc
-                - const: nvidia,tegra210-dc
 
             reg:
               maxItems: 1
@@ -484,7 +462,7 @@ allOf:
                 - const: dc
 
             iommus:
-              $ref: "/schemas/types.yaml#/definitions/phandle-array"
+              maxItems: 1
 
             nvidia,head:
               description: The number of the display controller head. This is
@@ -517,7 +495,7 @@ allOf:
                       nvidia,hpd-gpio:
                         description: specifies a GPIO used for hotplug
                           detection
-                        $ref: "/schemas/types.yaml#/definitions/phandle-array"
+                        maxItems: 1
 
                       nvidia,edid:
                         description: supplies a binary EDID blob
@@ -541,12 +519,9 @@ allOf:
         "^display-hub@[0-9a-f]+$":
           properties:
             compatible:
-              oneOf:
-                - description: NVIDIA Tegra186
-                  const: nvidia,tegra186-display
-
-                - description: NVIDIA Tegra194
-                  const: nvidia,tegra194-display
+              enum:
+                - nvidia,tegra186-display
+                - nvidia,tegra194-display
 
             '#address-cells':
               const: 1
@@ -559,12 +534,6 @@ allOf:
 
             interrupts:
               maxItems: 1
-
-            ranges:
-              $ref: "/schemas/dt-core.yaml#/properties/ranges"
-
-            status:
-              $ref: "/schemas/dt-core.yaml#/properties/status"
 
             resets:
               items:
@@ -587,7 +556,7 @@ allOf:
                 - const: wgrp5
 
             power-domains:
-              $ref: "/schemas/types.yaml#/definitions/phandle-array"
+              maxItems: 1
 
           patternProperties:
             "^display@[0-9a-f]+$":
@@ -622,14 +591,10 @@ allOf:
                     - const: dc
 
                 power-domains:
-                  description: A list of phandle and specifiers that identify
-                    the power domains that this display controller is part of.
-                  $ref: "/schemas/types.yaml#/definitions/phandle-array"
+                  maxItems: 1
 
                 iommus:
-                  description: a phandle and specifier identifying the SMMU
-                    master interface of this display controller.
-                  $ref: "/schemas/types.yaml#/definitions/phandle-array"
+                  maxItems: 1
 
                 nvidia,outputs:
                   description: A list of phandles of outputs that this display
@@ -692,13 +657,14 @@ allOf:
           description: High Definition Multimedia Interface
           type: object
           properties:
-            # required
             compatible:
               oneOf:
-                - const: nvidia,tegra20-hdmi
-                - const: nvidia,tegra30-hdmi
-                - const: nvidia,tegra114-hdmi
-                - const: nvidia,tegra124-hdmi
+                - enum:
+                    - nvidia,tegra20-hdmi
+                    - nvidia,tegra30-hdmi
+                    - nvidia,tegra114-hdmi
+                    - nvidia,tegra124-hdmi
+
                 - items:
                     - const: nvidia,tegra132-hdmi
                     - const: nvidia,tegra124-hdmi
@@ -735,7 +701,6 @@ allOf:
             pll-supply:
               description: regulator for PLL
 
-            # optional
             nvidia,ddc-i2c-bus:
               description: phandle of an I2C controller used for DDC EDID
                 probing
@@ -743,7 +708,7 @@ allOf:
 
             nvidia,hpd-gpio:
               description: specifies a GPIO used for hotplug detection
-              $ref: "/schemas/types.yaml#/definitions/phandle-array"
+              maxItems: 1
 
             nvidia,edid:
               description: supplies a binary EDID blob
@@ -752,12 +717,6 @@ allOf:
             nvidia,panel:
               description: phandle of a display panel
               $ref: "/schemas/types.yaml#/definitions/phandle"
-
-            status:
-              $ref: "/schemas/dt-core.yaml#/properties/status"
-
-            phandle:
-              $ref: "/schemas/types.yaml#/definitions/uint32"
 
           unevaluatedProperties: false
 
@@ -781,18 +740,19 @@ allOf:
             regarding the DPAUX pad controller bindings.
           type: object
           properties:
-            # required
             compatible:
               oneOf:
-                - const: nvidia,tegra124-sor
+                - enum:
+                    - nvidia,tegra124-sor
+                    - nvidia,tegra210-sor
+                    - nvidia,tegra210-sor1
+                    - nvidia,tegra186-sor
+                    - nvidia,tegra186-sor1
+                    - nvidia,tegra194-sor
+
                 - items:
                     - const: nvidia,tegra132-sor
                     - const: nvidia,tegra124-sor
-                - const: nvidia,tegra210-sor
-                - const: nvidia,tegra210-sor1
-                - const: nvidia,tegra186-sor
-                - const: nvidia,tegra186-sor1
-                - const: nvidia,tegra194-sor
 
             reg:
               maxItems: 1
@@ -808,11 +768,8 @@ allOf:
               items:
                 - const: sor
 
-            status:
-              $ref: "/schemas/dt-core.yaml#/properties/status"
-
             power-domains:
-              $ref: "/schemas/types.yaml#/definitions/phandle-array"
+              maxItems: 1
 
             avdd-io-hdmi-dp-supply:
               description: I/O supply for HDMI/DP
@@ -828,7 +785,6 @@ allOf:
               description: index of the SOR interface
               $ref: "/schemas/types.yaml#/definitions/uint32"
 
-            # optional
             nvidia,ddc-i2c-bus:
               description: phandle of an I2C controller used for DDC EDID
                 probing
@@ -836,7 +792,7 @@ allOf:
 
             nvidia,hpd-gpio:
               description: specifies a GPIO used for hotplug detection
-              $ref: "/schemas/types.yaml#/definitions/phandle-array"
+              maxItems: 1
 
             nvidia,edid:
               description: supplies a binary EDID blob
@@ -859,8 +815,7 @@ allOf:
               $ref: "/schemas/types.yaml#/definitions/phandle"
 
             pinctrl-names: true
-            phandle:
-              $ref: "/schemas/types.yaml#/definitions/uint32"
+            phandle: true
 
           patternProperties:
             "^pinctrl-[0-9]+$": true
@@ -924,13 +879,15 @@ allOf:
           properties:
             compatible:
               oneOf:
-                - const: nvidia,tegra124-dpaux
+                - enum:
+                    - nvidia,tegra124-dpaux
+                    - nvidia,tegra210-dpaux
+                    - nvidia,tegra186-dpaux
+                    - nvidia,tegra194-dpaux
+
                 - items:
                     - const: nvidia,tegra132-dpaux
                     - const: nvidia,tegra124-dpaux
-                - const: nvidia,tegra210-dpaux
-                - const: nvidia,tegra186-dpaux
-                - const: nvidia,tegra194-dpaux
 
             reg:
               maxItems: 1
@@ -956,14 +913,8 @@ allOf:
               items:
                 - const: dpaux
 
-            status:
-              $ref: "/schemas/dt-core.yaml#/properties/status"
-
-            phandle:
-              $ref: "/schemas/types.yaml#/definitions/uint32"
-
             power-domains:
-              $ref: "/schemas/types.yaml#/definitions/phandle-array"
+              maxItems: 1
 
             i2c-bus:
               description: Subnode where I2C slave devices are listed. This
@@ -985,13 +936,15 @@ allOf:
           properties:
             compatible:
               oneOf:
-                - const: nvidia,tegra124-vic
+                - enum:
+                    - nvidia,tegra124-vic
+                    - nvidia,tegra210-vic
+                    - nvidia,tegra186-vic
+                    - nvidia,tegra194-vic
+
                 - items:
                     - const: nvidia,tegra132-vic
                     - const: nvidia,tegra124-vic
-                - const: nvidia,tegra210-vic
-                - const: nvidia,tegra186-vic
-                - const: nvidia,tegra194-vic
 
             reg:
               maxItems: 1
@@ -1016,10 +969,10 @@ allOf:
                 - const: vic
 
             power-domains:
-              $ref: "/schemas/types.yaml#/definitions/phandle-array"
+              maxItems: 1
 
             iommus:
-              $ref: "/schemas/types.yaml#/definitions/phandle-array"
+              maxItems: 1
 
           unevaluatedProperties: false
 
@@ -1040,24 +993,19 @@ allOf:
           description: display serial interface
           type: object
           properties:
-            # required
             compatible:
               oneOf:
-                - const: nvidia,tegra20-dsi
-                - const: nvidia,tegra30-dsi
-                - const: nvidia,tegra114-dsi
-                - const: nvidia,tegra124-dsi
+                - enum:
+                    - nvidia,tegra20-dsi
+                    - nvidia,tegra30-dsi
+                    - nvidia,tegra114-dsi
+                    - nvidia,tegra124-dsi
+                    - nvidia,tegra210-dsi
+                    - nvidia,tegra186-dsi
+
                 - items:
                     - const: nvidia,tegra132-dsi
                     - const: nvidia,tegra124-dsi
-                - const: nvidia,tegra210-dsi
-                - const: nvidia,tegra186-dsi
-
-            status:
-              $ref: "/schemas/dt-core.yaml#/properties/status"
-
-            phandle:
-              $ref: "/schemas/types.yaml#/definitions/uint32"
 
             '#address-cells':
               const: 1
@@ -1080,11 +1028,10 @@ allOf:
                 - const: dsi
 
             power-domains:
-              $ref: "/schemas/types.yaml#/definitions/phandle-array"
+              maxItems: 1
 
             avdd-dsi-csi-supply:
               description: phandle of a supply that powers the DSI controller
-              $ref: "/schemas/types.yaml#/definitions/phandle"
 
             nvidia,mipi-calibrate:
               description: Should contain a phandle and a specifier specifying
@@ -1092,7 +1039,6 @@ allOf:
                 calibrated. See also ../display/tegra/nvidia,tegra114-mipi.txt.
               $ref: "/schemas/types.yaml#/definitions/phandle-array"
 
-            # optional
             nvidia,ddc-i2c-bus:
               description: phandle of an I2C controller used for DDC EDID
                 probing
@@ -1100,7 +1046,7 @@ allOf:
 
             nvidia,hpd-gpio:
               description: specifies a GPIO used for hotplug detection
-              $ref: "/schemas/types.yaml#/definitions/phandle-array"
+              maxItems: 1
 
             nvidia,edid:
               description: supplies a binary EDID blob
@@ -1207,10 +1153,7 @@ allOf:
               const: nvidia,tegra186-dsi-padctl
 
             reg:
-              $ref: "/schemas/dt-core.yaml#/properties/reg"
-
-            status:
-              $ref: "/schemas/dt-core.yaml#/properties/status"
+              maxItems: 1
 
 examples:
   - |
@@ -1295,7 +1238,6 @@ examples:
                 reset-names = "dc";
 
                 rgb {
-                        status = "disabled";
                 };
         };
 
@@ -1309,7 +1251,6 @@ examples:
                 reset-names = "dc";
 
                 rgb {
-                        status = "disabled";
                 };
         };
 
@@ -1322,7 +1263,6 @@ examples:
                 clock-names = "hdmi", "parent";
                 resets = <&tegra_car 51>;
                 reset-names = "hdmi";
-                status = "disabled";
         };
 
         tvo@542c0000 {
@@ -1330,7 +1270,6 @@ examples:
                 reg = <0x542c0000 0x00040000>;
                 interrupts = <0 76 0x04>;
                 clocks = <&tegra_car TEGRA20_CLK_TVO>;
-                status = "disabled";
         };
 
         dsi@54300000 {
@@ -1341,7 +1280,6 @@ examples:
                 clock-names = "dsi", "parent";
                 resets = <&tegra_car 48>;
                 reset-names = "dsi";
-                status = "disabled";
         };
     };
 
