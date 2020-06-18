@@ -21,31 +21,18 @@ properties:
   # required properties
   compatible:
     oneOf:
-      - description: NVIDIA Tegra20
-        const: nvidia,tegra20-sdhci
+      - enum:
+          - nvidia,tegra20-sdhci
+          - nvidia,tegra30-sdhci
+          - nvidia,tegra114-sdhci
+          - nvidia,tegra124-sdhci
+          - nvidia,tegra210-sdhci
+          - nvidia,tegra186-sdhci
+          - nvidia,tegra194-sdhci
 
-      - description: NVIDIA Tegra30
-        const: nvidia,tegra30-sdhci
-
-      - description: NVIDIA Tegra114
-        const: nvidia,tegra114-sdhci
-
-      - description: NVIDIA Tegra124
-        const: nvidia,tegra124-sdhci
-
-      - description: NVIDIA Tegra132
-        items:
+      - items:
           - const: nvidia,tegra132-sdhci
           - const: nvidia,tegra124-sdhci
-
-      - description: NVIDIA Tegra210
-        const: nvidia,tegra210-sdhci
-
-      - description: NVIDIA Tegra186
-        const: nvidia,tegra186-sdhci
-
-      - description: NVIDIA Tegra194
-        const: nvidia,tegra194-sdhci
 
   reg:
     maxItems: 1
@@ -53,14 +40,9 @@ properties:
   interrupts:
     maxItems: 1
 
-  assigned-clocks:
-    $ref: "/schemas/types.yaml#/definitions/phandle-array"
-
-  assigned-clock-parents:
-    $ref: "/schemas/types.yaml#/definitions/phandle-array"
-
-  assigned-clock-rates:
-    $ref: "/schemas/types.yaml#/definitions/uint32-array"
+  assigned-clocks: true
+  assigned-clock-parents: true
+  assigned-clock-rates: true
 
   clocks:
     items:
@@ -78,13 +60,12 @@ properties:
     items:
       - const: sdhci
 
-  # optional properties
   power-gpios:
     description: specify GPIOs for power control
-    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    maxItems: 1
 
   iommus:
-    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    maxItems: 1
 
   nvidia,default-tap:
     description: Specify the default inbound sampling clock trimmer value for
