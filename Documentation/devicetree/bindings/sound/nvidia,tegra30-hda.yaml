@@ -13,46 +13,38 @@ maintainers:
 properties:
   compatible:
     oneOf:
-      - description: NVIDIA Tegra30
-        const: nvidia,tegra30-hda
+      - const: nvidia,tegra30-hda
 
-      - description: NVIDIA Tegra114
-        items:
+      - items:
           - const: nvidia,tegra114-hda
           - const: nvidia,tegra30-hda
 
-      - description: NVIDIA Tegra124
-        items:
+      - items:
           - const: nvidia,tegra124-hda
           - const: nvidia,tegra30-hda
 
-      - description: NVIDIA Tegra132
-        items:
+      - items:
           - const: nvidia,tegra132-hda
           - const: nvidia,tegra124-hda
           - const: nvidia,tegra30-hda
 
-      - description: NVIDIA Tegra210
-        items:
+      - items:
           - const: nvidia,tegra210-hda
           - const: nvidia,tegra30-hda
 
-      - description: NVIDIA Tegra186
-        items:
+      - items:
           - const: nvidia,tegra186-hda
           - const: nvidia,tegra30-hda
 
-      - description: NVIDIA Tegra194
-        items:
+      - items:
           - const: nvidia,tegra194-hda
           - const: nvidia,tegra30-hda
 
   reg:
-    description: base address and size of the register region for the HDA
-      controller
+    maxItems: 1
 
   interrupts:
-    description: interrupt from the HDA controller
+    maxItems: 1
 
   clocks:
     items:
@@ -81,14 +73,10 @@ properties:
         - hda2codec_2x
 
   power-domains:
-    description: A list of PM domain specifiers that reference each
-      power-domain used by the xHCI controller. This list must comprise
-      of a specifier for the XUSBA and XUSBC power-domains. See
-      ../power/power_domain.txt and ../arm/tegra/nvidia,tegra20-pmc.txt
-      for details.
+    maxItems: 1
 
   iommus:
-    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    maxItems: 1
 
   nvidia,model:
     description: The user-visible name of this sound complex. Since the
@@ -114,7 +102,7 @@ examples:
 
     hda@70030000 {
         compatible = "nvidia,tegra124-hda", "nvidia,tegra30-hda";
-        reg = <0x0 0x70030000 0x0 0x10000>;
+        reg = <0x70030000 0x10000>;
         interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
         clocks = <&tegra_car TEGRA124_CLK_HDA>,
                  <&tegra_car TEGRA124_CLK_HDA2HDMI>,
