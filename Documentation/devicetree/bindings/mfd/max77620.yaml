@@ -33,11 +33,9 @@ properties:
     maxItems: 1
 
   interrupts:
-    description: The interrupt on the parent the controller is connected to.
-    $ref: "/schemas/types.yaml#/definitions/uint32-array"
+    maxItems: 1
 
-  interrupt-controller:
-    description: Marks the device node as an interrupt controller.
+  interrupt-controller: true
 
   "#interrupt-cells":
     description: Must be 2 and their usage is compliant to the 2 cells
@@ -59,9 +57,7 @@ properties:
     $ref: "/schemas/types.yaml#/definitions/uint32"
     const: 2
 
-  gpio-controller:
-    description: Marks the device node as a GPIO controller.
-    type: boolean
+  gpio-controller: true
 
   "#thermal-sensor-cells":
     description: Please refer to ../thermal/thermal.txt for more details.
@@ -300,122 +296,117 @@ properties:
             $ref: "/schemas/types.yaml#/definitions/uint32"
             enum: [ 5000, 13750, 27500, 55000, 100000 ]
 
-patternProperties:
-  "^gpio(@[0-9]+)?$":
-    type: object
-    properties:
-      gpio-hog:
-        $ref: "/schemas/types.yaml#/definitions/flag"
+unevaluatedProperties:
+  oneOf:
+    - type: object
+      required:
+        - gpio-hog
 
-      output-high:
-        $ref: "/schemas/types.yaml#/definitions/flag"
+    - type: object
+      properties:
+        $nodename:
+          pattern: "^pinmux(@[0-9]+)?$"
 
-      gpios:
-        $ref: "/schemas/types.yaml#/definitions/uint32-matrix"
+        phandle: true
+      patternProperties:
+        "^gpio[0-7_]+$":
+          type: object
+          properties:
+            pins:
+              items:
+                pattern: "^gpio[0-7]$"
+              minItems: 1
+              maxItems: 8
 
-  "^pinmux(@[0-9]+)?$":
-    type: object
-    patternProperties:
-      "^gpio[0-7_]+$":
-        type: object
-        properties:
-          pins:
-            items:
-              pattern: "^gpio[0-7]$"
-            minItems: 1
-            maxItems: 8
+            function:
+              $ref: "/schemas/types.yaml#/definitions/string"
+              enum:
+                - gpio
+                - lpm-control-in
+                - fps-out
+                - 32k-out1
+                - sd0-dvs-in
+                - sd1-dvs-in
+                - reference-out
 
-          function:
-            $ref: "/schemas/types.yaml#/definitions/string"
-            enum:
-              - gpio
-              - lpm-control-in
-              - fps-out
-              - 32k-out1
-              - sd0-dvs-in
-              - sd1-dvs-in
-              - reference-out
+            drive-push-pull:
+              $ref: "/schemas/types.yaml#/definitions/uint32"
+              enum: [ 0, 1 ]
 
-          drive-push-pull:
-            $ref: "/schemas/types.yaml#/definitions/uint32"
-            enum: [ 0, 1 ]
+            drive-open-drain:
+              $ref: "/schemas/types.yaml#/definitions/uint32"
+              enum: [ 0, 1 ]
 
-          drive-open-drain:
-            $ref: "/schemas/types.yaml#/definitions/uint32"
-            enum: [ 0, 1 ]
+            bias-pull-up:
+              $ref: "/schemas/types.yaml#/definitions/uint32"
+              enum: [ 0, 1 ]
 
-          bias-pull-up:
-            $ref: "/schemas/types.yaml#/definitions/uint32"
-            enum: [ 0, 1 ]
+            bias-pull-down:
+              $ref: "/schemas/types.yaml#/definitions/uint32"
+              enum: [ 0, 1 ]
 
-          bias-pull-down:
-            $ref: "/schemas/types.yaml#/definitions/uint32"
-            enum: [ 0, 1 ]
+            maxim,active-fps-source:
+              description: |
+                FPS source for the GPIOs to get enabled/disabled when the system
+                is in active state. Valid values are:
 
-          maxim,active-fps-source:
-            description: |
-              FPS source for the GPIOs to get enabled/disabled when the system
-              is in active state. Valid values are:
+                  - MAX77620_FPS_SRC_0: FPS source is FPS0.
+                  - MAX77620_FPS_SRC_1: FPS source is FPS1.
+                  - MAX77620_FPS_SRC_2: FPS source is FPS2.
+                  - MAX77620_FPS_SRC_NONE: GPIO is not controlled by FPS events
+                      and it gets enabled/disabled by register access.
 
-                - MAX77620_FPS_SRC_0: FPS source is FPS0.
-                - MAX77620_FPS_SRC_1: FPS source is FPS1.
-                - MAX77620_FPS_SRC_2: FPS source is FPS2.
-                - MAX77620_FPS_SRC_NONE: GPIO is not controlled by FPS events
-                    and it gets enabled/disabled by register access.
+                Absence of this property will leave the FPS configuration
+                register for that GPIO at the default value.
+              $ref: "/schemas/types.yaml#/definitions/uint32"
+              enum: [ 0, 1, 2, 3, 4 ]
 
-              Absence of this property will leave the FPS configuration
-              register for that GPIO at the default value.
-            $ref: "/schemas/types.yaml#/definitions/uint32"
-            enum: [ 0, 1, 2, 3, 4 ]
+            maxim,active-fps-power-up-slot:
+              description: Sequencing event slot number on which the GPIO gets
+                enabled when master FPS input event set to HIGH. Valid values
+                are 0 to 7. This is applicable if FPS source is selected as
+                FPS0, FPS1 or FPS2.
+              $ref: "/schemas/types.yaml#/definitions/uint32"
+              enum: [ 0, 1, 2, 3, 4, 5, 6, 7 ]
 
-          maxim,active-fps-power-up-slot:
-            description: Sequencing event slot number on which the GPIO gets
-              enabled when master FPS input event set to HIGH. Valid values
-              are 0 to 7. This is applicable if FPS source is selected as
-              FPS0, FPS1 or FPS2.
-            $ref: "/schemas/types.yaml#/definitions/uint32"
-            enum: [ 0, 1, 2, 3, 4, 5, 6, 7 ]
+            maxim,active-fps-power-down-slot:
+              description: Sequencing event slot number on which the GPIO gets
+                disabled when master FPS input event set to LOW. Valid values
+                are 0 to 7. This is applicable if FPS source is selected as
+                FPS0, FPS1 or FPS2.
+              $ref: "/schemas/types.yaml#/definitions/uint32"
+              enum: [ 0, 1, 2, 3, 4, 5, 6, 7 ]
 
-          maxim,active-fps-power-down-slot:
-            description: Sequencing event slot number on which the GPIO gets
-              disabled when master FPS input event set to LOW. Valid values
-              are 0 to 7. This is applicable if FPS source is selected as
-              FPS0, FPS1 or FPS2.
-            $ref: "/schemas/types.yaml#/definitions/uint32"
-            enum: [ 0, 1, 2, 3, 4, 5, 6, 7 ]
+            maxim,suspend-fps-source:
+              description: This is same as "maxim,active-fps-source" but the
+                value gets configured when the system enters suspend.
+              $ref: "/schemas/types.yaml#/definitions/uint32"
+              enum: [ 0, 1, 2, 3, 4 ]
 
-          maxim,suspend-fps-source:
-            description: This is same as "maxim,active-fps-source" but the
-              value gets configured when the system enters suspend.
-            $ref: "/schemas/types.yaml#/definitions/uint32"
-            enum: [ 0, 1, 2, 3, 4 ]
+            maxim,suspend-fps-power-up-slot:
+              description: This is same as "maxim,active-fps-power-up-slot" but
+                the value gets configured when the system enters suspend. This
+                is applicable if the suspend state FPS source is selected as
+                FPS0, FPS1 or FPS2.
+              $ref: "/schemas/types.yaml#/definitions/uint32"
+              enum: [ 0, 1, 2, 3, 4, 5, 6, 7 ]
 
-          maxim,suspend-fps-power-up-slot:
-            description: This is same as "maxim,active-fps-power-up-slot" but
-              the value gets configured when the system enters suspend. This
-              is applicable if the suspend state FPS source is selected as
-              FPS0, FPS1 or FPS2.
-            $ref: "/schemas/types.yaml#/definitions/uint32"
-            enum: [ 0, 1, 2, 3, 4, 5, 6, 7 ]
+            maxim,suspend-fps-power-down-slot:
+              description: This is same as "maxim,active-fps-power-down-slot"
+                but this value gets configured when the system enters suspend.
+                This is applicable if the suspend state FPS source is selected
+                as FPS0, FPS1 or FPS2.
+              $ref: "/schemas/types.yaml#/definitions/uint32"
+              enum: [ 0, 1, 2, 3, 4, 5, 6, 7 ]
 
-          maxim,suspend-fps-power-down-slot:
-            description: This is same as "maxim,active-fps-power-down-slot"
-              but this value gets configured when the system enters suspend.
-              This is applicable if the suspend state FPS source is selected
-              as FPS0, FPS1 or FPS2.
-            $ref: "/schemas/types.yaml#/definitions/uint32"
-            enum: [ 0, 1, 2, 3, 4, 5, 6, 7 ]
+          required:
+            - pins
 
-        required:
-          - pins
-
-    unevaluatedProperties: false
+      unevaluatedProperties: false
 
 required:
   - compatible
   - reg
-
-unevaluatedProperties: false
 
 allOf:
   - if:
