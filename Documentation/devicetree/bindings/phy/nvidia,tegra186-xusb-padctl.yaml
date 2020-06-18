@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0-only
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/phy/nvidia,tegra124-xusb-padctl.yaml#
+$id: http://devicetree.org/schemas/phy/nvidia,tegra186-xusb-padctl.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: NVIDIA Tegra124 XUSB pad controller
+title: NVIDIA Tegra186 XUSB pad controller
 
 maintainers:
   - Thierry Reding <thierry.reding@gmail.com>
@@ -42,16 +42,17 @@ description:
 
 properties:
   compatible:
-    oneOf:
-      - enum:
-          - nvidia,tegra124-xusb-padctl
-
-      - items:
-          - const: nvidia,tegra132-xusb-padctl
-          - const: nvidia,tegra124-xusb-padctl
+    const: nvidia,tegra186-xusb-padctl
 
   reg:
-    maxItems: 1
+    items:
+      - description: pad controller registers
+      - description: AO registers
+
+  reg-names:
+    items:
+      - const: padctl
+      - const: ao
 
   resets:
     items:
@@ -61,17 +62,19 @@ properties:
     items:
       - const: padctl
 
-  avdd-pll-utmip-supply:
-    description: UTMI PLL power supply. Must supply 1.8 V.
+  avdd-pll-erefeut-supply:
+    description: UPHY brick and reference clock as well as UTMI PHY
+      power supply. Must supply 1.8 V.
 
-  avdd-pll-erefe-supply:
-    description: PLLE reference PLL power supply. Must supply 1.05 V.
+  avdd-usb-supply:
+    description: USB I/Os, VBUS, ID, REXT, D+/D- power supply. Must
+      supply 3.3 V.
 
-  avdd-pex-pll-supply:
-    description: PCIe/USB3 PLL power supply. Must supply 1.05 V.
+  vclamp-usb-supply:
+    description: Bias rail for USB pad. Must supply 1.8 V.
 
-  hvdd-pex-pll-e-supply:
-    description: High-voltage PLLE power supply. Must supply 3.3 V.
+  vddio-hsic-supply:
+    description: HSIC PHY power supply. Must supply 1.2 V.
 
   pads:
     description: A required child node named "pads" contains a list of
@@ -108,7 +111,7 @@ properties:
                   nvidia,function:
                     description: Function selection for this lane.
                     $ref: "/schemas/types.yaml#/definitions/string"
-                    enum: [ snps, xusb, uart ]
+                    enum: [ xusb ]
 
                   phandle:
                     $ref: "/schemas/dt-core.yaml#/properties/phandle"
@@ -127,7 +130,7 @@ properties:
                   nvidia,function:
                     description: Function selection for this lane.
                     $ref: "/schemas/types.yaml#/definitions/string"
-                    enum: [ snps, xusb, uart ]
+                    enum: [ xusb ]
 
                   phandle:
                     $ref: "/schemas/dt-core.yaml#/properties/phandle"
@@ -146,39 +149,7 @@ properties:
                   nvidia,function:
                     description: Function selection for this lane.
                     $ref: "/schemas/types.yaml#/definitions/string"
-                    enum: [ snps, xusb, uart ]
-
-                  phandle:
-                    $ref: "/schemas/dt-core.yaml#/properties/phandle"
-
-                  status:
-                    $ref: "/schemas/dt-core.yaml#/properties/status"
-
-                additionalProperties: false
-
-            additionalProperties: false
-
-          status:
-            $ref: "/schemas/dt-core.yaml#/properties/status"
-
-        additionalProperties: false
-
-      ulpi:
-        type: object
-        properties:
-          lanes:
-            type: object
-            properties:
-              ulpi-0:
-                type: object
-                properties:
-                  "#phy-cells":
-                    const: 0
-
-                  nvidia,function:
-                    description: Function selection for this lane.
-                    $ref: "/schemas/types.yaml#/definitions/string"
-                    enum: [ snps, xusb ]
+                    enum: [ xusb ]
 
                   phandle:
                     $ref: "/schemas/dt-core.yaml#/properties/phandle"
@@ -218,26 +189,7 @@ properties:
                   nvidia,function:
                     description: Function selection for this lane.
                     $ref: "/schemas/types.yaml#/definitions/string"
-                    enum: [ snps, xusb ]
-
-                  phandle:
-                    $ref: "/schemas/dt-core.yaml#/properties/phandle"
-
-                  status:
-                    $ref: "/schemas/dt-core.yaml#/properties/status"
-
-                additionalProperties: false
-
-              hsic-1:
-                type: object
-                properties:
-                  "#phy-cells":
-                    const: 0
-
-                  nvidia,function:
-                    description: Function selection for this lane.
-                    $ref: "/schemas/types.yaml#/definitions/string"
-                    enum: [ snps, xusb ]
+                    enum: [ xusb ]
 
                   phandle:
                     $ref: "/schemas/dt-core.yaml#/properties/phandle"
@@ -254,29 +206,13 @@ properties:
 
         additionalProperties: false
 
-      pcie:
+      usb3:
         type: object
         properties:
-          clocks:
-            items:
-              - description: PLLE clock
-
-          clock-names:
-            items:
-              - const: pll
-
-          resets:
-            items:
-              - description: reset for the PCIe UPHY block
-
-          reset-names:
-            items:
-              - const: phy
-
           lanes:
             type: object
             properties:
-              pcie-0:
+              usb3-0:
                 type: object
                 properties:
                   "#phy-cells":
@@ -285,7 +221,7 @@ properties:
                   nvidia,function:
                     description: Function selection for this lane.
                     $ref: "/schemas/types.yaml#/definitions/string"
-                    enum: [ pcie, usb3-ss ]
+                    enum: [ xusb ]
 
                   phandle:
                     $ref: "/schemas/dt-core.yaml#/properties/phandle"
@@ -295,7 +231,7 @@ properties:
 
                 additionalProperties: false
 
-              pcie-1:
+              usb3-1:
                 type: object
                 properties:
                   "#phy-cells":
@@ -304,7 +240,7 @@ properties:
                   nvidia,function:
                     description: Function selection for this lane.
                     $ref: "/schemas/types.yaml#/definitions/string"
-                    enum: [ pcie, usb3-ss ]
+                    enum: [ xusb ]
 
                   phandle:
                     $ref: "/schemas/dt-core.yaml#/properties/phandle"
@@ -314,7 +250,7 @@ properties:
 
                 additionalProperties: false
 
-              pcie-2:
+              usb3-2:
                 type: object
                 properties:
                   "#phy-cells":
@@ -323,85 +259,7 @@ properties:
                   nvidia,function:
                     description: Function selection for this lane.
                     $ref: "/schemas/types.yaml#/definitions/string"
-                    enum: [ pcie, usb3-ss ]
-
-                  phandle:
-                    $ref: "/schemas/dt-core.yaml#/properties/phandle"
-
-                  status:
-                    $ref: "/schemas/dt-core.yaml#/properties/status"
-
-                additionalProperties: false
-
-              pcie-3:
-                type: object
-                properties:
-                  "#phy-cells":
-                    const: 0
-
-                  nvidia,function:
-                    description: Function selection for this lane.
-                    $ref: "/schemas/types.yaml#/definitions/string"
-                    enum: [ pcie, usb3-ss ]
-
-                  phandle:
-                    $ref: "/schemas/dt-core.yaml#/properties/phandle"
-
-                  status:
-                    $ref: "/schemas/dt-core.yaml#/properties/status"
-
-                additionalProperties: false
-
-              pcie-4:
-                type: object
-                properties:
-                  "#phy-cells":
-                    const: 0
-
-                  nvidia,function:
-                    description: Function selection for this lane.
-                    $ref: "/schemas/types.yaml#/definitions/string"
-                    enum: [ pcie, usb3-ss ]
-
-                  phandle:
-                    $ref: "/schemas/dt-core.yaml#/properties/phandle"
-
-                  status:
-                    $ref: "/schemas/dt-core.yaml#/properties/status"
-
-                additionalProperties: false
-
-            additionalProperties: false
-
-          status:
-            $ref: "/schemas/dt-core.yaml#/properties/status"
-
-        additionalProperties: false
-
-      sata:
-        type: object
-        properties:
-          resets:
-            items:
-              - description: reset for the SATA UPHY block
-
-          reset-names:
-            items:
-              - const: phy
-
-          lanes:
-            type: object
-            properties:
-              sata-0:
-                type: object
-                properties:
-                  "#phy-cells":
-                    const: 0
-
-                  nvidia,function:
-                    description: Function selection for this lane.
-                    $ref: "/schemas/types.yaml#/definitions/string"
-                    enum: [ sata, usb3-ss ]
+                    enum: [ xusb ]
 
                   phandle:
                     $ref: "/schemas/dt-core.yaml#/properties/phandle"
@@ -557,45 +415,11 @@ properties:
 
         additionalProperties: false
 
-      ulpi-0:
-        type: object
-        properties:
-          status:
-            $ref: "/schemas/dt-core.yaml#/properties/status"
-
-          nvidia,internal:
-            description: A boolean property whose presence determines
-              that a port is internal. In the absence of this property
-              the port is considered to be external.
-            $ref: "/schemas/types.yaml#/definitions/flag"
-
-          vbus-supply:
-            description: A phandle to the regulator supplying the VBUS
-              voltage.
-
-        additionalProperties: false
-
       hsic-0:
         type: object
         properties:
           status:
             $ref: "/schemas/dt-core.yaml#/properties/status"
-
-          vbus-supply:
-            description: A phandle to the regulator supplying the VBUS
-              voltage.
-
-        additionalProperties: false
-
-      hsic-1:
-        type: object
-        properties:
-          status:
-            $ref: "/schemas/dt-core.yaml#/properties/status"
-
-          vbus-supply:
-            description: A phandle to the regulator supplying the VBUS
-              voltage.
 
         additionalProperties: false
 
@@ -613,7 +437,7 @@ properties:
               number to map this super-speed USB port to. The range of
               valid port numbers varies with the SoC generation.
             $ref: "/schemas/types.yaml#/definitions/uint32"
-            enum: [ 0, 1, 2 ]
+            enum: [ 0, 1, 2, 3 ]
 
           status:
             $ref: "/schemas/dt-core.yaml#/properties/status"
@@ -621,8 +445,6 @@ properties:
           vbus-supply:
             description: A phandle to the regulator supplying the VBUS
               voltage.
-
-        additionalProperties: false
 
       usb3-1:
         type: object
@@ -638,7 +460,7 @@ properties:
               number to map this super-speed USB port to. The range of
               valid port numbers varies with the SoC generation.
             $ref: "/schemas/types.yaml#/definitions/uint32"
-            enum: [ 0, 1, 2 ]
+            enum: [ 0, 1, 2, 3 ]
 
           status:
             $ref: "/schemas/dt-core.yaml#/properties/status"
@@ -647,7 +469,28 @@ properties:
             description: A phandle to the regulator supplying the VBUS
               voltage.
 
-        additionalProperties: false
+      usb3-2:
+        type: object
+        properties:
+          nvidia,internal:
+            description: A boolean property whose presence determines
+              that a port is internal. In the absence of this property
+              the port is considered to be external.
+            $ref: "/schemas/types.yaml#/definitions/flag"
+
+          nvidia,usb2-companion:
+            description: A single cell that specifies the physical port
+              number to map this super-speed USB port to. The range of
+              valid port numbers varies with the SoC generation.
+            $ref: "/schemas/types.yaml#/definitions/uint32"
+            enum: [ 0, 1, 2, 3 ]
+
+          status:
+            $ref: "/schemas/dt-core.yaml#/properties/status"
+
+          vbus-supply:
+            description: A phandle to the regulator supplying the VBUS
+              voltage.
 
     additionalProperties: false
 
@@ -658,27 +501,36 @@ required:
   - reg
   - resets
   - reset-names
-  - avdd-pll-utmip-supply
-  - avdd-pll-erefe-supply
-  - avdd-pex-pll-supply
-  - hvdd-pex-pll-e-supply
+  - avdd-pll-erefeut-supply
+  - avdd-usb-supply
+  - vclamp-usb-supply
+  - vddio-hsic-supply
 
 examples:
-  # Tegra124 and Tegra132
   - |
-    padctl@7009f000 {
-        compatible = "nvidia,tegra124-xusb-padctl";
-        reg = <0x7009f000 0x1000>;
-        resets = <&tegra_car 142>;
+    #include <dt-bindings/clock/tegra186-clock.h>
+    #include <dt-bindings/gpio/tegra186-gpio.h>
+    #include <dt-bindings/reset/tegra186-reset.h>
+
+    padctl@3520000 {
+        compatible = "nvidia,tegra186-xusb-padctl";
+        reg = <0x03520000 0x1000>,
+              <0x03540000 0x1000>;
+        reg-names = "padctl", "ao";
+
+        resets = <&bpmp TEGRA186_RESET_XUSB_PADCTL>;
         reset-names = "padctl";
 
-        avdd-pll-utmip-supply = <&vddio_1v8>;
-        avdd-pll-erefe-supply = <&avdd_1v05_run>;
-        avdd-pex-pll-supply = <&vdd_1v05_run>;
-        hvdd-pex-pll-e-supply = <&vdd_3v3_lp0>;
+        avdd-pll-erefeut-supply = <&vdd_1v8_pll>;
+        avdd-usb-supply = <&vdd_3v3_sys>;
+        vclamp-usb-supply = <&vdd_1v8>;
+        vddio-hsic-supply = <&gnd>;
 
         pads {
             usb2 {
+                clocks = <&bpmp TEGRA186_CLK_USB2_TRK>;
+                clock-names = "trk";
+
                 lanes {
                     usb2-0 {
                         nvidia,function = "xusb";
@@ -697,62 +549,33 @@ examples:
                 };
             };
 
-            ulpi {
-                lanes {
-                    ulpi-0 {
-                        status = "disabled";
-                        #phy-cells = <0>;
-                    };
-                };
-            };
-
             hsic {
+                clocks = <&bpmp TEGRA186_CLK_HSIC_TRK>;
+                clock-names = "trk";
+                status = "disabled";
+
                 lanes {
                     hsic-0 {
                         status = "disabled";
                         #phy-cells = <0>;
                     };
-
-                    hsic-1 {
-                        status = "disabled";
-                        #phy-cells = <0>;
-                    };
                 };
             };
 
-            pcie {
+            usb3 {
                 lanes {
-                    pcie-0 {
-                        nvidia,function = "usb3-ss";
+                    usb3-0 {
+                        nvidia,function = "xusb";
                         #phy-cells = <0>;
                     };
 
-                    pcie-1 {
-                        status = "disabled";
+                    usb3-1 {
+                        nvidia,function = "xusb";
                         #phy-cells = <0>;
                     };
 
-                    pcie-2 {
-                        nvidia,function = "pcie";
-                        #phy-cells = <0>;
-                    };
-
-                    pcie-3 {
-                        status = "disabled";
-                        #phy-cells = <0>;
-                    };
-
-                    pcie-4 {
-                        nvidia,function = "pcie";
-                        #phy-cells = <0>;
-                    };
-                };
-            };
-
-            sata {
-                lanes {
-                    sata-0 {
-                        nvidia,function = "sata";
+                    usb3-2 {
+                        nvidia,function = "xusb";
                         #phy-cells = <0>;
                     };
                 };
@@ -760,23 +583,27 @@ examples:
         };
 
         ports {
-            /* Micro A/B */
             usb2-0 {
                 mode = "otg";
+                vbus-supply = <&vdd_usb0>;
+                usb-role-switch;
+
+                connector {
+                    compatible = "gpio-usb-b-connector",
+                                 "usb-b-connector";
+                    label = "micro-USB";
+                    type = "micro";
+                    vbus-gpios = <&gpio TEGRA186_MAIN_GPIO(X, 7) GPIO_ACTIVE_LOW>;
+                    id-gpios = <&pmic 0 GPIO_ACTIVE_HIGH>;
+                };
             };
 
-            /* Mini PCIe */
             usb2-1 {
+                vbus-supply = <&vdd_usb1>;
                 mode = "host";
             };
 
-            /* USB3 */
             usb2-2 {
-                vbus-supply = <&vdd_usb3_vbus>;
-                mode = "host";
-            };
-
-            ulpi-0 {
                 status = "disabled";
             };
 
@@ -784,15 +611,15 @@ examples:
                 status = "disabled";
             };
 
-            hsic-1 {
-                status = "disabled";
-            };
-
             usb3-0 {
-                nvidia,usb2-companion = <2>;
+                nvidia,usb2-companion = <1>;
             };
 
             usb3-1 {
+                status = "disabled";
+            };
+
+            usb3-2 {
                 status = "disabled";
             };
         };
