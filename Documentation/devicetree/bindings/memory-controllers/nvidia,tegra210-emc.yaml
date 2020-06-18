@@ -36,16 +36,14 @@ properties:
   memory-region:
     description: List of phandles to reserved memory regions describing the
       nominal and derated tables of EMC frequencies trained by the firmware.
-    $ref: "/schemas/types.yaml#/definitions/phandle-array"
 
   memory-region-names:
-    $ref: "/schemas/types.yaml#/definitions/string-array"
     items:
       - const: nominal
       - const: derated
 
   nvidia,memory-controller:
-    $ref: "/schemas/types.yaml#/definitions/phandle"
+    $ref: /schemas/types.yaml#/definitions/phandle
     description:
       phandle of the memory controller node
 
@@ -59,9 +57,6 @@ required:
   - clocks
   - clock-names
   - nvidia,memory-controller
-
-dependencies:
-  memory-region-names: [ memory-region ]
 
 unevaluatedProperties: false
 
