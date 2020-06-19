@@ -1,0 +1,751 @@
+# SPDX-License-Identifier: GPL-2.0-only
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/tegra/nvidia,tegra124-host1x.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra host1x controller
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+
+description: The host1x top-level node defines a number of children, each representing one of the
+  host1x client modules defined in this binding.
+
+properties:
+  compatible:
+    oneOf:
+      - const: nvidia,tegra124-host1x
+      - items:
+          - const: nvidia,tegra132-host1x
+          - const: nvidia,tegra124-host1x
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    items:
+      - description: host1x syncpoint interrupt
+      - description: host1x general interrupt
+
+  interrupt-names:
+    items:
+      - const: syncpt
+      - const: host1x
+
+  clocks:
+    items:
+      - description: module clock
+
+  clock-names:
+    items:
+      - const: host1x
+
+  resets:
+    items:
+      - description: module reset
+
+  reset-names:
+    items:
+      - const: host1x
+
+  iommus:
+    maxItems: 1
+
+  interconnects:
+    items:
+      - description: memory read client for host1x
+
+  interconnect-names:
+    items:
+      - const: dma-mem # read
+
+  '#address-cells':
+    description: The number of cells used to represent physical base addresses in the host1x
+      address space.
+    enum: [1, 2]
+
+  '#size-cells':
+    description: The number of cells used to represent the size of an address range in the host1x
+      address space.
+    enum: [1, 2]
+
+  ranges:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - interrupt-names
+  - clocks
+  - clock-names
+  - resets
+  - reset-names
+  - '#address-cells'
+  - '#size-cells'
+  - ranges
+
+additionalProperties: false
+
+patternProperties:
+  "^vi@[0-9a-f]+$":
+    description: video input
+    type: object
+    properties:
+      compatible:
+        oneOf:
+          - const: nvidia,tegra124-vi
+          - items:
+              - const: nvidia,tegra132-vi
+              - const: nvidia,tegra124-vi
+
+      reg:
+        maxItems: 1
+
+      interrupts:
+        maxItems: 1
+
+      clocks:
+        items:
+          - description: module clock
+
+      resets:
+        items:
+          - description: module reset
+
+      reset-names:
+        items:
+          - const: vi
+
+      iommus:
+        maxItems: 1
+
+    required:
+      - compatible
+      - reg
+      - interrupts
+      - clocks
+      - resets
+      - reset-names
+
+    additionalProperties: false
+
+  "^dc@[0-9a-f]+$":
+    description: display controller
+    type: object
+    properties:
+      compatible:
+        oneOf:
+          - const: nvidia,tegra124-dc
+          - items:
+              - const: nvidia,tegra124-dc
+              - const: nvidia,tegra132-dc
+
+      reg:
+        maxItems: 1
+
+      interrupts:
+        maxItems: 1
+
+      clocks:
+        items:
+          - description: display controller pixel clock
+
+      clock-names:
+        items:
+          - const: dc
+
+      resets:
+        items:
+          - description: module reset
+
+      reset-names:
+        items:
+          - const: dc
+
+      iommus:
+        maxItems: 1
+
+      interconnects:
+        items:
+          - description: memory read client for window A
+          - description: memory read client for window B
+          - description: memory read client for window C
+          - description: memory read client for cursor
+
+      interconnect-names:
+        items:
+          - const: wina
+          - const: winb
+          - const: winc
+          - const: cursor
+
+      nvidia,head:
+        description: The number of the display controller head. This is used to setup the various
+          types of output to receive video data from the given head.
+        $ref: "/schemas/types.yaml#/definitions/uint32"
+
+    required:
+      - compatible
+      - reg
+      - interrupts
+      - clocks
+      - clock-names
+      - resets
+      - reset-names
+      - nvidia,head
+
+    additionalProperties: false
+
+  "^hdmi@[0-9a-f]+$":
+    description: High Definition Multimedia Interface
+    type: object
+    properties:
+      compatible:
+        oneOf:
+          - const: nvidia,tegra124-hdmi
+          - items:
+              - const: nvidia,tegra132-hdmi
+              - const: nvidia,tegra124-hdmi
+      reg:
+        maxItems: 1
+
+      interrupts:
+        maxItems: 1
+
+      clocks:
+        items:
+          - description: module clock
+          - description: parent clock
+
+      clock-names:
+        items:
+          - const: hdmi
+          - const: parent
+
+      resets:
+        items:
+          - description: module reset
+
+      reset-names:
+        items:
+          - const: hdmi
+
+      hdmi-supply:
+        description: supply for the +5V HDMI connector pin
+
+      vdd-supply:
+        description: regulator for supply voltage
+
+      pll-supply:
+        description: regulator for PLL
+
+      nvidia,ddc-i2c-bus:
+        description: phandle of an I2C controller used for DDC EDID probing
+        $ref: "/schemas/types.yaml#/definitions/phandle"
+
+      nvidia,hpd-gpio:
+        description: specifies a GPIO used for hotplug detection
+        maxItems: 1
+
+      nvidia,edid:
+        description: supplies a binary EDID blob
+        $ref: "/schemas/types.yaml#/definitions/uint8-array"
+
+      nvidia,panel:
+        description: phandle of a display panel
+        $ref: "/schemas/types.yaml#/definitions/phandle"
+
+    required:
+      - compatible
+      - reg
+      - interrupts
+      - clocks
+      - clock-names
+      - resets
+      - reset-names
+      - hdmi-supply
+      - vdd-supply
+      - pll-supply
+
+    additionalProperties: false
+
+  "^sor@[0-9a-f]+$":
+    description: The Serial Output Resource (SOR) can be used to drive HDMI, LVDS, eDP and DP
+      outputs.
+
+      See ../pinctrl/nvidia,tegra124-dpaux-padctl.txt for information regarding the DPAUX pad
+      controller bindings.
+    type: object
+    properties:
+      compatible:
+        oneOf:
+          - const: nvidia,tegra124-sor
+          - items:
+              - const: nvidia,tegra132-sor
+              - const: nvidia,tegra124-sor
+
+      reg:
+        maxItems: 1
+
+      interrupts:
+        maxItems: 1
+
+      clocks:
+        items:
+          - description: clock input for the SOR hardware
+          - description: SOR output clock
+          - description: input for the pixel clock
+          - description: reference clock for the SOR clock
+          - description: safe reference clock for the SOR clock during power up
+
+      clock-names:
+        items:
+          - const: sor
+          - enum:
+              - source # deprecated
+              - out
+          - const: parent
+          - const: dp
+          - const: safe
+
+      resets:
+        items:
+          - description: module reset
+
+      reset-names:
+        items:
+          - const: sor
+
+      avdd-io-hdmi-dp-supply:
+        description: I/O supply for HDMI/DP
+
+      vdd-hdmi-dp-pll-supply:
+        description: PLL supply for HDMI/DP
+
+      hdmi-supply:
+        description: +5.0V HDMI connector supply
+
+      # only required on Tegra186 and later
+      nvidia,interface:
+        description: index of the SOR interface
+        $ref: "/schemas/types.yaml#/definitions/uint32"
+
+      nvidia,ddc-i2c-bus:
+        description: phandle of an I2C controller used for DDC EDID probing
+        $ref: "/schemas/types.yaml#/definitions/phandle"
+
+      nvidia,hpd-gpio:
+        description: specifies a GPIO used for hotplug detection
+        maxItems: 1
+
+      nvidia,edid:
+        description: supplies a binary EDID blob
+        $ref: "/schemas/types.yaml#/definitions/uint8-array"
+
+      nvidia,panel:
+        description: phandle of a display panel
+        $ref: "/schemas/types.yaml#/definitions/phandle"
+
+      nvidia,xbar-cfg:
+        description: 5 cells containing the crossbar configuration. Each lane of the SOR,
+          identified by the cell's index, is mapped via the crossbar to the pad specified by the
+          cell's value.
+        $ref: "/schemas/types.yaml#/definitions/uint32-array"
+
+      # optional when driving an eDP output
+      nvidia,dpaux:
+        description: phandle to a DispayPort AUX interface
+        $ref: "/schemas/types.yaml#/definitions/phandle"
+
+    patternProperties:
+      "^pinctrl-[0-9]+$": true
+
+    required:
+      - compatible
+      - reg
+      - interrupts
+      - clocks
+      - clock-names
+      - resets
+      - reset-names
+      - avdd-io-hdmi-dp-supply
+      - vdd-hdmi-dp-pll-supply
+
+    additionalProperties: false
+
+  "^dpaux@[0-9a-f]+$":
+    description: DisplayPort AUX interface
+    type: object
+    properties:
+      compatible:
+        oneOf:
+          - const: nvidia,tegra124-dpaux
+          - items:
+              - const: nvidia,tegra132-dpaux
+              - const: nvidia,tegra124-dpaux
+
+      reg:
+        maxItems: 1
+
+      interrupts:
+        maxItems: 1
+
+      clocks:
+        items:
+          - description: clock input for the DPAUX hardware
+          - description: reference clock
+
+      clock-names:
+        items:
+          - const: dpaux
+          - const: parent
+
+      resets:
+        items:
+          - description: module reset
+
+      reset-names:
+        items:
+          - const: dpaux
+
+      vdd-supply:
+        description: phandle of a supply that powers the DisplayPort link
+
+      i2c-bus:
+        description: Subnode where I2C slave devices are listed. This subnode must be always
+          present. If there are no I2C slave devices, an empty node should be added.
+
+          See ../../i2c/i2c.yaml for more information.
+
+    patternProperties:
+      "^pinmux-.*$":
+        description: These child nodes contain the pinmux configuration for the DPAUX/I2C pins
+          managed by this controller. Both pins can be either in I2C mode, DPAUX mode or in an
+          extra power-saving state.
+        type: object
+        properties:
+          groups:
+            $ref: /schemas/types.yaml#/definitions/string
+            const: dpaux-io
+
+          function:
+            $ref: /schemas/types.yaml#/definitions/string
+            enum: [ "aux", "i2c", "off" ]
+
+        required:
+          - groups
+          - function
+
+    required:
+      - compatible
+      - reg
+      - interrupts
+      - clocks
+      - clock-names
+      - resets
+      - reset-names
+      - i2c-bus
+
+    additionalProperties: false
+
+  "^vic@[0-9a-f]+$":
+    description: video image composer
+    type: object
+    properties:
+      compatible:
+        oneOf:
+          - const: nvidia,tegra124-vic
+          - items:
+              - const: nvidia,tegra132-vic
+              - const: nvidia,tegra124-vic
+
+      reg:
+        maxItems: 1
+
+      interrupts:
+        maxItems: 1
+
+      clocks:
+        items:
+          - description: clock input for the VIC hardware
+
+      clock-names:
+        items:
+          - const: vic
+
+      resets:
+        items:
+          - description: module reset
+
+      reset-names:
+        items:
+          - const: vic
+
+      iommus:
+        maxItems: 1
+
+      interconnects:
+        items:
+          - description: memory read client for VIC
+          - description: memory write client for VIC
+
+      interconnect-names:
+        items:
+          - const: dma-mem # read
+          - const: write
+
+    required:
+      - compatible
+      - reg
+      - interrupts
+      - clocks
+      - clock-names
+      - resets
+      - reset-names
+
+    additionalProperties: false
+
+  "^dsi@[0-9a-f]+$":
+    description: display serial interface
+    type: object
+    properties:
+      compatible:
+        oneOf:
+          - const: nvidia,tegra124-dsi
+          - items:
+              - const: nvidia,tegra132-dsi
+              - const: nvidia,tegra124-dsi
+
+      reg:
+        maxItems: 1
+
+      interrupts:
+        maxItems: 1
+
+      clocks:
+        items:
+          - description: DSI module clock
+          - description: low-power module clock
+          - description: input for the pixel clock
+
+      clock-names:
+        items:
+          - const: dsi
+          - const: lp
+          - const: parent
+
+      resets:
+        items:
+          - description: module reset
+
+      reset-names:
+        items:
+          - const: dsi
+
+      avdd-dsi-csi-supply:
+        description: phandle of a supply that powers the DSI controller
+
+      nvidia,mipi-calibrate:
+        description: Should contain a phandle and a specifier specifying which pads are used by
+          this DSI output and need to be calibrated.
+
+          See also ../display/tegra/nvidia,tegra114-mipi.txt.
+        $ref: "/schemas/types.yaml#/definitions/phandle-array"
+
+      nvidia,ddc-i2c-bus:
+        description: phandle of an I2C controller used for DDC EDID probing
+        $ref: "/schemas/types.yaml#/definitions/phandle"
+
+      nvidia,hpd-gpio:
+        description: specifies a GPIO used for hotplug detection
+        maxItems: 1
+
+      nvidia,edid:
+        description: supplies a binary EDID blob
+        $ref: "/schemas/types.yaml#/definitions/uint8-array"
+
+      nvidia,panel:
+        description: phandle of a display panel
+        $ref: "/schemas/types.yaml#/definitions/phandle"
+
+      nvidia,ganged-mode:
+        description: contains a phandle to a second DSI controller to gang up with in order to
+          support up to 8 data lanes
+        $ref: "/schemas/types.yaml#/definitions/phandle"
+
+      '#address-cells':
+        const: 1
+
+      '#size-cells':
+        const: 0
+
+    patternProperties:
+      "^panel@[0-9]+$":
+        type: object
+
+    required:
+      - compatible
+      - reg
+      - interrupts
+      - clocks
+      - clock-names
+      - resets
+      - reset-names
+      - avdd-dsi-csi-supply
+      - nvidia,mipi-calibrate
+      - "#address-cells"
+      - "#size-cells"
+
+    additionalProperties: false
+
+  "^isp@[0-9a-f]+$":
+    type: object
+    properties:
+      compatible:
+        const: nvidia,tegra124-isp
+
+      reg:
+        maxItems: 1
+
+      interrupts:
+        maxItems: 1
+
+      clocks:
+        items:
+          - description: module clock
+
+      resets:
+        items:
+          - description: module reset
+
+      reset-names:
+        items:
+          - const: isp
+
+      iommus:
+        maxItems: 1
+
+    required:
+      - compatible
+      - reg
+      - interrupts
+      - clocks
+      - resets
+      - reset-names
+
+    additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/tegra124-car.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/memory/tegra124-mc.h>
+
+    host1x@50000000 {
+        compatible = "nvidia,tegra124-host1x";
+        reg = <0x50000000 0x00034000>;
+        interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>, /* syncpt */
+                     <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>; /* general */
+        interrupt-names = "syncpt", "host1x";
+        clocks = <&tegra_car TEGRA124_CLK_HOST1X>;
+        clock-names = "host1x";
+        resets = <&tegra_car 28>;
+        reset-names = "host1x";
+        iommus = <&mc TEGRA_SWGROUP_HC>;
+
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+        ranges = <0x54000000 0x54000000 0x01000000>;
+
+        dc@54200000 {
+            compatible = "nvidia,tegra124-dc";
+            reg = <0x54200000 0x00040000>;
+            interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&tegra_car TEGRA124_CLK_DISP1>;
+            clock-names = "dc";
+            resets = <&tegra_car 27>;
+            reset-names = "dc";
+
+            iommus = <&mc TEGRA_SWGROUP_DC>;
+
+            nvidia,head = <0>;
+        };
+
+        dc@54240000 {
+            compatible = "nvidia,tegra124-dc";
+            reg = <0x54240000 0x00040000>;
+            interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&tegra_car TEGRA124_CLK_DISP2>;
+            clock-names = "dc";
+            resets = <&tegra_car 26>;
+            reset-names = "dc";
+
+            iommus = <&mc TEGRA_SWGROUP_DCB>;
+
+            nvidia,head = <1>;
+        };
+
+        hdmi: hdmi@54280000 {
+            compatible = "nvidia,tegra124-hdmi";
+            reg = <0x54280000 0x00040000>;
+            interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&tegra_car TEGRA124_CLK_HDMI>,
+                     <&tegra_car TEGRA124_CLK_PLL_D2_OUT0>;
+            clock-names = "hdmi", "parent";
+            resets = <&tegra_car 51>;
+            reset-names = "hdmi";
+
+            vdd-supply = <&vdd_3v3_hdmi>;
+            pll-supply = <&vdd_hdmi_pll>;
+            hdmi-supply = <&vdd_5v0_hdmi>;
+        };
+
+        vic@54340000 {
+            compatible = "nvidia,tegra124-vic";
+            reg = <0x54340000 0x00040000>;
+            interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&tegra_car TEGRA124_CLK_VIC03>;
+            clock-names = "vic";
+            resets = <&tegra_car 178>;
+            reset-names = "vic";
+
+            iommus = <&mc TEGRA_SWGROUP_VIC>;
+        };
+
+        sor@54540000 {
+            compatible = "nvidia,tegra124-sor";
+            reg = <0x54540000 0x00040000>;
+            interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&tegra_car TEGRA124_CLK_SOR0>,
+                     <&tegra_car TEGRA124_CLK_SOR0_OUT>,
+                     <&tegra_car TEGRA124_CLK_PLL_D_OUT0>,
+                     <&tegra_car TEGRA124_CLK_PLL_DP>,
+                     <&tegra_car TEGRA124_CLK_CLK_M>;
+            clock-names = "sor", "out", "parent", "dp", "safe";
+            resets = <&tegra_car 182>;
+            reset-names = "sor";
+
+            avdd-io-hdmi-dp-supply = <&vdd_1v05_run>;
+            vdd-hdmi-dp-pll-supply = <&vdd_3v3_run>;
+        };
+
+        dpaux: dpaux@545c0000 {
+            compatible = "nvidia,tegra124-dpaux";
+            reg = <0x545c0000 0x00040000>;
+            interrupts = <GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&tegra_car TEGRA124_CLK_DPAUX>,
+                     <&tegra_car TEGRA124_CLK_PLL_DP>;
+            clock-names = "dpaux", "parent";
+            resets = <&tegra_car 181>;
+            reset-names = "dpaux";
+
+            vdd-supply = <&vdd_3v3_sys>;
+
+            i2c-bus {
+            };
+        };
+    };

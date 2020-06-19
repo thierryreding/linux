@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0-only
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/display/tegra/nvidia,tegra20-host1x.yaml#
+$id: http://devicetree.org/schemas/display/tegra/nvidia,tegra30-host1x.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: NVIDIA Tegra20 host1x controller
+title: NVIDIA Tegra30 host1x controller
 
 maintainers:
   - Thierry Reding <thierry.reding@gmail.com>
@@ -15,7 +15,7 @@ description: The host1x top-level node defines a number of children, each repres
 
 properties:
   compatible:
-    const: nvidia,tegra20-host1x
+    const: nvidia,tegra30-host1x
 
   reg:
     maxItems: 1
@@ -45,6 +45,9 @@ properties:
   reset-names:
     items:
       - const: host1x
+
+  iommus:
+    maxItems: 1
 
   interconnects:
     items:
@@ -88,7 +91,7 @@ patternProperties:
     type: object
     properties:
       compatible:
-        const: nvidia,tegra20-vi
+        const: nvidia,tegra30-vi
 
       reg:
         maxItems: 1
@@ -108,6 +111,9 @@ patternProperties:
         items:
           - const: vi
 
+      iommus:
+        maxItems: 1
+
     required:
       - compatible
       - reg
@@ -123,7 +129,7 @@ patternProperties:
     type: object
     properties:
       compatible:
-        const: nvidia,tegra20-epp
+        const: nvidia,tegra30-epp
 
       reg:
         maxItems: 1
@@ -143,6 +149,9 @@ patternProperties:
         items:
           - const: epp
 
+      iommus:
+        maxItems: 1
+
     required:
       - compatible
       - reg
@@ -158,7 +167,7 @@ patternProperties:
     type: object
     properties:
       compatible:
-        const: nvidia,tegra20-mpe
+        const: nvidia,tegra30-mpe
 
       reg:
         maxItems: 1
@@ -178,6 +187,9 @@ patternProperties:
         items:
           - const: mpe
 
+      iommus:
+        maxItems: 1
+
     required:
       - compatible
       - reg
@@ -193,7 +205,7 @@ patternProperties:
     type: object
     properties:
       compatible:
-        const: nvidia,tegra20-gr2d
+        const: nvidia,tegra30-gr2d
 
       reg:
         maxItems: 1
@@ -213,6 +225,9 @@ patternProperties:
         items:
           - const: 2d
 
+      iommus:
+        maxItems: 1
+
     required:
       - compatible
       - reg
@@ -228,31 +243,39 @@ patternProperties:
     type: object
     properties:
       compatible:
-        const: nvidia,tegra20-gr3d
+        const: nvidia,tegra30-gr3d
 
       reg:
         maxItems: 1
 
       clocks:
         items:
-          - description: module clock
+          - description: primary module clock
+          - description: secondary module clock
 
       clock-names:
         items:
           - const: 3d
+          - const: 3d2
 
       resets:
         items:
-          - description: module reset
+          - description: primary module reset
+          - description: secondary module reset
 
       reset-names:
         items:
           - const: 3d
+          - const: 3d2
+
+      iommus:
+        maxItems: 2
 
     required:
       - compatible
       - reg
       - clocks
+      - clock-names
       - resets
       - reset-names
 
@@ -263,7 +286,7 @@ patternProperties:
     type: object
     properties:
       compatible:
-        const: nvidia,tegra20-tvo
+        const: nvidia,tegra30-tvo
 
       reg:
         maxItems: 1
@@ -288,7 +311,7 @@ patternProperties:
     type: object
     properties:
       compatible:
-        const: nvidia,tegra20-dc
+        const: nvidia,tegra30-dc
 
       reg:
         maxItems: 1
@@ -311,6 +334,9 @@ patternProperties:
       reset-names:
         items:
           - const: dc
+
+      iommus:
+        maxItems: 1
 
       interconnects:
         items:
@@ -369,7 +395,7 @@ patternProperties:
     type: object
     properties:
       compatible:
-        const: nvidia,tegra20-hdmi
+        const: nvidia,tegra30-hdmi
 
       reg:
         maxItems: 1
@@ -439,7 +465,7 @@ patternProperties:
     type: object
     properties:
       compatible:
-        const: nvidia,tegra20-dsi
+        const: nvidia,tegra30-dsi
 
       reg:
         maxItems: 1
@@ -513,7 +539,7 @@ patternProperties:
     type: object
     properties:
       compatible:
-        const: nvidia,tegra20-isp
+        const: nvidia,tegra30-isp
 
       reg:
         maxItems: 1
@@ -533,6 +559,9 @@ patternProperties:
         items:
           - const: isp
 
+      iommus:
+        maxItems: 1
+
     required:
       - compatible
       - reg
@@ -545,15 +574,15 @@ patternProperties:
 
 examples:
   - |
-    #include <dt-bindings/clock/tegra20-car.h>
+    #include <dt-bindings/clock/tegra30-car.h>
 
     host1x@50000000 {
-        compatible = "nvidia,tegra20-host1x";
+        compatible = "nvidia,tegra30-host1x";
         reg = <0x50000000 0x00024000>;
         interrupts = <0 65 0x04>, /* mpcore syncpt */
                      <0 67 0x04>; /* mpcore general */
         interrupt-names = "syncpt", "host1x";
-        clocks = <&tegra_car TEGRA20_CLK_HOST1X>;
+        clocks = <&tegra_car TEGRA30_CLK_HOST1X>;
         clock-names = "host1x";
         resets = <&tegra_car 28>;
         reset-names = "host1x";
@@ -564,64 +593,66 @@ examples:
         ranges = <0x54000000 0x54000000 0x04000000>;
 
         mpe@54040000 {
-            compatible = "nvidia,tegra20-mpe";
+            compatible = "nvidia,tegra30-mpe";
             reg = <0x54040000 0x00040000>;
             interrupts = <0 68 0x04>;
-            clocks = <&tegra_car TEGRA20_CLK_MPE>;
+            clocks = <&tegra_car TEGRA30_CLK_MPE>;
             resets = <&tegra_car 60>;
             reset-names = "mpe";
         };
 
         vi@54080000 {
-            compatible = "nvidia,tegra20-vi";
+            compatible = "nvidia,tegra30-vi";
             reg = <0x54080000 0x00040000>;
             interrupts = <0 69 0x04>;
-            clocks = <&tegra_car TEGRA20_CLK_VI>;
+            clocks = <&tegra_car TEGRA30_CLK_VI>;
             resets = <&tegra_car 100>;
             reset-names = "vi";
         };
 
         epp@540c0000 {
-            compatible = "nvidia,tegra20-epp";
+            compatible = "nvidia,tegra30-epp";
             reg = <0x540c0000 0x00040000>;
             interrupts = <0 70 0x04>;
-            clocks = <&tegra_car TEGRA20_CLK_EPP>;
+            clocks = <&tegra_car TEGRA30_CLK_EPP>;
             resets = <&tegra_car 19>;
             reset-names = "epp";
         };
 
         isp@54100000 {
-            compatible = "nvidia,tegra20-isp";
+            compatible = "nvidia,tegra30-isp";
             reg = <0x54100000 0x00040000>;
             interrupts = <0 71 0x04>;
-            clocks = <&tegra_car TEGRA20_CLK_ISP>;
+            clocks = <&tegra_car TEGRA30_CLK_ISP>;
             resets = <&tegra_car 23>;
             reset-names = "isp";
         };
 
         gr2d@54140000 {
-            compatible = "nvidia,tegra20-gr2d";
+            compatible = "nvidia,tegra30-gr2d";
             reg = <0x54140000 0x00040000>;
             interrupts = <0 72 0x04>;
-            clocks = <&tegra_car TEGRA20_CLK_GR2D>;
+            clocks = <&tegra_car TEGRA30_CLK_GR2D>;
             resets = <&tegra_car 21>;
             reset-names = "2d";
         };
 
         gr3d@54180000 {
-            compatible = "nvidia,tegra20-gr3d";
+            compatible = "nvidia,tegra30-gr3d";
             reg = <0x54180000 0x00040000>;
-            clocks = <&tegra_car TEGRA20_CLK_GR3D>;
-            clock-names = "3d";
-            resets = <&tegra_car 24>;
-            reset-names = "3d";
+            clocks = <&tegra_car TEGRA30_CLK_GR3D>,
+                     <&tegra_car TEGRA30_CLK_GR3D2>;
+            clock-names = "3d", "3d2";
+            resets = <&tegra_car 24>,
+                     <&tegra_car 98>;
+            reset-names = "3d", "3d2";
         };
 
         dc@54200000 {
-            compatible = "nvidia,tegra20-dc";
+            compatible = "nvidia,tegra30-dc";
             reg = <0x54200000 0x00040000>;
             interrupts = <0 73 0x04>;
-            clocks = <&tegra_car TEGRA20_CLK_DISP1>;
+            clocks = <&tegra_car TEGRA30_CLK_DISP1>;
             clock-names = "dc";
             resets = <&tegra_car 27>;
             reset-names = "dc";
@@ -633,10 +664,10 @@ examples:
         };
 
         dc@54240000 {
-            compatible = "nvidia,tegra20-dc";
+            compatible = "nvidia,tegra30-dc";
             reg = <0x54240000 0x00040000>;
             interrupts = <0 74 0x04>;
-            clocks = <&tegra_car TEGRA20_CLK_DISP2>;
+            clocks = <&tegra_car TEGRA30_CLK_DISP2>;
             clock-names = "dc";
             resets = <&tegra_car 26>;
             reset-names = "dc";
@@ -648,34 +679,49 @@ examples:
         };
 
         hdmi@54280000 {
-            compatible = "nvidia,tegra20-hdmi";
+            compatible = "nvidia,tegra30-hdmi";
             reg = <0x54280000 0x00040000>;
             interrupts = <0 75 0x04>;
-            clocks = <&tegra_car TEGRA20_CLK_HDMI>,
-                     <&tegra_car TEGRA20_CLK_PLL_D_OUT0>;
+            clocks = <&tegra_car TEGRA30_CLK_HDMI>,
+                     <&tegra_car TEGRA30_CLK_PLL_D_OUT0>;
             clock-names = "hdmi", "parent";
             resets = <&tegra_car 51>;
             reset-names = "hdmi";
 
-            hdmi-supply = <&hdmi_5v0_reg>;
-            vdd-supply = <&hdmi_vdd_reg>;
-            pll-supply = <&hdmi_pll_reg>;
+            hdmi-supply = <&vdd_5v0_hdmi>;
+            vdd-supply = <&sys_3v3_reg>;
+            pll-supply = <&vio_reg>;
         };
 
         tvo@542c0000 {
-            compatible = "nvidia,tegra20-tvo";
+            compatible = "nvidia,tegra30-tvo";
             reg = <0x542c0000 0x00040000>;
             interrupts = <0 76 0x04>;
-            clocks = <&tegra_car TEGRA20_CLK_TVO>;
+            clocks = <&tegra_car TEGRA30_CLK_TVO>;
         };
 
         dsi@54300000 {
-            compatible = "nvidia,tegra20-dsi";
+            compatible = "nvidia,tegra30-dsi";
             reg = <0x54300000 0x00040000>;
-            clocks = <&tegra_car TEGRA20_CLK_DSI>,
-                     <&tegra_car TEGRA20_CLK_PLL_D_OUT0>;
+            clocks = <&tegra_car TEGRA30_CLK_DSIA>,
+                     <&tegra_car TEGRA30_CLK_PLL_D_OUT0>;
             clock-names = "dsi", "parent";
             resets = <&tegra_car 48>;
+            reset-names = "dsi";
+
+            avdd-dsi-csi-supply = <&avdd_1v2_reg>;
+
+            #address-cells = <1>;
+            #size-cells = <0>;
+        };
+
+        dsi@54400000 {
+            compatible = "nvidia,tegra30-dsi";
+            reg = <0x54400000 0x00040000>;
+            clocks = <&tegra_car TEGRA30_CLK_DSIB>,
+                     <&tegra_car TEGRA30_CLK_PLL_D2_OUT0>;
+            clock-names = "dsi", "parent";
+            resets = <&tegra_car 84>;
             reset-names = "dsi";
 
             avdd-dsi-csi-supply = <&avdd_1v2_reg>;
