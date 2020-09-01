@@ -52,6 +52,14 @@ properties:
       Address and Length pairs. Specifies regions of memory that are
       acceptable to allocate from.
 
+  '#memory-region-cells':
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    description: >
+      Defines how many cells are used to form the memory region specifier.
+      The memory region specifier contains additional information on how a
+      reserved memory region referenced by the corresponding phandle will
+      be used in a specific context.
+
   no-map:
     type: boolean
     description: >
