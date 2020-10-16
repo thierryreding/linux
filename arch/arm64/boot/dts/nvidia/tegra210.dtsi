@@ -1042,6 +1042,7 @@
 		reg = <0x0 0x7009f000 0x0 0x1000>;
 		resets = <&tegra_car 142>;
 		reset-names = "padctl";
+		nvidia,pmc =  <&tegra_pmc>;
 
 		status = "disabled";
 
