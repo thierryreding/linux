@@ -502,7 +502,6 @@ static void tegra210_pex_uphy_disable(struct tegra_xusb_padctl *padctl)
 	if (--pcie->enable > 0)
 		return;
 
-	reset_control_assert(pcie->rst);
 	clk_disable_unprepare(pcie->pll);
 }
 
@@ -739,7 +738,6 @@ static void tegra210_sata_uphy_disable(struct tegra_xusb_padctl *padctl)
 	if (--sata->enable > 0)
 		return;
 
-	reset_control_assert(sata->rst);
 	clk_disable_unprepare(sata->pll);
 }
 
