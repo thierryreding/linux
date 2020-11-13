@@ -51,6 +51,7 @@
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/pinctrl/pinctrl-tegra-io-pad.h>
+#include <dt-bindings/gpio/tegra-gpio.h>
 #include <dt-bindings/gpio/tegra186-gpio.h>
 #include <dt-bindings/gpio/tegra194-gpio.h>
 #include <dt-bindings/soc/tegra-pmc.h>
@@ -3119,6 +3120,7 @@ static const char * const tegra210_reset_sources[] = {
 
 static const struct tegra_wake_event tegra210_wake_events[] = {
 	TEGRA_WAKE_IRQ("rtc", 16, 2),
+	TEGRA_WAKE_GPIO("power", 24, 0, TEGRA_GPIO(X, 5)),
 	TEGRA_WAKE_IRQ("pmu", 51, 86),
 };
 
