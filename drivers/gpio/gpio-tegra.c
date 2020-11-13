@@ -129,25 +129,35 @@ static void tegra_gpio_mask_write(struct tegra_gpio_info *tgi, u32 reg,
 
 static void tegra_gpio_enable(struct tegra_gpio_info *tgi, unsigned int gpio)
 {
+	dev_info(tgi->dev, "> %s(tgi=%px, gpio=%u)\n", __func__, tgi, gpio);
 	tegra_gpio_mask_write(tgi, GPIO_MSK_CNF(tgi, gpio), gpio, 1);
+	dev_info(tgi->dev, "< %s()\n", __func__);
 }
 
 static void tegra_gpio_disable(struct tegra_gpio_info *tgi, unsigned int gpio)
 {
+	dev_info(tgi->dev, "> %s(tgi=%px, gpio=%u)\n", __func__, tgi, gpio);
 	tegra_gpio_mask_write(tgi, GPIO_MSK_CNF(tgi, gpio), gpio, 0);
+	dev_info(tgi->dev, "< %s()\n", __func__);
 }
 
 static int tegra_gpio_request(struct gpio_chip *chip, unsigned int offset)
 {
-	return pinctrl_gpio_request(chip->base + offset);
+	int err;
+	dev_info(chip->parent, "> %s(chip=%px, offset=%u)\n", __func__, chip, offset);
+	err = pinctrl_gpio_request(chip->base + offset);
+	dev_info(chip->parent, "< %s() = %d\n", __func__, err);
+	return err;
 }
 
 static void tegra_gpio_free(struct gpio_chip *chip, unsigned int offset)
 {
 	struct tegra_gpio_info *tgi = gpiochip_get_data(chip);
 
+	dev_info(chip->parent, "> %s(chip=%px, offset=%u)\n", __func__, chip, offset);
 	pinctrl_gpio_free(chip->base + offset);
 	tegra_gpio_disable(tgi, offset);
+	dev_info(chip->parent, "< %s()\n", __func__);
 }
 
 static void tegra_gpio_set(struct gpio_chip *chip, unsigned int offset,
@@ -155,7 +165,11 @@ static void tegra_gpio_set(struct gpio_chip *chip, unsigned int offset,
 {
 	struct tegra_gpio_info *tgi = gpiochip_get_data(chip);
 
+	dev_info(chip->parent, "> %s(chip=%px, offset=%u, value=%d)\n", __func__, chip, offset, value);
+
 	tegra_gpio_mask_write(tgi, GPIO_MSK_OUT(tgi, offset), offset, value);
+
+	dev_info(chip->parent, "< %s()\n", __func__);
 }
 
 static int tegra_gpio_get(struct gpio_chip *chip, unsigned int offset)
@@ -176,6 +190,8 @@ static int tegra_gpio_direction_input(struct gpio_chip *chip,
 	struct tegra_gpio_info *tgi = gpiochip_get_data(chip);
 	int ret;
 
+	dev_info(chip->parent, "> %s(chip=%px, offset=%u)\n", __func__, chip, offset);
+
 	tegra_gpio_mask_write(tgi, GPIO_MSK_OE(tgi, offset), offset, 0);
 	tegra_gpio_enable(tgi, offset);
 
@@ -185,6 +201,7 @@ static int tegra_gpio_direction_input(struct gpio_chip *chip,
 			"Failed to set pinctrl input direction of GPIO %d: %d",
 			 chip->base + offset, ret);
 
+	dev_info(chip->parent, "< %s() = %d\n", __func__, ret);
 	return ret;
 }
 
@@ -194,6 +211,8 @@ static int tegra_gpio_direction_output(struct gpio_chip *chip,
 {
 	struct tegra_gpio_info *tgi = gpiochip_get_data(chip);
 	int ret;
+
+	dev_info(chip->parent, "> %s(chip=%px, offset=%u, value=%d)\n", __func__, chip, offset, value);
 
 	tegra_gpio_set(chip, offset, value);
 	tegra_gpio_mask_write(tgi, GPIO_MSK_OE(tgi, offset), offset, 1);
@@ -205,6 +224,7 @@ static int tegra_gpio_direction_output(struct gpio_chip *chip,
 			"Failed to set pinctrl output direction of GPIO %d: %d",
 			 chip->base + offset, ret);
 
+	dev_info(chip->parent, "< %s() = %d\n", __func__, ret);
 	return ret;
 }
 
@@ -215,16 +235,26 @@ static int tegra_gpio_get_direction(struct gpio_chip *chip,
 	u32 pin_mask = BIT(GPIO_BIT(offset));
 	u32 cnf, oe, ret;
 
+	//dev_info(chip->parent, "> %s(chip=%px, offset=%u)\n", __func__, chip, offset);
+
 	cnf = tegra_gpio_readl(tgi, GPIO_CNF(tgi, offset));
-	if (!(cnf & pin_mask))
-		return -EINVAL;
+	if (!(cnf & pin_mask)) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	oe = tegra_gpio_readl(tgi, GPIO_OE(tgi, offset));
 
-	if (oe & pin_mask)
-		return GPIO_LINE_DIRECTION_OUT;
+	if (oe & pin_mask) {
+		ret = GPIO_LINE_DIRECTION_OUT;
+		goto out;
+	}
 
-	return GPIO_LINE_DIRECTION_IN;
+	ret = GPIO_LINE_DIRECTION_IN;
+
+out:
+	//dev_info(chip->parent, "< %s() = %d\n", __func__, ret);
+	return ret;
 }
 
 static int tegra_gpio_set_debounce(struct gpio_chip *chip, unsigned int offset,
@@ -236,9 +266,13 @@ static int tegra_gpio_set_debounce(struct gpio_chip *chip, unsigned int offset,
 	unsigned long flags;
 	unsigned int port;
 
+	dev_info(chip->parent, "> %s(chip=%px, offset=%u, debounce=%u)\n", __func__, chip, offset, debounce);
+	dev_info(chip->parent, "  tgi: %px\n", tgi);
+
 	if (!debounce_ms) {
 		tegra_gpio_mask_write(tgi, GPIO_MSK_DBC_EN(tgi, offset),
 				      offset, 0);
+		dev_info(chip->parent, "< %s()\n", __func__);
 		return 0;
 	}
 
@@ -257,6 +291,7 @@ static int tegra_gpio_set_debounce(struct gpio_chip *chip, unsigned int offset,
 
 	tegra_gpio_mask_write(tgi, GPIO_MSK_DBC_EN(tgi, offset), offset, 1);
 
+	dev_info(chip->parent, "< %s()\n", __func__);
 	return 0;
 }
 
@@ -264,12 +299,20 @@ static int tegra_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
 				 unsigned long config)
 {
 	u32 debounce;
+	int ret;
 
-	if (pinconf_to_config_param(config) != PIN_CONFIG_INPUT_DEBOUNCE)
-		return -EOPNOTSUPP;
+	dev_info(chip->parent, "> %s(chip=%px, offset=%u, config=%lx)\n", __func__, chip, offset, config);
+
+	if (pinconf_to_config_param(config) != PIN_CONFIG_INPUT_DEBOUNCE) {
+		ret = -EOPNOTSUPP;
+		goto out;
+	}
 
 	debounce = pinconf_to_config_argument(config);
-	return tegra_gpio_set_debounce(chip, offset, debounce);
+	ret = tegra_gpio_set_debounce(chip, offset, debounce);
+out:
+	dev_info(chip->parent, "< %s() = %d\n", __func__, ret);
+	return ret;
 }
 
 static void tegra_gpio_irq_ack(struct irq_data *d)
@@ -278,7 +321,9 @@ static void tegra_gpio_irq_ack(struct irq_data *d)
 	struct tegra_gpio_info *tgi = gpiochip_get_data(chip);
 	unsigned int gpio = d->hwirq;
 
+	dev_info(tgi->dev, "> %s(d=%px)\n", __func__, d);
 	tegra_gpio_writel(tgi, 1 << GPIO_BIT(gpio), GPIO_INT_CLR(tgi, gpio));
+	dev_info(tgi->dev, "< %s()\n", __func__);
 }
 
 static void tegra_gpio_irq_mask(struct irq_data *d)
@@ -287,7 +332,9 @@ static void tegra_gpio_irq_mask(struct irq_data *d)
 	struct tegra_gpio_info *tgi = gpiochip_get_data(chip);
 	unsigned int gpio = d->hwirq;
 
+	dev_info(tgi->dev, "> %s(d=%px)\n", __func__, d);
 	tegra_gpio_mask_write(tgi, GPIO_MSK_INT_ENB(tgi, gpio), gpio, 0);
+	dev_info(tgi->dev, "< %s()\n", __func__);
 }
 
 static void tegra_gpio_irq_unmask(struct irq_data *d)
@@ -296,7 +343,9 @@ static void tegra_gpio_irq_unmask(struct irq_data *d)
 	struct tegra_gpio_info *tgi = gpiochip_get_data(chip);
 	unsigned int gpio = d->hwirq;
 
+	dev_info(tgi->dev, "> %s(d=%px)\n", __func__, d);
 	tegra_gpio_mask_write(tgi, GPIO_MSK_INT_ENB(tgi, gpio), gpio, 1);
+	dev_info(tgi->dev, "< %s()\n", __func__);
 }
 
 static int tegra_gpio_irq_set_type(struct irq_data *d, unsigned int type)
@@ -306,8 +355,10 @@ static int tegra_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	struct tegra_gpio_info *tgi = gpiochip_get_data(chip);
 	struct tegra_gpio_bank *bank;
 	unsigned long flags;
-	int ret;
+	int ret = 0;
 	u32 val;
+
+	dev_info(tgi->dev, "> %s(d=%px, type=%x)\n", __func__, d, type);
 
 	bank = &tgi->bank_info[GPIO_BANK(d->hwirq)];
 
@@ -333,7 +384,8 @@ static int tegra_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 		break;
 
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	raw_spin_lock_irqsave(&bank->lvl_lock[port], flags);
@@ -364,6 +416,8 @@ static int tegra_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	if (d->parent_data)
 		ret = irq_chip_set_type_parent(d, type);
 
+out:
+	dev_info(tgi->dev, "< %s() = %d\n", __func__, ret);
 	return ret;
 }
 
@@ -373,8 +427,10 @@ static void tegra_gpio_irq_shutdown(struct irq_data *d)
 	struct tegra_gpio_info *tgi = gpiochip_get_data(chip);
 	unsigned int gpio = d->hwirq;
 
+	dev_info(tgi->dev, "> %s(d=%px)\n", __func__, d);
 	tegra_gpio_irq_mask(d);
 	gpiochip_unlock_as_irq(&tgi->gc, gpio);
+	dev_info(tgi->dev, "< %s(d=%px)\n", __func__, d);
 }
 
 static void tegra_gpio_irq_handler(struct irq_desc *desc)
@@ -388,6 +444,8 @@ static void tegra_gpio_irq_handler(struct irq_desc *desc)
 	bool unmasked = false;
 	unsigned long sta;
 	u32 lvl;
+
+	dev_info(tgi->dev, "> %s(desc=%px)\n", __func__, desc);
 
 	for (i = 0; i < tgi->bank_count; i++) {
 		if (tgi->irqs[i] == irq) {
@@ -430,15 +488,19 @@ static void tegra_gpio_irq_handler(struct irq_desc *desc)
 
 	if (!unmasked)
 		chained_irq_exit(chip, desc);
+
+	dev_info(tgi->dev, "< %s()\n", __func__);
 }
 
 static int tegra_gpio_child_to_parent_hwirq(struct gpio_chip *chip, unsigned int hwirq,
 					    unsigned int type, unsigned int *parent_hwirq,
 					    unsigned int *parent_type)
 {
+	dev_info(chip->parent, "> %s(chip=%px, hwirq=%u, type=%x, parent_hwirq=%px, parent_type=%px)\n", __func__, chip, hwirq, type, parent_hwirq, parent_type);
 	*parent_hwirq = chip->irq.child_offset_to_irq(chip, hwirq);
 	*parent_type = type;
 
+	dev_info(chip->parent, "< %s()\n", __func__);
 	return 0;
 }
 
@@ -446,6 +508,8 @@ static void *tegra_gpio_populate_parent_fwspec(struct gpio_chip *chip, unsigned 
 					       unsigned int parent_type)
 {
 	struct irq_fwspec *fwspec;
+
+	dev_info(chip->parent, "> %s(chip=%px, parent_hwirq=%u, parent_type=%x)\n", __func__, chip, parent_hwirq, parent_type);
 
 	fwspec = kmalloc(sizeof(*fwspec), GFP_KERNEL);
 	if (!fwspec)
@@ -457,6 +521,7 @@ static void *tegra_gpio_populate_parent_fwspec(struct gpio_chip *chip, unsigned 
 	fwspec->param[1] = parent_hwirq;
 	fwspec->param[2] = parent_type;
 
+	dev_info(chip->parent, "< %s() = %px\n", __func__, fwspec);
 	return fwspec;
 }
 
@@ -541,6 +606,9 @@ static int tegra_gpio_irq_set_wake(struct irq_data *d, unsigned int enable)
 	struct tegra_gpio_bank *bank;
 	unsigned int gpio = d->hwirq;
 	u32 port, bit, mask;
+	int ret = 0;
+
+	dev_info(tgi->dev, "> %s(d=%px, enable=%u)\n", __func__, d, enable);
 
 	bank = &tgi->bank_info[GPIO_BANK(d->hwirq)];
 
@@ -554,9 +622,10 @@ static int tegra_gpio_irq_set_wake(struct irq_data *d, unsigned int enable)
 		bank->wake_enb[port] &= ~mask;
 
 	if (d->parent_data)
-		return irq_chip_set_wake_parent(d, enable);
+		ret = irq_chip_set_wake_parent(d, enable);
 
-	return 0;
+	dev_info(tgi->dev, "< %s() = %d\n", __func__, ret);
+	return ret;
 }
 #endif
 
@@ -623,9 +692,13 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 	unsigned int i, j;
 	int ret;
 
+	dev_info(&pdev->dev, "> %s(pdev=%px)\n", __func__, pdev);
+
 	tgi = devm_kzalloc(&pdev->dev, sizeof(*tgi), GFP_KERNEL);
 	if (!tgi)
 		return -ENODEV;
+
+	dev_info(&pdev->dev, "  tgi: %px\n", tgi);
 
 	tgi->soc = of_device_get_match_data(&pdev->dev);
 	tgi->dev = &pdev->dev;
@@ -686,6 +759,7 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 		bank = &tgi->bank_info[i];
 		bank->bank = i;
 
+		dev_info(tgi->dev, "  IRQ[%u]: %d\n", i, ret);
 		tgi->irqs[i] = ret;
 	}
 
@@ -728,6 +802,7 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 
 	tegra_gpio_debuginit(tgi);
 
+	dev_info(&pdev->dev, "< %s()\n", __func__);
 	return 0;
 }
 
