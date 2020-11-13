@@ -1824,6 +1824,9 @@ static int tegra210_usb2_phy_init(struct phy *phy)
 	int err;
 	u32 value;
 
+	dev_info(&phy->dev, "> %s(phy=%px)\n", __func__, phy);
+	dev_info(&phy->dev, "  driver: %px (%ps)\n", phy->dev.driver, phy->dev.driver);
+
 	port = tegra_xusb_find_usb2_port(padctl, index);
 	if (!port) {
 		dev_err(&phy->dev, "no port found for USB2 lane %u\n", index);
@@ -1847,6 +1850,7 @@ static int tegra210_usb2_phy_init(struct phy *phy)
 
 	mutex_unlock(&padctl->lock);
 
+	dev_info(&phy->dev, "< %s()\n", __func__);
 	return 0;
 }
 

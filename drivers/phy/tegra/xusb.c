@@ -186,9 +186,14 @@ int tegra_xusb_pad_register(struct tegra_xusb_pad *pad,
 	unsigned int i;
 	int err;
 
+	dev_info(&pad->dev, "> %s(pad=%px, ops=%px)\n", __func__, pad, ops);
+	dev_info(&pad->dev, "  ops: %ps\n", ops);
+
 	children = of_get_child_by_name(pad->dev.of_node, "lanes");
 	if (!children)
 		return -ENODEV;
+
+	dev_info(&pad->dev, "  lanes: %pOF\n", children);
 
 	pad->lanes = devm_kcalloc(&pad->dev, pad->soc->num_lanes, sizeof(lane),
 				  GFP_KERNEL);
@@ -207,12 +212,18 @@ int tegra_xusb_pad_register(struct tegra_xusb_pad *pad,
 			continue;
 		}
 
+		dev_info(&pad->dev, "    adding %pOF...\n", np);
+
 		pad->lanes[i] = phy_create(&pad->dev, np, ops);
 		if (IS_ERR(pad->lanes[i])) {
 			err = PTR_ERR(pad->lanes[i]);
 			of_node_put(np);
 			goto remove;
 		}
+
+		dev_info(&pad->dev, "      PHY %s created\n", dev_name(&pad->lanes[i]->dev));
+		dev_info(&pad->dev, "        driver: %px (%ps)\n", pad->lanes[i]->dev.driver,
+			 pad->lanes[i]->dev.driver);
 
 		lane = pad->ops->probe(pad, np, i);
 		if (IS_ERR(lane)) {
@@ -1157,6 +1168,8 @@ static int tegra_xusb_padctl_probe(struct platform_device *pdev)
 	struct resource *res;
 	int err;
 
+	dev_info(&pdev->dev, "> %s(pdev=%px)\n", __func__, pdev);
+
 	/* for backwards compatibility with old device trees */
 	np = of_get_child_by_name(np, "pads");
 	if (!np) {
@@ -1239,6 +1252,7 @@ static int tegra_xusb_padctl_probe(struct platform_device *pdev)
 		goto remove_pads;
 	}
 
+	dev_info(&pdev->dev, "< %s()\n", __func__);
 	return 0;
 
 remove_pads:
@@ -1278,11 +1292,26 @@ static int tegra_xusb_padctl_remove(struct platform_device *pdev)
 static int tegra_xusb_padctl_suspend_noirq(struct device *dev)
 {
 	struct tegra_xusb_padctl *padctl = dev_get_drvdata(dev);
+	int ret = 0;
+
+	dev_info(dev, "> %s(dev=%px)\n", __func__, dev);
+	dev_info(dev, "  driver: %px (%ps)\n", dev->driver, dev->driver);
+	dev_info(dev, "  padctl: %px\n", padctl);
+
+	if (padctl) {
+		dev_info(dev, "    soc: %px (%ps)\n", padctl->soc, padctl->soc);
+
+		if (padctl->soc)
+			dev_info(dev, "      ops: %px (%ps)\n", padctl->soc->ops, padctl->soc->ops);
+	}
+
+	dump_stack();
 
 	if (padctl->soc && padctl->soc->ops && padctl->soc->ops->suspend_noirq)
-		return padctl->soc->ops->suspend_noirq(padctl);
+		ret = padctl->soc->ops->suspend_noirq(padctl);
 
-	return 0;
+	dev_info(dev, "< %s() = %d\n", __func__, ret);
+	return ret;
 }
 
 static int tegra_xusb_padctl_resume_noirq(struct device *dev)
