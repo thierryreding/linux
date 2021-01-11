@@ -169,6 +169,7 @@ u32 host1x_syncpt_base_id(struct host1x_syncpt_base *base);
 
 void host1x_syncpt_release_vblank_reservation(struct host1x_client *client,
 					      u32 syncpt_id);
+struct host1x_syncpt *host1x_syncpt_fd_get(int fd);
 
 /*
  * host1x channel
