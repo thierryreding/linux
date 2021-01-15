@@ -17582,13 +17582,14 @@ S:	Supported
 F:	drivers/clk/tegra/
 
 TEGRA DMA DRIVERS
-M:	Laxman Dewangan <ldewangan@nvidia.com>
+M:	Thierry Reding <thierry.reding@gmail.com>
 M:	Jon Hunter <jonathanh@nvidia.com>
 S:	Supported
 F:	drivers/dma/tegra*
 
 TEGRA I2C DRIVER
-M:	Laxman Dewangan <ldewangan@nvidia.com>
+M:	Thierry Reding <thierry.reding@gmail.com>
+M:	Jon Hunter <jonathanh@nvidia.com>
 R:	Dmitry Osipenko <digetx@gmail.com>
 S:	Supported
 F:	drivers/i2c/busses/i2c-tegra.c
@@ -17602,7 +17603,8 @@ F:	drivers/iommu/arm/arm-smmu/arm-smmu-nvidia.c
 F:	drivers/iommu/tegra*
 
 TEGRA KBC DRIVER
-M:	Laxman Dewangan <ldewangan@nvidia.com>
+M:	Thierry Reding <thierry.reding@gmail.com>
+M:	Jon Hunter <jonathanh@nvidia.com>
 S:	Supported
 F:	drivers/input/keyboard/tegra-kbc.c
 
@@ -17619,12 +17621,14 @@ S:	Supported
 F:	drivers/pwm/pwm-tegra.c
 
 TEGRA SERIAL DRIVER
-M:	Laxman Dewangan <ldewangan@nvidia.com>
+M:	Thierry Reding <thierry.reding@gmail.com>
+M:	Jon Hunter <jonathanh@nvidia.com>
 S:	Supported
 F:	drivers/tty/serial/serial-tegra.c
 
 TEGRA SPI DRIVER
-M:	Laxman Dewangan <ldewangan@nvidia.com>
+M:	Thierry Reding <thierry.reding@gmail.com>
+M:	Jon Hunter <jonathanh@nvidia.com>
 S:	Supported
 F:	drivers/spi/spi-tegra*
 
