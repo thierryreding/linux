@@ -112,6 +112,74 @@
 	};
 
 	pinmux@700008d4 {
+		dap4_active: dap4_active {
+			dap4_fs_pj4 {
+				nvidia,pins = "dap4_fs_pj4";
+				nvidia,pull = <TEGRA_PIN_PULL_DOWN>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
+				nvidia,open-drain = <TEGRA_PIN_DISABLE>;
+			};
+
+			dap4_din_pj5 {
+				nvidia,pins = "dap4_din_pj5";
+				nvidia,pull = <TEGRA_PIN_PULL_DOWN>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
+				nvidia,open-drain = <TEGRA_PIN_DISABLE>;
+			};
+
+			dap4_dout_pj6 {
+				nvidia,pins = "dap4_dout_pj6";
+				nvidia,pull = <TEGRA_PIN_PULL_DOWN>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
+				nvidia,open-drain = <TEGRA_PIN_DISABLE>;
+			};
+
+			dap4_sclk_pj7 {
+				nvidia,pins = "dap4_sclk_pj7";
+				nvidia,pull = <TEGRA_PIN_PULL_DOWN>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
+				nvidia,open-drain = <TEGRA_PIN_DISABLE>;
+			};
+		};
+
+		dap4_idle: dap4_idle {
+			dap4_fs_pj4 {
+				nvidia,pins = "dap4_fs_pj4";
+				nvidia,pull = <TEGRA_PIN_PULL_DOWN>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
+				nvidia,open-drain = <TEGRA_PIN_DISABLE>;
+			};
+
+			dap4_din_pj5 {
+				nvidia,pins = "dap4_din_pj5";
+				nvidia,pull = <TEGRA_PIN_PULL_DOWN>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
+				nvidia,open-drain = <TEGRA_PIN_DISABLE>;
+			};
+
+			dap4_dout_pj6 {
+				nvidia,pins = "dap4_dout_pj6";
+				nvidia,pull = <TEGRA_PIN_PULL_DOWN>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
+				nvidia,open-drain = <TEGRA_PIN_DISABLE>;
+			};
+
+			dap4_sclk_pj7 {
+				nvidia,pins = "dap4_sclk_pj7";
+				nvidia,pull = <TEGRA_PIN_PULL_DOWN>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
+				nvidia,open-drain = <TEGRA_PIN_DISABLE>;
+			};
+		};
+
 		dvfs_pwm_active_state: dvfs_pwm_active {
 			dvfs_pwm_pbb1 {
 				nvidia,pins = "dvfs_pwm_pbb1";
@@ -134,6 +202,29 @@
 
 	pwm@7000a000 {
 		status = "okay";
+	};
+
+	i2c@7000c400 {
+		status = "okay";
+		clock-frequency = <100000>;
+
+		codec@4c {
+			compatible = "ti,pcm5122";
+			reg = <0x4c>;
+
+			sound-name-prefix = "CVB-TI";
+			#sound-dai-cells = <0>;
+
+			AVDD-supply = <&vdd_3v3_sys>;
+			DVDD-supply = <&vdd_3v3_sys>;
+			CPVDD-supply = <&vdd_3v3_sys>;
+
+			port {
+				pcm5122_ep: endpoint {
+					remote-endpoint = <&i2s4_dap_ep>;
+				};
+			};
+		};
 	};
 
 	i2c@7000c500 {
@@ -689,8 +780,8 @@
 						reg = <1>;
 
 						i2s4_dap_ep: endpoint@0 {
+							remote-endpoint = <&pcm5122_ep>;
 							dai-format = "i2s";
-							/* Placeholder for external Codec */
 						};
 					};
 				};
@@ -798,6 +889,14 @@
 		compatible = "fixed-clock";
 		clock-frequency = <32768>;
 		#clock-cells = <0>;
+	};
+
+	clk_codec: clock@1 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <12288000>;
+		clock-output-names = "pcm5122-mclk";
+		status = "okay";
 	};
 
 	cpus {
@@ -1031,6 +1130,10 @@
 		compatible = "nvidia,tegra210-audio-graph-card";
 		status = "okay";
 
+		pinctrl-names = "default", "idle";
+		pinctrl-0 = <&dap4_active>;
+		pinctrl-1 = <&dap4_idle>;
+
 		dais = /* FE */
 		       <&admaif1_port>, <&admaif2_port>, <&admaif3_port>,
 		       <&admaif4_port>, <&admaif5_port>, <&admaif6_port>,
@@ -1044,5 +1147,11 @@
 		       <&dmic1_port>, <&dmic2_port>;
 
 		label = "jetson-nano-ape";
+
+		widgets = "Headphone", "CVB-TI HP Jack";
+
+		routing = "CVB-TI Playback", "I2S4 DAP-Playback",
+			  "CVB-TI HP Jack", "CVB-TI OUTL",
+			  "CVB-TI HP Jack", "CVB-TI OUTR";
 	};
 };
