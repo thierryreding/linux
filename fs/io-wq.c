@@ -85,7 +85,6 @@ struct io_wqe {
 	struct {
 		raw_spinlock_t lock;
 		struct io_wq_work_list work_list;
-		unsigned long hash_map;
 		unsigned flags;
 	} ____cacheline_aligned_in_smp;
 
@@ -94,6 +93,8 @@ struct io_wqe {
 
 	struct hlist_nulls_head free_list;
 	struct list_head all_list;
+
+	struct wait_queue_entry wait;
 
 	struct io_wq *wq;
 	struct io_wq_work *hash_tail[IO_WQ_NR_HASH_BUCKETS];
@@ -111,6 +112,9 @@ struct io_wq {
 
 	struct task_struct *manager;
 	struct user_struct *user;
+
+	struct io_wq_hash *hash;
+
 	refcount_t refs;
 	struct completion done;
 
@@ -335,14 +339,31 @@ static inline unsigned int io_get_work_hash(struct io_wq_work *work)
 	return work->flags >> IO_WQ_HASH_SHIFT;
 }
 
+static void io_wait_on_hash(struct io_wqe *wqe, unsigned int hash)
+{
+	struct io_wq *wq = wqe->wq;
+
+	spin_lock(&wq->hash->wait.lock);
+	if (list_empty(&wqe->wait.entry)) {
+		__add_wait_queue(&wq->hash->wait, &wqe->wait);
+		if (!test_bit(hash, &wq->hash->map)) {
+			__set_current_state(TASK_RUNNING);
+			list_del_init(&wqe->wait.entry);
+		}
+	}
+	spin_unlock(&wq->hash->wait.lock);
+}
+
 static struct io_wq_work *io_get_next_work(struct io_wqe *wqe)
 	__must_hold(wqe->lock)
 {
 	struct io_wq_work_node *node, *prev;
 	struct io_wq_work *work, *tail;
-	unsigned int hash;
+	unsigned int stall_hash = -1U;
 
 	wq_list_for_each(node, prev, &wqe->work_list) {
+		unsigned int hash;
+
 		work = container_of(node, struct io_wq_work, list);
 
 		/* not hashed, can run anytime */
@@ -351,16 +372,24 @@ static struct io_wq_work *io_get_next_work(struct io_wqe *wqe)
 			return work;
 		}
 
-		/* hashed, can run if not already running */
 		hash = io_get_work_hash(work);
-		if (!(wqe->hash_map & BIT(hash))) {
-			wqe->hash_map |= BIT(hash);
+
+		/* hashed, can run if not already running */
+		if (!test_and_set_bit(hash, &wqe->wq->hash->map)) {
 			/* all items with this hash lie in [work, tail] */
 			tail = wqe->hash_tail[hash];
 			wqe->hash_tail[hash] = NULL;
 			wq_list_cut(&wqe->work_list, &tail->list, prev);
 			return work;
 		}
+		if (stall_hash == -1U)
+			stall_hash = hash;
+	}
+
+	if (stall_hash != -1U) {
+		raw_spin_unlock(&wqe->lock);
+		io_wait_on_hash(wqe, stall_hash);
+		raw_spin_lock(&wqe->lock);
 	}
 
 	return NULL;
@@ -428,6 +457,7 @@ get_next:
 		if (!work)
 			break;
 		io_assign_current_work(worker, work);
+		__set_current_state(TASK_RUNNING);
 
 		/* handle a whole dependent link */
 		do {
@@ -451,8 +481,12 @@ get_next:
 				io_wqe_enqueue(wqe, linked);
 
 			if (hash != -1U && !next_hashed) {
+				if (test_bit(hash, &wq->hash->map)) {
+					clear_bit(hash, &wq->hash->map);
+					if (wq_has_sleeper(&wq->hash->wait))
+						wake_up(&wq->hash->wait);
+				}
 				raw_spin_lock_irq(&wqe->lock);
-				wqe->hash_map &= ~BIT_ULL(hash);
 				wqe->flags &= ~IO_WQE_FLAG_STALLED;
 				/* skip unnecessary unlock-lock wqe->lock */
 				if (!work)
@@ -478,7 +512,6 @@ static int io_wqe_worker(void *data)
 loop:
 		raw_spin_lock_irq(&wqe->lock);
 		if (io_wqe_run_queue(wqe)) {
-			__set_current_state(TASK_RUNNING);
 			io_worker_handle_work(worker);
 			goto loop;
 		}
@@ -955,6 +988,19 @@ enum io_wq_cancel io_wq_cancel_cb(struct io_wq *wq, work_cancel_fn *cancel,
 	return IO_WQ_CANCEL_NOTFOUND;
 }
 
+static int io_wqe_hash_wake(struct wait_queue_entry *wait, unsigned mode,
+			    int sync, void *key)
+{
+	struct io_wqe *wqe = container_of(wait, struct io_wqe, wait);
+
+	list_del_init(&wait->entry);
+
+	rcu_read_lock();
+	io_wq_for_each_worker(wqe, io_wq_worker_wake, NULL);
+	rcu_read_unlock();
+	return 1;
+}
+
 struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data)
 {
 	int ret = -ENOMEM, node;
@@ -975,6 +1021,8 @@ struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data)
 	if (ret)
 		goto err_wqes;
 
+	refcount_inc(&data->hash->refs);
+	wq->hash = data->hash;
 	wq->free_work = data->free_work;
 	wq->do_work = data->do_work;
 
@@ -1000,6 +1048,8 @@ struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data)
 					task_rlimit(current, RLIMIT_NPROC);
 		}
 		atomic_set(&wqe->acct[IO_WQ_ACCT_UNBOUND].nr_running, 0);
+		wqe->wait.func = io_wqe_hash_wake;
+		INIT_LIST_HEAD(&wqe->wait.entry);
 		wqe->wq = wq;
 		raw_spin_lock_init(&wqe->lock);
 		INIT_WQ_LIST(&wqe->work_list);
@@ -1022,6 +1072,7 @@ struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data)
 
 	if (refcount_dec_and_test(&wq->refs))
 		complete(&wq->done);
+	io_wq_put_hash(data->hash);
 err:
 	cpuhp_state_remove_instance_nocalls(io_wq_online, &wq->cpuhp_node);
 	for_each_node(node)
@@ -1050,8 +1101,15 @@ void io_wq_destroy(struct io_wq *wq)
 
 	wait_for_completion(&wq->done);
 
-	for_each_node(node)
-		kfree(wq->wqes[node]);
+	spin_lock_irq(&wq->hash->wait.lock);
+	for_each_node(node) {
+		struct io_wqe *wqe = wq->wqes[node];
+
+		list_del_init(&wqe->wait.entry);
+		kfree(wqe);
+	}
+	spin_unlock_irq(&wq->hash->wait.lock);
+	io_wq_put_hash(wq->hash);
 	kfree(wq->wqes);
 	kfree(wq);
 }
