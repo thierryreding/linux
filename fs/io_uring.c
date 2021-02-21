@@ -7784,7 +7784,6 @@ static struct io_wq *io_init_wq_offload(struct io_ring_ctx *ctx)
 	}
 
 	data.hash = hash;
-	data.user = ctx->user;
 	data.free_work = io_free_work;
 	data.do_work = io_wq_submit_work;
 

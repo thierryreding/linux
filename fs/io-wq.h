@@ -107,8 +107,6 @@ static inline void io_wq_put_hash(struct io_wq_hash *hash)
 }
 
 struct io_wq_data {
-	struct user_struct *user;
-
 	struct io_wq_hash *hash;
 
 	io_wq_work_fn *do_work;
