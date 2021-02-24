@@ -580,7 +580,7 @@ int cifs_open(struct inode *inode, struct file *file)
 		} else if ((rc == -EINVAL) || (rc == -EOPNOTSUPP)) {
 			if (tcon->ses->serverNOS)
 				cifs_dbg(VFS, "server %s of type %s returned unexpected error on SMB posix open, disabling posix open support. Check if server update available.\n",
-					 tcon->ses->serverName,
+					 tcon->ses->ip_addr,
 					 tcon->ses->serverNOS);
 			tcon->broken_posix_open = true;
 		} else if ((rc != -EIO) && (rc != -EREMOTE) &&
@@ -3242,6 +3242,7 @@ cifs_writev(struct kiocb *iocb, struct iov_iter *from)
 	struct inode *inode = file->f_mapping->host;
 	struct cifsInodeInfo *cinode = CIFS_I(inode);
 	struct TCP_Server_Info *server = tlink_tcon(cfile->tlink)->ses->server;
+	struct cifsLockInfo *lock;
 	ssize_t rc;
 
 	inode_lock(inode);
@@ -3257,7 +3258,7 @@ cifs_writev(struct kiocb *iocb, struct iov_iter *from)
 
 	if (!cifs_find_lock_conflict(cfile, iocb->ki_pos, iov_iter_count(from),
 				     server->vals->exclusive_lock_type, 0,
-				     NULL, CIFS_WRITE_OP))
+				     &lock, CIFS_WRITE_OP) || (lock->flags & FL_FLOCK))
 		rc = __generic_file_write_iter(iocb, from);
 	else
 		rc = -EACCES;
@@ -3975,6 +3976,7 @@ cifs_strict_readv(struct kiocb *iocb, struct iov_iter *to)
 	struct cifsFileInfo *cfile = (struct cifsFileInfo *)
 						iocb->ki_filp->private_data;
 	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
+	struct cifsLockInfo *lock;
 	int rc = -EACCES;
 
 	/*
@@ -4000,7 +4002,7 @@ cifs_strict_readv(struct kiocb *iocb, struct iov_iter *to)
 	down_read(&cinode->lock_sem);
 	if (!cifs_find_lock_conflict(cfile, iocb->ki_pos, iov_iter_count(to),
 				     tcon->ses->server->vals->shared_lock_type,
-				     0, NULL, CIFS_READ_OP))
+				     0, &lock, CIFS_READ_OP) || (lock->flags & FL_FLOCK))
 		rc = generic_file_read_iter(iocb, to);
 	up_read(&cinode->lock_sem);
 	return rc;
