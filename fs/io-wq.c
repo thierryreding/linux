@@ -371,8 +371,12 @@ static struct io_wq_work *io_get_next_work(struct io_wqe *wqe)
 		if (!test_and_set_bit(hash, &wqe->wq->hash->map)) {
 			/* all items with this hash lie in [work, tail] */
 			tail = wqe->hash_tail[hash];
-			wqe->hash_tail[hash] = NULL;
-			wq_list_cut(&wqe->work_list, &tail->list, prev);
+			if (tail) {
+				wqe->hash_tail[hash] = NULL;
+				wq_list_cut(&wqe->work_list, &tail->list, prev);
+			} else {
+				wq_list_del(&wqe->work_list, node, prev);
+			}
 			return work;
 		}
 		if (stall_hash == -1U)
