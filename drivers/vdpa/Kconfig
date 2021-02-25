@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menuconfig VDPA
 	tristate "vDPA drivers"
+	depends on NET
 	help
 	  Enable this module to support vDPA device that uses a
 	  datapath which complies with virtio specifications with
@@ -50,5 +51,12 @@ config MLX5_VDPA_NET
 	  of virtio net datapath such that descriptors put on the ring will
 	  be executed by the hardware. It also supports a variety of stateless
 	  offloads depending on the actual device used and firmware version.
+
+config VP_VDPA
+	tristate "Virtio PCI bridge vDPA driver"
+	select VIRTIO_PCI_LIB
+	depends on PCI_MSI
+	help
+	  This kernel module bridges virtio PCI device to vDPA bus.
 
 endif # VDPA
