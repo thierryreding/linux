@@ -320,7 +320,11 @@ static int tegra_bo_alloc(struct drm_device *drm, struct tegra_bo *bo)
 	struct tegra_drm *tegra = drm->dev_private;
 	int err;
 
+	dev_info(drm->dev, "> %s(drm=%px, bo=%px)\n", __func__, drm, bo);
+
 	if (tegra->domain) {
+		dev_info(drm->dev, "  domain: %px\n", tegra->domain);
+
 		err = tegra_bo_get_pages(drm, bo);
 		if (err < 0)
 			return err;
@@ -330,6 +334,8 @@ static int tegra_bo_alloc(struct drm_device *drm, struct tegra_bo *bo)
 			tegra_bo_free(drm, bo);
 			return err;
 		}
+
+		dev_info(drm->dev, "  IOMMU mapped to %pad\n", &bo->iova);
 	} else {
 		size_t size = bo->gem.size;
 
@@ -341,8 +347,11 @@ static int tegra_bo_alloc(struct drm_device *drm, struct tegra_bo *bo)
 				size);
 			return -ENOMEM;
 		}
+
+		dev_info(drm->dev, "  DMA mapped to %pad\n", &bo->iova);
 	}
 
+	dev_info(drm->dev, "< %s()\n", __func__);
 	return 0;
 }
 

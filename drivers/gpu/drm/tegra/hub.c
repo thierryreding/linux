@@ -55,6 +55,13 @@ static const u64 tegra_shared_plane_modifiers[] = {
 	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(3),
 	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(4),
 	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(5),
+	/* XXX Tegra194 only */
+	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(0) | BIT(22),
+	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(1) | BIT(22),
+	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(2) | BIT(22),
+	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(3) | BIT(22),
+	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(4) | BIT(22),
+	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(5) | BIT(22),
 	DRM_FORMAT_MOD_INVALID
 };
 
@@ -434,6 +441,8 @@ static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
 	u32 value;
 	int err;
 
+	dev_info(dc->dev, "> %s(plane=%px, old_state=%px)\n", __func__, plane, old_state);
+
 	/* rien ne va plus */
 	if (!plane->state->crtc || !plane->state->fb)
 		return;
@@ -478,6 +487,14 @@ static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
 	tegra_plane_writel(p, 0, DC_WINBUF_CDE_CONTROL);
 
 	base = state->iova[0] + fb->offsets[0];
+
+	/* XXX */
+	if (dc->soc->supports_block_linear) {
+		if (state->tiling.sector_layout == TEGRA_BO_SECTOR_LAYOUT_GPU)
+			base |= BIT(39);
+	}
+
+	dev_info(dc->dev, "  base: %pad\n", &base);
 
 	tegra_plane_writel(p, state->format, DC_WIN_COLOR_DEPTH);
 	tegra_plane_writel(p, 0, DC_WIN_PRECOMP_WGRP_PARAMS);
@@ -538,6 +555,8 @@ static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
 	tegra_plane_writel(p, value, DC_WIN_WINDOW_SET_CONTROL);
 
 	host1x_client_suspend(&dc->client);
+
+	dev_info(dc->dev, "< %s()\n", __func__);
 }
 
 static const struct drm_plane_helper_funcs tegra_shared_plane_helper_funcs = {

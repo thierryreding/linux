@@ -154,50 +154,6 @@ struct tegra_mc_icc_ops {
 						void *data);
 };
 
-struct tegra_mc_soc {
-	const struct tegra_mc_client *clients;
-	unsigned int num_clients;
-
-	const unsigned long *emem_regs;
-	unsigned int num_emem_regs;
-
-	unsigned int num_address_bits;
-	unsigned int atom_size;
-
-	u8 client_id_mask;
-
-	const struct tegra_smmu_soc *smmu;
-
-	u32 intmask;
-
-	const struct tegra_mc_reset_ops *reset_ops;
-	const struct tegra_mc_reset *resets;
-	unsigned int num_resets;
-
-	const struct tegra_mc_icc_ops *icc_ops;
-};
-
-struct tegra_mc {
-	struct device *dev;
-	struct tegra_smmu *smmu;
-	struct gart_device *gart;
-	void __iomem *regs;
-	struct clk *clk;
-	int irq;
-
-	const struct tegra_mc_soc *soc;
-	unsigned long tick;
-
-	struct tegra_mc_timing *timings;
-	unsigned int num_timings;
-
-	struct reset_controller_dev reset;
-
-	struct icc_provider provider;
-
-	spinlock_t lock;
-};
-
 int tegra_mc_write_emem_configuration(struct tegra_mc *mc, unsigned long rate);
 unsigned int tegra_mc_get_emem_device_count(struct tegra_mc *mc);
 

@@ -44,6 +44,13 @@ int tegra_fb_get_tiling(struct drm_framebuffer *framebuffer,
 {
 	uint64_t modifier = framebuffer->modifier;
 
+	if ((modifier & BIT(22)) == 0)
+		tiling->sector_layout = TEGRA_BO_SECTOR_LAYOUT_TEGRA;
+	else
+		tiling->sector_layout = TEGRA_BO_SECTOR_LAYOUT_GPU;
+
+	modifier &= ~BIT(22);
+
 	switch (modifier) {
 	case DRM_FORMAT_MOD_LINEAR:
 		tiling->mode = TEGRA_BO_TILING_MODE_PITCH;

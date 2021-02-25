@@ -3,11 +3,15 @@
  * Copyright (C) 2017 NVIDIA CORPORATION.  All rights reserved.
  */
 
+#define DEBUG
+
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+
+#include <soc/tegra/mc.h>
 
 #if defined(CONFIG_ARCH_TEGRA_186_SOC)
 #include <dt-bindings/memory/tegra186-mc.h>
@@ -26,19 +30,19 @@ struct tegra186_mc_client {
 	} regs;
 };
 
-struct tegra186_mc_soc {
+struct tegra_mc_soc {
 	const struct tegra186_mc_client *clients;
 	unsigned int num_clients;
 };
 
-struct tegra186_mc {
+struct tegra_mc {
 	struct device *dev;
 	void __iomem *regs;
 
-	const struct tegra186_mc_soc *soc;
+	const struct tegra_mc_soc *soc;
 };
 
-static void tegra186_mc_program_sid(struct tegra186_mc *mc)
+static void tegra186_mc_program_sid(struct tegra_mc *mc)
 {
 	unsigned int i;
 
@@ -573,7 +577,7 @@ static const struct tegra186_mc_client tegra186_mc_clients[] = {
 	},
 };
 
-static const struct tegra186_mc_soc tegra186_mc_soc = {
+static const struct tegra_mc_soc tegra186_mc_soc = {
 	.num_clients = ARRAY_SIZE(tegra186_mc_clients),
 	.clients = tegra186_mc_clients,
 };
@@ -898,6 +902,7 @@ static const struct tegra186_mc_client tegra194_mc_clients[] = {
 		},
 	}, {
 		.name = "nvdisplayr",
+		//.sid = TEGRA194_SID_PASSTHROUGH,
 		.sid = TEGRA194_SID_NVDISPLAY,
 		.regs = {
 			.override = 0x490,
@@ -1003,6 +1008,7 @@ static const struct tegra186_mc_client tegra194_mc_clients[] = {
 		},
 	}, {
 		.name = "nvdisplayr1",
+		//.sid = TEGRA194_SID_PASSTHROUGH,
 		.sid = TEGRA194_SID_NVDISPLAY,
 		.regs = {
 			.override = 0x508,
@@ -1515,7 +1521,7 @@ static const struct tegra186_mc_client tegra194_mc_clients[] = {
 	},
 };
 
-static const struct tegra186_mc_soc tegra194_mc_soc = {
+static const struct tegra_mc_soc tegra194_mc_soc = {
 	.num_clients = ARRAY_SIZE(tegra194_mc_clients),
 	.clients = tegra194_mc_clients,
 };
@@ -1523,8 +1529,8 @@ static const struct tegra186_mc_soc tegra194_mc_soc = {
 
 static int tegra186_mc_probe(struct platform_device *pdev)
 {
-	struct tegra186_mc *mc;
 	struct resource *res;
+	struct tegra_mc *mc;
 	int err;
 
 	mc = devm_kzalloc(&pdev->dev, sizeof(*mc), GFP_KERNEL);
@@ -1552,7 +1558,7 @@ static int tegra186_mc_probe(struct platform_device *pdev)
 
 static int tegra186_mc_remove(struct platform_device *pdev)
 {
-	struct tegra186_mc *mc = platform_get_drvdata(pdev);
+	struct tegra_mc *mc = platform_get_drvdata(pdev);
 
 	of_platform_depopulate(mc->dev);
 
@@ -1577,7 +1583,7 @@ static int __maybe_unused tegra186_mc_suspend(struct device *dev)
 
 static int __maybe_unused tegra186_mc_resume(struct device *dev)
 {
-	struct tegra186_mc *mc = dev_get_drvdata(dev);
+	struct tegra_mc *mc = dev_get_drvdata(dev);
 
 	tegra186_mc_program_sid(mc);
 

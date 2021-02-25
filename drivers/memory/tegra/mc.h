@@ -10,7 +10,7 @@
 #include <linux/io.h>
 #include <linux/types.h>
 
-#include <soc/tegra/mc.h>
+#include <soc/tegra/mc-internal.h>
 
 #define MC_INTSTATUS					0x00
 #define MC_INTMASK					0x04

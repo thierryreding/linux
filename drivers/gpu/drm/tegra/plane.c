@@ -114,15 +114,37 @@ static int tegra_dc_pin(struct tegra_dc *dc, struct tegra_plane_state *state)
 	unsigned int i;
 	int err;
 
+	dev_info(dc->dev, "> %s(dc=%px, state=%px)\n", __func__, dc, state);
+	dev_info(dc->dev, "  dma_mask: %llx\n", *dc->dev->dma_mask);
+	dev_info(dc->dev, "  dma_ops: %ps\n", dc->dev->dma_ops);
+
 	for (i = 0; i < state->base.fb->format->num_planes; i++) {
 		struct tegra_bo *bo = tegra_fb_get_plane(state->base.fb, i);
 		dma_addr_t phys_addr, *phys;
 		struct sg_table *sgt;
 
+		/*
+		 * If we're not attached to a domain, we already stored the
+		 * physical address when the buffer was allocated. If we're
+		 * part of a group that's shared between all display
+		 * controllers, we've also already mapped the framebuffer
+		 * through the SMMU. In both cases we can short-circuit the
+		 * code below and retrieve the stored IOV address.
+		 */
 		if (!domain || dc->client.group)
 			phys = &phys_addr;
 		else
 			phys = NULL;
+
+		/* XXX why? */
+		/**/
+		if (phys != NULL) {
+			if (!bo->mm || !drm_mm_node_allocated(bo->mm)) {
+				pr_info("WARNING: MM node not allocated!\n");
+				phys = NULL;
+			}
+		}
+		/**/
 
 		sgt = host1x_bo_pin(dc->dev, &bo->base, phys);
 		if (IS_ERR(sgt)) {
@@ -146,13 +168,17 @@ static int tegra_dc_pin(struct tegra_dc *dc, struct tegra_plane_state *state)
 				goto unpin;
 			}
 
-			state->iova[i] = sg_dma_address(sgt->sgl);
+			//dev_info(dc->dev, "setting XBAR bit for imported buffer...\n");
+			state->iova[i] = sg_dma_address(sgt->sgl);// | BIT(39);
 			state->sgt[i] = sgt;
 		} else {
 			state->iova[i] = phys_addr;
 		}
+
+		dev_info(dc->dev, "  %u: IOVA: %pad\n", i, &state->iova[i]);
 	}
 
+	dev_info(dc->dev, "< %s()\n", __func__);
 	return 0;
 
 unpin:

@@ -7,6 +7,8 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
+#include <soc/tegra/mc.h>
+
 #include "arm-smmu.h"
 
 /*
@@ -25,6 +27,7 @@
 struct nvidia_smmu {
 	struct arm_smmu_device	smmu;
 	void __iomem		*bases[NUM_SMMU_INSTANCES];
+	struct tegra_mc *mc;
 };
 
 static inline void __iomem *nvidia_smmu_page(struct arm_smmu_device *smmu,
@@ -224,6 +227,22 @@ static irqreturn_t nvidia_smmu_context_fault(int irq, void *dev)
 	return ret;
 }
 
+static void nvidia_smmu_probe_finalize(struct arm_smmu_device *smmu, struct device *dev)
+{
+	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
+	unsigned int i;
+
+	dev_info(smmu->dev, "> %s(smmu=%px, dev=%px)\n", __func__, smmu, dev);
+	dev_info(smmu->dev, "  dev: %s\n", dev_name(dev));
+
+	dev_info(smmu->dev, "  %u SIDs:\n", fwspec->num_ids);
+
+	for (i = 0; i < fwspec->num_ids; i++)
+		dev_info(smmu->dev, "    %u: %x\n", i, fwspec->ids[i]);
+
+	dev_info(smmu->dev, "< %s()\n", __func__);
+}
+
 static const struct arm_smmu_impl nvidia_smmu_impl = {
 	.read_reg = nvidia_smmu_read_reg,
 	.write_reg = nvidia_smmu_write_reg,
@@ -233,6 +252,7 @@ static const struct arm_smmu_impl nvidia_smmu_impl = {
 	.tlb_sync = nvidia_smmu_tlb_sync,
 	.global_fault = nvidia_smmu_global_fault,
 	.context_fault = nvidia_smmu_context_fault,
+	.probe_finalize = nvidia_smmu_probe_finalize,
 };
 
 struct arm_smmu_device *nvidia_smmu_impl_init(struct arm_smmu_device *smmu)
@@ -245,6 +265,10 @@ struct arm_smmu_device *nvidia_smmu_impl_init(struct arm_smmu_device *smmu)
 	nvidia_smmu = devm_krealloc(dev, smmu, sizeof(*nvidia_smmu), GFP_KERNEL);
 	if (!nvidia_smmu)
 		return ERR_PTR(-ENOMEM);
+
+	nvidia_smmu->mc = devm_tegra_memory_controller_get(dev);
+	if (IS_ERR(nvidia_smmu->mc))
+		return ERR_CAST(nvidia_smmu->mc);
 
 	/* Instance 0 is ioremapped by arm-smmu.c. */
 	nvidia_smmu->bases[0] = smmu->base;

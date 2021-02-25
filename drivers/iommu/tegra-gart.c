@@ -17,7 +17,7 @@
 #include <linux/spinlock.h>
 #include <linux/vmalloc.h>
 
-#include <soc/tegra/mc.h>
+#include <soc/tegra/mc-internal.h>
 
 #define GART_REG_BASE		0x24
 #define GART_CONFIG		(0x24 - GART_REG_BASE)

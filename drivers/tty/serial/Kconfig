@@ -309,6 +309,18 @@ config SERIAL_TEGRA_TCU_CONSOLE
 
 	  If unsure, say Y.
 
+config SERIAL_TEGRA_TCU_EARLYCON
+	bool "Earlycon on NVIDIA Tegra Combined UART"
+	depends on ARCH_TEGRA || COMPILE_TEST
+	select SERIAL_EARLYCON
+	select SERIAL_CORE_CONSOLE
+	default y if SERIAL_TEGRA_TCU_CONSOLE
+	help
+	  If you say Y here, TCU output will be supported during the earlycon
+	  phase of the boot.
+
+	  If unsure, say Y.
+
 config SERIAL_MAX3100
 	tristate "MAX3100 support"
 	depends on SPI

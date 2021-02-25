@@ -17,7 +17,7 @@
 #include <linux/dma-mapping.h>
 
 #include <soc/tegra/ahb.h>
-#include <soc/tegra/mc.h>
+#include <soc/tegra/mc-internal.h>
 
 struct tegra_smmu_group {
 	struct list_head list;
