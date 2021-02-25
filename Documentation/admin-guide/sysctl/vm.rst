@@ -824,8 +824,8 @@ e.g. cat /proc/sys/vm/stat_refresh /proc/meminfo
 
 As a side-effect, it also checks for negative totals (elsewhere reported
 as 0) and "fails" with EINVAL if any are found, with a warning in dmesg.
-(At time of writing, a few stats are known sometimes to be found negative,
-with no ill effects: errors and warnings on these stats are suppressed.)
+(On a SMP machine some stats can temporarily become negative, with no ill
+effects: errors and warnings on these stats are suppressed.)
 
 
 numa_stat
@@ -983,11 +983,11 @@ that benefit from having their data cached, zone_reclaim_mode should be
 left disabled as the caching effect is likely to be more important than
 data locality.
 
-zone_reclaim may be enabled if it's known that the workload is partitioned
-such that each partition fits within a NUMA node and that accessing remote
-memory would cause a measurable performance reduction.  The page allocator
-will then reclaim easily reusable pages (those page cache pages that are
-currently not used) before allocating off node pages.
+Consider enabling one or more zone_reclaim mode bits if it's known that the
+workload is partitioned such that each partition fits within a NUMA node
+and that accessing remote memory would cause a measurable performance
+reduction.  The page allocator will take additional actions before
+allocating off node pages.
 
 Allowing zone reclaim to write out pages stops processes that are
 writing large amounts of data from dirtying pages on other nodes. Zone
