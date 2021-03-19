@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2018-2021, NVIDIA CORPORATION.  All rights reserved.
  */
 
 #include <linux/console.h>
+#include <linux/io.h>
 #include <linux/mailbox_client.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -19,6 +20,7 @@
 #define TCU_MBOX_BYTE_V(x, i)			(((x) >> (i * 8)) & 0xff)
 #define TCU_MBOX_NUM_BYTES(x)			((x) << 24)
 #define TCU_MBOX_NUM_BYTES_V(x)			(((x) >> 24) & 0x3)
+#define TCU_MBOX_FULL				BIT(31)
 
 struct tegra_tcu {
 	struct uart_driver driver;
@@ -297,6 +299,71 @@ static struct platform_driver tegra_tcu_driver = {
 	.remove = tegra_tcu_remove,
 };
 module_platform_driver(tegra_tcu_driver);
+
+static u32 update_and_send_mbox(u8 __iomem *addr, u32 value, char c)
+{
+	unsigned int bytes = TCU_MBOX_NUM_BYTES_V(value);
+
+	value |= TCU_MBOX_FULL;
+	value |= c << (bytes * 8);
+	bytes++;
+
+	value &= ~TCU_MBOX_NUM_BYTES(3);
+	value |= TCU_MBOX_NUM_BYTES(bytes);
+
+	if (bytes == 3) {
+		/* Send current packet to SPE */
+		while (readl(addr) & TCU_MBOX_FULL)
+			cpu_relax();
+
+		writel(value, addr);
+		value = TCU_MBOX_FULL;
+	}
+
+	return value;
+}
+
+/*
+ * This function splits the string to be printed (const char *s) into multiple
+ * packets. Each packet contains a max of 3 characters. Packets are sent to the
+ * SPE-based combined UART server for printing. Communication with SPE is done
+ * through mailbox registers which can generate interrupts for SPE.
+ */
+static void early_tcu_write(struct console *console, const char *s, unsigned int count)
+{
+	struct earlycon_device *device = console->data;
+	u8 __iomem *addr = device->port.membase;
+	u32 value = TCU_MBOX_FULL;
+	unsigned int i;
+
+	/* Loop for processing each 3 char packet */
+	for (i = 0; i < count; i++) {
+		if (s[i] == '\n')
+			value = update_and_send_mbox(addr, value, '\r');
+
+		value = update_and_send_mbox(addr, value, s[i]);
+	}
+
+	if (TCU_MBOX_NUM_BYTES_V(value) & 0x3) {
+		while (readl(addr) & TCU_MBOX_FULL)
+			cpu_relax();
+
+		writel(value, addr);
+	}
+}
+
+static int __init early_tegra_combined_uart_setup(struct earlycon_device *device,
+						  const char *options)
+{
+	if (!device->port.membase)
+		return -ENODEV;
+
+	device->con->write = early_tcu_write;
+
+	return 0;
+}
+
+OF_EARLYCON_DECLARE(tegra_comb_uart, "nvidia,tegra194-tcu", early_tegra_combined_uart_setup);
 
 MODULE_AUTHOR("Mikko Perttunen <mperttunen@nvidia.com>");
 MODULE_LICENSE("GPL v2");
