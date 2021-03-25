@@ -2390,6 +2390,7 @@
 					     "read-1", "read-1-hp", "write-1",
 					     "read-2", "read-2-hp", "write-2",
 					     "read-3", "read-3-hp", "write-3";
+			iommus = <&smmu TEGRA194_SID_GPU>;
 		};
 	};
 
