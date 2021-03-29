@@ -2371,7 +2371,7 @@
 		assigned-clock-rates = <258000000>;
 	};
 
-	tcu: tcu@c168000 {
+	tcu: serial@c168000 {
 		compatible = "nvidia,tegra194-tcu";
 		/* TX mailbox for use with earlycon */
 		reg = <0x0 0x0c168000 0x0 0x4>;
