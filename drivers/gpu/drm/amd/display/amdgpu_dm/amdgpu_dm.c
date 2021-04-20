@@ -7677,8 +7677,9 @@ static int amdgpu_dm_connector_init(struct amdgpu_display_manager *dm,
 		&aconnector->base, &aencoder->base);
 
 	if (connector_type == DRM_MODE_CONNECTOR_DisplayPort
-		|| connector_type == DRM_MODE_CONNECTOR_eDP)
-		amdgpu_dm_initialize_dp_connector(dm, aconnector, link->link_index);
+		|| connector_type == DRM_MODE_CONNECTOR_eDP) {
+		res = amdgpu_dm_initialize_dp_connector(dm, aconnector, link->link_index);
+	}
 
 out_free:
 	if (res) {

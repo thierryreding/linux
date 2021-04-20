@@ -1733,19 +1733,39 @@ EXPORT_SYMBOL(drm_dp_remote_aux_init);
  * call drm_dp_aux_register() once the connector has been registered to
  * allow userspace access to the auxiliary DP channel.
  */
-void drm_dp_aux_init(struct drm_dp_aux *aux)
+int drm_dp_aux_init(struct drm_dp_aux *aux)
 {
 	mutex_init(&aux->hw_mutex);
 	mutex_init(&aux->cec.lock);
 	INIT_WORK(&aux->crc_work, drm_dp_aux_crc_work);
+	aux->auto_init = false;
 
 	aux->ddc.algo = &drm_dp_i2c_algo;
 	aux->ddc.algo_data = aux;
 	aux->ddc.retries = 3;
 
 	aux->ddc.lock_ops = &drm_dp_i2c_lock_ops;
+
+	aux->ddc.class = I2C_CLASS_DDC;
+	aux->ddc.owner = THIS_MODULE;
+	aux->ddc.dev.parent = aux->dev;
+
+	strlcpy(aux->ddc.name, aux->name ? aux->name : dev_name(aux->dev),
+		sizeof(aux->ddc.name));
+
+	return i2c_add_adapter(&aux->ddc);
 }
 EXPORT_SYMBOL(drm_dp_aux_init);
+
+/**
+ * drm_dp_aux_exit() - tear down AUX channel
+ * @aux: DisplayPort AUX channel
+ */
+void drm_dp_aux_exit(struct drm_dp_aux *aux)
+{
+	i2c_del_adapter(&aux->ddc);
+}
+EXPORT_SYMBOL(drm_dp_aux_exit);
 
 /**
  * drm_dp_aux_register() - initialise and register aux channel
@@ -1767,23 +1787,19 @@ int drm_dp_aux_register(struct drm_dp_aux *aux)
 {
 	int ret;
 
-	if (!aux->ddc.algo)
-		drm_dp_aux_init(aux);
+	if (!aux->ddc.algo) {
+		ret = drm_dp_aux_init(aux);
+		if (ret)
+			return ret;
 
-	aux->ddc.class = I2C_CLASS_DDC;
-	aux->ddc.owner = THIS_MODULE;
-	aux->ddc.dev.parent = aux->dev;
-
-	strlcpy(aux->ddc.name, aux->name ? aux->name : dev_name(aux->dev),
-		sizeof(aux->ddc.name));
+		aux->auto_init = true;
+	}
 
 	ret = drm_dp_aux_register_devnode(aux);
-	if (ret)
-		return ret;
-
-	ret = i2c_add_adapter(&aux->ddc);
 	if (ret) {
-		drm_dp_aux_unregister_devnode(aux);
+		if (aux->auto_init)
+			drm_dp_aux_exit(aux);
+
 		return ret;
 	}
 
@@ -1798,7 +1814,9 @@ EXPORT_SYMBOL(drm_dp_aux_register);
 void drm_dp_aux_unregister(struct drm_dp_aux *aux)
 {
 	drm_dp_aux_unregister_devnode(aux);
-	i2c_del_adapter(&aux->ddc);
+
+	if (aux->auto_init)
+		drm_dp_aux_exit(aux);
 }
 EXPORT_SYMBOL(drm_dp_aux_unregister);
 

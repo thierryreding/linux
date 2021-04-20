@@ -763,6 +763,9 @@ static void amdgpu_connector_destroy(struct drm_connector *connector)
 {
 	struct amdgpu_connector *amdgpu_connector = to_amdgpu_connector(connector);
 
+	if (amdgpu_connector->ddc_bus->has_aux)
+		drm_dp_aux_exit(&amdgpu_connector->ddc_bus->aux);
+
 	amdgpu_connector_free_edid(connector);
 	kfree(amdgpu_connector->con_priv);
 	drm_connector_unregister(connector);
@@ -1539,7 +1542,6 @@ amdgpu_connector_add(struct amdgpu_device *adev,
 	uint32_t subpixel_order = SubPixelNone;
 	bool shared_ddc = false;
 	bool is_dp_bridge = false;
-	bool has_aux = false;
 
 	if (connector_type == DRM_MODE_CONNECTOR_Unknown)
 		return;
@@ -1609,7 +1611,11 @@ amdgpu_connector_add(struct amdgpu_device *adev,
 		if (i2c_bus->valid) {
 			amdgpu_connector->ddc_bus = amdgpu_i2c_lookup(adev, i2c_bus);
 			if (amdgpu_connector->ddc_bus) {
-				has_aux = true;
+				if (amdgpu_atombios_dp_aux_init(amdgpu_connector) < 0) {
+					kfree(amdgpu_dig_connector);
+					goto failed;
+				}
+
 				ddc = &amdgpu_connector->ddc_bus->adapter;
 			} else {
 				DRM_ERROR("DP: Failed to assign ddc bus! Check dmesg for i2c errors.\n");
@@ -1861,7 +1867,11 @@ amdgpu_connector_add(struct amdgpu_device *adev,
 			if (i2c_bus->valid) {
 				amdgpu_connector->ddc_bus = amdgpu_i2c_lookup(adev, i2c_bus);
 				if (amdgpu_connector->ddc_bus) {
-					has_aux = true;
+					if (amdgpu_atombios_dp_aux_init(amdgpu_connector) < 0) {
+						kfree(amdgpu_dig_connector);
+						goto failed;
+					}
+
 					ddc = &amdgpu_connector->ddc_bus->adapter;
 				} else {
 					DRM_ERROR("DP: Failed to assign ddc bus! Check dmesg for i2c errors.\n");
@@ -1908,7 +1918,11 @@ amdgpu_connector_add(struct amdgpu_device *adev,
 			if (i2c_bus->valid) {
 				amdgpu_connector->ddc_bus = amdgpu_i2c_lookup(adev, i2c_bus);
 				if (amdgpu_connector->ddc_bus) {
-					has_aux = true;
+					if (amdgpu_atombios_dp_aux_init(amdgpu_connector) < 0) {
+						kfree(amdgpu_dig_connector);
+						goto failed;
+					}
+
 					ddc = &amdgpu_connector->ddc_bus->adapter;
 				} else {
 					DRM_ERROR("DP: Failed to assign ddc bus! Check dmesg for i2c errors.\n");
@@ -1962,9 +1976,6 @@ amdgpu_connector_add(struct amdgpu_device *adev,
 		connector->polled = DRM_CONNECTOR_POLL_HPD;
 
 	connector->display_info.subpixel_order = subpixel_order;
-
-	if (has_aux)
-		amdgpu_atombios_dp_aux_init(amdgpu_connector);
 
 	if (connector_type == DRM_MODE_CONNECTOR_DisplayPort ||
 	    connector_type == DRM_MODE_CONNECTOR_eDP) {

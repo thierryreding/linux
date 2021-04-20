@@ -5310,7 +5310,7 @@ intel_dp_init_connector(struct intel_digital_port *dig_port,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum port port = intel_encoder->port;
 	enum phy phy = intel_port_to_phy(dev_priv, port);
-	int type;
+	int type, ret;
 
 	/* Initialize the work for modeset in case of link train failure */
 	INIT_WORK(&intel_connector->modeset_retry_work,
@@ -5375,7 +5375,9 @@ intel_dp_init_connector(struct intel_digital_port *dig_port,
 
 	intel_connector->polled = DRM_CONNECTOR_POLL_HPD;
 
-	intel_dp_aux_init(intel_dp);
+	ret = intel_dp_aux_init(intel_dp);
+	if (ret < 0)
+		goto fail;
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
 

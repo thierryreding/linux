@@ -534,7 +534,11 @@ static int tegra_dpaux_probe(struct platform_device *pdev)
 	dpaux->aux.transfer = tegra_dpaux_transfer;
 	dpaux->aux.dev = &pdev->dev;
 
-	drm_dp_aux_init(&dpaux->aux);
+	err = drm_dp_aux_init(&dpaux->aux);
+	if (err < 0) {
+		dev_err(dpaux->dev, "failed to initialize AUX channel: %d\n", err);
+		return err;
+	}
 
 	/*
 	 * Assume that by default the DPAUX/I2C pads will be used for HDMI,
@@ -583,6 +587,7 @@ static int tegra_dpaux_remove(struct platform_device *pdev)
 
 	/* make sure pads are powered down when not in use */
 	tegra_dpaux_pad_power_down(dpaux);
+	drm_dp_aux_exit(&dpaux->aux);
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);

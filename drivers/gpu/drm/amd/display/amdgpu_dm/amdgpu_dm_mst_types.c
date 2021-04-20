@@ -433,22 +433,27 @@ static const struct drm_dp_mst_topology_cbs dm_mst_cbs = {
 	.add_connector = dm_dp_add_mst_connector,
 };
 
-void amdgpu_dm_initialize_dp_connector(struct amdgpu_display_manager *dm,
-				       struct amdgpu_dm_connector *aconnector,
-				       int link_index)
+int amdgpu_dm_initialize_dp_connector(struct amdgpu_display_manager *dm,
+				      struct amdgpu_dm_connector *aconnector,
+				      int link_index)
 {
+	int ret;
+
 	aconnector->dm_dp_aux.aux.name =
 		kasprintf(GFP_KERNEL, "AMDGPU DM aux hw bus %d",
 			  link_index);
 	aconnector->dm_dp_aux.aux.transfer = dm_dp_aux_transfer;
 	aconnector->dm_dp_aux.ddc_service = aconnector->dc_link->ddc;
 
-	drm_dp_aux_init(&aconnector->dm_dp_aux.aux);
+	ret = drm_dp_aux_init(&aconnector->dm_dp_aux.aux);
+	if (ret)
+		return ret;
+
 	drm_dp_cec_register_connector(&aconnector->dm_dp_aux.aux,
 				      &aconnector->base);
 
 	if (aconnector->base.connector_type == DRM_MODE_CONNECTOR_eDP)
-		return;
+		return 0;
 
 	aconnector->mst_mgr.cbs = &dm_mst_cbs;
 	drm_dp_mst_topology_mgr_init(
@@ -460,6 +465,8 @@ void amdgpu_dm_initialize_dp_connector(struct amdgpu_display_manager *dm,
 		aconnector->connector_id);
 
 	drm_connector_attach_dp_subconnector_property(&aconnector->base);
+
+	return 0;
 }
 
 int dm_mst_get_pbn_divider(struct dc_link *link)

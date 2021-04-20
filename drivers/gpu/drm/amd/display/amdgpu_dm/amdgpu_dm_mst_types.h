@@ -31,7 +31,7 @@ struct amdgpu_dm_connector;
 
 int dm_mst_get_pbn_divider(struct dc_link *link);
 
-void amdgpu_dm_initialize_dp_connector(struct amdgpu_display_manager *dm,
+int amdgpu_dm_initialize_dp_connector(struct amdgpu_display_manager *dm,
 				       struct amdgpu_dm_connector *aconnector,
 				       int link_index);
 
