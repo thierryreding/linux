@@ -329,24 +329,25 @@ int of_reserved_mem_device_init_by_idx(struct device *dev,
 				       struct device_node *np, int idx)
 {
 	struct rmem_assigned_device *rd;
-	struct device_node *target;
+	struct of_phandle_args args;
 	struct reserved_mem *rmem;
 	int ret;
 
 	if (!np || !dev)
 		return -EINVAL;
 
-	target = of_parse_phandle(np, "memory-region", idx);
-	if (!target)
-		return -ENODEV;
+	ret = of_parse_phandle_with_optional_args(np, "memory-region", "#memory-region-cells",
+						     idx, &args);
+	if (ret < 0)
+		return ret;
 
-	if (!of_device_is_available(target)) {
-		of_node_put(target);
+	if (!of_device_is_available(args.np)) {
+		of_node_put(args.np);
 		return 0;
 	}
 
-	rmem = __find_rmem(target);
-	of_node_put(target);
+	rmem = __find_rmem(args.np);
+	of_node_put(args.np);
 
 	if (!rmem || !rmem->ops || !rmem->ops->device_init)
 		return -EINVAL;

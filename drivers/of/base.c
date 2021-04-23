@@ -1494,6 +1494,29 @@ int of_parse_phandle_with_args(const struct device_node *np, const char *list_na
 EXPORT_SYMBOL(of_parse_phandle_with_args);
 
 /**
+ * of_parse_phandle_with_optional_args() - Find a node pointed by phandle in a list
+ * @np:		pointer to a device tree node containing a list
+ * @list_name:	property name that contains a list
+ * @cells_name:	property name that specifies phandles' arguments count
+ * @index:	index of a phandle to parse out
+ * @out_args:	optional pointer to output arguments structure (will be filled)
+ *
+ * This function is like of_parse_phandle_with_args(), except that it will default
+ * to zero arguments (rather than fail) if the property referred to by @cells_name
+ * is not present.
+ *
+ * Returns 0 on success and fills out_args, on error returns appropriate
+ * errno value.
+ */
+int of_parse_phandle_with_optional_args(const struct device_node *np, const char *list_name,
+					const char *cells_name, unsigned int index,
+					struct of_phandle_args *out_args)
+{
+	return __of_parse_phandle_with_args(np, list_name, cells_name, 0, index, out_args);
+}
+EXPORT_SYMBOL(of_parse_phandle_with_optional_args);
+
+/**
  * of_parse_phandle_with_args_map() - Find a node pointed by phandle in a list and remap it
  * @np:		pointer to a device tree node containing a list
  * @list_name:	property name that contains a list
