@@ -815,6 +815,22 @@ static int tegra_mc_probe(struct platform_device *pdev)
 	return 0;
 }
 
+/*
+ * XXX The Tegra186 memory controller driver used to be able to do this. Once
+ * removing the driver is supported on all chips, this can be uncommented.
+ */
+/*
+static int tegra_mc_remove(struct platform_device *pdev)
+{
+	struct tegra_mc *mc = platform_get_drvdata(pdev);
+
+	if (mc->soc->ops && mc->soc->ops->remove)
+		mc->soc->ops->remove(mc);
+
+	return 0;
+}
+*/
+
 static int __maybe_unused tegra_mc_suspend(struct device *dev)
 {
 	struct tegra_mc *mc = dev_get_drvdata(dev);
@@ -848,6 +864,9 @@ static struct platform_driver tegra_mc_driver = {
 	},
 	.prevent_deferred_probe = true,
 	.probe = tegra_mc_probe,
+	/*
+	.remove = tegra_mc_remove,
+	*/
 };
 
 static int tegra_mc_init(void)
