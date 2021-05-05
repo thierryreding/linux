@@ -2593,6 +2593,16 @@ int hid_check_keys_pressed(struct hid_device *hid)
 }
 EXPORT_SYMBOL_GPL(hid_check_keys_pressed);
 
+bool hid_is_usb_device(struct hid_device *hid)
+{
+#if IS_ENABLED(CONFIG_USB_HID)
+	return hid_is_using_ll_driver(hid, &usb_hid_driver);
+#else
+	return false;
+#endif
+}
+EXPORT_SYMBOL_GPL(hid_is_usb_device);
+
 static int __init hid_init(void)
 {
 	int ret;
