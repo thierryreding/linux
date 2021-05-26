@@ -3,6 +3,7 @@
 #define _ASM_EARLY_IOREMAP_H_
 
 #include <linux/types.h>
+#include <asm/fixmap.h>
 
 /*
  * early_ioremap() and early_iounmap() are for temporary early boot-time
@@ -18,6 +19,14 @@ extern void *early_memremap_prot(resource_size_t phys_addr,
 				 unsigned long size, unsigned long prot_val);
 extern void early_iounmap(void __iomem *addr, unsigned long size);
 extern void early_memunmap(void *addr, unsigned long size);
+
+/*
+ * Weak function called by early_memremap and early_memremap_ro. It does
+ * nothing, but architectures may provide their own version to handle
+ * memory encryption.
+ */
+extern pgprot_t early_memremap_pgprot_adjust(resource_size_t phys_addr,
+					    unsigned long size, pgprot_t prot);
 
 /*
  * Weak function called by early_ioremap_reset(). It does nothing, but
