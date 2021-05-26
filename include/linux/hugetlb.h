@@ -381,7 +381,7 @@ static inline vm_fault_t hugetlb_fault(struct mm_struct *mm,
 
 static inline void hugetlb_unshare_all_pmds(struct vm_area_struct *vma) { }
 
-static inline void hugetlb_copy_page(struct page *dst, struct page *src);
+static inline void hugetlb_copy_page(struct page *dst, struct page *src) { }
 
 #endif /* !CONFIG_HUGETLB_PAGE */
 /*
