@@ -33,6 +33,7 @@ unsigned long kernel_virt_addr = KERNEL_LINK_ADDR;
 EXPORT_SYMBOL(kernel_virt_addr);
 #ifdef CONFIG_XIP_KERNEL
 #define kernel_virt_addr       (*((unsigned long *)XIP_FIXUP(&kernel_virt_addr)))
+extern char _xiprom[], _exiprom[];
 #endif
 
 unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)]
@@ -65,11 +66,6 @@ static void __init zone_sizes_init(void)
 	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
 
 	free_area_init(max_zone_pfns);
-}
-
-static void __init setup_zero_page(void)
-{
-	memset((void *)empty_zero_page, 0, PAGE_SIZE);
 }
 
 #if defined(CONFIG_MMU) && defined(CONFIG_DEBUG_VM)
@@ -119,7 +115,7 @@ void __init mem_init(void)
 	print_vm_layout();
 }
 
-void __init setup_bootmem(void)
+static void __init setup_bootmem(void)
 {
 	phys_addr_t vmlinux_end = __pa_symbol(&_end);
 	phys_addr_t vmlinux_start = __pa_symbol(&_start);
@@ -175,13 +171,6 @@ void __init setup_bootmem(void)
 	dma_contiguous_reserve(dma32_phys_limit);
 	memblock_allow_resize();
 }
-
-#ifdef CONFIG_XIP_KERNEL
-
-extern char _xiprom[], _exiprom[];
-extern char _sdata[], _edata[];
-
-#endif /* CONFIG_XIP_KERNEL */
 
 #ifdef CONFIG_MMU
 static struct pt_alloc_ops _pt_ops __ro_after_init;
@@ -866,8 +855,8 @@ RESERVEDMEM_OF_DECLARE(elfcorehdr, "linux,elfcorehdr", elfcore_hdr_setup);
 
 void __init paging_init(void)
 {
+	setup_bootmem();
 	setup_vm_final();
-	setup_zero_page();
 }
 
 void __init misc_mem_init(void)
