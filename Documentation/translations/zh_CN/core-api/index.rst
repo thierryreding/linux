@@ -19,12 +19,15 @@
 来的大量 kerneldoc 信息；有朝一日，若有人有动力的话，应当把它们拆分
 出来。
 
-Todolist:
+.. toctree::
+   :maxdepth: 1
 
    kernel-api
-   workqueue
    printk-basics
    printk-formats
+   workqueue
+
+Todolist:
    symbol-namespaces
 
 数据结构和低级实用程序
@@ -32,9 +35,13 @@ Todolist:
 
 在整个内核中使用的函数库。
 
-Todolist:
+.. toctree::
+   :maxdepth: 1
 
    kobject
+
+Todolist:
+
    kref
    assoc_array
    xarray
