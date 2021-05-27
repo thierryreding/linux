@@ -835,7 +835,7 @@ static int create_user_rq(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		ib_umem_num_pages(rwq->umem), page_size, rwq->rq_num_pas,
 		offset);
 
-	err = mlx5_ib_db_map_user(ucontext, udata, ucmd->db_addr, &rwq->db);
+	err = mlx5_ib_db_map_user(ucontext, ucmd->db_addr, &rwq->db);
 	if (err) {
 		mlx5_ib_dbg(dev, "map failed\n");
 		goto err_umem;
@@ -961,7 +961,7 @@ static int _create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		resp->bfreg_index = MLX5_IB_INVALID_BFREG;
 	qp->bfregn = bfregn;
 
-	err = mlx5_ib_db_map_user(context, udata, ucmd->db_addr, &qp->db);
+	err = mlx5_ib_db_map_user(context, ucmd->db_addr, &qp->db);
 	if (err) {
 		mlx5_ib_dbg(dev, "map failed\n");
 		goto err_free;
@@ -3453,6 +3453,17 @@ static enum mlx5_qp_optpar opt_mask[MLX5_QP_NUM_STATE][MLX5_QP_NUM_STATE][MLX5_Q
 					   MLX5_QP_OPTPAR_RRE,
 		},
 	},
+	[MLX5_QP_STATE_SQD] = {
+		[MLX5_QP_STATE_RTS] = {
+			[MLX5_QP_ST_UD] = MLX5_QP_OPTPAR_Q_KEY,
+			[MLX5_QP_ST_MLX] = MLX5_QP_OPTPAR_Q_KEY,
+			[MLX5_QP_ST_UC] = MLX5_QP_OPTPAR_RWE,
+			[MLX5_QP_ST_RC] = MLX5_QP_OPTPAR_RNR_TIMEOUT	|
+					  MLX5_QP_OPTPAR_RWE		|
+					  MLX5_QP_OPTPAR_RAE		|
+					  MLX5_QP_OPTPAR_RRE,
+		},
+	},
 };
 
 static int ib_nr_to_mlx5_nr(int ib_mask)
@@ -3848,6 +3859,7 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 		[MLX5_QP_STATE_SQD] = {
 			[MLX5_QP_STATE_RST]	= MLX5_CMD_OP_2RST_QP,
 			[MLX5_QP_STATE_ERR]	= MLX5_CMD_OP_2ERR_QP,
+			[MLX5_QP_STATE_RTS]	= MLX5_CMD_OP_SQD_RTS_QP,
 		},
 		[MLX5_QP_STATE_SQER] = {
 			[MLX5_QP_STATE_RST]	= MLX5_CMD_OP_2RST_QP,

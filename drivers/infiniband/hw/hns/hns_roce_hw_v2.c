@@ -791,8 +791,7 @@ out:
 		qp->sq.head += nreq;
 		qp->next_sge = sge_idx;
 
-		if (nreq == 1 && qp->sq.head == qp->sq.tail + 1 &&
-		    (qp->en_flags & HNS_ROCE_QP_CAP_DIRECT_WQE))
+		if (nreq == 1 && (qp->en_flags & HNS_ROCE_QP_CAP_DIRECT_WQE))
 			write_dwqe(hr_dev, qp, wqe);
 		else
 			update_sq_db(hr_dev, qp);
@@ -1210,8 +1209,6 @@ static int hns_roce_alloc_cmq_desc(struct hns_roce_dev *hr_dev,
 		kfree(ring->desc);
 		ring->desc = NULL;
 
-		dev_err_ratelimited(hr_dev->dev,
-				    "failed to map cmq desc addr.\n");
 		return -ENOMEM;
 	}
 
@@ -1229,44 +1226,32 @@ static void hns_roce_free_cmq_desc(struct hns_roce_dev *hr_dev,
 	kfree(ring->desc);
 }
 
-static int hns_roce_init_cmq_ring(struct hns_roce_dev *hr_dev, bool ring_type)
+static int init_csq(struct hns_roce_dev *hr_dev,
+		    struct hns_roce_v2_cmq_ring *csq)
 {
-	struct hns_roce_v2_priv *priv = hr_dev->priv;
-	struct hns_roce_v2_cmq_ring *ring = (ring_type == TYPE_CSQ) ?
-					    &priv->cmq.csq : &priv->cmq.crq;
+	dma_addr_t dma;
+	int ret;
 
-	ring->flag = ring_type;
-	ring->head = 0;
+	csq->desc_num = CMD_CSQ_DESC_NUM;
+	spin_lock_init(&csq->lock);
+	csq->flag = TYPE_CSQ;
+	csq->head = 0;
 
-	return hns_roce_alloc_cmq_desc(hr_dev, ring);
-}
+	ret = hns_roce_alloc_cmq_desc(hr_dev, csq);
+	if (ret)
+		return ret;
 
-static void hns_roce_cmq_init_regs(struct hns_roce_dev *hr_dev, bool ring_type)
-{
-	struct hns_roce_v2_priv *priv = hr_dev->priv;
-	struct hns_roce_v2_cmq_ring *ring = (ring_type == TYPE_CSQ) ?
-					    &priv->cmq.csq : &priv->cmq.crq;
-	dma_addr_t dma = ring->desc_dma_addr;
+	dma = csq->desc_dma_addr;
+	roce_write(hr_dev, ROCEE_TX_CMQ_BASEADDR_L_REG, lower_32_bits(dma));
+	roce_write(hr_dev, ROCEE_TX_CMQ_BASEADDR_H_REG, upper_32_bits(dma));
+	roce_write(hr_dev, ROCEE_TX_CMQ_DEPTH_REG,
+		   (u32)csq->desc_num >> HNS_ROCE_CMQ_DESC_NUM_S);
 
-	if (ring_type == TYPE_CSQ) {
-		roce_write(hr_dev, ROCEE_TX_CMQ_BASEADDR_L_REG, (u32)dma);
-		roce_write(hr_dev, ROCEE_TX_CMQ_BASEADDR_H_REG,
-			   upper_32_bits(dma));
-		roce_write(hr_dev, ROCEE_TX_CMQ_DEPTH_REG,
-			   (u32)ring->desc_num >> HNS_ROCE_CMQ_DESC_NUM_S);
+	/* Make sure to write CI first and then PI */
+	roce_write(hr_dev, ROCEE_TX_CMQ_CI_REG, 0);
+	roce_write(hr_dev, ROCEE_TX_CMQ_PI_REG, 0);
 
-		/* Make sure to write tail first and then head */
-		roce_write(hr_dev, ROCEE_TX_CMQ_TAIL_REG, 0);
-		roce_write(hr_dev, ROCEE_TX_CMQ_HEAD_REG, 0);
-	} else {
-		roce_write(hr_dev, ROCEE_RX_CMQ_BASEADDR_L_REG, (u32)dma);
-		roce_write(hr_dev, ROCEE_RX_CMQ_BASEADDR_H_REG,
-			   upper_32_bits(dma));
-		roce_write(hr_dev, ROCEE_RX_CMQ_DEPTH_REG,
-			   (u32)ring->desc_num >> HNS_ROCE_CMQ_DESC_NUM_S);
-		roce_write(hr_dev, ROCEE_RX_CMQ_HEAD_REG, 0);
-		roce_write(hr_dev, ROCEE_RX_CMQ_TAIL_REG, 0);
-	}
+	return 0;
 }
 
 static int hns_roce_v2_cmq_init(struct hns_roce_dev *hr_dev)
@@ -1274,43 +1259,11 @@ static int hns_roce_v2_cmq_init(struct hns_roce_dev *hr_dev)
 	struct hns_roce_v2_priv *priv = hr_dev->priv;
 	int ret;
 
-	/* Setup the queue entries for command queue */
-	priv->cmq.csq.desc_num = CMD_CSQ_DESC_NUM;
-	priv->cmq.crq.desc_num = CMD_CRQ_DESC_NUM;
-
-	/* Setup the lock for command queue */
-	spin_lock_init(&priv->cmq.csq.lock);
-	spin_lock_init(&priv->cmq.crq.lock);
-
-	/* Setup Tx write back timeout */
 	priv->cmq.tx_timeout = HNS_ROCE_CMQ_TX_TIMEOUT;
 
-	/* Init CSQ */
-	ret = hns_roce_init_cmq_ring(hr_dev, TYPE_CSQ);
-	if (ret) {
-		dev_err_ratelimited(hr_dev->dev,
-				    "failed to init CSQ, ret = %d.\n", ret);
-		return ret;
-	}
-
-	/* Init CRQ */
-	ret = hns_roce_init_cmq_ring(hr_dev, TYPE_CRQ);
-	if (ret) {
-		dev_err_ratelimited(hr_dev->dev,
-				    "failed to init CRQ, ret = %d.\n", ret);
-		goto err_crq;
-	}
-
-	/* Init CSQ REG */
-	hns_roce_cmq_init_regs(hr_dev, TYPE_CSQ);
-
-	/* Init CRQ REG */
-	hns_roce_cmq_init_regs(hr_dev, TYPE_CRQ);
-
-	return 0;
-
-err_crq:
-	hns_roce_free_cmq_desc(hr_dev, &priv->cmq.csq);
+	ret = init_csq(hr_dev, &priv->cmq.csq);
+	if (ret)
+		dev_err(hr_dev->dev, "failed to init CSQ, ret = %d.\n", ret);
 
 	return ret;
 }
@@ -1320,7 +1273,6 @@ static void hns_roce_v2_cmq_exit(struct hns_roce_dev *hr_dev)
 	struct hns_roce_v2_priv *priv = hr_dev->priv;
 
 	hns_roce_free_cmq_desc(hr_dev, &priv->cmq.csq);
-	hns_roce_free_cmq_desc(hr_dev, &priv->cmq.crq);
 }
 
 static void hns_roce_cmq_setup_basic_desc(struct hns_roce_cmq_desc *desc,
@@ -1339,7 +1291,7 @@ static void hns_roce_cmq_setup_basic_desc(struct hns_roce_cmq_desc *desc,
 
 static int hns_roce_cmq_csq_done(struct hns_roce_dev *hr_dev)
 {
-	u32 tail = roce_read(hr_dev, ROCEE_TX_CMQ_TAIL_REG);
+	u32 tail = roce_read(hr_dev, ROCEE_TX_CMQ_CI_REG);
 	struct hns_roce_v2_priv *priv = hr_dev->priv;
 
 	return tail == priv->cmq.csq.head;
@@ -1367,7 +1319,7 @@ static int __hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 	}
 
 	/* Write to hardware */
-	roce_write(hr_dev, ROCEE_TX_CMQ_HEAD_REG, csq->head);
+	roce_write(hr_dev, ROCEE_TX_CMQ_PI_REG, csq->head);
 
 	/* If the command is sync, wait for the firmware to write back,
 	 * if multi descriptors to be sent, use the first one to check
@@ -1398,7 +1350,7 @@ static int __hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 		}
 	} else {
 		/* FW/HW reset or incorrect number of desc */
-		tail = roce_read(hr_dev, ROCEE_TX_CMQ_TAIL_REG);
+		tail = roce_read(hr_dev, ROCEE_TX_CMQ_CI_REG);
 		dev_warn(hr_dev->dev, "CMDQ move tail from %d to %d\n",
 			 csq->head, tail);
 		csq->head = tail;
@@ -2063,7 +2015,7 @@ static void set_hem_page_size(struct hns_roce_dev *hr_dev)
 	caps->eqe_buf_pg_sz = 0;
 
 	/* Link Table */
-	caps->tsq_buf_pg_sz = 0;
+	caps->llm_buf_pg_sz = 0;
 
 	/* MR */
 	caps->pbl_ba_pg_sz = HNS_ROCE_BA_PG_SZ_SUPPORTED_16K;
@@ -2479,168 +2431,136 @@ static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 	return ret;
 }
 
-static int hns_roce_config_link_table(struct hns_roce_dev *hr_dev,
-				      enum hns_roce_link_table_type type)
+static void config_llm_table(struct hns_roce_buf *data_buf, void *cfg_buf)
+{
+	u32 i, next_ptr, page_num;
+	__le64 *entry = cfg_buf;
+	dma_addr_t addr;
+	u64 val;
+
+	page_num = data_buf->npages;
+	for (i = 0; i < page_num; i++) {
+		addr = hns_roce_buf_page(data_buf, i);
+		if (i == (page_num - 1))
+			next_ptr = 0;
+		else
+			next_ptr = i + 1;
+
+		val = HNS_ROCE_EXT_LLM_ENTRY(addr, (u64)next_ptr);
+		entry[i] = cpu_to_le64(val);
+	}
+}
+
+static int set_llm_cfg_to_hw(struct hns_roce_dev *hr_dev,
+			     struct hns_roce_link_table *table)
 {
 	struct hns_roce_cmq_desc desc[2];
-	struct hns_roce_cfg_llm_a *req_a =
-				(struct hns_roce_cfg_llm_a *)desc[0].data;
-	struct hns_roce_cfg_llm_b *req_b =
-				(struct hns_roce_cfg_llm_b *)desc[1].data;
-	struct hns_roce_v2_priv *priv = hr_dev->priv;
-	struct hns_roce_link_table *link_tbl;
-	struct hns_roce_link_table_entry *entry;
+	struct hns_roce_cmq_req *r_a = (struct hns_roce_cmq_req *)desc[0].data;
+	struct hns_roce_cmq_req *r_b = (struct hns_roce_cmq_req *)desc[1].data;
+	struct hns_roce_buf *buf = table->buf;
 	enum hns_roce_opcode_type opcode;
-	u32 page_num;
+	dma_addr_t addr;
 
-	switch (type) {
-	case TSQ_LINK_TABLE:
-		link_tbl = &priv->tsq;
-		opcode = HNS_ROCE_OPC_CFG_EXT_LLM;
-		break;
-	case TPQ_LINK_TABLE:
-		link_tbl = &priv->tpq;
-		opcode = HNS_ROCE_OPC_CFG_TMOUT_LLM;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	page_num = link_tbl->npages;
-	entry = link_tbl->table.buf;
-
+	opcode = HNS_ROCE_OPC_CFG_EXT_LLM;
 	hns_roce_cmq_setup_basic_desc(&desc[0], opcode, false);
 	desc[0].flag |= cpu_to_le16(HNS_ROCE_CMD_FLAG_NEXT);
-
 	hns_roce_cmq_setup_basic_desc(&desc[1], opcode, false);
 
-	req_a->base_addr_l = cpu_to_le32(link_tbl->table.map & 0xffffffff);
-	req_a->base_addr_h = cpu_to_le32(link_tbl->table.map >> 32);
-	roce_set_field(req_a->depth_pgsz_init_en, CFG_LLM_QUE_DEPTH_M,
-		       CFG_LLM_QUE_DEPTH_S, link_tbl->npages);
-	roce_set_field(req_a->depth_pgsz_init_en, CFG_LLM_QUE_PGSZ_M,
-		       CFG_LLM_QUE_PGSZ_S, link_tbl->pg_sz);
-	roce_set_field(req_a->depth_pgsz_init_en, CFG_LLM_INIT_EN_M,
-		       CFG_LLM_INIT_EN_S, 1);
-	req_a->head_ba_l = cpu_to_le32(entry[0].blk_ba0);
-	req_a->head_ba_h_nxtptr = cpu_to_le32(entry[0].blk_ba1_nxt_ptr);
-	roce_set_field(req_a->head_ptr, CFG_LLM_HEAD_PTR_M, CFG_LLM_HEAD_PTR_S,
-		       0);
+	hr_reg_write(r_a, CFG_LLM_A_BA_L, lower_32_bits(table->table.map));
+	hr_reg_write(r_a, CFG_LLM_A_BA_H, upper_32_bits(table->table.map));
+	hr_reg_write(r_a, CFG_LLM_A_DEPTH, buf->npages);
+	hr_reg_write(r_a, CFG_LLM_A_PGSZ, to_hr_hw_page_shift(buf->page_shift));
+	hr_reg_enable(r_a, CFG_LLM_A_INIT_EN);
 
-	req_b->tail_ba_l = cpu_to_le32(entry[page_num - 1].blk_ba0);
-	roce_set_field(req_b->tail_ba_h, CFG_LLM_TAIL_BA_H_M,
-		       CFG_LLM_TAIL_BA_H_S,
-		       entry[page_num - 1].blk_ba1_nxt_ptr &
-		       HNS_ROCE_LINK_TABLE_BA1_M);
-	roce_set_field(req_b->tail_ptr, CFG_LLM_TAIL_PTR_M, CFG_LLM_TAIL_PTR_S,
-		       (entry[page_num - 2].blk_ba1_nxt_ptr &
-			HNS_ROCE_LINK_TABLE_NXT_PTR_M) >>
-			HNS_ROCE_LINK_TABLE_NXT_PTR_S);
+	addr = to_hr_hw_page_addr(hns_roce_buf_page(buf, 0));
+	hr_reg_write(r_a, CFG_LLM_A_HEAD_BA_L, lower_32_bits(addr));
+	hr_reg_write(r_a, CFG_LLM_A_HEAD_BA_H, upper_32_bits(addr));
+	hr_reg_write(r_a, CFG_LLM_A_HEAD_NXTPTR, 1);
+	hr_reg_write(r_a, CFG_LLM_A_HEAD_PTR, 0);
+
+	addr = to_hr_hw_page_addr(hns_roce_buf_page(buf, buf->npages - 1));
+	hr_reg_write(r_b, CFG_LLM_B_TAIL_BA_L, lower_32_bits(addr));
+	hr_reg_write(r_b, CFG_LLM_B_TAIL_BA_H, upper_32_bits(addr));
+	hr_reg_write(r_b, CFG_LLM_B_TAIL_PTR, buf->npages - 1);
 
 	return hns_roce_cmq_send(hr_dev, desc, 2);
 }
 
-static int hns_roce_init_link_table(struct hns_roce_dev *hr_dev,
-				    enum hns_roce_link_table_type type)
+static struct hns_roce_link_table *
+alloc_link_table_buf(struct hns_roce_dev *hr_dev)
 {
 	struct hns_roce_v2_priv *priv = hr_dev->priv;
 	struct hns_roce_link_table *link_tbl;
-	struct hns_roce_link_table_entry *entry;
-	struct device *dev = hr_dev->dev;
-	u32 buf_chk_sz;
-	dma_addr_t t;
-	int func_num = 1;
-	u32 pg_num_a;
-	u32 pg_num_b;
-	u32 pg_num;
-	u32 size;
-	int i;
+	u32 pg_shift, size, min_size;
 
-	switch (type) {
-	case TSQ_LINK_TABLE:
-		link_tbl = &priv->tsq;
-		buf_chk_sz = 1 << (hr_dev->caps.tsq_buf_pg_sz + PAGE_SHIFT);
-		pg_num_a = hr_dev->caps.num_qps * 8 / buf_chk_sz;
-		pg_num_b = hr_dev->caps.sl_num * 4 + 2;
-		break;
-	case TPQ_LINK_TABLE:
-		link_tbl = &priv->tpq;
-		buf_chk_sz = 1 << (hr_dev->caps.tpq_buf_pg_sz +	PAGE_SHIFT);
-		pg_num_a = hr_dev->caps.num_cqs * 4 / buf_chk_sz;
-		pg_num_b = 2 * 4 * func_num + 2;
-		break;
-	default:
-		return -EINVAL;
-	}
+	link_tbl = &priv->ext_llm;
+	pg_shift = hr_dev->caps.llm_buf_pg_sz + PAGE_SHIFT;
+	size = hr_dev->caps.num_qps * HNS_ROCE_V2_EXT_LLM_ENTRY_SZ;
+	min_size = HNS_ROCE_EXT_LLM_MIN_PAGES(hr_dev->caps.sl_num) << pg_shift;
 
-	pg_num = max(pg_num_a, pg_num_b);
-	size = pg_num * sizeof(struct hns_roce_link_table_entry);
+	/* Alloc data table */
+	size = max(size, min_size);
+	link_tbl->buf = hns_roce_buf_alloc(hr_dev, size, pg_shift, 0);
+	if (IS_ERR(link_tbl->buf))
+		return ERR_PTR(-ENOMEM);
 
-	link_tbl->table.buf = dma_alloc_coherent(dev, size,
+	/* Alloc config table */
+	size = link_tbl->buf->npages * sizeof(u64);
+	link_tbl->table.buf = dma_alloc_coherent(hr_dev->dev, size,
 						 &link_tbl->table.map,
 						 GFP_KERNEL);
-	if (!link_tbl->table.buf)
-		goto out;
-
-	link_tbl->pg_list = kcalloc(pg_num, sizeof(*link_tbl->pg_list),
-				    GFP_KERNEL);
-	if (!link_tbl->pg_list)
-		goto err_kcalloc_failed;
-
-	entry = link_tbl->table.buf;
-	for (i = 0; i < pg_num; ++i) {
-		link_tbl->pg_list[i].buf = dma_alloc_coherent(dev, buf_chk_sz,
-							      &t, GFP_KERNEL);
-		if (!link_tbl->pg_list[i].buf)
-			goto err_alloc_buf_failed;
-
-		link_tbl->pg_list[i].map = t;
-
-		entry[i].blk_ba0 = (u32)(t >> 12);
-		entry[i].blk_ba1_nxt_ptr = (u32)(t >> 44);
-
-		if (i < (pg_num - 1))
-			entry[i].blk_ba1_nxt_ptr |=
-				(i + 1) << HNS_ROCE_LINK_TABLE_NXT_PTR_S;
+	if (!link_tbl->table.buf) {
+		hns_roce_buf_free(hr_dev, link_tbl->buf);
+		return ERR_PTR(-ENOMEM);
 	}
-	link_tbl->npages = pg_num;
-	link_tbl->pg_sz = buf_chk_sz;
 
-	return hns_roce_config_link_table(hr_dev, type);
-
-err_alloc_buf_failed:
-	for (i -= 1; i >= 0; i--)
-		dma_free_coherent(dev, buf_chk_sz,
-				  link_tbl->pg_list[i].buf,
-				  link_tbl->pg_list[i].map);
-	kfree(link_tbl->pg_list);
-
-err_kcalloc_failed:
-	dma_free_coherent(dev, size, link_tbl->table.buf,
-			  link_tbl->table.map);
-
-out:
-	return -ENOMEM;
+	return link_tbl;
 }
 
-static void hns_roce_free_link_table(struct hns_roce_dev *hr_dev,
-				     struct hns_roce_link_table *link_tbl)
+static void free_link_table_buf(struct hns_roce_dev *hr_dev,
+				struct hns_roce_link_table *tbl)
 {
-	struct device *dev = hr_dev->dev;
-	int size;
-	int i;
+	if (tbl->buf) {
+		u32 size = tbl->buf->npages * sizeof(u64);
 
-	size = link_tbl->npages * sizeof(struct hns_roce_link_table_entry);
+		dma_free_coherent(hr_dev->dev, size, tbl->table.buf,
+				  tbl->table.map);
+	}
 
-	for (i = 0; i < link_tbl->npages; ++i)
-		if (link_tbl->pg_list[i].buf)
-			dma_free_coherent(dev, link_tbl->pg_sz,
-					  link_tbl->pg_list[i].buf,
-					  link_tbl->pg_list[i].map);
-	kfree(link_tbl->pg_list);
+	hns_roce_buf_free(hr_dev, tbl->buf);
+}
 
-	dma_free_coherent(dev, size, link_tbl->table.buf,
-			  link_tbl->table.map);
+static int hns_roce_init_link_table(struct hns_roce_dev *hr_dev)
+{
+	struct hns_roce_link_table *link_tbl;
+	int ret;
+
+	link_tbl = alloc_link_table_buf(hr_dev);
+	if (IS_ERR(link_tbl))
+		return -ENOMEM;
+
+	if (WARN_ON(link_tbl->buf->npages > HNS_ROCE_V2_EXT_LLM_MAX_DEPTH)) {
+		ret = -EINVAL;
+		goto err_alloc;
+	}
+
+	config_llm_table(link_tbl->buf, link_tbl->table.buf);
+	ret = set_llm_cfg_to_hw(hr_dev, link_tbl);
+	if (ret)
+		goto err_alloc;
+
+	return 0;
+
+err_alloc:
+	free_link_table_buf(hr_dev, link_tbl);
+	return ret;
+}
+
+static void hns_roce_free_link_table(struct hns_roce_dev *hr_dev)
+{
+	struct hns_roce_v2_priv *priv = hr_dev->priv;
+
+	free_link_table_buf(hr_dev, &priv->ext_llm);
 }
 
 static void free_dip_list(struct hns_roce_dev *hr_dev)
@@ -2736,7 +2656,6 @@ static void put_hem_table(struct hns_roce_dev *hr_dev)
 
 static int hns_roce_v2_init(struct hns_roce_dev *hr_dev)
 {
-	struct hns_roce_v2_priv *priv = hr_dev->priv;
 	int ret;
 
 	ret = get_hem_table(hr_dev);
@@ -2746,40 +2665,26 @@ static int hns_roce_v2_init(struct hns_roce_dev *hr_dev)
 	if (hr_dev->is_vf)
 		return 0;
 
-	/* TSQ includes SQ doorbell and ack doorbell */
-	ret = hns_roce_init_link_table(hr_dev, TSQ_LINK_TABLE);
+	ret = hns_roce_init_link_table(hr_dev);
 	if (ret) {
-		dev_err(hr_dev->dev, "failed to init TSQ, ret = %d.\n", ret);
-		goto err_tsq_init_failed;
-	}
-
-	ret = hns_roce_init_link_table(hr_dev, TPQ_LINK_TABLE);
-	if (ret) {
-		dev_err(hr_dev->dev, "failed to init TPQ, ret = %d.\n", ret);
-		goto err_tpq_init_failed;
+		dev_err(hr_dev->dev, "failed to init llm, ret = %d.\n", ret);
+		goto err_llm_init_failed;
 	}
 
 	return 0;
 
-err_tsq_init_failed:
+err_llm_init_failed:
 	put_hem_table(hr_dev);
-
-err_tpq_init_failed:
-	hns_roce_free_link_table(hr_dev, &priv->tpq);
 
 	return ret;
 }
 
 static void hns_roce_v2_exit(struct hns_roce_dev *hr_dev)
 {
-	struct hns_roce_v2_priv *priv = hr_dev->priv;
-
 	hns_roce_function_clear(hr_dev);
 
-	if (!hr_dev->is_vf) {
-		hns_roce_free_link_table(hr_dev, &priv->tpq);
-		hns_roce_free_link_table(hr_dev, &priv->tsq);
-	}
+	if (!hr_dev->is_vf)
+		hns_roce_free_link_table(hr_dev);
 
 	if (hr_dev->pci_dev->revision == PCI_REVISION_ID_HIP09)
 		free_dip_list(hr_dev);
