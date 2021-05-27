@@ -28,6 +28,7 @@
 
 #include "dm_services_types.h"
 #include "dc.h"
+#include "dc_link_dp.h"
 #include "dc/inc/core_types.h"
 #include "dal_asic_id.h"
 #include "dmub/dmub_srv.h"
@@ -2747,6 +2748,7 @@ static void handle_hpd_rx_irq(void *param)
 	enum dc_connection_type new_connection_type = dc_connection_none;
 	struct amdgpu_device *adev = drm_to_adev(dev);
 	union hpd_irq_data hpd_irq_data;
+	bool lock_flag = 0;
 
 	memset(&hpd_irq_data, 0, sizeof(hpd_irq_data));
 
@@ -2776,15 +2778,28 @@ static void handle_hpd_rx_irq(void *param)
 		}
 	}
 
-	if (!amdgpu_in_reset(adev)) {
+	/*
+	 * TODO: We need the lock to avoid touching DC state while it's being
+	 * modified during automated compliance testing, or when link loss
+	 * happens. While this should be split into subhandlers and proper
+	 * interfaces to avoid having to conditionally lock like this in the
+	 * outer layer, we need this workaround temporarily to allow MST
+	 * lightup in some scenarios to avoid timeout.
+	 */
+	if (!amdgpu_in_reset(adev) &&
+	    (hpd_rx_irq_check_link_loss_status(dc_link, &hpd_irq_data) ||
+	     hpd_irq_data.bytes.device_service_irq.bits.AUTOMATED_TEST)) {
 		mutex_lock(&adev->dm.dc_lock);
+		lock_flag = 1;
+	}
+
 #ifdef CONFIG_DRM_AMD_DC_HDCP
 	result = dc_link_handle_hpd_rx_irq(dc_link, &hpd_irq_data, NULL);
 #else
 	result = dc_link_handle_hpd_rx_irq(dc_link, NULL, NULL);
 #endif
+	if (!amdgpu_in_reset(adev) && lock_flag)
 		mutex_unlock(&adev->dm.dc_lock);
-	}
 
 out:
 	if (result && !is_mst_root_connector) {
@@ -3407,7 +3422,7 @@ static void amdgpu_dm_update_backlight_caps(struct amdgpu_display_manager *dm)
 	if (dm->backlight_caps.caps_valid)
 		return;
 
-	amdgpu_acpi_get_backlight_caps(dm->adev, &caps);
+	amdgpu_acpi_get_backlight_caps(&caps);
 	if (caps.caps_valid) {
 		dm->backlight_caps.caps_valid = true;
 		if (caps.aux_support)
@@ -3499,7 +3514,7 @@ static int amdgpu_dm_backlight_set_level(struct amdgpu_display_manager *dm,
 			rc = dc_link_set_backlight_level_nits(link[i], true, brightness[i],
 				AUX_BL_DEFAULT_TRANSITION_TIME_MS);
 			if (!rc) {
-				DRM_ERROR("DM: Failed to update backlight via AUX on eDP[%d]\n", i);
+				DRM_DEBUG("DM: Failed to update backlight via AUX on eDP[%d]\n", i);
 				break;
 			}
 		}
@@ -3507,7 +3522,7 @@ static int amdgpu_dm_backlight_set_level(struct amdgpu_display_manager *dm,
 		for (i = 0; i < dm->num_of_edps; i++) {
 			rc = dc_link_set_backlight_level(dm->backlight_link[i], brightness[i], 0);
 			if (!rc) {
-				DRM_ERROR("DM: Failed to update backlight on eDP[%d]\n", i);
+				DRM_DEBUG("DM: Failed to update backlight on eDP[%d]\n", i);
 				break;
 			}
 		}
@@ -5625,7 +5640,8 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 	struct drm_display_mode saved_mode;
 	struct drm_display_mode *freesync_mode = NULL;
 	bool native_mode_found = false;
-	bool recalculate_timing = dm_state ? (dm_state->scaling != RMX_OFF) : false;
+	bool recalculate_timing = false;
+	bool scale = dm_state ? (dm_state->scaling != RMX_OFF) : false;
 	int mode_refresh;
 	int preferred_refresh = 0;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
@@ -5688,7 +5704,7 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 		 */
 		DRM_DEBUG_DRIVER("No preferred mode found\n");
 	} else {
-		recalculate_timing |= amdgpu_freesync_vid_mode &&
+		recalculate_timing = amdgpu_freesync_vid_mode &&
 				 is_freesync_video_mode(&mode, aconnector);
 		if (recalculate_timing) {
 			freesync_mode = get_highest_refresh_rate_mode(aconnector, false);
@@ -5696,11 +5712,10 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 			mode = *freesync_mode;
 		} else {
 			decide_crtc_timing_for_drm_display_mode(
-				&mode, preferred_mode,
-				dm_state ? (dm_state->scaling != RMX_OFF) : false);
-		}
+				&mode, preferred_mode, scale);
 
-		preferred_refresh = drm_mode_vrefresh(preferred_mode);
+			preferred_refresh = drm_mode_vrefresh(preferred_mode);
+		}
 	}
 
 	if (recalculate_timing)
@@ -5712,7 +5727,7 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 	* If scaling is enabled and refresh rate didn't change
 	* we copy the vic and polarities of the old timings
 	*/
-	if (!recalculate_timing || mode_refresh != preferred_refresh)
+	if (!scale || mode_refresh != preferred_refresh)
 		fill_stream_properties_from_drm_display_mode(
 			stream, &mode, &aconnector->base, con_state, NULL,
 			requested_bpc);
