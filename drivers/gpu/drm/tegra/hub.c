@@ -630,6 +630,8 @@ static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
 	 * Physical address bit 39 in Tegra194 is used as a switch for special
 	 * logic that swizzles the memory using either the legacy Tegra or the
 	 * dGPU sector layout.
+	 *
+	 * XXX perhaps move this into ->atomic_check()?
 	 */
 	if (tegra_plane_state->tiling.sector_layout == TEGRA_BO_SECTOR_LAYOUT_GPU)
 		addr_flag = BIT_ULL(39);
@@ -700,6 +702,7 @@ static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
 
 	tegra_plane_writel(p, value, DC_WIN_SET_PARAMS);
 
+	/* XXX move this closer to DC_WINBUF_CROPPED_SIZE? */
 	value = OFFSET_X(new_state->src_y >> 16) |
 		OFFSET_Y(new_state->src_x >> 16);
 	tegra_plane_writel(p, value, DC_WINBUF_CROPPED_POINT);
@@ -732,6 +735,9 @@ static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
 	value = tegra_plane_readl(p, DC_WIN_WINDOW_SET_CONTROL);
 	value &= ~CONTROL_CSC_ENABLE;
 	tegra_plane_writel(p, value, DC_WIN_WINDOW_SET_CONTROL);
+
+	/* XXX support async flips by selecting the HCOUNTER for activation */
+	tegra_plane_writel(p, VCOUNTER, DC_WIN_CORE_ACT_CONTROL);
 
 	host1x_client_suspend(&dc->client);
 }
