@@ -1,0 +1,278 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/phy/nvidia,tegra20-usb-phy.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Device tree binding for NVIDIA Tegra USB PHY
+
+maintainers:
+  - Thierry Reding <treding@nvidia.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+
+properties:
+  # required properties
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - nvidia,tegra210-usb-phy
+              - nvidia,tegra124-usb-phy
+              - nvidia,tegra114-usb-phy
+          - const: nvidia,tegra30-usb-phy
+      - items:
+          - const: nvidia,tegra30-usb-phy
+      - items:
+          - const: nvidia,tegra20-usb-phy
+
+  reg:
+    minItems: 1
+    maxItems: 2
+    items:
+      - description: PHY register set
+      - description: register set of the PHY containing the UTMI pad control registers
+
+  phy_type:
+    items:
+      enum:
+        - utmi
+        - ulpi
+        - hsic
+
+  clocks:
+    minItems: 2
+    maxItems: 4
+
+  clock-names:
+    minItems: 2
+    maxItems: 4
+
+  resets:
+    items:
+      - description: PHY's reset signal
+      - description: reset of the PHY containing the chip-wide UTMI pad control
+          registers
+
+  reset-names:
+    items:
+      - const: usb
+      - const: utmi-pads
+
+  '#phy-cells':
+    const: 0
+
+  nvidia,phy-reset-gpio:
+    $ref: '/schemas/types.yaml#/definitions/phandle-array'
+    description: GPIO used to reset the PHY
+
+  nvidia,hssync-start-delay:
+    $ref: '/schemas/types.yaml#/definitions/uint32'
+    description: Number of 480 Mhz clock cycles to wait before start of
+      sync launches RxActive
+
+  nvidia,elastic-limit:
+    $ref: '/schemas/types.yaml#/definitions/uint32'
+    description: Variable FIFO Depth of elastic input store
+
+  nvidia,idle-wait-delay:
+    $ref: '/schemas/types.yaml#/definitions/uint32'
+    description: Number of 480 Mhz clock cycles of idle to wait before
+      declare IDLE.
+
+  nvidia,term-range-adj:
+    $ref: '/schemas/types.yaml#/definitions/uint32'
+    description: Range adjusment on terminations
+
+  nvidia,xcvr-setup:
+    $ref: '/schemas/types.yaml#/definitions/uint32'
+    description: uses the provided values for the HS driver
+
+  nvidia,xcvr-setup-use-fuses:
+    type: boolean
+    description: When present, indicates that HS driver values are read
+      from the on-chip fuses. Takes precedence over nvidia,xcvr-setup if
+      both are provided.
+
+  nvidia,xcvr-lsfslew:
+    $ref: '/schemas/types.yaml#/definitions/uint32'
+    description: LS falling slew rate control
+
+  nvidia,xcvr-lsrslew:
+    $ref: '/schemas/types.yaml#/definitions/uint32'
+    description: LS rising slew rate control
+
+  nvidia,xcvr-hsslew:
+    $ref: '/schemas/types.yaml#/definitions/uint32'
+    description: HS slew rate control
+
+  nvidia,hssquelch-level:
+    $ref: '/schemas/types.yaml#/definitions/uint32'
+    description: HS squelch detector level
+
+  nvidia,hsdiscon-level:
+    $ref: '/schemas/types.yaml#/definitions/uint32'
+    description: HS disconnect detector level
+
+  vbus-supply:
+    description: regulator for VBUS
+
+  # optional properties
+  nvidia,has-legacy-mode:
+    type: boolean
+    description: Indicates whether this controller can operate in legacy
+      mode (as APX 2500 / 2600). In legacy mode some registers are accessed
+      through the APB_MISC base address instead of the USB controller.
+
+  nvidia,is-wired:
+    type: boolean
+    description: Indicates whether we can do certain kind of power
+      optimizations for the devices that are always connected. e.g. modem.
+
+  dr_mode:
+    items:
+      enum:
+        - host
+        - peripheral
+        - otg
+    description: Dual role mode. Indicates the working mode for the PHY.
+      Defaults to "host" if not defined. "host" means this is a host
+      controller, "peripheral" means it is device controller and "otg"
+      means it can operate as either ("on the go").
+
+  nvidia,has-utmi-pad-registers:
+    type: boolean
+    description: Indicates whether this controller contains the UTMI pad
+      control registers common to all USB controllers.
+
+allOf:
+  - if:
+      properties:
+        phy_type:
+          const: utmi
+    then:
+      properties:
+        reg:
+          maxItems: 2
+
+        clocks:
+          items:
+            - description: Clock needed to access the PHY's own registers.
+                This is the associated EHCI controller's clock.
+            - description: USB PLL
+            - description: timeout clock (clk_m)
+            - description: Clock needed to access the UTMI pad control
+                registers.
+
+        clock-names:
+          items:
+            - const: reg
+            - const: pll_u
+            - const: timer
+            - const: utmi-pads
+
+      required:
+        - nvidia,hssync-start-delay
+        - nvidia,elastic-limit
+        - nvidia,idle-wait-delay
+        - nvidia,term-range-adj
+        - nvidia,xcvr-lsfslew
+        - nvidia,xcvr-lsrslew
+
+      oneOf:
+        - required:
+            - nvidia,xcvr-setup-use-fuses
+        - required:
+            - nvidia,xcvr-setup
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: nvidia,tegra30-usb-phy
+        phy_type:
+          const: utmi
+    then:
+      required:
+        - nvidia,xcvr-hsslew
+        - nvidia,hssquelch-level
+        - nvidia,hsdiscon-level
+
+  - if:
+      properties:
+        phy_type:
+          const: ulpi
+    then:
+      properties:
+        clocks:
+          items:
+            - description: Clock needed to access the PHY's own registers.
+                This is the associated EHCI controller's clock.
+            - description: USB PLL
+            - description: Clock provided by Tegra to the ULPI PHY (usually
+                pad DAP_MCLK2 with pad group aka "nvidia,pins" cdev2 and pin
+                mux option config aka "nvidia,function" pllp_out4).
+
+        clock-names:
+          items:
+            - const: reg
+            - const: pll_u
+            - const: ulpi-link
+
+      required:
+        - nvidia,phy-reset-gpio
+
+  - if:
+      properties:
+        dr_mode:
+          const: otg
+    then:
+      required:
+        - vbus-supply
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/tegra20-car.h>
+    #include <dt-bindings/gpio/tegra-gpio.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    usb-phy@c5000000 {
+        compatible = "nvidia,tegra20-usb-phy";
+        reg = <0xc5000000 0x4000>,
+              <0xc5000000 0x4000>;
+        phy_type = "utmi";
+        clocks = <&tegra_car TEGRA20_CLK_USBD>,
+                 <&tegra_car TEGRA20_CLK_PLL_U>,
+                 <&tegra_car TEGRA20_CLK_CLK_M>,
+                 <&tegra_car TEGRA20_CLK_USBD>;
+        clock-names = "reg", "pll_u", "timer", "utmi-pads";
+        resets = <&tegra_car 22>, <&tegra_car 22>;
+        reset-names = "usb", "utmi-pads";
+        #phy-cells = <0>;
+        nvidia,has-legacy-mode;
+        nvidia,hssync-start-delay = <9>;
+        nvidia,idle-wait-delay = <17>;
+        nvidia,elastic-limit = <16>;
+        nvidia,term-range-adj = <6>;
+        nvidia,xcvr-setup = <9>;
+        nvidia,xcvr-lsfslew = <1>;
+        nvidia,xcvr-lsrslew = <1>;
+        nvidia,has-utmi-pad-registers;
+        vbus-supply = <&vdd_vbus>;
+    };
+
+    usb-phy@c5004000 {
+        compatible = "nvidia,tegra20-usb-phy";
+        reg = <0xc5004000 0x4000>;
+        phy_type = "ulpi";
+        clocks = <&tegra_car TEGRA20_CLK_USB2>,
+                 <&tegra_car TEGRA20_CLK_PLL_U>,
+                 <&tegra_car TEGRA20_CLK_CDEV2>;
+        clock-names = "reg", "pll_u", "ulpi-link";
+        resets = <&tegra_car 58>, <&tegra_car 22>;
+        reset-names = "usb", "utmi-pads";
+        #phy-cells = <0>;
+        nvidia,phy-reset-gpio = <&gpio TEGRA_GPIO(V, 1) GPIO_ACTIVE_LOW>;
+        vbus-supply = <&vdd_vbus>;
+    };
