@@ -13,6 +13,10 @@ maintainers:
 description: The host1x top-level node defines a number of children, each
   representing one of the host1x client modules defined in this binding.
 
+  Each host1x client module that performs DMA through the memory controller
+  should have its interconnect endpoints set to the memory controller and
+  external memory controller, respectively.
+
 properties:
   compatible:
     oneOf:
@@ -28,6 +32,9 @@ properties:
       - items:
           - const: nvidia,tegra132-host1x
           - const: nvidia,tegra124-host1x
+
+  reg:
+    maxItems: 1
 
   interrupts:
     items:
@@ -99,6 +106,8 @@ required:
   - reset-names
 
 unevaluatedProperties: false
+additionalProperties:
+  type: object
 
 allOf:
   - if:
@@ -124,10 +133,6 @@ allOf:
 
       required:
         - reg-names
-    else:
-      properties:
-        reg:
-          maxItems: 1
 
   - if:
       properties:
@@ -148,10 +153,10 @@ allOf:
             compatible:
               oneOf:
                 - enum:
-                  - nvidia,tegra20-vi
-                  - nvidia,tegra30-vi
-                  - nvidia,tegra114-vi
-                  - nvidia,tegra124-vi
+                    - nvidia,tegra20-vi
+                    - nvidia,tegra30-vi
+                    - nvidia,tegra114-vi
+                    - nvidia,tegra124-vi
 
                 - items:
                     - const: nvidia,tegra132-vi
@@ -171,6 +176,17 @@ allOf:
             reset-names:
               items:
                 - const: vi
+
+            iommus:
+              maxItems: 1
+
+            interconnects:
+              description: Description of the interconnect paths for the
+                display controller; see ../interconnect/interconnect.txt
+                for details.
+
+            interconnect-names: true
+
     else:
       patternProperties:
         "^vi@[0-9a-f]+$":
@@ -195,6 +211,16 @@ allOf:
             power-domains:
               maxItems: 1
 
+            iommus:
+              maxItems: 1
+
+            interconnects:
+              description: Description of the interconnect paths for the
+                display controller; see ../interconnect/interconnect.txt
+                for details.
+
+            interconnect-names: true
+
   - if:
       properties:
         compatible:
@@ -204,6 +230,15 @@ allOf:
       patternProperties:
         "^vi@[0-9a-f]+$":
           type: object
+          properties:
+            ports:
+              type: object
+              patternProperties:
+                "^port@[0-9a-f]+$":
+                  description: See ../../media/video-interfaces.yaml for
+                    details.
+                  type: object
+
           patternProperties:
             "^csi@[0-9a-f]+$":
               description: camera sensor interface
@@ -225,8 +260,70 @@ allOf:
                     - const: cile
                     - const: csi_tpg
 
+                #assigned-clocks: true
+                #assigned-clock-parents: true
+                #assigned-clock-rates: true
+
                 power-domains:
                   maxItems: 1
+
+              patternProperties:
+                "^channel@[0-9a-f]+$":
+                  type: object
+                  description: Up to 6 channels are supported within each CSI
+                    brick as either x4 or x2, based on hardware connectivity
+                    to the sensor.
+                  properties:
+                    reg:
+                      minimum: 0
+                      maximum: 5
+
+                    nvidia,mipi-calibrate:
+                      $ref: "/schemas/types.yaml#/definitions/phandle-array"
+                      description: A phandle and specifier for the pads that
+                        are used by this CSI port and need to be calibrated.
+                        See nvidia,tegra114-mipi.txt for details.
+
+                    ports:
+                      type: object
+                      properties:
+                        port@0:
+                          description: sink port for this channel
+                          type: object
+                          properties:
+                            reg:
+                              const: 0
+
+                            endpoint:
+                              type: object
+                              properties:
+                                data-lanes:
+                                  $ref: "/schemas/types.yaml#/definitions/uint32-array"
+                                  description: array of data lanes from 1 to 8
+                                  minItems: 1
+                                  maxItems: 8
+                                  items:
+                                    minimum: 1
+                                    maximum: 8
+
+                                remote-endpoint:
+                                  $ref: "/schemas/types.yaml#/definitions/phandle"
+                                  description: phandle to sensor endpoint node
+
+                        port@1:
+                          description: source port for this channel
+                          type: object
+                          properties:
+                            reg:
+                              const: 1
+
+                            endpoint:
+                              type: object
+                              properties:
+                                remote-endpoint:
+                                  $ref: "/schemas/types.yaml#/definitions/phandle"
+                                  description: phandle to VI port endpoint node
+
 
   - if:
       properties:
@@ -268,6 +365,13 @@ allOf:
             iommus:
               maxItems: 1
 
+            interconnects:
+              description: Description of the interconnect paths for the
+                display controller; see ../interconnect/interconnect.txt
+                for details.
+
+            interconnect-names: true
+
           additionalProperties: false
 
         "^mpe@[0-9a-f]+$":
@@ -303,6 +407,13 @@ allOf:
             iommus:
               maxItems: 1
 
+            interconnects:
+              description: Description of the interconnect paths for the
+                display controller; see ../interconnect/interconnect.txt
+                for details.
+
+            interconnect-names: true
+
           additionalProperties: false
 
         "^gr2d@[0-9a-f]+$":
@@ -335,6 +446,13 @@ allOf:
             iommus:
               maxItems: 1
 
+            interconnects:
+              description: Description of the interconnect paths for the
+                display controller; see ../interconnect/interconnect.txt
+                for details.
+
+            interconnect-names: true
+
           additionalProperties: false
 
         "^gr3d@[0-9a-f]+$":
@@ -352,6 +470,13 @@ allOf:
 
             iommus:
               maxItems: 1
+
+            interconnects:
+              description: Description of the interconnect paths for the
+                display controller; see ../interconnect/interconnect.txt
+                for details.
+
+            interconnect-names: true
 
           allOf:
             - if:
@@ -475,6 +600,13 @@ allOf:
 
             iommus:
               maxItems: 1
+
+            interconnects:
+              description: Description of the interconnect paths for the
+                display controller; see ../interconnect/interconnect.txt
+                for details.
+
+            interconnect-names: true
 
             nvidia,head:
               description: The number of the display controller head. This is
@@ -980,7 +1112,7 @@ allOf:
 
             clock-names:
               items:
-                  const: vic
+                - const: vic
 
             resets:
               items:
@@ -1146,6 +1278,13 @@ allOf:
       patternProperties:
         "^isp@[0-9a-f]+$":
           type: object
+          properties:
+            interconnects:
+              description: Description of the interconnect paths for the
+                display controller; see ../interconnect/interconnect.txt
+                for details.
+
+            interconnect-names: true
 
           unevaluatedProperties: false
 
@@ -1194,10 +1333,10 @@ examples:
     #include <dt-bindings/clock/tegra20-car.h>
 
     host1x@50000000 {
-        compatible = "nvidia,tegra20-host1x", "simple-bus";
+        compatible = "nvidia,tegra20-host1x";
         reg = <0x50000000 0x00024000>;
-        interrupts = <0 65 0x04   /* mpcore syncpt */
-                      0 67 0x04>; /* mpcore general */
+        interrupts = <0 65 0x04>, /* mpcore syncpt */
+                     <0 67 0x04>; /* mpcore general */
         interrupt-names = "syncpt", "host1x";
         clocks = <&tegra_car TEGRA20_CLK_HOST1X>;
         clock-names = "host1x";
@@ -1323,7 +1462,7 @@ examples:
     #include <dt-bindings/memory/tegra210-mc.h>
 
     host1x@50000000 {
-        compatible = "nvidia,tegra210-host1x", "simple-bus";
+        compatible = "nvidia,tegra210-host1x";
         reg = <0x50000000 0x00024000>;
         interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>, /* mpcore syncpt */
                      <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>; /* mpcore general */
@@ -1376,6 +1515,49 @@ examples:
                          <&tegra_car TEGRA210_CLK_CSI_TPG>;
                 clock-names = "csi", "cilab", "cilcd", "cile", "csi_tpg";
                 power-domains = <&pd_sor>;
+
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                channel@0 {
+                    reg = <0>;
+                    nvidia,mipi-calibrate = <&mipi 0x001>;
+
+                    ports {
+                        #address-cells = <1>;
+                        #size-cells = <0>;
+
+                        port@0 {
+                            reg = <0>;
+
+                            imx219_csi_in0: endpoint {
+                                data-lanes = <1 2>;
+                                remote-endpoint = <&imx219_out0>;
+                            };
+                        };
+
+                        port@1 {
+                            reg = <1>;
+
+                            imx219_csi_out0: endpoint {
+                                remote-endpoint = <&imx219_vi_in0>;
+                            };
+                        };
+                    };
+                };
+            };
+
+            ports {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                port@0 {
+                    reg = <0>;
+
+                    imx219_vi_in0: endpoint {
+                        remote-endpoint = <&imx219_csi_out0>;
+                    };
+                };
             };
         };
     };
