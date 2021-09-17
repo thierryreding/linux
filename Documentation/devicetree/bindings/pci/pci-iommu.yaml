@@ -56,6 +56,8 @@ properties:
       A mask to be applied to each Requester ID prior to being mapped to an
       IOMMU specifier per the iommu-map property.
 
+additionalProperties: false
+
 examples:
   - |
     iommu0: iommu@a {

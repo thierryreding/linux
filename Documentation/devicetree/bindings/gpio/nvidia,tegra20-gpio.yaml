@@ -82,7 +82,7 @@ required:
   - "#interrupt-cells"
   - interrupt-controller
 
-unevaluatedProperties:
+additionalProperties:
   type: object
   required:
     - gpio-hog

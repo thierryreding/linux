@@ -594,3 +594,9 @@ void host1x_syncpt_release_vblank_reservation(struct host1x_client *client,
 	kref_put(&host->syncpt[syncpt_id].ref, do_nothing);
 }
 EXPORT_SYMBOL(host1x_syncpt_release_vblank_reservation);
+
+struct host1x_syncpt *host1x_syncpt_fd_get(int fd)
+{
+	return ERR_PTR(-ENOTSUPP);
+}
+EXPORT_SYMBOL(host1x_syncpt_fd_get);

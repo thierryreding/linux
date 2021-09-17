@@ -2920,8 +2920,10 @@ int drm_atomic_helper_update_plane(struct drm_plane *plane,
 	plane_state->src_w = src_w;
 	plane_state->src_h = src_h;
 
-	if (plane == crtc->cursor)
+	if (plane == crtc->cursor) {
+		pr_info("%s(): legacy cursor update\n", __func__);
 		state->legacy_cursor_update = true;
+	}
 
 	ret = drm_atomic_commit(state);
 fail:
@@ -2958,8 +2960,10 @@ int drm_atomic_helper_disable_plane(struct drm_plane *plane,
 		goto fail;
 	}
 
-	if (plane_state->crtc && plane_state->crtc->cursor == plane)
+	if (plane_state->crtc && plane_state->crtc->cursor == plane) {
+		pr_info("%s(): legacy cursor update\n", __func__);
 		plane_state->state->legacy_cursor_update = true;
+	}
 
 	ret = __drm_atomic_helper_disable_plane(plane, plane_state);
 	if (ret != 0)

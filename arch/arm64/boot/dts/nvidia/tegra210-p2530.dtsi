@@ -40,10 +40,15 @@
 		non-removable;
 	};
 
-	clk32k_in: clock@0 {
-		compatible = "fixed-clock";
-		clock-frequency = <32768>;
-		#clock-cells = <0>;
+	clocks {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		clk32k_in: clock@0 {
+			compatible = "fixed-clock";
+			clock-frequency = <32768>;
+			#clock-cells = <0>;
+		};
 	};
 
 	cpus {

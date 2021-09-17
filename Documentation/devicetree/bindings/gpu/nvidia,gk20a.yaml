@@ -36,21 +36,11 @@ properties:
 
   clocks:
     minItems: 2
-    maxItems: 4
-    items:
-      - description: GPU clock
-      - description: PWR clock
-      - description: REF clock
-      - description: FUSE clock
+    maxItems: 3
 
   clock-names:
     minItems: 2
-    maxItems: 4
-    items:
-      - const: gpu
-      - const: pwr
-      - const: ref
-      - const: fuse
+    maxItems: 3
 
   resets:
     items:
@@ -81,11 +71,9 @@ properties:
     description: One string for each pair of phandle and specifier in the
       "interconnects" property.
     $ref: "/schemas/types.yaml#/definitions/string-array"
-    items:
-      - const: dma-mem # read-0
-      - const: write-0
-      - const: read-1
-      - const: write-1
+
+  dma-coherent:
+    type: boolean
 
 required:
   - compatible
@@ -102,10 +90,21 @@ allOf:
       properties:
         compatible:
           contains:
-            const: nvidia,gm20b
+            const: nvidia,gk20a
     then:
-      required:
-        - vdd-supply
+      properties:
+        clocks:
+          items:
+            - description: GPU clock
+            - description: PWR clock
+          minItems: 2
+          maxItems: 2
+        clock-names:
+          items:
+            - const: gpu
+            - const: pwr
+          minItems: 2
+          maxItems: 2
 
   - if:
       properties:
@@ -114,8 +113,20 @@ allOf:
             const: nvidia,gm20b
     then:
       properties:
-        clock-names:
+        clocks:
+          items:
+            - description: GPU clock
+            - description: PWR clock
+            - description: REF clock
           minItems: 3
+          maxItems: 3
+        clock-names:
+          items:
+            - const: gpu
+            - const: pwr
+            - const: ref
+          minItems: 3
+          maxItems: 3
 
       required:
         - vdd-supply
@@ -126,10 +137,66 @@ allOf:
           contains:
             const: nvidia,gp10b
     then:
+      properties:
+        clocks:
+          items:
+            - description: GPU clock
+            - description: PWR clock
+          minItems: 2
+          maxItems: 2
+        clock-names:
+          items:
+            - const: gpu
+            - const: pwr
+          minItems: 2
+          maxItems: 2
+        interconnect-names:
+          items:
+            - const: dma-mem # read-0
+            - const: write-0
+            - const: read-1
+            - const: write-1
+
       required:
         - power-domains
 
-unevaluatedProperties: false
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: nvidia,gv11b
+    then:
+      properties:
+        clocks:
+          items:
+            - description: GPU clock
+            - description: PWR clock
+            - description: FUSE clock
+          minItems: 3
+          maxItems: 3
+        clock-names:
+          items:
+            - const: gpu
+            - const: pwr
+            - const: fuse
+          minItems: 3
+          maxItems: 3
+        interconnect-names:
+          items:
+            - const: dma-mem # read-0
+            - const: read-0-hp
+            - const: write-0
+            - const: read-1
+            - const: read-1-hp
+            - const: write-1
+            - const: read-2
+            - const: read-2-hp
+            - const: write-2
+            - const: read-3
+            - const: read-3-hp
+            - const: write-3
+
+additionalProperties: false
 
 examples:
   - |
@@ -202,6 +269,11 @@ examples:
         reset-names = "gpu";
         power-domains = <&bpmp TEGRA186_POWER_DOMAIN_GPU>;
         iommus = <&smmu TEGRA186_SID_GPU>;
+        interconnects = <&mc TEGRA186_MEMORY_CLIENT_GPUSRD &emc>,
+                        <&mc TEGRA186_MEMORY_CLIENT_GPUSWR &emc>,
+                        <&mc TEGRA186_MEMORY_CLIENT_GPUSRD2 &emc>,
+                        <&mc TEGRA186_MEMORY_CLIENT_GPUSWR2 &emc>;
+        interconnect-names = "dma-mem", "write-0", "read-1", "write-1";
     };
 
   - |

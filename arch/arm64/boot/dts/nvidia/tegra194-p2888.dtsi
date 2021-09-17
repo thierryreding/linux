@@ -54,7 +54,7 @@
 		};
 
 		timer@3010000 {
-			status = "okay";
+			status = "disabled";
 		};
 
 		serial@3110000 {

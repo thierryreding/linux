@@ -15,6 +15,28 @@
 #include "dc.h"
 #include "plane.h"
 
+static int tegra_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
+			      struct drm_framebuffer *fb, int crtc_x, int crtc_y,
+			      unsigned int crtc_w, unsigned int crtc_h, uint32_t src_x,
+			      uint32_t src_y, uint32_t src_w, uint32_t src_h,
+			      struct drm_modeset_acquire_ctx *ctx)
+{
+	struct tegra_dc *dc = to_tegra_dc(crtc);
+
+	if (plane->type == DRM_PLANE_TYPE_CURSOR) {
+		if (crtc != plane->state->crtc || src_w != plane->state->src_w ||
+		    src_h != plane->state->src_h || crtc_w != plane->state->crtc_w ||
+		    crtc_h != plane->state->crtc_h || fb != plane->state->fb)
+			goto slow;
+
+		dev_dbg(dc->dev, "using fast path for cursor\n");
+	}
+
+slow:
+	return drm_atomic_helper_update_plane(plane, crtc, fb, crtc_x, crtc_y, crtc_w, crtc_h,
+					      src_x, src_y, src_w, src_h, ctx);
+}
+
 static void tegra_plane_destroy(struct drm_plane *plane)
 {
 	struct tegra_plane *p = to_tegra_plane(plane);
@@ -127,7 +149,7 @@ static bool tegra_plane_format_mod_supported(struct drm_plane *plane,
 }
 
 const struct drm_plane_funcs tegra_plane_funcs = {
-	.update_plane = drm_atomic_helper_update_plane,
+	.update_plane = tegra_plane_update,
 	.disable_plane = drm_atomic_helper_disable_plane,
 	.destroy = tegra_plane_destroy,
 	.reset = tegra_plane_reset,

@@ -73,14 +73,18 @@ if:
   properties:
     compatible:
       contains:
-        const: nvidia,tegra194-host1x
+        const: nvidia,tegra194-nvdec
 then:
   properties:
     nvidia,instance:
+      $ref: /schemas/types.yaml#/definitions/uint32
       items:
         - description: 0 for NVDEC0, or 1 for NVDEC1
 
-additionalProperties: true
+  required:
+    - nvidia,instance
+
+unevaluatedProperties: false
 
 examples:
   - |
@@ -98,10 +102,37 @@ examples:
             resets = <&bpmp TEGRA186_RESET_NVDEC>;
             reset-names = "nvdec";
 
+            nvidia,instance = <0>;
+
             power-domains = <&bpmp TEGRA186_POWER_DOMAIN_NVDEC>;
             interconnects = <&mc TEGRA186_MEMORY_CLIENT_NVDECSRD &emc>,
                             <&mc TEGRA186_MEMORY_CLIENT_NVDECSRD1 &emc>,
                             <&mc TEGRA186_MEMORY_CLIENT_NVDECSWR &emc>;
             interconnect-names = "dma-mem", "read-1", "write";
             iommus = <&smmu TEGRA186_SID_NVDEC>;
+    };
+
+  - |
+    #include <dt-bindings/clock/tegra194-clock.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/memory/tegra194-mc.h>
+    #include <dt-bindings/power/tegra194-powergate.h>
+    #include <dt-bindings/reset/tegra194-reset.h>
+
+    nvdec@15480000 {
+            compatible = "nvidia,tegra194-nvdec";
+            reg = <0x15480000 0x40000>;
+            clocks = <&bpmp TEGRA194_CLK_NVDEC>;
+            clock-names = "nvdec";
+            resets = <&bpmp TEGRA194_RESET_NVDEC>;
+            reset-names = "nvdec";
+
+            nvidia,instance = <0>;
+
+            power-domains = <&bpmp TEGRA194_POWER_DOMAIN_NVDECA>;
+            interconnects = <&mc TEGRA194_MEMORY_CLIENT_NVDECSRD &emc>,
+                            <&mc TEGRA194_MEMORY_CLIENT_NVDECSRD1 &emc>,
+                            <&mc TEGRA194_MEMORY_CLIENT_NVDECSWR &emc>;
+            interconnect-names = "dma-mem", "read-1", "write";
+            iommus = <&smmu TEGRA194_SID_NVDEC>;
     };

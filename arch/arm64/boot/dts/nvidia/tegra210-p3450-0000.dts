@@ -885,18 +885,25 @@
 		};
 	};
 
-	clk32k_in: clock@0 {
-		compatible = "fixed-clock";
-		clock-frequency = <32768>;
-		#clock-cells = <0>;
-	};
+	clocks {
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-	clk_codec: clock@1 {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <12288000>;
-		clock-output-names = "pcm5122-mclk";
-		status = "okay";
+		clk32k_in: clock@0 {
+			compatible = "fixed-clock";
+			reg = <1>;
+			clock-frequency = <32768>;
+			#clock-cells = <0>;
+		};
+
+		clk_codec: clock@1 {
+			compatible = "fixed-clock";
+			reg = <1>;
+			#clock-cells = <0>;
+			clock-frequency = <12288000>;
+			clock-output-names = "pcm5122-mclk";
+			status = "okay";
+		};
 	};
 
 	cpus {
@@ -1010,120 +1017,134 @@
 		method = "smc";
 	};
 
-	vdd_5v0_sys: regulator@0 {
-		compatible = "regulator-fixed";
+	regulators {
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		regulator-name = "VDD_5V0_SYS";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		regulator-always-on;
-		regulator-boot-on;
-	};
+		vdd_5v0_sys: regulator@0 {
+			compatible = "regulator-fixed";
+			reg = <0>;
 
-	vdd_3v3_sys: regulator@1 {
-		compatible = "regulator-fixed";
+			regulator-name = "VDD_5V0_SYS";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
 
-		regulator-name = "VDD_3V3_SYS";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		regulator-enable-ramp-delay = <240>;
-		regulator-disable-ramp-delay = <11340>;
-		regulator-always-on;
-		regulator-boot-on;
+		vdd_3v3_sys: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
 
-		gpio = <&pmic 3 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
+			regulator-name = "VDD_3V3_SYS";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-enable-ramp-delay = <240>;
+			regulator-disable-ramp-delay = <11340>;
+			regulator-always-on;
+			regulator-boot-on;
 
-		vin-supply = <&vdd_5v0_sys>;
-	};
+			gpio = <&pmic 3 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
 
-	vdd_3v3_sd: regulator@2 {
-		compatible = "regulator-fixed";
+			vin-supply = <&vdd_5v0_sys>;
+		};
 
-		regulator-name = "VDD_3V3_SD";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
+		vdd_3v3_sd: regulator@2 {
+			compatible = "regulator-fixed";
+			reg = <2>;
 
-		gpio = <&gpio TEGRA_GPIO(Z, 3) GPIO_ACTIVE_HIGH>;
-		enable-active-high;
+			regulator-name = "VDD_3V3_SD";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
 
-		vin-supply = <&vdd_3v3_sys>;
-	};
+			gpio = <&gpio TEGRA_GPIO(Z, 3) GPIO_ACTIVE_HIGH>;
+			enable-active-high;
 
-	vdd_hdmi: regulator@3 {
-		compatible = "regulator-fixed";
+			vin-supply = <&vdd_3v3_sys>;
+		};
 
-		regulator-name = "VDD_HDMI_5V0";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
+		vdd_hdmi: regulator@3 {
+			compatible = "regulator-fixed";
+			reg = <3>;
 
-		vin-supply = <&vdd_5v0_sys>;
-	};
+			regulator-name = "VDD_HDMI_5V0";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
 
-	vdd_hub_3v3: regulator@4 {
-		compatible = "regulator-fixed";
+			vin-supply = <&vdd_5v0_sys>;
+		};
 
-		regulator-name = "VDD_HUB_3V3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
+		vdd_hub_3v3: regulator@4 {
+			compatible = "regulator-fixed";
+			reg = <4>;
 
-		gpio = <&gpio TEGRA_GPIO(A, 6) GPIO_ACTIVE_HIGH>;
-		enable-active-high;
+			regulator-name = "VDD_HUB_3V3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
 
-		vin-supply = <&vdd_5v0_sys>;
-	};
+			gpio = <&gpio TEGRA_GPIO(A, 6) GPIO_ACTIVE_HIGH>;
+			enable-active-high;
 
-	vdd_cpu: regulator@5 {
-		compatible = "regulator-fixed";
+			vin-supply = <&vdd_5v0_sys>;
+		};
 
-		regulator-name = "VDD_CPU";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		regulator-always-on;
-		regulator-boot-on;
+		vdd_cpu: regulator@5 {
+			compatible = "regulator-fixed";
+			reg = <5>;
 
-		gpio = <&pmic 5 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
+			regulator-name = "VDD_CPU";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			regulator-always-on;
+			regulator-boot-on;
 
-		vin-supply = <&vdd_5v0_sys>;
-	};
+			gpio = <&pmic 5 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
 
-	vdd_gpu: regulator@6 {
-		compatible = "pwm-regulator";
-		pwms = <&pwm 1 8000>;
+			vin-supply = <&vdd_5v0_sys>;
+		};
 
-		regulator-name = "VDD_GPU";
-		regulator-min-microvolt = <710000>;
-		regulator-max-microvolt = <1320000>;
-		regulator-ramp-delay = <80>;
-		regulator-enable-ramp-delay = <2000>;
-		regulator-settling-time-us = <160>;
+		vdd_gpu: regulator@6 {
+			compatible = "pwm-regulator";
+			reg = <6>;
 
-		enable-gpios = <&pmic 6 GPIO_ACTIVE_HIGH>;
-		vin-supply = <&vdd_5v0_sys>;
-	};
+			regulator-name = "VDD_GPU";
+			regulator-min-microvolt = <710000>;
+			regulator-max-microvolt = <1320000>;
+			regulator-ramp-delay = <80>;
+			regulator-enable-ramp-delay = <2000>;
+			regulator-settling-time-us = <160>;
 
-	avdd_io_edp_1v05: regulator@7 {
-		compatible = "regulator-fixed";
+			enable-gpios = <&pmic 6 GPIO_ACTIVE_HIGH>;
+			vin-supply = <&vdd_5v0_sys>;
+			pwms = <&pwm 1 8000>;
+		};
 
-		regulator-name = "AVDD_IO_EDP_1V05";
-		regulator-min-microvolt = <1050000>;
-		regulator-max-microvolt = <1050000>;
+		avdd_io_edp_1v05: regulator@7 {
+			compatible = "regulator-fixed";
+			reg = <7>;
 
-		gpio = <&pmic 7 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
+			regulator-name = "AVDD_IO_EDP_1V05";
+			regulator-min-microvolt = <1050000>;
+			regulator-max-microvolt = <1050000>;
 
-		vin-supply = <&avdd_1v05_pll>;
-	};
+			gpio = <&pmic 7 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
 
-	vdd_5v0_usb: regulator@8 {
-		compatible = "regulator-fixed";
+			vin-supply = <&avdd_1v05_pll>;
+		};
 
-		regulator-name = "VDD_5V_USB";
-		regulator-min-microvolt = <50000000>;
-		regulator-max-microvolt = <50000000>;
+		vdd_5v0_usb: regulator@8 {
+			compatible = "regulator-fixed";
+			reg = <8>;
 
-		vin-supply = <&vdd_5v0_sys>;
+			regulator-name = "VDD_5V_USB";
+			regulator-min-microvolt = <50000000>;
+			regulator-max-microvolt = <50000000>;
+
+			vin-supply = <&vdd_5v0_sys>;
+		};
 	};
 
 	sound {

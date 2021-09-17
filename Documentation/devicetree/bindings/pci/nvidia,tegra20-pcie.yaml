@@ -434,6 +434,7 @@ examples:
             /* bridge 01:00.0 (optional) */
             pci@0,0 {
                 reg = <0x010000 0 0 0 0>;
+                bus-range = <0x00 0xff>;
 
                 #address-cells = <3>;
                 #size-cells = <2>;
@@ -442,7 +443,7 @@ examples:
                 device_type = "pci";
 
                 /* endpoint 02:00.0 */
-                pci@0,0 {
+                ethernet@0,0 {
                     reg = <0x020000 0 0 0 0>;
                 };
             };
