@@ -31,6 +31,7 @@ properties:
       - enum:
           - nvidia,tegra186-mc
           - nvidia,tegra194-mc
+          - nvidia,tegra234-mc
 
   reg:
     minItems: 1
@@ -68,6 +69,7 @@ patternProperties:
           - enum:
               - nvidia,tegra186-emc
               - nvidia,tegra194-emc
+              - nvidia,tegra234-emc
 
       reg:
         minItems: 1
