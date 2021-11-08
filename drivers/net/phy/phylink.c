@@ -5,6 +5,7 @@
  *
  * Copyright (C) 2015 Russell King
  */
+#define DEBUG
 #include <linux/acpi.h>
 #include <linux/ethtool.h>
 #include <linux/export.h>
@@ -900,6 +901,8 @@ static int phylink_change_inband_advert(struct phylink *pl)
 static void phylink_mac_pcs_get_state(struct phylink *pl,
 				      struct phylink_link_state *state)
 {
+	phylink_info(pl, "> %s(pl=%px, state=%px)\n", __func__, pl, state);
+
 	linkmode_copy(state->advertising, pl->link_config.advertising);
 	linkmode_zero(state->lp_advertising);
 	state->interface = pl->link_config.interface;
@@ -923,6 +926,8 @@ static void phylink_mac_pcs_get_state(struct phylink *pl,
 		pl->mac_ops->mac_pcs_get_state(pl->config, state);
 	else
 		state->link = 0;
+
+	phylink_info(pl, "< %s()\n", __func__);
 }
 
 /* The fixed state is... fixed except for the link state,
@@ -1031,6 +1036,8 @@ static void phylink_resolve(struct work_struct *w)
 	bool retrigger = false;
 	bool cur_link_state;
 
+	phylink_info(pl, "> %s(w=%px)\n", __func__, w);
+
 	mutex_lock(&pl->state_mutex);
 	if (pl->netdev)
 		cur_link_state = netif_carrier_ok(ndev);
@@ -1135,6 +1142,7 @@ static void phylink_resolve(struct work_struct *w)
 		queue_work(system_power_efficient_wq, &pl->resolve);
 	}
 	mutex_unlock(&pl->state_mutex);
+	phylink_info(pl, "< %s()\n", __func__);
 }
 
 static void phylink_run_resolve(struct phylink *pl)

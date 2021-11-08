@@ -195,6 +195,7 @@ struct plat_stmmacenet_data {
 	struct device_node *phy_node;
 	struct device_node *phylink_node;
 	struct device_node *mdio_node;
+	struct mii_bus *xpcs;
 	struct stmmac_dma_cfg *dma_cfg;
 	struct stmmac_est *est;
 	struct stmmac_fpe_cfg *fpe_cfg;
@@ -234,6 +235,8 @@ struct plat_stmmacenet_data {
 	int (*crosststamp)(ktime_t *device, struct system_counterval_t *system,
 			   void *ctx);
 	void (*dump_debug_regs)(void *priv);
+	int (*mdio_write)(struct mii_bus *bus, int phyaddr, int phyreg, u16 phydata);
+	int (*mdio_read)(struct mii_bus *bus, int phyaddr, int phyreg);
 	void *bsp_priv;
 	struct clk *stmmac_clk;
 	struct clk *pclk;
