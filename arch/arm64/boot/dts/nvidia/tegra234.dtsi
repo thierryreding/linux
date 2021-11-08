@@ -664,6 +664,26 @@
 			gpio-controller;
 		};
 
+		ethernet@2310000 {
+			compatible = "nvidia,tegra234-eqos", "nvidia,tegra186-eqos",
+				     "snps,dwc-qos-ethernet-4.10";
+			reg = <0x02310000 0x10000>;
+			interrupts = <GIC_SPI 194 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&bpmp TEGRA234_CLK_AXI_CBB>,
+				 <&bpmp TEGRA234_CLK_EQOS_AXI>,
+				 <&bpmp TEGRA234_CLK_EQOS_RX>,
+				 <&bpmp TEGRA234_CLK_EQOS_TX>,
+				 <&bpmp TEGRA234_CLK_EQOS_PTP_REF>;
+			clock-names = "master_bus", "slave_bus", "rx", "tx", "ptp_ref";
+			resets = <&bpmp TEGRA234_RESET_EQOS>;
+			reset-names = "eqos";
+			interconnects = <&mc TEGRA234_MEMORY_CLIENT_EQOSR &emc>,
+					<&mc TEGRA234_MEMORY_CLIENT_EQOSW &emc>;
+			interconnect-names = "dma-mem", "write";
+			iommus = <&smmu_niso1 TEGRA234_SID_EQOS>;
+			status = "disabled";
+		};
+
 		mc: memory-controller@2c00000 {
 			compatible = "nvidia,tegra234-mc";
 			reg = <0x02c00000 0x10000>,   /* MC-SID */
