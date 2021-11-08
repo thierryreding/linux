@@ -534,6 +534,26 @@ static const struct tegra_mc_client tegra234_mc_clients[] = {
 			},
 		},
 	}, {
+		.id = TEGRA234_MEMORY_CLIENT_EQOSR,
+		.name = "eqosr",
+		.sid = TEGRA234_SID_EQOS,
+		.regs = {
+			.sid = {
+				.override = 0x470,
+				.security = 0x474,
+			},
+		},
+	}, {
+		.id = TEGRA234_MEMORY_CLIENT_EQOSW,
+		.name = "eqosw",
+		.sid = TEGRA234_SID_EQOS,
+		.regs = {
+			.sid = {
+				.override = 0x478,
+				.security = 0x47c,
+			},
+		},
+	}, {
 		.id = TEGRA234_MEMORY_CLIENT_NVDISPLAYR,
 		.name = "nvdisplayr",
 		.bpmp_id = TEGRA_ICC_BPMP_DISPLAY,
