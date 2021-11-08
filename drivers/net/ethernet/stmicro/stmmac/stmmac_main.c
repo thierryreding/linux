@@ -1058,6 +1058,8 @@ static void stmmac_mac_link_up(struct phylink_config *config,
 	struct stmmac_priv *priv = netdev_priv(to_net_dev(config->dev));
 	u32 ctrl;
 
+	dev_info(priv->device, "> %s(config=%px, phy=%px, mode=%u, interface=%d, speed=%d, duplex=%d, tx_pause=%d, rx_pause=%d)\n", __func__, config, phy, mode, interface, speed, duplex, tx_pause, rx_pause);
+
 	ctrl = readl(priv->ioaddr + MAC_CTRL_REG);
 	ctrl &= ~priv->hw->link.speed_mask;
 
@@ -1146,6 +1148,8 @@ static void stmmac_mac_link_up(struct phylink_config *config,
 
 	if (priv->dma_cap.fpesel)
 		stmmac_fpe_link_state_handle(priv, true);
+
+	dev_info(priv->device, "< %s()\n", __func__);
 }
 
 static const struct phylink_mac_ops stmmac_phylink_mac_ops = {
@@ -1196,8 +1200,10 @@ static int stmmac_init_phy(struct net_device *dev)
 
 	node = priv->plat->phylink_node;
 
-	if (node)
+	if (node) {
 		ret = phylink_of_phy_connect(priv->phylink, node, 0);
+		dev_info(priv->device, "PHY connected: %d\n", ret);
+	}
 
 	/* Some DT bindings do not set-up the PHY handle. Let's try to
 	 * manually parse it
@@ -5409,6 +5415,7 @@ static void stmmac_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 
+	dev_info(priv->device, "TX timeout\n");
 	stmmac_global_err(priv);
 }
 
@@ -7021,10 +7028,22 @@ int stmmac_dvr_probe(struct device *device,
 	if (priv->plat->speed_mode_2500)
 		priv->plat->speed_mode_2500(ndev, priv->plat->bsp_priv);
 
-	if (priv->plat->mdio_bus_data && priv->plat->mdio_bus_data->has_xpcs) {
+	if (priv->plat->xpcs) {
+		dev_info(priv->device, "found explicit XPCS bus...\n");
+
+		priv->plat->xpcs->priv = ndev;
+
+		ret = stmmac_xpcs_setup(priv->plat->xpcs);
+		if (ret)
+			goto error_xpcs_setup;
+	} else if (priv->plat->mdio_bus_data && priv->plat->mdio_bus_data->has_xpcs) {
+		dev_info(priv->device, "MDIO bus has XPCS support\n");
+
 		ret = stmmac_xpcs_setup(priv->mii);
 		if (ret)
 			goto error_xpcs_setup;
+	} else {
+		dev_info(priv->device, "XPCS support not detected\n");
 	}
 
 	ret = stmmac_phy_setup(priv);

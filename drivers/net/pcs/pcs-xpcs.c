@@ -254,7 +254,7 @@ static int xpcs_soft_reset(struct dw_xpcs *xpcs,
 
 #define xpcs_warn(__xpcs, __state, __args...) \
 ({ \
-	if ((__state)->link) \
+	if (1 || (__state)->link) \
 		dev_warn(&(__xpcs)->mdiodev->dev, ##__args); \
 })
 
@@ -353,6 +353,8 @@ static void xpcs_config_usxgmii(struct dw_xpcs *xpcs, int speed)
 {
 	int ret, speed_sel;
 
+	dev_info(&xpcs->mdiodev->dev, "> %s(xpcs=%px, speed=%d)\n", __func__, xpcs, speed);
+
 	switch (speed) {
 	case SPEED_10:
 		speed_sel = DW_USXGMII_10;
@@ -404,6 +406,7 @@ static void xpcs_config_usxgmii(struct dw_xpcs *xpcs, int speed)
 	if (ret < 0)
 		goto out;
 
+	dev_info(&xpcs->mdiodev->dev, "< %s()\n", __func__);
 	return;
 
 out:
@@ -414,6 +417,8 @@ static int _xpcs_config_aneg_c73(struct dw_xpcs *xpcs,
 				 const struct xpcs_compat *compat)
 {
 	int ret, adv;
+
+	dev_info(&xpcs->mdiodev->dev, "> %s(xpcs=%px, compat=%px)\n", __func__, xpcs, compat);
 
 	/* By default, in USXGMII mode XPCS operates at 10G baud and
 	 * replicates data to achieve lower speeds. Hereby, in this
@@ -452,7 +457,10 @@ static int _xpcs_config_aneg_c73(struct dw_xpcs *xpcs,
 	if (xpcs_linkmode_supported(compat, Asym_Pause))
 		adv |= DW_C73_ASYM_PAUSE;
 
-	return xpcs_write(xpcs, MDIO_MMD_AN, DW_SR_AN_ADV1, adv);
+	ret = xpcs_write(xpcs, MDIO_MMD_AN, DW_SR_AN_ADV1, adv);
+
+	dev_info(&xpcs->mdiodev->dev, "< %s() = %d\n", __func__, ret);
+	return ret;
 }
 
 static int xpcs_config_aneg_c73(struct dw_xpcs *xpcs,
@@ -794,6 +802,8 @@ int xpcs_do_config(struct dw_xpcs *xpcs, phy_interface_t interface,
 	const struct xpcs_compat *compat;
 	int ret;
 
+	dev_info(&xpcs->mdiodev->dev, "> %s(xpcs=%px, interface=%u, mode=%u)\n", __func__, xpcs, interface, mode);
+
 	compat = xpcs_find_compat(xpcs->id, interface);
 	if (!compat)
 		return -ENODEV;
@@ -826,6 +836,7 @@ int xpcs_do_config(struct dw_xpcs *xpcs, phy_interface_t interface,
 			return ret;
 	}
 
+	dev_info(&xpcs->mdiodev->dev, "< %s()\n", __func__);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(xpcs_do_config);
@@ -836,8 +847,14 @@ static int xpcs_config(struct phylink_pcs *pcs, unsigned int mode,
 		       bool permit_pause_to_mac)
 {
 	struct dw_xpcs *xpcs = phylink_pcs_to_xpcs(pcs);
+	int err;
 
-	return xpcs_do_config(xpcs, interface, mode);
+	dev_info(&xpcs->mdiodev->dev, "> %s(pcs=%px, mode=%u, interface=%u, advertising=%px, permit_pause_to_mac=%d)\n", __func__, pcs, mode, interface, advertising, permit_pause_to_mac);
+
+	err = xpcs_do_config(xpcs, interface, mode);
+
+	dev_info(&xpcs->mdiodev->dev, "< %s() = %d\n", __func__, err);
+	return err;
 }
 
 static int xpcs_get_state_c73(struct dw_xpcs *xpcs,
@@ -845,6 +862,8 @@ static int xpcs_get_state_c73(struct dw_xpcs *xpcs,
 			      const struct xpcs_compat *compat)
 {
 	int ret;
+
+	dev_info(&xpcs->mdiodev->dev, "> %s(xpcs=%px, state=%px, compat=%px)\n", __func__, xpcs, state, compat);
 
 	/* Link needs to be read first ... */
 	state->link = xpcs_read_link_c73(xpcs, state->an_enabled) > 0 ? 1 : 0;
@@ -871,6 +890,7 @@ static int xpcs_get_state_c73(struct dw_xpcs *xpcs,
 		xpcs_resolve_pma(xpcs, state);
 	}
 
+	dev_info(&xpcs->mdiodev->dev, "< %s()\n", __func__);
 	return 0;
 }
 
@@ -922,6 +942,8 @@ static void xpcs_get_state(struct phylink_pcs *pcs,
 	const struct xpcs_compat *compat;
 	int ret;
 
+	dev_info(&xpcs->mdiodev->dev, "> %s(pcs=%px, state=%px)\n", __func__, pcs, state);
+
 	compat = xpcs_find_compat(xpcs->id, state->interface);
 	if (!compat)
 		return;
@@ -943,8 +965,10 @@ static void xpcs_get_state(struct phylink_pcs *pcs,
 		}
 		break;
 	default:
-		return;
+		break;
 	}
+
+	dev_info(&xpcs->mdiodev->dev, "< %s()\n", __func__);
 }
 
 static void xpcs_link_up_sgmii(struct dw_xpcs *xpcs, unsigned int mode,
@@ -982,10 +1006,14 @@ void xpcs_link_up(struct phylink_pcs *pcs, unsigned int mode,
 {
 	struct dw_xpcs *xpcs = phylink_pcs_to_xpcs(pcs);
 
+	pr_info("> %s(pcs=%px, mode=%u, interface=%d, speed=%d, duplex=%d)\n", __func__, pcs, mode, interface, speed, duplex);
+
 	if (interface == PHY_INTERFACE_MODE_USXGMII)
-		return xpcs_config_usxgmii(xpcs, speed);
+		xpcs_config_usxgmii(xpcs, speed);
 	if (interface == PHY_INTERFACE_MODE_SGMII)
-		return xpcs_link_up_sgmii(xpcs, mode, speed, duplex);
+		xpcs_link_up_sgmii(xpcs, mode, speed, duplex);
+
+	pr_info("< %s()\n", __func__);
 }
 EXPORT_SYMBOL_GPL(xpcs_link_up);
 
@@ -1118,6 +1146,8 @@ struct dw_xpcs *xpcs_create(struct mdio_device *mdiodev,
 	u32 xpcs_id;
 	int i, ret;
 
+	dev_info(&mdiodev->dev, "> %s(mdiodev=%px, interface=%d)\n", __func__, mdiodev, interface);
+
 	xpcs = kzalloc(sizeof(*xpcs), GFP_KERNEL);
 	if (!xpcs)
 		return ERR_PTR(-ENOMEM);
@@ -1156,6 +1186,7 @@ struct dw_xpcs *xpcs_create(struct mdio_device *mdiodev,
 out:
 	kfree(xpcs);
 
+	dev_info(&mdiodev->dev, "< %s() = %d\n", __func__, ret);
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(xpcs_create);

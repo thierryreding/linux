@@ -88,6 +88,8 @@ static int stmmac_xgmac2_mdio_read(struct mii_bus *bus, int phyaddr, int phyreg)
 	u32 tmp, addr, value = MII_XGMAC_BUSY;
 	int ret;
 
+	dev_info(priv->device, "> %s(bus=%px, phyaddr=%02x, phyreg=%02x)\n", __func__, bus, phyaddr, phyreg);
+
 	ret = pm_runtime_get_sync(priv->device);
 	if (ret < 0) {
 		pm_runtime_put_noidle(priv->device);
@@ -143,6 +145,11 @@ static int stmmac_xgmac2_mdio_read(struct mii_bus *bus, int phyaddr, int phyreg)
 err_disable_clks:
 	pm_runtime_put(priv->device);
 
+	if (ret < 0)
+		dev_info(priv->device, "< %s() = %d\n", __func__, ret);
+	else
+		dev_info(priv->device, "< %s() = %x\n", __func__, ret);
+
 	return ret;
 }
 
@@ -155,6 +162,8 @@ static int stmmac_xgmac2_mdio_write(struct mii_bus *bus, int phyaddr,
 	unsigned int mii_data = priv->hw->mii.data;
 	u32 addr, tmp, value = MII_XGMAC_BUSY;
 	int ret;
+
+	dev_info(priv->device, "> %s(bus=%px, phyaddr=%02x, phyreg=%02x, phydata=%04x)\n", __func__, bus, phyaddr, phyreg, phydata);
 
 	ret = pm_runtime_get_sync(priv->device);
 	if (ret < 0) {
@@ -206,6 +215,7 @@ static int stmmac_xgmac2_mdio_write(struct mii_bus *bus, int phyaddr,
 err_disable_clks:
 	pm_runtime_put(priv->device);
 
+	dev_info(priv->device, "< %s() = %d\n", __func__, ret);
 	return ret;
 }
 
@@ -408,6 +418,8 @@ int stmmac_xpcs_setup(struct mii_bus *bus)
 	priv = netdev_priv(ndev);
 	mode = priv->plat->phy_interface;
 
+	dev_info(priv->device, "> %s(bus=%px)\n", __func__, bus);
+
 	/* Try to probe the XPCS by scanning all addresses. */
 	for (addr = 0; addr < PHY_MAX_ADDR; addr++) {
 		mdiodev = mdio_device_create(bus, addr);
@@ -420,6 +432,7 @@ int stmmac_xpcs_setup(struct mii_bus *bus)
 			continue;
 		}
 
+		dev_info(priv->device, "  XPCS created at %02x\n", addr);
 		priv->hw->xpcs = xpcs;
 		break;
 	}
@@ -429,6 +442,7 @@ int stmmac_xpcs_setup(struct mii_bus *bus)
 		return -ENODEV;
 	}
 
+	dev_info(priv->device, "< %s()\n", __func__);
 	return 0;
 }
 
@@ -463,8 +477,8 @@ int stmmac_mdio_register(struct net_device *ndev)
 		new_bus->probe_capabilities = MDIOBUS_C22_C45;
 
 	if (priv->plat->has_xgmac) {
-		new_bus->read = &stmmac_xgmac2_mdio_read;
-		new_bus->write = &stmmac_xgmac2_mdio_write;
+		new_bus->read = priv->plat->mdio_read ?: &stmmac_xgmac2_mdio_read;
+		new_bus->write = priv->plat->mdio_write ?: &stmmac_xgmac2_mdio_write;
 
 		/* Right now only C22 phys are supported */
 		max_addr = MII_XGMAC_MAX_C22ADDR + 1;
@@ -496,7 +510,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 
 	/* Looks like we need a dummy read for XGMAC only and C45 PHYs */
 	if (priv->plat->has_xgmac)
-		stmmac_xgmac2_mdio_read(new_bus, 0, MII_ADDR_C45);
+		new_bus->read(new_bus, 0, MII_ADDR_C45);
 
 	if (priv->plat->phy_node || mdio_node)
 		goto bus_register_done;
