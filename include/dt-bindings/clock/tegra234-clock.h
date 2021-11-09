@@ -17,6 +17,8 @@
 #define TEGRA234_CLK_APE			6U
 /** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_AUD_MCLK */
 #define TEGRA234_CLK_AUD_MCLK			7U
+/** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_AXI_CBB */
+#define TEGRA234_CLK_AXI_CBB			8U
 /** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_DMIC1 */
 #define TEGRA234_CLK_DMIC1			15U
 /** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_DMIC2 */
@@ -40,6 +42,14 @@
 #define TEGRA234_CLK_EMC			31U
 /** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_HOST1X */
 #define TEGRA234_CLK_HOST1X                     46U
+/** @brief CLK_RST_CONTROLLER_CLK_SOURCE_EQOS_AXI_CLK_0 divider gated output */
+#define TEGRA234_CLK_EQOS_AXI			32U
+/** @brief CLK_RST_CONTROLLER_CLK_SOURCE_EQOS_PTP_REF_CLK_0 divider gated output */
+#define TEGRA234_CLK_EQOS_PTP_REF		33U
+/** @brief output of gate CLK_ENB_EQOS_RX */
+#define TEGRA234_CLK_EQOS_RX			34U
+/** @brief CLK_RST_CONTROLLER_CLK_SOURCE_EQOS_TX_CLK divider gated output */
+#define TEGRA234_CLK_EQOS_TX			35U
 /** @brief output of gate CLK_ENB_FUSE */
 #define TEGRA234_CLK_FUSE			40U
 /** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_I2C1 */
