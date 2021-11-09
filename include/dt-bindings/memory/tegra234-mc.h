@@ -19,6 +19,7 @@
 
 /* NISO1 stream IDs */
 #define TEGRA234_SID_SDMMC4	0x02
+#define TEGRA234_SID_EQOS	0x03
 #define TEGRA234_SID_PCIE1	0x05
 #define TEGRA234_SID_PCIE2	0x06
 #define TEGRA234_SID_PCIE3	0x07
@@ -65,6 +66,10 @@
 #define TEGRA234_MEMORY_CLIENT_SDMMCRAB 0x63
 /* sdmmcd memory write client */
 #define TEGRA234_MEMORY_CLIENT_SDMMCWAB 0x67
+/* EQOS read client */
+#define TEGRA234_MEMORY_CLIENT_EQOSR 0x8e
+/* EQOS write client */
+#define TEGRA234_MEMORY_CLIENT_EQOSW 0x8f
 /* BPMP read client */
 #define TEGRA234_MEMORY_CLIENT_BPMPR 0x93
 /* BPMP write client */
