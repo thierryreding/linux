@@ -10,6 +10,7 @@
  * @brief Identifiers for Resets controllable by firmware
  * @{
  */
+#define TEGRA234_RESET_EQOS			17U
 #define TEGRA234_RESET_I2C1			24U
 #define TEGRA234_RESET_I2C2			29U
 #define TEGRA234_RESET_I2C3			30U
