@@ -1,0 +1,185 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/nvidia,tegra186-eqos.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra186 (and later) Ethernet QoS
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - const: nvidia,tegra186-eqos
+          - const: snps,dwc-qos-ethernet-4.10
+
+      - items:
+          - enum:
+              - nvidia,tegra194-eqos
+              - nvidia,tegra234-eqos
+          - const: nvidia,tegra186-eqos
+          - const: snps,dwc-qos-ethernet-4.10
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    items:
+      - description: common interrupt
+      - description: power interrupt
+      - description: RX0 interrupt
+      - description: TX0 interrupt
+      - description: RX1 interrupt
+      - description: TX1 interrupt
+      - description: RX2 interrupt
+      - description: TX2 interrupt
+      - description: RX3 interrupt
+      - description: TX3 interrupt
+    minItems: 1
+
+  clocks:
+    items:
+      - description: parent bus clock
+      - description: child bus clock
+      - description: receiver clock
+      - description: transmitter clock
+      - description: PTP reference clock
+
+  clock-names:
+    items:
+      - const: master_bus
+      - const: slave_bus
+      - const: rx
+      - const: tx
+      - const: ptp_ref
+
+  resets:
+    items:
+      - description: module reset
+
+  reset-names:
+    items:
+      - const: eqos
+
+  interconnects:
+    items:
+      - description: memory read interconnect path
+      - description: memory write interconnect path
+
+  interconnect-names:
+    items:
+      - const: dma-mem # read
+      - const: write
+
+  iommus:
+    maxItems: 1
+
+  mdio:
+    $ref: mdio.yaml
+
+  phy-reset-gpios:
+    description: Specifies the GPIO used to reset the PHY.
+
+  snps,write-requests:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Number of write requests that the AXI port can issue.
+      It depends on the SoC configuration.
+
+  snps,read-requests:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Number of read requests that the AXI port can issue.
+      It depends on the SoC configuration.
+
+  snps,burst-map:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Bitmap of allowed AXI burst lengts, with the LSB
+      representing 4, then 8 etc.
+
+  snps,txpbl:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: DMA Programmable burst length for the TX DMA
+
+  snps,rxpbl:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: DMA Programmable burst length for the RX DMA
+
+allOf:
+  - $ref: ethernet-controller.yaml#
+
+unevaluatedProperties: false
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+  - resets
+  - reset-names
+  - interconnects
+  - interconnect-names
+  - iommus
+
+examples:
+  - |
+    #include <dt-bindings/clock/tegra186-clock.h>
+    #include <dt-bindings/gpio/tegra186-gpio.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/memory/tegra186-mc.h>
+    #include <dt-bindings/reset/tegra186-reset.h>
+
+    ethernet@2490000 {
+      compatible = "nvidia,tegra186-eqos",
+                   "snps,dwc-qos-ethernet-4.10";
+      reg = <0x02490000 0x10000>;
+      interrupts = <GIC_SPI 194 IRQ_TYPE_LEVEL_HIGH>, /* common */
+                   <GIC_SPI 195 IRQ_TYPE_LEVEL_HIGH>, /* power */
+                   <GIC_SPI 190 IRQ_TYPE_LEVEL_HIGH>, /* rx0 */
+                   <GIC_SPI 186 IRQ_TYPE_LEVEL_HIGH>, /* tx0 */
+                   <GIC_SPI 191 IRQ_TYPE_LEVEL_HIGH>, /* rx1 */
+                   <GIC_SPI 187 IRQ_TYPE_LEVEL_HIGH>, /* tx1 */
+                   <GIC_SPI 192 IRQ_TYPE_LEVEL_HIGH>, /* rx2 */
+                   <GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>, /* tx2 */
+                   <GIC_SPI 193 IRQ_TYPE_LEVEL_HIGH>, /* rx3 */
+                   <GIC_SPI 189 IRQ_TYPE_LEVEL_HIGH>; /* tx3 */
+      clocks = <&bpmp TEGRA186_CLK_AXI_CBB>,
+               <&bpmp TEGRA186_CLK_EQOS_AXI>,
+               <&bpmp TEGRA186_CLK_EQOS_RX>,
+               <&bpmp TEGRA186_CLK_EQOS_TX>,
+               <&bpmp TEGRA186_CLK_EQOS_PTP_REF>;
+      clock-names = "master_bus", "slave_bus", "rx", "tx", "ptp_ref";
+      resets = <&bpmp TEGRA186_RESET_EQOS>;
+      reset-names = "eqos";
+      interconnects = <&mc TEGRA186_MEMORY_CLIENT_EQOSR &emc>,
+                      <&mc TEGRA186_MEMORY_CLIENT_EQOSW &emc>;
+      interconnect-names = "dma-mem", "write";
+      iommus = <&smmu TEGRA186_SID_EQOS>;
+
+      snps,write-requests = <1>;
+      snps,read-requests = <3>;
+      snps,burst-map = <0x7>;
+      snps,txpbl = <32>;
+      snps,rxpbl = <8>;
+
+      phy-reset-gpios = <&gpio TEGRA186_MAIN_GPIO(M, 4) GPIO_ACTIVE_LOW>;
+      phy-handle = <&phy>;
+      phy-mode = "rgmii";
+
+      mdio {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        phy: phy@0 {
+          compatible = "ethernet-phy-ieee802.3-c22";
+          reg = <0x0>;
+          interrupt-parent = <&gpio>;
+          interrupts = <TEGRA186_MAIN_GPIO(M, 5) IRQ_TYPE_LEVEL_LOW>;
+
+          #phy-cells = <0>;
+        };
+      };
+    };
