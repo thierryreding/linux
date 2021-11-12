@@ -155,6 +155,12 @@ properties:
   power-domains:
     maxItems: 1
 
+  nvidia,memory-controller:
+    description: A phandle to the memory controller on NVIDIA Tegra186
+      and later SoCs. The memory controller needs to be programmed with
+      a mapping of memory client IDs to ARM SMMU stream IDs.
+    $ref: /schemas/types.yaml#/definitions/phandle
+
 required:
   - compatible
   - reg
@@ -177,6 +183,9 @@ allOf:
         reg:
           minItems: 1
           maxItems: 2
+
+      required:
+        - nvidia,memory-controller
     else:
       properties:
         reg:
