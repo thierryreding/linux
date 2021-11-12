@@ -68,6 +68,7 @@
 
 struct connection {
 	struct socket *sock;	/* NULL if not connected */
+	struct sockaddr_storage addr;
 	uint32_t nodeid;	/* So we know who we are in the list */
 	struct mutex sock_mutex;
 	unsigned long flags;
@@ -594,7 +595,6 @@ int dlm_lowcomms_nodes_set_mark(int nodeid, unsigned int mark)
 static void lowcomms_error_report(struct sock *sk)
 {
 	struct connection *con;
-	struct sockaddr_storage saddr;
 	void (*orig_report)(struct sock *) = NULL;
 
 	read_lock_bh(&sk->sk_callback_lock);
@@ -603,14 +603,8 @@ static void lowcomms_error_report(struct sock *sk)
 		goto out;
 
 	orig_report = listen_sock.sk_error_report;
-	if (kernel_getpeername(sk->sk_socket, (struct sockaddr *)&saddr) < 0) {
-		printk_ratelimited(KERN_ERR "dlm: node %d: socket error "
-				   "sending to node %d, port %d, "
-				   "sk_err=%d/%d\n", dlm_our_nodeid(),
-				   con->nodeid, dlm_config.ci_tcp_port,
-				   sk->sk_err, sk->sk_err_soft);
-	} else if (saddr.ss_family == AF_INET) {
-		struct sockaddr_in *sin4 = (struct sockaddr_in *)&saddr;
+	if (con->addr.ss_family == AF_INET) {
+		struct sockaddr_in *sin4 = (struct sockaddr_in *)&con->addr;
 
 		printk_ratelimited(KERN_ERR "dlm: node %d: socket error "
 				   "sending to node %d at %pI4, port %d, "
@@ -619,7 +613,7 @@ static void lowcomms_error_report(struct sock *sk)
 				   dlm_config.ci_tcp_port, sk->sk_err,
 				   sk->sk_err_soft);
 	} else {
-		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)&saddr;
+		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)&con->addr;
 
 		printk_ratelimited(KERN_ERR "dlm: node %d: socket error "
 				   "sending to node %d at %u.%u.%u.%u, "
@@ -1072,6 +1066,7 @@ static int accept_from_sock(struct listen_connection *con)
 			close_connection(othercon, false, true, false);
 		}
 
+		memcpy(&othercon->addr, &peeraddr, sizeof(othercon->addr));
 		mutex_lock(&othercon->sock_mutex);
 		add_sock(newsock, othercon);
 		addcon = othercon;
@@ -1081,6 +1076,7 @@ static int accept_from_sock(struct listen_connection *con)
 		/* accept copies the sk after we've saved the callbacks, so we
 		   don't want to save them a second time or comm errors will
 		   result in calling sk_error_report recursively. */
+		memcpy(&newcon->addr, &peeraddr, sizeof(newcon->addr));
 		add_sock(newsock, newcon);
 		addcon = newcon;
 	}
@@ -1545,6 +1541,7 @@ static void dlm_connect(struct connection *con)
 		return;
 	}
 
+	memcpy(&con->addr, &addr, sizeof(con->addr));
 	/* Create a socket to communicate with */
 	result = sock_create_kern(&init_net, dlm_local_addr[0]->ss_family,
 				  SOCK_STREAM, dlm_proto_ops->proto, &sock);
