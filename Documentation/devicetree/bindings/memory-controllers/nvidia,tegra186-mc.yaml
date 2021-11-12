@@ -33,10 +33,12 @@ properties:
           - nvidia,tegra194-mc
 
   reg:
-    maxItems: 1
+    minItems: 1
+    maxItems: 3
 
   interrupts:
-    maxItems: 1
+    minItems: 1
+    maxItems: 2
 
   "#address-cells":
     const: 2
@@ -47,6 +49,9 @@ properties:
   ranges: true
 
   dma-ranges: true
+
+  "#interconnect-cells":
+    const: 1
 
 patternProperties:
   "^external-memory-controller@[0-9a-f]+$":
@@ -65,7 +70,8 @@ patternProperties:
               - nvidia,tegra194-emc
 
       reg:
-        maxItems: 1
+        minItems: 1
+        maxItems: 2
 
       interrupts:
         maxItems: 1
@@ -77,6 +83,9 @@ patternProperties:
       clock-names:
         items:
           - const: emc
+
+      "#interconnect-cells":
+        const: 0
 
       nvidia,bpmp:
         $ref: /schemas/types.yaml#/definitions/phandle
@@ -127,9 +136,4 @@ examples:
                 nvidia,bpmp = <&bpmp>;
             };
         };
-    };
-
-    bpmp: bpmp {
-        compatible = "nvidia,tegra186-bpmp";
-        #clock-cells = <1>;
     };
