@@ -1151,7 +1151,8 @@ static void mark_ptr_not_null_reg(struct bpf_reg_state *reg)
 			/* transfer reg's id which is unique for every map_lookup_elem
 			 * as UID of the inner map.
 			 */
-			reg->map_uid = reg->id;
+			if (map_value_has_timer(map->inner_map_meta))
+				reg->map_uid = reg->id;
 		} else if (map->map_type == BPF_MAP_TYPE_XSKMAP) {
 			reg->type = PTR_TO_XDP_SOCK;
 		} else if (map->map_type == BPF_MAP_TYPE_SOCKMAP ||
@@ -11627,6 +11628,13 @@ static int check_map_prog_compatibility(struct bpf_verifier_env *env,
 
 		if (prog->aux->sleepable) {
 			verbose(env, "sleepable progs cannot use bpf_spin_lock yet\n");
+			return -EINVAL;
+		}
+	}
+
+	if (map_value_has_timer(map)) {
+		if (is_tracing_prog_type(prog_type)) {
+			verbose(env, "tracing progs cannot use bpf_timer yet\n");
 			return -EINVAL;
 		}
 	}
