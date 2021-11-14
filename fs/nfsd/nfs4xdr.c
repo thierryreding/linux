@@ -282,17 +282,13 @@ nfsd4_decode_bitmap4(struct nfsd4_compoundargs *argp, u32 *bmval, u32 bmlen)
 
 	if (xdr_stream_decode_u32(argp->xdr, &count) < 0)
 		return nfserr_bad_xdr;
-	/* request sanity */
-	if (count > 1000)
+	if (count > bmlen)
 		return nfserr_bad_xdr;
 	p = xdr_inline_decode(argp->xdr, count << 2);
 	if (!p)
 		return nfserr_bad_xdr;
-	i = 0;
-	while (i < count)
-		bmval[i++] = be32_to_cpup(p++);
-	while (i < bmlen)
-		bmval[i++] = 0;
+	for (i = 0; i < bmlen; i++)
+		bmval[i] = (i < count) ? be32_to_cpup(p++) : 0;
 
 	return nfs_ok;
 }
