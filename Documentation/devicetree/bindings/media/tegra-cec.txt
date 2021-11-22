@@ -14,7 +14,7 @@ Required properties:
   - clocks : from common clock binding: handle to HDMI CEC clock.
   - clock-names : from common clock binding: must contain "cec",
 		  corresponding to the entry in the clocks property.
-  - hdmi-phandle : phandle to the HDMI controller, see also cec.txt.
+  - hdmi-phandle : phandle to the HDMI controller, see also cec.yaml.
 
 Example:
 
