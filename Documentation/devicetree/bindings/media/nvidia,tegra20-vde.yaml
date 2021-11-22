@@ -1,0 +1,122 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/nvidia,tegra20-vde.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra Video Decoder Engine
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+  - Dmitry Osipenko <digetx@gmail.com>
+
+properties:
+  compatible:
+    oneOf:
+      - const: nvidia,tegra20-vde
+
+      - items:
+          - const: nvidia,tegra30-vde
+          - const: nvidia,tegra20-vde
+
+      - const: nvidia,tegra114-vde
+
+      - items:
+          - const: nvidia,tegra124-vde
+          - const: nvidia,tegra114-vde
+
+      - items:
+          - const: nvidia,tegra132-vde
+          - const: nvidia,tegra124-vde
+          - const: nvidia,tegra114-vde
+
+  reg:
+    minItems: 9
+    maxItems: 9
+
+  reg-names:
+    items:
+      - const: sxe
+      - const: bsev
+      - const: mbe
+      - const: ppe
+      - const: mce
+      - const: tfe
+      - const: ppb
+      - const: vdma
+      - const: frameid
+
+  interrupts:
+    maxItems: 3
+
+  interrupt-names:
+    items:
+      - const: sync-token
+      - const: bsev
+      - const: sxe
+
+  clocks:
+    items:
+      - description: module clock
+
+  clock-names:
+    items:
+      - const: vde
+
+  resets:
+    items:
+      - description: module reset
+      - description: memory controller hotflush reset
+
+  reset-names:
+    items:
+      - const: vde
+      - const: mc
+
+  iommus:
+    maxItems: 1
+
+  operating-points-v2:
+    $ref: "/schemas/types.yaml#/definitions/phandle"
+
+  power-domains:
+    items:
+      - description: phandle to the VDEC power domain
+
+  iram:
+    description: Must contain a phandle to the mmio-sram device node that represents the IRAM
+      region used by VDE.
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/tegra30-car.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/memory/tegra30-mc.h>
+
+    video-codec@6001a000 {
+        compatible = "nvidia,tegra30-vde", "nvidia,tegra20-vde";
+        reg = <0x6001a000 0x1000>, /* Syntax Engine */
+              <0x6001b000 0x1000>, /* Video Bitstream Engine */
+              <0x6001c000  0x100>, /* Macroblock Engine */
+              <0x6001c200  0x100>, /* Post-processing Engine */
+              <0x6001c400  0x100>, /* Motion Compensation Engine */
+              <0x6001c600  0x100>, /* Transform Engine */
+              <0x6001c800  0x100>, /* Pixel prediction block */
+              <0x6001ca00  0x100>, /* Video DMA */
+              <0x6001d800  0x300>; /* Video frame controls */
+        reg-names = "sxe", "bsev", "mbe", "ppe", "mce",
+                    "tfe", "ppb", "vdma", "frameid";
+        interrupts = <GIC_SPI  9 IRQ_TYPE_LEVEL_HIGH>, /* Sync token interrupt */
+                     <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>, /* BSE-V interrupt */
+                     <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>; /* SXE interrupt */
+        interrupt-names = "sync-token", "bsev", "sxe";
+        clocks = <&tegra_car TEGRA30_CLK_VDE>;
+        resets = <&tegra_car 61>, <&mc TEGRA30_MC_RESET_VDE>;
+        reset-names = "vde", "mc";
+        iommus = <&mc TEGRA_SWGROUP_VDE>;
+        iram = <&vde_pool>; /* IRAM region */
+    };
