@@ -16,7 +16,7 @@ Required properties:
 If the CEC line is associated with an HDMI receiver/transmitter, then the
 following property is also required:
 
-  - hdmi-phandle - phandle to the HDMI controller, see also cec.txt.
+  - hdmi-phandle - phandle to the HDMI controller, see also cec.yaml.
 
 If the CEC line is not associated with an HDMI receiver/transmitter, then
 the following property is optional and can be used for debugging HPD changes:
