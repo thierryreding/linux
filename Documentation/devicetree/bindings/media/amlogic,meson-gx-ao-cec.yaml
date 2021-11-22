@@ -33,11 +33,10 @@ properties:
   interrupts:
     maxItems: 1
 
-  hdmi-phandle:
-    description: phandle to the HDMI controller
-    $ref: /schemas/types.yaml#/definitions/phandle
+  hdmi-phandle: true
 
 allOf:
+  - $ref: cec.yaml
   - if:
       properties:
         compatible:
