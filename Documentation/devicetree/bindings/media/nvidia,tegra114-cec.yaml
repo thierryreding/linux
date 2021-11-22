@@ -20,6 +20,8 @@ properties:
       - nvidia,tegra114-cec
       - nvidia,tegra124-cec
       - nvidia,tegra210-cec
+      - nvidia,tegra186-cec
+      - nvidia,tegra194-cec
 
   reg:
     maxItems: 1
