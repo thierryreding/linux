@@ -1,0 +1,70 @@
+# SPDX-License-Identifier: GPL-2.0-only
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/s5p-cec.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung HDMI CEC driver
+
+maintainers:
+  - Hans Verkuil <hverkuil@xs4all.nl>
+
+description: The HDMI CEC module is present is Samsung SoCs and its purpose is to handle
+  communication between HDMI connected devices over the CEC bus.
+
+properties:
+  compatible:
+    const: samsung,s5p-cec
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: module clock
+
+  clock-names:
+    items:
+      - const: hdmicec
+
+  samsung,syscon-phandle:
+    description: reference to the PMU system controller
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+  # from cec.yaml
+  hdmi-phandle: true
+  needs-hpd: true
+
+allOf:
+  - $ref: cec.yaml
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+  - samsung,syscon-phandle
+  - hdmi-phandle
+
+examples:
+  - |
+    #include <dt-bindings/clock/exynos4.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    hdmicec: cec@100b0000 {
+        compatible = "samsung,s5p-cec";
+        reg = <0x100b0000 0x200>;
+        interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&clock CLK_HDMI_CEC>;
+        clock-names = "hdmicec";
+        samsung,syscon-phandle = <&pmu_system_controller>;
+        hdmi-phandle = <&hdmi>;
+        pinctrl-names = "default";
+        pinctrl-0 = <&hdmi_cec>;
+    };
