@@ -1,0 +1,121 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/timer/nvidia,tegra20-timer.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra20 (and later) Timer
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+
+description: The Tegra20 timer provides four 29-bit timer channels and a single 32-bit free
+  running counter. The first two channels may also trigger a watchdog reset.
+
+  The timer found on Tegra30 provides ten 29-bit timer channels, a single 32-bit free running
+  counter, and 5 watchdog modules. The first two channels may also trigger a legacy watchdog
+  reset.
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - nvidia,tegra114-timer
+              - nvidia,tegra124-timer
+          - const: nvidia,tegra30-timer
+
+      - items:
+          - const: nvidia,tegra30-timer
+          - const: nvidia,tegra20-timer
+
+      - const: nvidia,tegra20-timer
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    minItems: 4
+    maxItems: 6
+
+  clocks:
+    items:
+      - description: module clock
+
+  clock-names:
+    items:
+      - const: timer
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: nvidia,tegra30-timer
+    then:
+      properties:
+        interrupts:
+          description: One interrupt per each of timer channels 1 through 5 and one shared
+            interrupt for the remaining channels.
+          minItems: 6
+    else:
+      properties:
+        interrupts:
+          description: One interrupt for each timer channel.
+          maxItems: 4
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+
+examples:
+  - |
+    #include <dt-bindings/clock/tegra20-car.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    timer@60005000 {
+        compatible = "nvidia,tegra20-timer";
+        reg = <0x60005000 0x60>;
+        interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&tegra_car TEGRA20_CLK_TWD>;
+    };
+
+  - |
+    #include <dt-bindings/clock/tegra30-car.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    timer@60005000 {
+        compatible = "nvidia,tegra30-timer", "nvidia,tegra20-timer";
+        reg = <0x60005000 0x400>;
+        interrupts = <GIC_SPI 0   IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 1   IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 41  IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 42  IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&tegra_car TEGRA30_CLK_TWD>;
+    };
+
+  - |
+    #include <dt-bindings/clock/tegra114-car.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    timer@60005000 {
+      compatible = "nvidia,tegra114-timer", "nvidia,tegra30-timer";
+      reg = <0x60005000 0x400>;
+      interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
+                   <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>,
+                   <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>,
+                   <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>,
+                   <GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>,
+                   <GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>;
+      clocks = <&tegra_car TEGRA114_CLK_TIMER>;
+    };
