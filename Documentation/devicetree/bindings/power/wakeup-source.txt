@@ -25,7 +25,7 @@ List of legacy properties and respective binding document
 				Documentation/devicetree/bindings/input/touchscreen/ads7846.txt
 5. "linux,keypad-wakeup"	Documentation/devicetree/bindings/input/qcom,pm8xxx-keypad.txt
 6. "linux,input-wakeup"		Documentation/devicetree/bindings/input/samsung-keypad.txt
-7. "nvidia,wakeup-source"	Documentation/devicetree/bindings/input/nvidia,tegra20-kbc.txt
+7. "nvidia,wakeup-source"	Documentation/devicetree/bindings/input/nvidia,tegra20-kbc.yaml
 
 Examples
 --------
