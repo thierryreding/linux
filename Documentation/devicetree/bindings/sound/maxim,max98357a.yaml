@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: GPL-2.0-only
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/maxim,max98357a.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Maxim MAX98357A/MAX98360A audio DAC
+
+maintainers:
+  - Kenneth Westfield <kwestfie@codeaurora.org>
+  - Mark Brown <broonie@kernel.org>
+
+description: This node models the Maxim MAX98357A/MAX98360A DAC.
+
+properties:
+  compatible:
+    enum:
+      - maxim,max98357a
+      - maxim,max98360a
+
+  sdmode-gpios:
+    description: GPIO specifier for the chip's SD_MODE pin. If this option is not specified then
+      driver does not manage the pin state (e.g. chip is always on).
+
+  sdmode-delay:
+    description: Specifies the delay time for SD_MODE pin. If this option is specified, which
+      means it's required I2S clocks ready before SD_MODE is unmuted in order to avoid the speaker
+      pop noise. It's observed that 5ms is sufficient.
+
+additionalProperties: false
+
+required:
+  - compatible
+
+examples:
+  - |
+    max98357a {
+      compatible = "maxim,max98357a";
+      sdmode-gpios = <&qcom_pinmux 25 0>;
+    };
+
+  - |
+    max98360a {
+      compatible = "maxim,max98360a";
+      sdmode-gpios = <&qcom_pinmux 25 0>;
+    };
