@@ -1,0 +1,120 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/input/nvidia,tegra20-kbc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+
+title: NVIDIA Tegra keyboard controller
+
+description: |
+  The key controller has maximum 24 pins to make matrix keypad. Any pin can be configured as row
+  or column. The maximum column pin can be 8 and maximum row pins can be 16 for Tegra20/Tegra30.
+
+properties:
+  compatible:
+    oneOf:
+      - const: nvidia,tegra20-kbc
+      - items:
+          - const: nvidia,tegra30-kbc
+          - const: nvidia,tegra20-kbc
+      - const: nvidia,tegra114-kbc
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: module clock
+
+  clock-names:
+    items:
+      - const: kbc
+
+  resets:
+    items:
+      - description: module reset
+
+  reset-names:
+    items:
+      - const: kbc
+
+  nvidia,kbc-row-pins:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    description: The KBC pins which are configured as row. This is an array of pin numbers which
+      is used as rows.
+
+  nvidia,kbc-col-pins:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    description: The KBC pins which are configured as column. This is an array of pin numbers
+      which is used as column.
+
+  linux,fn-keymap:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    description: A second keymap, same specification as the matrix-keyboard-controller spec but to
+      be used when the KEY_FN modifier key is pressed.
+
+  nvidia,debounce-delay-ms:
+    description: delay in milliseconds per row scan for debouncing
+
+  nvidia,repeat-delay-ms:
+    description: delay in milliseconds before repeat starts
+
+  nvidia,ghost-filter:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: enable ghost filtering for this device
+
+  wakeup-source:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: configure keyboard as a wakeup source for suspend/resume (replaces the legacy
+      "nvidia,wakeup-source" property)
+
+  # from matrix-keymap.yaml
+  linux,keymap: true
+
+allOf:
+  - $ref: matrix-keymap.yaml
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - resets
+  - reset-names
+  - linux,keymap
+  - nvidia,kbc-row-pins
+  - nvidia,kbc-col-pins
+
+examples:
+  - |
+    #include <dt-bindings/clock/tegra20-car.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    keyboard@7000e200 {
+      compatible = "nvidia,tegra20-kbc";
+      reg = <0x7000e200 0x100>;
+      interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
+      clocks = <&tegra_car TEGRA20_CLK_KBC>;
+      resets = <&tegra_car 36>;
+      reset-names = "kbc";
+      nvidia,ghost-filter;
+      nvidia,debounce-delay-ms = <640>;
+      nvidia,kbc-row-pins = <0 1 2>;    /* pin 0, 1, 2 as rows */
+      nvidia,kbc-col-pins = <11 12 13>; /* pin 11, 12, 13 as columns */
+      linux,keymap = <0x00000074
+                      0x00010067
+                      0x00020066
+                      0x01010068
+                      0x02000069
+                      0x02010070
+                      0x02020071>;
+    };
