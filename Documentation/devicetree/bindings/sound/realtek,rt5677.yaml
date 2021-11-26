@@ -1,0 +1,153 @@
+# SPDX-License-Identifier: GPL-2.0-only
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/realtek,rt5677.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Realtek RT5677 audio codec
+
+maintainers:
+  - Mark Brown <broonie@kernel.org>
+
+description: |
+  This device supports I2C only. Pins on the device (for linking into audio routes):
+
+    * IN1P
+    * IN1N
+    * IN2P
+    * IN2N
+    * MICBIAS1
+    * DMIC1
+    * DMIC2
+    * DMIC3
+    * DMIC4
+    * LOUT1
+    * LOUT2
+    * LOUT3
+
+properties:
+  compatible:
+    const: realtek,rt5677
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  realtek,pow-ldo2-gpio:
+    description: The GPIO that controls the CODEC's POW_LDO2 pin.
+
+  realtek,reset-gpio:
+    description: The GPIO that controls the CODEC's RESET pin. Active low.
+
+  realtek,in1-differential:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: Indicates that the MIC1 input is differential, rather than single-ended.
+
+  realtek,in2-differential:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: Indicates that the MIC2 input is differential, rather than single-ended.
+
+  realtek,lout1-differential:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: Indicates that the LOUT1 output is differential, rather than single-ended.
+
+  realtek,lout2-differential:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: Indicates that the LOUT1 output is differential, rather than single-ended.
+
+  realtek,lout3-differential:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: Indicates that the LOUT1 output is differential, rather than single-ended.
+
+  realtek,gpio-config:
+    $ref: /schemas/types.yaml#/definitions/uint8-array
+    description: Array of six 8-bit elements that configures GPIO.
+    minItems: 6
+    maxItems: 6
+    items:
+      oneOf:
+        - description: floating (reset value)
+          const: 0
+        - description: pull down
+          const: 1
+        - description: pull up
+          const: 2
+
+  realtek,jd1-config:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Configures GPIO Mic Jack detection 1.
+    oneOf:
+      - description: off
+        const: 0
+      - description: GPIO1
+        const: 1
+      - description: GPIO2
+        const: 2
+      - description: GPIO3
+        const: 3
+
+  realtek,jd2-config:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Configures GPIO Mic Jack detection 2.
+    oneOf:
+      - description: off
+        const: 0
+      - description: GPIO4
+        const: 1
+      - description: GPIO5
+        const: 2
+      - description: GPIO6
+        const: 3
+
+  realtek,jd3-config:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Configures GPIO Mic Jack detection 2.
+    oneOf:
+      - description: off
+        const: 0
+      - description: GPIO4
+        const: 1
+      - description: GPIO5
+        const: 2
+      - description: GPIO6
+        const: 3
+
+allOf:
+  - $ref: /schemas/gpio/gpio.yaml
+
+unevaluatedProperties: false
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - gpio-controller
+  - "#gpio-cells"
+
+examples:
+  - |
+    #include <dt-bindings/gpio/tegra-gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      audio-codec@2c {
+        compatible = "realtek,rt5677";
+        reg = <0x2c>;
+        interrupt-parent = <&gpio>;
+        interrupts = <TEGRA_GPIO(W, 3) IRQ_TYPE_LEVEL_HIGH>;
+
+        gpio-controller;
+        #gpio-cells = <2>;
+
+        realtek,pow-ldo2-gpio = <&gpio TEGRA_GPIO(V, 3) GPIO_ACTIVE_HIGH>;
+        realtek,reset-gpio = <&gpio TEGRA_GPIO(BB, 3) GPIO_ACTIVE_LOW>;
+        realtek,in1-differential;
+        realtek,gpio-config = /bits/ 8 <0 0 0 0 0 2>; /* pull up GPIO6 */
+        realtek,jd2-config = <3>; /* Enables Jack detection for GPIO6 */
+      };
+    };
