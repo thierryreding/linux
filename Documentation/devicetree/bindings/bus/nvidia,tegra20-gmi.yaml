@@ -1,0 +1,230 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/bus/nvidia,tegra20-gmi.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+
+title: NVIDIA Tegra Generic Memory Interface bus
+
+description: |
+  The Generic Memory Interface bus enables memory transfers between internal and external memory.
+  Can be used to attach various high speed devices such as synchronous/asynchronous NOR, FPGA,
+  UARTS and more.
+
+  The actual devices are instantiated from the child nodes of a GMI node.
+
+properties:
+  compatible:
+    enum:
+      - nvidia,tegra20-gmi
+      - nvidia,tegra30-gmi
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: module clock
+
+  clock-names:
+    items:
+      - const: gmi
+
+  resets:
+    items:
+      - description: module reset
+
+  reset-names:
+    items:
+      - const: gmi
+
+  operating-points-v2:
+    $ref: "/schemas/types.yaml#/definitions/phandle"
+
+  power-domains:
+    items:
+      - description: phandle to the core power domain
+
+  "#address-cells":
+    description: The number of cells used to represent physical base addresses in the GMI address
+      space.
+    const: 2
+
+  "#size-cells":
+    description: The number of cells used to represent the size of an address range in the GMI
+      address space.
+    const: 1
+
+  ranges:
+    description: |
+      Must be set up to reflect the memory layout with three integer values for each chip-select
+      line in use (only one entry is supported, see below comments):
+
+        <cs-number> <offset> <physical address of mapping> <size>
+
+      Note that the GMI controller does not have any internal chip-select address decoding,
+      because of that chip-selects either need to be managed via software or by employing external
+      chip-select decoding logic.
+
+      If external chip-select logic is used to support multiple devices it is assumed that the
+      devices use the same timing and so are probably the same type. It also assumes that they can
+      fit in the 256MB address range. In this case only one child device is supported which
+      represents the active chip-select line, see examples for more insight.
+
+      The chip-select number is decoded from the child nodes second address cell of 'ranges'
+      property, if 'ranges' property is not present or empty chip-select will then be decoded from
+      the first cell of the 'reg' property.
+
+additionalProperties:
+  description: |
+    Child nodes of the GMI node represent devices accessed using the GMI.
+
+    Note that there is some special handling for the timing values defined by the properties
+    below. From Tegra TRM:
+
+      Programming 0 means 1 clock cycle: actual cycle = programmed cycle + 1
+
+  type: object
+  properties:
+    nvidia,snor-data-width-32bit:
+      $ref: /schemas/types.yaml#/definitions/flag
+      description: Use 32bit data-bus, default is 16bit.
+
+    nvidia,snor-mux-mode:
+      $ref: /schemas/types.yaml#/definitions/flag
+      description: Enable address/data MUX mode.
+
+    nvidia,snor-rdy-active-before-data:
+      $ref: /schemas/types.yaml#/definitions/flag
+      description: Assert RDY signal one cycle before data. If omitted it will be asserted with
+        data.
+
+    nvidia,snor-rdy-active-high:
+      $ref: /schemas/types.yaml#/definitions/flag
+      description: RDY signal is active high
+
+    nvidia,snor-adv-active-high:
+      $ref: /schemas/types.yaml#/definitions/flag
+      description: ADV signal is active high
+
+    nvidia,snor-oe-active-high:
+      $ref: /schemas/types.yaml#/definitions/flag
+      description: WE/OE signal is active high
+
+    nvidia,snor-cs-active-high:
+      $ref: /schemas/types.yaml#/definitions/flag
+      description: CS signal is active high
+
+    nvidia,snor-muxed-width:
+      $ref: /schemas/types.yaml#/definitions/uint32
+      description: Number of cycles MUX address/data asserted on the bus.
+      minimum: 0
+      maximum: 15
+      default: 1
+
+    nvidia,snor-hold-width:
+      $ref: /schemas/types.yaml#/definitions/uint32
+      description: Number of cycles CE stays asserted after the de-assertion of WR_N (in case of
+        SLAVE/MASTER Request) or OE_N (in case of MASTER Request).
+      minimum: 0
+      maximum: 15
+      default: 1
+
+    nvidia,snor-adv-width:
+      $ref: /schemas/types.yaml#/definitions/uint32
+      description: Number of cycles during which ADV stays asserted.
+      minimum: 0
+      maximum: 15
+      default: 1
+
+    nvidia,snor-ce-width:
+      $ref: /schemas/types.yaml#/definitions/uint32
+      description: Number of cycles before CE is asserted.
+      minimum: 0
+      maximum: 15
+      default: 4
+
+    nvidia,snor-we-width:
+      $ref: /schemas/types.yaml#/definitions/uint32
+      description: Number of cycles during which WE stays asserted.
+      minimum: 0
+      maximum: 15
+      default: 1
+
+    nvidia,snor-oe-width:
+      $ref: /schemas/types.yaml#/definitions/uint32
+      description: Number of cycles during which OE stays asserted.
+      minimum: 0
+      maximum: 255
+      default: 1
+
+    nvidia,snor-wait-width:
+      $ref: /schemas/types.yaml#/definitions/uint32
+      description: Number of cycles before READY is asserted.
+      minimum: 0
+      maximum: 255
+      default: 3
+
+examples:
+  # Example with two SJA1000 CAN controllers connected to the GMI bus. We wrap the controllers
+  # with a simple-bus node since they are all connected to the same chip-select (CS4), in this
+  # example external address decoding is provided:
+  - |
+    #include <dt-bindings/clock/tegra20-car.h>
+
+    gmi@70009000 {
+      compatible = "nvidia,tegra20-gmi";
+      reg = <0x70009000 0x1000>;
+      #address-cells = <2>;
+      #size-cells = <1>;
+      clocks = <&tegra_car TEGRA20_CLK_NOR>;
+      clock-names = "gmi";
+      resets = <&tegra_car 42>;
+      reset-names = "gmi";
+      ranges = <4 0 0xd0000000 0xfffffff>;
+
+      bus@0 {
+        compatible = "simple-bus";
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges = <0 4 0 0x40100>;
+
+        nvidia,snor-mux-mode;
+        nvidia,snor-adv-active-high;
+
+        can@0 {
+                reg = <0 0x100>;
+                /* ... */
+        };
+
+        can@40000 {
+                reg = <0x40000 0x100>;
+                /* ... */
+        };
+      };
+    };
+
+  # Example with one SJA1000 CAN controller connected to the GMI bus on CS4:
+  - |
+    gmi@70009000 {
+      compatible = "nvidia,tegra20-gmi";
+      reg = <0x70009000 0x1000>;
+      #address-cells = <2>;
+      #size-cells = <1>;
+      clocks = <&tegra_car TEGRA20_CLK_NOR>;
+      clock-names = "gmi";
+      resets = <&tegra_car 42>;
+      reset-names = "gmi";
+      ranges = <4 0 0xd0000000 0xfffffff>;
+
+      can@4,0 {
+        reg = <4 0 0x100>;
+        nvidia,snor-mux-mode;
+        nvidia,snor-adv-active-high;
+        /* ... */
+      };
+    };
