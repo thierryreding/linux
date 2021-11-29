@@ -1,0 +1,71 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/hwmon/gpio-fan.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Bindings for fan connected to GPIO lines
+
+maintainers:
+  - Guenter Roeck <linux@roeck-us.net>
+  - Jean Delvare <jdelvare@suse.com>
+
+properties:
+  compatible:
+    const: gpio-fan
+
+  gpios:
+    description: Specifies the pins that map to bits in the control value, ordered MSB-->LSB.
+
+  gpio-fan,speed-map:
+    description: A mapping of possible fan RPM speeds and the control value that should be set to
+      achieve them. This array must have the RPM values in ascending order.
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
+
+  alarm-gpios:
+    description: This pin going active indicates something is wrong with the fan, and a udev event
+      will be fired.
+
+  # from ../thermal/thermal-cooling-devices.yaml
+  "#cooling-cells": true
+
+required:
+  - compatible
+
+allOf:
+  - $ref: ../thermal/thermal-cooling-devices.yaml
+  - anyOf:
+      - required:
+          - alarm-gpios
+
+      - required:
+          - gpios
+
+dependencies:
+  gpio-fan,speed-map: [ gpios ]
+
+additionalProperties: false
+
+examples:
+  - |
+    gpio_fan {
+      compatible = "gpio-fan";
+      gpios = <&gpio1 14 1>,
+              <&gpio1 13 1>;
+      gpio-fan,speed-map = <0    0>,
+                           <3000 1>,
+                           <6000 2>;
+      alarm-gpios = <&gpio1 15 1>;
+    };
+
+  - |
+    gpio_fan_cool: gpio_fan {
+      compatible = "gpio-fan";
+      gpios = <&gpio2 14 1>,
+              <&gpio2 13 1>;
+      gpio-fan,speed-map = <0    0>,
+                           <3000 1>,
+                           <6000 2>;
+      alarm-gpios = <&gpio2 15 1>;
+      #cooling-cells = <2>; /* min followed by max */
+    };
