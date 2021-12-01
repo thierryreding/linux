@@ -1,0 +1,98 @@
+# SPDX-License-Identifier: GPL-2.0-only
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/maxim,max98090.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Maxim MAX98090 audio codec
+
+maintainers:
+  - Mark Brown <broonie@kernel.org>
+
+description: |
+  Pins on the device (for linking into audio routes):
+
+    * MIC1
+    * MIC2
+    * DMICL
+    * DMICR
+    * IN1
+    * IN2
+    * IN3
+    * IN4
+    * IN5
+    * IN6
+    * IN12
+    * IN34
+    * IN56
+    * HPL
+    * HPR
+    * SPKL
+    * SPKR
+    * RCVL
+    * RCVR
+    * MICBIAS
+
+properties:
+  compatible:
+    enum:
+      - maxim,max98090
+      - maxim,max98091
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: master clock
+
+  clock-names:
+    items:
+      - const: mclk
+
+  "#sound-dai-cells":
+    const: 0
+
+  maxim,dmic-freq:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Frequency at which to clock DMIC.
+
+  maxim,micbias:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Micbias voltage applies to the analog mic.
+    oneOf:
+      - description: 2.2 V
+        const: 0
+      - description: 2.55 V
+        const: 1
+      - description: 2.4 V
+        const: 2
+      - description: 2.8 V
+        const: 3
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+examples:
+  - |
+    #include <dt-bindings/gpio/tegra-gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      audio-codec@10 {
+        compatible = "maxim,max98090";
+        reg = <0x10>;
+        interrupt-parent = <&gpio>;
+        interrupts = <TEGRA_GPIO(H, 4) IRQ_TYPE_LEVEL_HIGH>;
+      };
+    };
