@@ -1,0 +1,354 @@
+# SPDX-License-Identifier: GPL-2.0-only
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/ti,tps65910.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments TPS65910 Power-Management Integrated Circuit
+
+maintainers:
+  - Lee Jones <lee.jones@linaro.org>
+
+properties:
+  compatible:
+    enum:
+      - ti,tps65910
+      - ti,tps65911
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  interrupt-controller:
+    description: Marks this device as interrupt provider.
+
+  "#interrupt-cells":
+    const: 2
+
+  wakeup-source:
+    description: device can wake the system from suspend
+
+  ti,vmbch-threshold:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: main battery charged threshold comparator (TPS65911, see VMBCH_VSEL in TPS65910
+      datasheet)
+
+  ti,vmbch2-threshold:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: main battery discharged threshold comparator (TPS65911, see VMBCH_VSEL in
+      TPS65910 datasheet)
+
+  ti,en-ck32k-xtal:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: enable external 32-kHz crystal oscillator (see CK32K_CTRL in TPS6591X datasheet)
+
+  ti,en-gpio-sleep:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    description: Enable sleep control for GPIOs. There should be 9 entries here, one for each
+      GPIO.
+    minItems: 1
+    maxItems: 9
+
+  ti,system-power-controller:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: If present, specifies that this PMIC controls the system power.
+
+  ti,sleep-enable:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: enable SLEEP state
+
+  ti,sleep-keep-therm:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: keep thermal monitoring on in sleep state
+
+  ti,sleep-keep-ck32k:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: keep the 32KHz clock output on in sleep state
+
+  ti,sleep-keep-hsclk:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: keep high speed internal clock on in sleep state
+
+  regulators:
+    description: |
+      This is the list of child nodes that specify the regulator initialization data for defined
+      regulators. Not all regulators for the given device need to be present. The definition for
+      each of these nodes is defined using the standard binding for regulators found at
+      Documentation/devicetree/bindings/regulator/regulator.txt.
+
+      The regulator is matched with the regulator-compatible.
+
+      The valid regulator-compatible values are:
+
+        tps65910: vrtc, vio, vdd1, vdd2, vdd3, vdig1, vdig2, vpll, vdac, vaux1, vaux2, vaux33,
+          vmmc, vbb
+
+        tps65911: vrtc, vio, vdd1, vdd2, vddctrl, ldo1, ldo2, ldo3, ldo4, ldo5, ldo6, ldo7, ldo8
+
+    patternProperties:
+      # TPS65910
+      "^vrtc|vio|vdd1|vdd2|vdd3|vdig1|vdig2|vpll|vdac|vaux1|vaux2|vaux33|vmmc|vbb$":
+        $ref: ../regulator/regulator.yaml
+        properties:
+          ti,regulator-ext-sleep-control:
+            $ref: /schemas/types.yaml#/definitions/uint32
+            description: Enable external sleep control through external inputs.
+            oneOf:
+              - description: not enabled
+                const: 0
+              - description: EN1
+                const: 1
+              - description: EN2
+                const: 2
+              - description: EN3
+                const: 4
+              - description: SLEEP
+                const: 8
+            default: 0
+
+      # TPS65911
+      "^vrtc|vio|vdd1|vdd2|vddctrl|ldo1|ldo2|ldo3|ldo4|ldo5|ldo6|ldo7|ldo8$":
+        $ref: ../regulator/regulator.yaml
+        properties:
+          ti,regulator-ext-sleep-control:
+            $ref: /schemas/types.yaml#/definitions/uint32
+            description: Enable external sleep control through external inputs.
+            oneOf:
+              - description: not enabled
+                const: 0
+              - description: EN1
+                const: 1
+              - description: EN2
+                const: 2
+              - description: EN3
+                const: 4
+              - description: SLEEP
+                const: 8
+            default: 0
+
+patternProperties:
+  "^(hog-[0-9]+|.+-hog(-[0-9]+)?)$":
+    $ref: /schemas/gpio/gpio-hog.yaml#
+
+allOf:
+  #- $ref: /schemas/interrupt-controller.yaml
+  - $ref: /schemas/gpio/gpio.yaml
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: ti,tps65910
+    then:
+      properties:
+        vcc1-supply:
+          description: VDD1 input
+
+        vcc2-supply:
+          description: VDD2 input
+
+        vcc3-supply:
+          description: VAUX33 and VMMC input
+
+        vcc4-supply:
+          description: VAUX1 and VAUX2 input
+
+        vcc5-supply:
+          description: VPLL and VDAC input
+
+        vcc6-supply:
+          description: VDIG1 and VDIG2 input
+
+        vcc7-supply:
+          description: VRTC and VBB input
+
+        vccio-supply:
+          description: VIO input
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: ti,tps65911
+    then:
+      properties:
+        vcc1-supply:
+          description: VDD1 input
+
+        vcc2-supply:
+          description: VDD2 input
+
+        vcc3-supply:
+          description: LDO6, LDO7 and LDO8 input
+
+        vcc4-supply:
+          description: LDO5 input
+
+        vcc5-supply:
+          description: LDO3 and LDO4 input
+
+        vcc6-supply:
+          description: LDO1 and LDO2 input
+
+        vcc7-supply:
+          description: VRTC input
+
+        vccio-supply:
+          description: VIO input
+
+unevaluatedProperties: false
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+examples:
+  - |
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      tps65910@2d {
+        compatible = "ti,tps65910";
+        reg = <0x2d>;
+        interrupt-parent = <&intc>;
+        interrupts = < 0 118 0x04 >;
+
+        #gpio-cells = <2>;
+        gpio-controller;
+
+        #interrupt-cells = <2>;
+        interrupt-controller;
+
+        ti,system-power-controller;
+
+        ti,vmbch-threshold = <0>;
+        ti,vmbch2-threshold = <0>;
+        ti,en-ck32k-xtal;
+        ti,en-gpio-sleep = <0 0 1 0 0 0 0 0 0>;
+
+        vcc1-supply = <&dummy>;
+        vcc2-supply = <&dummy>;
+        vcc3-supply = <&dummy>;
+        vcc4-supply = <&dummy>;
+        vcc5-supply = <&dummy>;
+        vcc6-supply = <&dummy>;
+        vcc7-supply = <&dummy>;
+        vccio-supply = <&dummy>;
+
+        regulators {
+          #address-cells = <1>;
+          #size-cells = <0>;
+
+          vdd1_reg: regulator@0 {
+            regulator-compatible = "vdd1";
+            reg = <0>;
+            regulator-min-microvolt = < 600000>;
+            regulator-max-microvolt = <1500000>;
+            regulator-always-on;
+            regulator-boot-on;
+            ti,regulator-ext-sleep-control = <0>;
+          };
+
+          vdd2_reg: regulator@1 {
+            regulator-compatible = "vdd2";
+            reg = <1>;
+            regulator-min-microvolt = < 600000>;
+            regulator-max-microvolt = <1500000>;
+            regulator-always-on;
+            regulator-boot-on;
+            ti,regulator-ext-sleep-control = <4>;
+          };
+
+          vddctrl_reg: regulator@2 {
+            regulator-compatible = "vddctrl";
+            reg = <2>;
+            regulator-min-microvolt = < 600000>;
+            regulator-max-microvolt = <1400000>;
+            regulator-always-on;
+            regulator-boot-on;
+            ti,regulator-ext-sleep-control = <0>;
+          };
+
+          vio_reg: regulator@3 {
+            regulator-compatible = "vio";
+            reg = <3>;
+            regulator-min-microvolt = <1500000>;
+            regulator-max-microvolt = <1800000>;
+            regulator-always-on;
+            regulator-boot-on;
+            ti,regulator-ext-sleep-control = <1>;
+          };
+
+          ldo1_reg: regulator@4 {
+            regulator-compatible = "ldo1";
+            reg = <4>;
+            regulator-min-microvolt = <1000000>;
+            regulator-max-microvolt = <3300000>;
+            ti,regulator-ext-sleep-control = <0>;
+          };
+
+          ldo2_reg: regulator@5 {
+            regulator-compatible = "ldo2";
+            reg = <5>;
+            regulator-min-microvolt = <1050000>;
+            regulator-max-microvolt = <1050000>;
+            ti,regulator-ext-sleep-control = <0>;
+          };
+
+          ldo3_reg: regulator@6 {
+            regulator-compatible = "ldo3";
+            reg = <6>;
+            regulator-min-microvolt = <1000000>;
+            regulator-max-microvolt = <3300000>;
+            ti,regulator-ext-sleep-control = <0>;
+          };
+
+          ldo4_reg: regulator@7 {
+            regulator-compatible = "ldo4";
+            reg = <7>;
+            regulator-min-microvolt = <1000000>;
+            regulator-max-microvolt = <3300000>;
+            regulator-always-on;
+            ti,regulator-ext-sleep-control = <0>;
+          };
+
+          ldo5_reg: regulator@8 {
+            regulator-compatible = "ldo5";
+            reg = <8>;
+            regulator-min-microvolt = <1000000>;
+            regulator-max-microvolt = <3300000>;
+            ti,regulator-ext-sleep-control = <0>;
+          };
+
+          ldo6_reg: regulator@9 {
+            regulator-compatible = "ldo6";
+            reg = <9>;
+            regulator-min-microvolt = <1200000>;
+            regulator-max-microvolt = <1200000>;
+            ti,regulator-ext-sleep-control = <0>;
+          };
+
+          ldo7_reg: regulator@10 {
+            regulator-compatible = "ldo7";
+            reg = <10>;
+            regulator-min-microvolt = <1200000>;
+            regulator-max-microvolt = <1200000>;
+            regulator-always-on;
+            regulator-boot-on;
+            ti,regulator-ext-sleep-control = <1>;
+          };
+
+          ldo8_reg: regulator@11 {
+            regulator-compatible = "ldo8";
+            reg = <11>;
+            regulator-min-microvolt = <1000000>;
+            regulator-max-microvolt = <3300000>;
+            regulator-always-on;
+            ti,regulator-ext-sleep-control = <1>;
+          };
+        };
+      };
+    };
