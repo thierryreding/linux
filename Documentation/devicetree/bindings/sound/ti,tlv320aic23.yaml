@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/ti,tlv320aic23.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments TLV320AIC23 audio codec
+
+maintainers:
+  - Mark Brown <broonie@kernel.org>
+
+description: |
+  The TLV320AIC23 serial control bus communicates through both I2C and SPI bus protocols.
+
+  CODEC output pins:
+    * LHPOUT
+    * RHPOUT
+    * LOUT
+    * ROUT
+
+  CODEC input pins:
+    * LLINEIN
+    * RLINEIN
+    * MICIN
+
+  The pins can be used in referring sound node's audio-routing property.
+
+properties:
+  compatible:
+    const: ti,tlv320aic23
+
+  reg:
+    maxItems: 1
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+
+examples:
+  - |
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      audio-codec@1a {
+        compatible = "ti,tlv320aic23";
+        reg = <0x1a>;
+      };
+    };
