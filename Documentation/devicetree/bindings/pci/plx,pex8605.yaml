@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pci/plx,pex8605.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: PLX Technology PEX8605 PCIe Gen2 switch
+
+maintainers:
+  - Rob Herring <robh+dt@kernel.org>
+
+description:
+  The PLX Technology PEX8605 is a 4-lane, 4-port PCIe Gen2 switch.
+
+properties:
+  compatible:
+    const: plx,pex8605
+
+  reg:
+    maxItems: 1
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+
+examples:
+  - |
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      pcie-switch@58 {
+        compatible = "plx,pex8605";
+        reg = <0x58>;
+      };
+    };
