@@ -1,0 +1,63 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/panel/auo,b101ew05.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: AU Optronics Corporation 10.1" WXGA LVDS panel
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+
+properties:
+  compatible:
+    items:
+      - const: auo,b101ew05
+      - {} # panel-lvds, but not listed here to avoid false select
+
+  data-mapping:
+    const: jeida-18
+
+  width-mm:
+    const: 218
+
+  height-mm:
+    const: 135
+
+allOf:
+  - $ref: lvds.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    display-panel {
+      compatible = "auo,b101ew05", "panel-lvds";
+
+      ddc-i2c-bus = <&panel_ddc>;
+      power-supply = <&vdd_pnl>;
+      backlight = <&backlight>;
+
+      width-mm = <218>;
+      height-mm = <135>;
+
+      data-mapping = "jeida-18";
+
+      panel-timing {
+        clock-frequency = <71200000>;
+        hactive = <1280>;
+        vactive = <800>;
+        hfront-porch = <8>;
+        hback-porch = <18>;
+        hsync-len = <184>;
+        vsync-len = <3>;
+        vfront-porch = <4>;
+        vback-porch = <8>;
+      };
+
+      port {
+        panel_input: endpoint {
+          remote-endpoint = <&lvds_encoder_output>;
+        };
+      };
+    };
