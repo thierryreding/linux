@@ -236,9 +236,6 @@
 					#size-cells = <0>;
 					reg = <0x41>;
 					irq-gpios = <&gpiopinctrl 29 0x4>;
-					id = <0>;
-					blocks = <0x5>;
-					irq-trigger = <0x1>;
 
 					stmpegpio: stmpe-gpio {
 						compatible = "stmpe,gpio";
