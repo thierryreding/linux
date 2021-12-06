@@ -38,6 +38,10 @@ properties:
   resets:
     maxItems: 1
 
+  reset-names:
+    items:
+      - const: qspi
+
   dmas:
     maxItems: 2
 
@@ -45,38 +49,6 @@ properties:
     items:
       - const: rx
       - const: tx
-
-patternProperties:
-  "@[0-9a-f]+":
-    type: object
-
-    properties:
-      spi-rx-bus-width:
-        enum: [1, 2, 4]
-
-      spi-tx-bus-width:
-        enum: [1, 2, 4]
-
-      nvidia,tx-clk-tap-delay:
-        description:
-          Delays the clock going out to device with this tap value.
-          Tap value varies based on platform design trace lengths from Tegra
-          QSPI to corresponding slave device.
-        $ref: /schemas/types.yaml#/definitions/uint32
-        minimum: 0
-        maximum: 31
-
-      nvidia,rx-clk-tap-delay:
-        description:
-          Delays the clock coming in from the device with this tap value.
-          Tap value varies based on platform design trace lengths from Tegra
-          QSPI to corresponding slave device.
-        $ref: /schemas/types.yaml#/definitions/uint32
-        minimum: 0
-        maximum: 255
-
-    required:
-      - reg
 
 required:
   - compatible
