@@ -363,7 +363,6 @@
 					pl022,duplex = <0>;
 					interrupts = <6 0x4>;
 					interrupt-parent = <&gpio1>;
-					irq-trigger = <0x2>;
 
 					stmpe_touchscreen {
 						compatible = "st,stmpe-ts";
