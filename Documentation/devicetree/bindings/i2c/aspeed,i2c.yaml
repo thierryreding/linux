@@ -28,6 +28,9 @@ properties:
   interrupts:
     maxItems: 1
 
+  interrupt-controller:
+    description: marks this device as being an interrupt provider
+
   clocks:
     maxItems: 1
     description:
