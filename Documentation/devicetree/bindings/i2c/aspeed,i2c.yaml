@@ -28,6 +28,9 @@ properties:
   interrupts:
     maxItems: 1
 
+  interrupt-controller:
+    description: marks this device as being an interrupt provider
+
   clocks:
     maxItems: 1
     description:
@@ -61,13 +64,13 @@ examples:
   - |
     #include <dt-bindings/clock/aspeed-clock.h>
     i2c0: i2c-bus@40 {
-      #address-cells = <1>;
-      #size-cells = <0>;
-      compatible = "aspeed,ast2500-i2c-bus";
-      reg = <0x40 0x40>;
-      clocks = <&syscon ASPEED_CLK_APB>;
-      resets = <&syscon ASPEED_RESET_I2C>;
-      bus-frequency = <100000>;
-      interrupts = <0>;
-      interrupt-parent = <&i2c_ic>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+        compatible = "aspeed,ast2500-i2c-bus";
+        reg = <0x40 0x40>;
+        clocks = <&syscon ASPEED_CLK_APB>;
+        resets = <&syscon ASPEED_RESET_I2C>;
+        bus-frequency = <100000>;
+        interrupts = <0>;
+        interrupt-parent = <&i2c_ic>;
     };
