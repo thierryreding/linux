@@ -227,6 +227,28 @@ properties:
     description: Maximum difference between current and target voltages
       that can be changed safely in a single step.
 
+  # NVIDIA Tegra SoC's have a mandatory voltage-coupling between regulators. Thus on Tegra20 there
+  # are 3 coupled regulators and on NVIDIA Tegra30 there are 2.
+  #
+  # The 3 coupled regulators on Tegra20 are: CORE, RTC and CPU. The CORE and RTC voltages shall be
+  # in a range of 170 mV of each other and they both shall be higher than the CPU voltage by at
+  # least 120 mV.
+  #
+  # The 2 coupled regulators on Tegra30 are: CORE and CPU. The CORE and CPU voltages shall be in
+  # a range of 300 mV of each other and CORE voltage shall be higher than the CPU by N mV, where
+  # N depends on the CPU voltage.
+  nvidia,tegra-core-regulator:
+    $ref: "/schemas/types.yaml#/definitions/flag"
+    description: if present, designates the regulator as the "CORE domain" voltage regulator
+
+  nvidia,tegra-rtc-regulator:
+    $ref: "/schemas/types.yaml#/definitions/flag"
+    description: if present, designates the regulator as the "RTC domain" voltage regulator
+
+  nvidia,tegra-cpu-regulator:
+    $ref: "/schemas/types.yaml#/definitions/flag"
+    description: if present, designates the regulator as the "CPU domain" voltage regulator
+
 patternProperties:
   ".*-supply$":
     description: Input supply phandle(s) for this node
