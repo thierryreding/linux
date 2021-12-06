@@ -111,5 +111,6 @@ properties:
 # The controller specific properties go here.
 allOf:
   - $ref: cdns,qspi-nor-peripheral-props.yaml#
+  - $ref: nvidia,tegra-spi-peripheral-props.yaml#
 
 additionalProperties: true
