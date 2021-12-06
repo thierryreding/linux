@@ -246,9 +246,6 @@
 		interrupts = <20 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-parent = <&gpio6>;
 		interrupt-controller;
-		id = <0>;
-		blocks = <0x5>;
-		irq-trigger = <0x1>;
 		/* 3.25 MHz ADC clock speed */
 		st,adc-freq = <1>;
 		/* 12-bit ADC */

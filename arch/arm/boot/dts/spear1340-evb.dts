@@ -319,7 +319,6 @@
 					reg = <0x41>;
 					interrupts = <4 0x4>;
 					interrupt-parent = <&gpio0>;
-					irq-trigger = <0x2>;
 
 					stmpegpio: stmpe_gpio {
 						compatible = "st,stmpe-gpio";
@@ -472,7 +471,6 @@
 					pl022,duplex = <0>;
 					interrupts = <100 0>;
 					interrupt-parent = <&gpiopinctrl>;
-					irq-trigger = <0x2>;
 					#address-cells = <1>;
 					#size-cells = <0>;
 
