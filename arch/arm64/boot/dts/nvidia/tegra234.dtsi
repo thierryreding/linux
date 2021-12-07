@@ -682,6 +682,12 @@
 			interconnect-names = "dma-mem", "write";
 			iommus = <&smmu_niso1 TEGRA234_SID_EQOS>;
 			status = "disabled";
+
+			snps,write-requests = <1>;
+			snps,read-requests = <3>;
+			snps,burst-map = <0x7>;
+			snps,txpbl = <16>;
+			snps,rxpbl = <8>;
 		};
 
 		mc: memory-controller@2c00000 {
