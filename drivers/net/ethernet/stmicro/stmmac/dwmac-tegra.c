@@ -119,7 +119,10 @@ static int tegra_mgbe_probe(struct platform_device *pdev)
 {
 	struct plat_stmmacenet_data *plat;
 	struct stmmac_resources res;
+	struct stmmac_priv *priv;
+	struct net_device *ndev;
 	struct tegra_mgbe *mgbe;
+	struct dw_xpcs *xpcs;
 	int irq, err;
 
 	dev_info(&pdev->dev, "> %s(pdev=%px)\n", __func__, pdev);
@@ -321,11 +324,14 @@ static int tegra_mgbe_probe(struct platform_device *pdev)
 	}
 
 	plat->mdio_bus_data->needs_reset = true;
-	plat->mdio_bus_data->xpcs_an_inband = true;
-	plat->mdio_bus_data->has_xpcs = true;
 
-	plat->mdio_write = tegra_mgbe_xpcs_write;
-	plat->mdio_read = tegra_mgbe_xpcs_read;
+	if (0) {
+		plat->mdio_bus_data->xpcs_an_inband = true;
+		plat->mdio_bus_data->has_xpcs = true;
+
+		plat->mdio_write = tegra_mgbe_xpcs_write;
+		plat->mdio_read = tegra_mgbe_xpcs_read;
+	}
 
 	if (1) {
 		unsigned int retry = 300;
@@ -439,11 +445,12 @@ static int tegra_mgbe_probe(struct platform_device *pdev)
 	if (err < 0)
 		goto remove;
 
+	ndev = dev_get_drvdata(&pdev->dev);
+	priv = netdev_priv(ndev);
+	xpcs = priv->hw->xpcs;
+
 	/* xpcs_init() */
-	if (1) {
-		struct net_device *ndev = dev_get_drvdata(&pdev->dev);
-		struct stmmac_priv *priv = netdev_priv(ndev);
-		struct dw_xpcs *xpcs = priv->hw->xpcs;
+	if (xpcs) {
 		unsigned int retry = 10;
 		int value;
 
@@ -503,7 +510,7 @@ static int tegra_mgbe_probe(struct platform_device *pdev)
 	}
 
 	/* xpcs_start() */
-	if (1) {
+	if (xpcs) {
 		struct net_device *ndev = dev_get_drvdata(&pdev->dev);
 		struct stmmac_priv *priv = netdev_priv(ndev);
 		struct dw_xpcs *xpcs = priv->hw->xpcs;

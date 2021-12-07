@@ -88,7 +88,7 @@ static int stmmac_xgmac2_mdio_read(struct mii_bus *bus, int phyaddr, int phyreg)
 	u32 tmp, addr, value = MII_XGMAC_BUSY;
 	int ret;
 
-	dev_info(priv->device, "> %s(bus=%px, phyaddr=%02x, phyreg=%02x)\n", __func__, bus, phyaddr, phyreg);
+	//dev_info(priv->device, "> %s(bus=%px, phyaddr=%02x, phyreg=%02x)\n", __func__, bus, phyaddr, phyreg);
 
 	ret = pm_runtime_get_sync(priv->device);
 	if (ret < 0) {
@@ -145,10 +145,10 @@ static int stmmac_xgmac2_mdio_read(struct mii_bus *bus, int phyaddr, int phyreg)
 err_disable_clks:
 	pm_runtime_put(priv->device);
 
-	if (ret < 0)
-		dev_info(priv->device, "< %s() = %d\n", __func__, ret);
-	else
-		dev_info(priv->device, "< %s() = %x\n", __func__, ret);
+	//if (ret < 0)
+	//	dev_info(priv->device, "< %s() = %d\n", __func__, ret);
+	//else
+	//	dev_info(priv->device, "< %s() = %x\n", __func__, ret);
 
 	return ret;
 }
@@ -163,7 +163,7 @@ static int stmmac_xgmac2_mdio_write(struct mii_bus *bus, int phyaddr,
 	u32 addr, tmp, value = MII_XGMAC_BUSY;
 	int ret;
 
-	dev_info(priv->device, "> %s(bus=%px, phyaddr=%02x, phyreg=%02x, phydata=%04x)\n", __func__, bus, phyaddr, phyreg, phydata);
+	//dev_info(priv->device, "> %s(bus=%px, phyaddr=%02x, phyreg=%02x, phydata=%04x)\n", __func__, bus, phyaddr, phyreg, phydata);
 
 	ret = pm_runtime_get_sync(priv->device);
 	if (ret < 0) {
@@ -215,7 +215,7 @@ static int stmmac_xgmac2_mdio_write(struct mii_bus *bus, int phyaddr,
 err_disable_clks:
 	pm_runtime_put(priv->device);
 
-	dev_info(priv->device, "< %s() = %d\n", __func__, ret);
+	//dev_info(priv->device, "< %s() = %d\n", __func__, ret);
 	return ret;
 }
 
