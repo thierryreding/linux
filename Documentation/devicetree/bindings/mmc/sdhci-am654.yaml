@@ -12,6 +12,7 @@ maintainers:
 
 allOf:
   - $ref: mmc-controller.yaml#
+  - $ref: sdhci.yaml#
 
 properties:
   compatible:
