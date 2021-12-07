@@ -5270,15 +5270,15 @@ static void rt5677_read_device_properties(struct rt5677_priv *rt5677,
 		rt5677->pdata.dmic2_clk_pin = val;
 
 	if (!device_property_read_u32(dev, "JD1", &val) ||
-	    !device_property_read_u32(dev, "realtek,jd1-gpio", &val))
+	    !device_property_read_u32(dev, "realtek,jd1-config", &val))
 		rt5677->pdata.jd1_gpio = val;
 
 	if (!device_property_read_u32(dev, "JD2", &val) ||
-	    !device_property_read_u32(dev, "realtek,jd2-gpio", &val))
+	    !device_property_read_u32(dev, "realtek,jd2-config", &val))
 		rt5677->pdata.jd2_gpio = val;
 
 	if (!device_property_read_u32(dev, "JD3", &val) ||
-	    !device_property_read_u32(dev, "realtek,jd3-gpio", &val))
+	    !device_property_read_u32(dev, "realtek,jd3-config", &val))
 		rt5677->pdata.jd3_gpio = val;
 }
 
