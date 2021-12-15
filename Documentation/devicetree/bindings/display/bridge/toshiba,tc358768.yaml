@@ -41,6 +41,12 @@ properties:
   clock-names:
     const: refclk
 
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 0
+
   ports:
     $ref: /schemas/graph.yaml#/properties/ports
 
@@ -69,6 +75,10 @@ properties:
     required:
       - port@0
       - port@1
+
+patternProperties:
+  "@[0-9]+$":
+    type: object
 
 required:
   - compatible
