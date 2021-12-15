@@ -472,8 +472,8 @@ properties:
             description: A phandle to the regulator supplying the VBUS
               voltage.
 
-        dependencies:
-          usb-role-switch: [ connector ]
+        #dependencies:
+        #  usb-role-switch: [ connector ]
 
         additionalProperties: false
 
@@ -514,8 +514,8 @@ properties:
             description: A phandle to the regulator supplying the VBUS
               voltage.
 
-        dependencies:
-          usb-role-switch: [ connector ]
+        #dependencies:
+        #  usb-role-switch: [ connector ]
 
         additionalProperties: false
 
@@ -556,8 +556,8 @@ properties:
             description: A phandle to the regulator supplying the VBUS
               voltage.
 
-        dependencies:
-          usb-role-switch: [ connector ]
+        #dependencies:
+        #  usb-role-switch: [ connector ]
 
         additionalProperties: false
 
