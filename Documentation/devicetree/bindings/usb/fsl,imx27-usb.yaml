@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/usb/chipidea,usb2.yaml#"
+$id: "http://devicetree.org/schemas/usb/fsl,imx27-usb.yaml#"
 $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 
 title: USB2 ChipIdea USB controller for ci13xxx
@@ -12,23 +12,6 @@ maintainers:
 properties:
   compatible:
     oneOf:
-      - enum:
-#          - fsl,imx23-usb
-#          - fsl,imx27-usb
-#          - fsl,imx28-usb
-#          - fsl,imx6q-usb
-#          - fsl,imx6sl-usb
-#          - fsl,imx6sx-usb
-#          - fsl,imx6ul-usb
-#          - fsl,imx7d-usb
-#          - fsl,imx7ulp-usb
-          - lsi,zevio-usb
-          - qcom,ci-hdrc
-          - chipidea,usb2
-          - nvidia,tegra20-udc
-          - nvidia,tegra30-udc
-          - nvidia,tegra114-udc
-          - nvidia,tegra124-udc
       - items:
           - enum:
               - fsl,imx23-usb
@@ -52,36 +35,12 @@ properties:
       - items:
           - const: fsl,imx7ulp-usb
           - const: fsl,imx6ul-usb
-      - items:
-          - const: xlnx,zynq-usb-2.20a
-          - const: chipidea,usb2
 
   reg:
     maxItems: 1
 
   interrupts:
     maxItems: 1
-
-  phy_type:
-    $ref: /schemas/types.yaml#/definitions/string
-    description: The type of the PHY connected to the core. Without this property the PORTSC
-      register won't be touched.
-    enum:
-      - utmi
-      - utmi_wide
-      - ulpi
-      - serial
-      - hsic
-
-  dr_mode:
-    $ref: /schemas/types.yaml#/definitions/string
-    description: dual-role mode of the interface
-    enum:
-      - host
-      - peripheral
-      - otg
-    default:
-      const: otg
 
   clocks:
     minItems: 1
@@ -374,7 +333,7 @@ examples:
       #address-cells = <1>;
       #size-cells = <0>;
 
-      usbnet: ethernet@1 {
+      usbnet: smsc@1 {
         compatible = "usb424,9730";
         reg = <1>;
       };
