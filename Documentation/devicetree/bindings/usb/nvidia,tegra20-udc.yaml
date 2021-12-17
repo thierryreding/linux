@@ -1,0 +1,80 @@
+# SPDX-License-Identifier: GPL-2.0-only
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/usb/nvidia,tegra20-udc.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: NVIDIA Tegra20 (and later) USB device mode controller
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+
+properties:
+  compatible:
+    enum:
+      - nvidia,tegra20-udc
+      - nvidia,tegra30-udc
+      - nvidia,tegra114-udc
+      - nvidia,tegra124-udc
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: module clock
+
+  resets:
+    items:
+      - description: module reset
+
+  reset-names:
+    items:
+      - const: usb
+
+  nvidia,needs-double-reset:
+    $ref: "/schemas/types.yaml#/definitions/flag"
+    description: Specifies a workaround for the USB1 port that needs to be reset twice internally
+      some Tegra devices.
+
+  nvidia,phy:
+    $ref: "/schemas/types.yaml#/definitions/phandle"
+    description: phandle for the PHY device. Use "phys" instead.
+    deprecated: true
+
+allOf:
+  - $ref: chipidea,usb2-core.yaml
+
+unevaluatedProperties: true
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - resets
+  - reset-names
+
+examples:
+  - |
+    #include <dt-bindings/clock/tegra20-car.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    usb@c5000000 {
+      compatible = "nvidia,tegra20-udc";
+      reg = <0xc5000000 0x4000>;
+      interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
+      clocks = <&tegra_car TEGRA20_CLK_USBD>;
+      resets = <&tegra_car 20>;
+      reset-names = "usb";
+
+      dr_mode = "peripheral";
+      phy_type = "utmi";
+
+      nvidia,needs-double-reset;
+      nvidia,phy = <&phy1>;
+    };
