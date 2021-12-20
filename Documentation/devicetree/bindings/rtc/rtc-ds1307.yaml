@@ -11,31 +11,41 @@ maintainers:
 
 properties:
   compatible:
-    enum:
-      - dallas,ds1307
-      - dallas,ds1308
-      - dallas,ds1337
-      - dallas,ds1338
-      - dallas,ds1339
-      - dallas,ds1388
-      - dallas,ds1340
-      - dallas,ds1341
-      - maxim,ds3231
-      - st,m41t0
-      - st,m41t00
-      - st,m41t11
-      - microchip,mcp7940x
-      - microchip,mcp7941x
-      - pericom,pt7c4338
-      - epson,rx8025
-      - isil,isl12057
-      - epson,rx8130
+    oneOf:
+      - enum:
+          - dallas,ds1307
+          - dallas,ds1308
+          - dallas,ds1337
+          - dallas,ds1338
+          - dallas,ds1339
+          - dallas,ds1388
+          - dallas,ds1340
+          - dallas,ds1341
+          - maxim,ds3231
+          - st,m41t0
+          - st,m41t00
+          - st,m41t11
+          - microchip,mcp7940x
+          - microchip,mcp7941x
+          - pericom,pt7c4338
+          - epson,rx8025
+          - isil,isl12057
+          - epson,rx8130
+
+      - items:
+          - enum:
+              - st,m41t00
+          - const: dallas,ds1338
 
   reg:
     maxItems: 1
 
   interrupts:
-    maxItems: 1
+    minItems: 1
+    maxItems: 2
+
+  interrupt-names:
+    maxItems: 2
 
   "#clock-cells":
     const: 1
@@ -45,6 +55,8 @@ properties:
 
   wakeup-source:
     description: Enables wake up of host system on alarm.
+
+  vcc-supply: true
 
 allOf:
   - $ref: rtc.yaml
@@ -67,20 +79,6 @@ allOf:
           description: Do not use internal trickle charger diode. Should be given if internal
             trickle charger diode should be disabled (superseded by aux-voltage-chargeable)
           deprecated: true
-
-#  - if:
-#      properties:
-#        compatible:
-#          not:
-#            contains:
-#              enum:
-#                - dallas,ds1339
-#                - dallas,ds1340
-#                - dallas,ds1388
-#                - epson,rx8130
-#    then:
-#      properties:
-#        aux-voltage-chargeable: false
 
 unevaluatedProperties: false
 
