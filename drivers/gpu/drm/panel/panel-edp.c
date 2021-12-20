@@ -1501,6 +1501,7 @@ static const struct drm_display_mode lg_lp129qe_mode = {
 	.vsync_start = 1700 + 3,
 	.vsync_end = 1700 + 3 + 10,
 	.vtotal = 1700 + 3 + 10 + 36,
+	.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 };
 
 static const struct panel_desc lg_lp129qe = {
