@@ -63,19 +63,10 @@ properties:
   enable-gpios:
     description: GPIO to use to enable/disable the regulator
 
-  # from regulator.yaml
-  regulator-enable-ramp-delay: true
-  regulator-max-microvolt: true
-  regulator-min-microvolt: true
-  regulator-name: true
-  regulator-ramp-delay: true
-  regulator-settling-time-us: true
-  vin-supply: true
-
 allOf:
   - $ref: "regulator.yaml"
 
-additionalProperties: false
+unevaluatedProperties: false
 
 required:
   - compatible
