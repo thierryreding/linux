@@ -568,8 +568,7 @@ static void drm_dp_link_get_adjustments(struct drm_dp_link *link,
 			drm_dp_get_adjust_request_pre_emphasis(status, i) >>
 				DP_TRAIN_PRE_EMPHASIS_SHIFT;
 
-		adjust->post_cursor[i] =
-			(post_cursor >> (i << 1)) & 0x3;
+		adjust->post_cursor[i] = (post_cursor >> (i << 1)) & 0x3;
 	}
 }
 
