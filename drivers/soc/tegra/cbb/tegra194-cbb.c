@@ -1672,7 +1672,7 @@ print_errlog1_2(struct seq_file *file, struct tegra_cbb_errlog_record *errlog,
 
 	routeid = errlog->errlog2;
 	routeid = (routeid << 32) | errlog->errlog1;
-	print_cbb_err(file, "\t  RouteId\t\t: 0x%lx\n", routeid);
+	print_cbb_err(file, "\t  RouteId\t\t: 0x%llx\n", routeid);
 
 	errlog->noc_parse_routeid(info, routeid);
 

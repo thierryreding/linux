@@ -32,7 +32,7 @@ properties:
 allOf:
   - $ref: rtc.yaml
 
-additionalProperties: false
+unevaluatedProperties: false
 
 required:
   - compatible

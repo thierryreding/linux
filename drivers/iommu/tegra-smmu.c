@@ -887,6 +887,7 @@ static struct iommu_device *tegra_smmu_probe_device(struct device *dev)
 {
 	struct device_node *np = dev->of_node;
 	struct tegra_smmu *smmu = NULL;
+	struct device *parent = NULL;
 	struct of_phandle_args args;
 	unsigned int index = 0;
 	int err;
@@ -896,11 +897,13 @@ static struct iommu_device *tegra_smmu_probe_device(struct device *dev)
 		smmu = tegra_smmu_find(args.np);
 		if (smmu) {
 			err = tegra_smmu_configure(smmu, dev, &args);
-
 			if (err < 0) {
+				put_device(smmu->dev);
 				of_node_put(args.np);
 				return ERR_PTR(err);
 			}
+
+			parent = smmu->parent;
 		}
 
 		of_node_put(args.np);
@@ -909,12 +912,21 @@ static struct iommu_device *tegra_smmu_probe_device(struct device *dev)
 
 	smmu = dev_iommu_priv_get(dev);
 	if (!smmu)
+		if (parent)
+			put_device(parent);
+
 		return ERR_PTR(-ENODEV);
+	}
 
 	return &smmu->iommu;
 }
 
-static void tegra_smmu_release_device(struct device *dev) {}
+static void tegra_smmu_release_device(struct device *dev)
+{
+	struct tegra_smmu *smmu = dev_iommu_priv_get(dev);
+
+	put_device(smmu->dev);
+}
 
 static const struct tegra_smmu_group_soc *
 tegra_smmu_find_group(struct tegra_smmu *smmu, unsigned int swgroup)

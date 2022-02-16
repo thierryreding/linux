@@ -9,15 +9,15 @@
  */
 
 &tps65917 {
-	compatible = "ti,tps65917";
+	compatible = "ti,tps65917", "ti,palmas";
 
 	interrupt-controller;
 	#interrupt-cells = <2>;
 
 	ti,system-power-controller;
 
-	tps65917_pmic {
-		compatible = "ti,tps65917-pmic";
+	pmic {
+		compatible = "ti,tps65917-pmic", "ti,palmas-pmic";
 
 		smps1-in-supply = <&vsys_3v3>;
 		smps2-in-supply = <&vsys_3v3>;
@@ -121,7 +121,7 @@
 		};
 	};
 
-	tps65917_power_button {
+	pwrbutton {
 		compatible = "ti,palmas-pwrbutton";
 		interrupt-parent = <&tps65917>;
 		interrupts = <1 IRQ_TYPE_NONE>;

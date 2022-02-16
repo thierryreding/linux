@@ -3,6 +3,7 @@
  * Copyright (c) 2016-2018, NVIDIA CORPORATION.  All rights reserved.
  */
 
+#define DEBUG
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -650,6 +651,8 @@ static int tegra_hsp_probe(struct platform_device *pdev)
 	u32 value;
 	int err;
 
+	dev_dbg(&pdev->dev, "> %s(pdev=%px)\n", __func__, pdev);
+
 	hsp = devm_kzalloc(&pdev->dev, sizeof(*hsp), GFP_KERNEL);
 	if (!hsp)
 		return -ENOMEM;
@@ -785,6 +788,7 @@ static int tegra_hsp_probe(struct platform_device *pdev)
 	lockdep_register_key(&hsp->lock_key);
 	lockdep_set_class(&hsp->lock, &hsp->lock_key);
 
+	dev_dbg(&pdev->dev, "< %s()\n", __func__);
 	return 0;
 }
 
@@ -792,8 +796,11 @@ static int tegra_hsp_remove(struct platform_device *pdev)
 {
 	struct tegra_hsp *hsp = platform_get_drvdata(pdev);
 
+	dev_dbg(&pdev->dev, "> %s(pdev=%px)\n", __func__, pdev);
+
 	lockdep_unregister_key(&hsp->lock_key);
 
+	dev_dbg(&pdev->dev, "< %s()\n", __func__);
 	return 0;
 }
 
@@ -840,9 +847,15 @@ static const struct tegra_hsp_soc tegra194_hsp_soc = {
 	.has_per_mb_ie = true,
 };
 
+static const struct tegra_hsp_soc tegra234_hsp_soc = {
+	.map = tegra186_hsp_db_map,
+	.has_per_mb_ie = true,
+};
+
 static const struct of_device_id tegra_hsp_match[] = {
 	{ .compatible = "nvidia,tegra186-hsp", .data = &tegra186_hsp_soc },
 	{ .compatible = "nvidia,tegra194-hsp", .data = &tegra194_hsp_soc },
+	{ .compatible = "nvidia,tegra234-hsp", .data = &tegra234_hsp_soc },
 	{ }
 };
 

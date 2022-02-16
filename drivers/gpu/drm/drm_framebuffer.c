@@ -218,7 +218,7 @@ static int framebuffer_check(struct drm_device *dev,
 			return -ERANGE;
 
 		if (block_size && r->pitches[i] < min_pitch) {
-			DRM_DEBUG_KMS("bad pitch %u for plane %d\n", r->pitches[i], i);
+			DRM_DEBUG_KMS("bad pitch %u for plane %d (min: %llu)\n", r->pitches[i], i, min_pitch);
 			return -EINVAL;
 		}
 

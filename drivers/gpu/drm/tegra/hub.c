@@ -49,10 +49,10 @@ static const u32 tegra_shared_plane_formats[] = {
 	DRM_FORMAT_YUV422,
 	/* semi-planar formats */
 	DRM_FORMAT_NV12,
-	DRM_FORMAT_NV21,
-	DRM_FORMAT_NV16,
+	/**/DRM_FORMAT_NV21,
+	/**/DRM_FORMAT_NV16,
 	DRM_FORMAT_NV61,
-	DRM_FORMAT_NV24,
+	/**/DRM_FORMAT_NV24,
 	DRM_FORMAT_NV42,
 };
 
