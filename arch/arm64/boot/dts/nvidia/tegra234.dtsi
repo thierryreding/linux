@@ -137,6 +137,12 @@
 			snps,rxpbl = <8>;
 		};
 
+		pinmux: pinmux@2430000 {
+			compatible = "nvidia,tegra234-pinmux";
+			reg = <0x0 0x2430000 0x0 0x19100>;
+			status = "okay";
+		};
+
 		codec@242c000 {
 			compatible = "nvidia,tegra234-hdacodec";
 			reg = <0x0 0x242c000 0x0 0x1000>;
@@ -1752,6 +1758,12 @@
 			interrupt-controller;
 			#gpio-cells = <2>;
 			gpio-controller;
+		};
+
+		pinmux_aon: pinmux@c300000 {
+			compatible = "nvidia,tegra234-pinmux-aon";
+			reg = <0x0 0xc300000 0x0 0x4000>;
+			status = "okay";
 		};
 
 		pwm4: pwm@c340000 {
