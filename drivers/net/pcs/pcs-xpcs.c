@@ -181,6 +181,7 @@ int xpcs_read(struct dw_xpcs *xpcs, int dev, u32 reg)
 
 	return mdiobus_read(bus, addr, reg_addr);
 }
+EXPORT_SYMBOL_GPL(xpcs_read);
 
 int xpcs_write(struct dw_xpcs *xpcs, int dev, u32 reg, u16 val)
 {
@@ -190,6 +191,7 @@ int xpcs_write(struct dw_xpcs *xpcs, int dev, u32 reg, u16 val)
 
 	return mdiobus_write(bus, addr, reg_addr, val);
 }
+EXPORT_SYMBOL_GPL(xpcs_write);
 
 static int xpcs_read_vendor(struct dw_xpcs *xpcs, int dev, u32 reg)
 {
