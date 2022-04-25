@@ -97,10 +97,10 @@ properties:
         $ref: "#/definitions/regulator"
 
 patternProperties:
-  "^smps(([1-9]|10)-in-)|(smps10-out2-)supply$":
+  "^smps([1-9]|12|123|45|10|10-out[12])-in-supply$":
     description: Input supply for the corresponding SMPS regulator.
 
-  "^ldo([1-9]|ln|usb)-in-supply$":
+  "^ldo([1-9]|ln|rtc|usb)-in-supply$":
     description: Input supply for the corresponding LDO regulator.
 
 additionalProperties: false
@@ -116,7 +116,6 @@ examples:
       compatible = "ti,twl6035-pmic", "ti,palmas-pmic";
       interrupt-parent = <&palmas>;
       interrupts = <14 IRQ_TYPE_NONE>;
-      interrupts-name = "short-irq";
 
       ti,ldo6-vibrator;
 

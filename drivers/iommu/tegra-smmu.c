@@ -277,7 +277,6 @@ static void tegra_smmu_free_asid(struct tegra_smmu *smmu, unsigned int id)
 static struct iommu_domain *tegra_smmu_domain_alloc(unsigned type)
 {
 	struct tegra_smmu_as *as;
-	int ret;
 
 	if (type != IOMMU_DOMAIN_UNMANAGED &&
 	    type != IOMMU_DOMAIN_DMA &&
@@ -290,15 +289,9 @@ static struct iommu_domain *tegra_smmu_domain_alloc(unsigned type)
 
 	as->attr = SMMU_PD_READABLE | SMMU_PD_WRITABLE | SMMU_PD_NONSECURE;
 
-	if (type == IOMMU_DOMAIN_DMA) {
-		ret = iommu_get_dma_cookie(&as->domain);
-		if (ret)
-			goto free_as;
-	}
-
 	as->pd = alloc_page(GFP_KERNEL | __GFP_DMA | __GFP_ZERO);
 	if (!as->pd)
-		goto put_dma_cookie;
+		goto free_as;
 
 	as->count = kcalloc(SMMU_NUM_PDE, sizeof(u32), GFP_KERNEL);
 	if (!as->count)
@@ -321,9 +314,6 @@ free_pts:
 	kfree(as->pts);
 free_pd_range:
 	__free_page(as->pd);
-put_dma_cookie:
-	if (type == IOMMU_DOMAIN_DMA)
-		iommu_put_dma_cookie(&as->domain);
 free_as:
 	kfree(as);
 
@@ -890,6 +880,7 @@ static struct iommu_device *tegra_smmu_probe_device(struct device *dev)
 {
 	struct device_node *np = dev->of_node;
 	struct tegra_smmu *smmu = NULL;
+	struct device *parent = NULL;
 	struct of_phandle_args args;
 	unsigned int index = 0;
 	int err;
@@ -900,9 +891,12 @@ static struct iommu_device *tegra_smmu_probe_device(struct device *dev)
 		if (smmu) {
 			err = tegra_smmu_configure(smmu, dev, &args);
 			if (err < 0) {
+				put_device(smmu->dev);
 				of_node_put(args.np);
 				return ERR_PTR(err);
 			}
+
+			parent = smmu->dev;
 		}
 
 		of_node_put(args.np);
@@ -910,14 +904,21 @@ static struct iommu_device *tegra_smmu_probe_device(struct device *dev)
 	}
 
 	smmu = dev_iommu_priv_get(dev);
-	if (!smmu)
+	if (!smmu) {
+		if (parent)
+			put_device(parent);
+
 		return ERR_PTR(-ENODEV);
+	}
 
 	return &smmu->iommu;
 }
 
 static void tegra_smmu_release_device(struct device *dev)
 {
+	struct tegra_smmu *smmu = dev_iommu_priv_get(dev);
+
+	put_device(smmu->dev);
 }
 
 static const struct tegra_smmu_group_soc *

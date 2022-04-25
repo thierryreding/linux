@@ -29,7 +29,7 @@ struct tegra_cbb_err_ops {
 };
 
 int tegra_cbb_err_getirq(struct platform_device *pdev, int *nonsec_irq, int *sec_irq);
-void print_cbb_err(struct seq_file *file, const char *fmt, ...);
+__printf(2, 3) void print_cbb_err(struct seq_file *file, const char *fmt, ...);
 int tegra_cbberr_en_register_isr(struct tegra_cbb *cbb);
 
 void print_cache(struct seq_file *file, u32 cache);

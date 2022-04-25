@@ -28,6 +28,7 @@
 			};
 
 			rtc@68 {
+				reg = <0x68>;
 				status = "disabled";
 			};
 		};

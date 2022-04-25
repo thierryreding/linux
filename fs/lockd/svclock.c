@@ -480,7 +480,8 @@ nlmsvc_lock(struct svc_rqst *rqstp, struct nlm_file *file,
 	__be32			ret;
 
 	dprintk("lockd: nlmsvc_lock(%s/%ld, ty=%d, pi=%d, %Ld-%Ld, bl=%d)\n",
-				inode->i_sb->s_id, inode->i_ino,
+				nlmsvc_file_inode(file)->i_sb->s_id,
+				nlmsvc_file_inode(file)->i_ino,
 				lock->fl.fl_type, lock->fl.fl_pid,
 				(long long)lock->fl.fl_start,
 				(long long)lock->fl.fl_end,

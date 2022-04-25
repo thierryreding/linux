@@ -193,35 +193,69 @@ void of_iommu_get_resv_regions(struct device *dev, struct list_head *list)
 	struct of_phandle_iterator it;
 	int err;
 
-	of_for_each_phandle(&it, err, dev->of_node, "memory-region", "#memory-region-cells", 0) {
+	of_for_each_phandle(&it, err, dev->of_node, "memory-region", NULL, 0) {
 		struct iommu_resv_region *region;
-		struct of_phandle_args args;
 		struct resource res;
+		const __be32 *maps;
+		int size;
 
-		args.args_count = of_phandle_iterator_args(&it, args.args, MAX_PHANDLE_ARGS);
+		memset(&res, 0, sizeof(res));
 
-		err = of_address_to_resource(it.node, 0, &res);
-		if (err < 0) {
-			dev_err(dev, "failed to parse memory region %pOF: %d\n",
-				it.node, err);
-			continue;
+		/*
+		 * The "reg" property is optional and can be omitted by reserved-memory regions
+		 * that represent reservations in the IOVA space, which are regions that should
+		 * not be mapped.
+		 */
+		if (of_find_property(it.node, "reg", NULL)) {
+			err = of_address_to_resource(it.node, 0, &res);
+			if (err < 0) {
+				dev_err(dev, "failed to parse memory region %pOF: %d\n",
+					it.node, err);
+				continue;
+			}
 		}
 
-		if (args.args_count > 0) {
-			/*
-			 * Active memory regions are expected to be accessed by hardware during
-			 * boot and must therefore have an identity mapping created prior to the
-			 * driver taking control of the hardware. This ensures that non-quiescent
-			 * hardware doesn't cause IOMMU faults during boot.
-			 */
-			if (args.args[0] & MEMORY_REGION_IDENTITY_MAPPING) {
-				region = iommu_alloc_resv_region(res.start, resource_size(&res),
-								 IOMMU_READ | IOMMU_WRITE,
-								 IOMMU_RESV_DIRECT_RELAXABLE);
-				if (!region)
-					continue;
+		maps = of_get_property(it.node, "iommu-addresses", &size);
+		if (maps) {
+			const __be32 *end = maps + size / sizeof(__be32);
+			struct device_node *np;
+			unsigned int index = 0;
+			u32 phandle;
+			int na, ns;
 
-				list_add_tail(&region->list, list);
+			while (maps < end) {
+				phys_addr_t start, end;
+				size_t length;
+
+				phandle = be32_to_cpup(maps++);
+				np = of_find_node_by_phandle(phandle);
+				na = of_n_addr_cells(np);
+				ns = of_n_size_cells(np);
+
+				start = of_translate_dma_address(np, maps);
+				length = of_read_number(maps + na, ns);
+				end = start + length - 1;
+
+				if (np == dev->of_node) {
+					int prot = IOMMU_READ | IOMMU_WRITE;
+					enum iommu_resv_type type;
+
+					/*
+					 * IOMMU regions without an associated physical region
+					 * cannot be mapped and are simply reservations.
+					 */
+					if (res.end > res.start)
+						type = IOMMU_RESV_DIRECT_RELAXABLE;
+					else
+						type = IOMMU_RESV_RESERVED;
+
+					region = iommu_alloc_resv_region(start, length, prot, type);
+					if (region)
+						list_add_tail(&region->list, list);
+				}
+
+				maps += na + ns;
+				index++;
 			}
 		}
 	}

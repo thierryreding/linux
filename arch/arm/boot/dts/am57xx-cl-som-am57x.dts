@@ -261,7 +261,7 @@
 	clock-frequency = <400000>;
 
 	tps659038: tps659038@58 {
-		compatible = "ti,tps659038";
+		compatible = "ti,tps659038", "ti,palmas";
 		reg = <0x58>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
@@ -274,8 +274,8 @@
 
 		ti,system-power-controller;
 
-		tps659038_pmic {
-			compatible = "ti,tps659038-pmic";
+		pmic {
+			compatible = "ti,tps659038-pmic", "ti,palmas-pmic";
 
 			regulators {
 				smps12_reg: smps12 {
@@ -409,7 +409,7 @@
 			};
 		};
 
-		tps659038_pwr_button: tps659038_pwr_button {
+		tps659038_pwr_button: pwrbutton {
 			compatible = "ti,palmas-pwrbutton";
 			interrupt-parent = <&tps659038>;
 			interrupts = <1 IRQ_TYPE_EDGE_FALLING>;
@@ -417,7 +417,7 @@
 			ti,palmas-long-press-seconds = <12>;
 		};
 
-		tps659038_gpio: tps659038_gpio {
+		tps659038_gpio: gpio {
 			compatible = "ti,palmas-gpio";
 			gpio-controller;
 			#gpio-cells = <2>;
