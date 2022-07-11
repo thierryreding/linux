@@ -100,7 +100,9 @@
 #define TEGRA234_MEMORY_CLIENT_MGBEDWR 0x65
 /* sdmmcd memory write client */
 #define TEGRA234_MEMORY_CLIENT_SDMMCWAB 0x67
+/* VIC memory read client */
 #define TEGRA234_MEMORY_CLIENT_VICSRD 0x6c
+/* VIC memory write client */
 #define TEGRA234_MEMORY_CLIENT_VICSWR 0x6d
 /* EQOS read client */
 #define TEGRA234_MEMORY_CLIENT_EQOSR 0x8e
