@@ -948,42 +948,23 @@ int host1x_client_iommu_attach(struct host1x_client *client)
 	struct drm_device *drm = dev_get_drvdata(client->host);
 	struct tegra_drm *tegra = drm->dev_private;
 	struct iommu_group *group = NULL;
-	int err;
 
-#if IS_ENABLED(CONFIG_ARM_DMA_USE_IOMMU)
-	if (client->dev->archdata.mapping) {
-		struct dma_iommu_mapping *mapping =
-				to_dma_iommu_mapping(client->dev);
-		arm_iommu_detach_device(client->dev);
-		arm_iommu_release_mapping(mapping);
-
-		domain = iommu_get_domain_for_dev(client->dev);
-	}
-#endif
-
-	/*
-	 * If the host1x client is already attached to an IOMMU domain that is
-	 * not the shared IOMMU domain, don't try to attach it to a different
-	 * domain. This allows using the IOMMU-backed DMA API.
-	 */
-	if (domain && domain != tegra->domain)
+	if (!domain)
 		return 0;
 
-	if (tegra->domain) {
-		group = iommu_group_get(client->dev);
-		if (!group)
-			return -ENODEV;
-
-		if (domain != tegra->domain) {
-			err = iommu_attach_group(tegra->domain, group);
-			if (err < 0) {
-				iommu_group_put(group);
-				return err;
-			}
-		}
-
-		tegra->use_explicit_iommu = true;
+	/*
+	 * Prefer using the IOMMU-backed DMA API if that's already been set up
+	 * for the device.
+	 */
+	if (iommu_is_dma_domain(domain)) {
+		dev_info(client->dev, "already connected to a DMA domain\n");
+		return 0;
 	}
+
+	dev_info(client->dev, "setting up explicit IOMMU\n");
+
+	if (!tegra->domain)
+		tegra->domain = domain;
 
 	client->group = group;
 
@@ -1150,16 +1131,10 @@ static int host1x_drm_probe(struct host1x_device *dev)
 		goto put;
 	}
 
-	if (host1x_drm_wants_iommu(dev) && iommu_present(&platform_bus_type)) {
-		tegra->domain = iommu_domain_alloc(&platform_bus_type);
-		if (!tegra->domain) {
-			err = -ENOMEM;
-			goto free;
-		}
-
+	if (host1x_drm_wants_iommu(dev)) {
 		err = iova_cache_get();
 		if (err < 0)
-			goto domain;
+			goto free;
 	}
 
 	mutex_init(&tegra->clients_lock);
@@ -1199,7 +1174,7 @@ static int host1x_drm_probe(struct host1x_device *dev)
 	tegra->hmask = drm->mode_config.max_width - 1;
 	tegra->vmask = drm->mode_config.max_height - 1;
 
-	if (tegra->use_explicit_iommu) {
+	if (tegra->domain) {
 		u64 carveout_start, carveout_end, gem_start, gem_end;
 		u64 dma_mask = dma_get_mask(&dev->dev);
 		dma_addr_t start, end;
@@ -1227,9 +1202,7 @@ static int host1x_drm_probe(struct host1x_device *dev)
 		DRM_DEBUG_DRIVER("  GEM: %#llx-%#llx\n", gem_start, gem_end);
 		DRM_DEBUG_DRIVER("  Carveout: %#llx-%#llx\n", carveout_start,
 				 carveout_end);
-	} else if (tegra->domain) {
-		iommu_domain_free(tegra->domain);
-		tegra->domain = NULL;
+	} else if (host1x_drm_wants_iommu(dev)) {
 		iova_cache_put();
 	}
 
@@ -1281,9 +1254,6 @@ fbdev:
 	tegra_drm_fb_free(drm);
 config:
 	drm_mode_config_cleanup(drm);
-domain:
-	if (tegra->domain)
-		iommu_domain_free(tegra->domain);
 free:
 	kfree(tegra);
 put:
@@ -1408,8 +1378,15 @@ static struct platform_driver * const drivers[] = {
 	&tegra_nvdec_driver,
 };
 
+static struct platform_driver * const managed_drivers[] = {
+	&tegra_gr3d_driver,
+	&tegra_gr2d_driver,
+	&tegra_dc_driver,
+};
+
 static int __init host1x_drm_init(void)
 {
+	unsigned int i;
 	int err;
 
 	if (drm_firmware_drivers_only())
@@ -1418,6 +1395,10 @@ static int __init host1x_drm_init(void)
 	err = host1x_driver_register(&host1x_drm_driver);
 	if (err < 0)
 		return err;
+
+	if (IS_ENABLED(CONFIG_ARM_DMA_USE_IOMMU))
+		for (i = 0; i < ARRAY_SIZE(managed_drivers); i++)
+			managed_drivers[i]->driver_managed_dma = true;
 
 	err = platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 	if (err < 0)

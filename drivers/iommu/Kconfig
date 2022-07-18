@@ -253,6 +253,7 @@ config TEGRA_IOMMU_SMMU
 	depends on ARCH_TEGRA
 	depends on TEGRA_AHB
 	depends on TEGRA_MC
+	select ARM_DMA_USE_IOMMU
 	select IOMMU_API
 	help
 	  This driver supports the IOMMU hardware (SMMU) found on NVIDIA Tegra
