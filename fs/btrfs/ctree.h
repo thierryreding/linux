@@ -4105,6 +4105,7 @@ static inline int btrfs_defrag_cancelled(struct btrfs_fs_info *fs_info)
 
 extern const struct fsverity_operations btrfs_verityops;
 int btrfs_drop_verity_items(struct btrfs_inode *inode);
+int btrfs_get_verity_descriptor(struct inode *inode, void *buf, size_t buf_size);
 
 BTRFS_SETGET_FUNCS(verity_descriptor_encryption, struct btrfs_verity_descriptor_item,
 		   encryption, 8);
@@ -4120,6 +4121,12 @@ BTRFS_SETGET_STACK_FUNCS(stack_verity_descriptor_size,
 static inline int btrfs_drop_verity_items(struct btrfs_inode *inode)
 {
 	return 0;
+}
+
+static inline int btrfs_get_verity_descriptor(struct inode *inode, void *buf,
+					      size_t buf_size)
+{
+	return -EPERM;
 }
 
 #endif
