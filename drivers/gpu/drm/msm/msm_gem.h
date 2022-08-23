@@ -118,7 +118,7 @@ struct msm_gem_object {
 	 * An object is either:
 	 *  inactive - on priv->inactive_dontneed or priv->inactive_willneed
 	 *     (depending on purgeability status)
-	 *  active   - on one one of the gpu's active_list..  well, at
+	 *  active   - on one of the gpu's active_list..  well, at
 	 *     least for now we don't have (I don't think) hw sync between
 	 *     2d and 3d one devices which have both, meaning we need to
 	 *     block on submit if a bo is already on other ring
