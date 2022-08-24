@@ -452,6 +452,73 @@ static int simpledrm_device_init_regulators(struct simpledrm_device *sdev)
 #endif
 
 /*
+ * Memory management
+ */
+
+static int simpledrm_device_init_mm_sysmem(struct simpledrm_device *sdev, struct resource *res)
+{
+	struct drm_device *dev = &sdev->dev;
+
+	drm_info(dev, "using system memory framebuffer at %pr\n", res);
+
+	sdev->screen_base = memremap(res->start, resource_size(res), MEMREMAP_WB);
+	if (!sdev->screen_base)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static int simpledrm_device_init_mm_io(struct simpledrm_device *sdev, struct resource *res)
+{
+	struct drm_device *dev = &sdev->dev;
+	struct resource *mem;
+
+	drm_info(dev, "using I/O memory framebuffer at %pr\n", res);
+
+	mem = devm_request_mem_region(dev->dev, res->start, resource_size(res),
+				      sdev->dev.driver->name);
+	if (!mem) {
+		/*
+		 * We cannot make this fatal. Sometimes this comes from magic
+		 * spaces our resource handlers simply don't know about. Use
+		 * the I/O-memory resource as-is and try to map that instead.
+		 */
+		drm_warn(dev, "could not acquire memory region %pr\n", res);
+		mem = res;
+	}
+
+	sdev->screen_base = devm_ioremap_wc(dev->dev, mem->start, resource_size(mem));
+	if (!sdev->screen_base)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static int simpledrm_device_init_mm(struct simpledrm_device *sdev)
+{
+	struct drm_device *dev = &sdev->dev;
+	struct platform_device *pdev = to_platform_device(dev->dev);
+	struct resource *res;
+	int ret;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
+		return -EINVAL;
+
+	ret = devm_aperture_acquire_from_firmware(dev, res->start, resource_size(res));
+	if (ret) {
+		drm_err(dev, "could not acquire memory range %pr: error %d\n", res, ret);
+		return ret;
+	}
+
+	if (memblock_is_memory(res->start)) {
+		return simpledrm_device_init_mm_sysmem(sdev, res);
+	}
+
+	return simpledrm_device_init_mm_io(sdev, res);
+}
+
+/*
  * Modesetting
  */
 
@@ -721,8 +788,6 @@ static struct simpledrm_device *simpledrm_device_create(struct drm_driver *drv,
 	struct drm_device *dev;
 	int width, height, stride;
 	const struct drm_format_info *format;
-	struct resource *res, *mem;
-	void __iomem *screen_base;
 	struct drm_plane *primary_plane;
 	struct drm_crtc *crtc;
 	struct drm_encoder *encoder;
@@ -790,35 +855,9 @@ static struct simpledrm_device *simpledrm_device_create(struct drm_driver *drv,
 	drm_dbg(dev, "framebuffer format=%p4cc, size=%dx%d, stride=%d byte\n",
 		&format->format, width, height, stride);
 
-	/*
-	 * Memory management
-	 */
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return ERR_PTR(-EINVAL);
-
-	ret = devm_aperture_acquire_from_firmware(dev, res->start, resource_size(res));
-	if (ret) {
-		drm_err(dev, "could not acquire memory range %pr: error %d\n", res, ret);
+	ret = simpledrm_device_init_mm(sdev);
+	if (ret)
 		return ERR_PTR(ret);
-	}
-
-	mem = devm_request_mem_region(&pdev->dev, res->start, resource_size(res), drv->name);
-	if (!mem) {
-		/*
-		 * We cannot make this fatal. Sometimes this comes from magic
-		 * spaces our resource handlers simply don't know about. Use
-		 * the I/O-memory resource as-is and try to map that instead.
-		 */
-		drm_warn(dev, "could not acquire memory region %pr\n", res);
-		mem = res;
-	}
-
-	screen_base = devm_ioremap_wc(&pdev->dev, mem->start, resource_size(mem));
-	if (!screen_base)
-		return ERR_PTR(-ENOMEM);
-	sdev->screen_base = screen_base;
 
 	/*
 	 * Modesetting
@@ -888,6 +927,7 @@ static struct simpledrm_device *simpledrm_device_create(struct drm_driver *drv,
 
 	drm_mode_config_reset(dev);
 
+	dev_info(&pdev->dev, "< %s() = %px\n", __func__, sdev);
 	return sdev;
 }
 
@@ -918,6 +958,8 @@ static int simpledrm_probe(struct platform_device *pdev)
 	struct drm_device *dev;
 	int ret;
 
+	dev_info(&pdev->dev, "> %s(pdev=%px)\n", __func__, pdev);
+
 	sdev = simpledrm_device_create(&simpledrm_driver, pdev);
 	if (IS_ERR(sdev))
 		return PTR_ERR(sdev);
@@ -929,6 +971,7 @@ static int simpledrm_probe(struct platform_device *pdev)
 
 	drm_fbdev_generic_setup(dev, 0);
 
+	dev_info(&pdev->dev, "< %s()\n", __func__);
 	return 0;
 }
 

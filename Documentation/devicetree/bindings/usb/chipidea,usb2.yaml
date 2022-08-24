@@ -53,6 +53,8 @@ properties:
           - const: fsl,imx7ulp-usb
           - const: fsl,imx6ul-usb
       - items:
+          - const: fsl,imx6q-usb
+      - items:
           - const: xlnx,zynq-usb-2.20a
           - const: chipidea,usb2
 
@@ -278,6 +280,11 @@ allOf:
               - fsl,imx6ul-usb
               - fsl,imx7d-usb
               - fsl,vf610-usb
+    then:
+      properties:
+        clocks:
+          minItems: 1
+          maxItems: 1
   - if:
       properties:
         compatible:
@@ -357,7 +364,7 @@ examples:
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
     usb@2184400 {
-      compatible = "fsl,imx6q-usb", "fsl,imx27-usb";
+      compatible = "fsl,imx6q-usb";
       reg = <0x02184400 0x200>;
       interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
       clocks = <&clks IMX6QDL_CLK_USBOH3>;

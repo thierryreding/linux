@@ -644,6 +644,7 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 #define WIN_COLOR_DEPTH_YCbCr422SP     45
 #define WIN_COLOR_DEPTH_YCrCb444SP     48
 #define WIN_COLOR_DEPTH_YCbCr444SP     49
+#define WIN_COLOR_DEPTH_YCbYCr422      61
 #define WIN_COLOR_DEPTH_X8B8G8R8       65
 #define WIN_COLOR_DEPTH_X8R8G8B8       66
 

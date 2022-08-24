@@ -11,6 +11,7 @@
 #include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/hte.h>
 
@@ -153,6 +154,10 @@ static int tegra186_gpio_direction_input(struct gpio_chip *chip,
 	struct tegra_gpio *gpio = gpiochip_get_data(chip);
 	void __iomem *base;
 	u32 value;
+	int err;
+
+	dev_info(gpio->gpio.parent, "> %s(chip=%px, offset=%u)\n", __func__, chip, offset);
+	dev_info(gpio->gpio.parent, "  GPIO: %s\n", gpio->gpio.names[offset]);
 
 	base = tegra186_gpio_get_base(gpio, offset);
 	if (WARN_ON(base == NULL))
@@ -167,7 +172,13 @@ static int tegra186_gpio_direction_input(struct gpio_chip *chip,
 	value &= ~TEGRA186_GPIO_ENABLE_CONFIG_OUT;
 	writel(value, base + TEGRA186_GPIO_ENABLE_CONFIG);
 
-	return 0;
+	err = pinctrl_gpio_direction_input(chip->base + offset);
+	if (err < 0)
+		dev_err(gpio->gpio.parent, "failed to set pinctrl input direction of GPIO %u: %d\n",
+			chip->base + offset, err);
+
+	dev_info(gpio->gpio.parent, "< %s() = %d\n", __func__, err);
+	return err;
 }
 
 static int tegra186_gpio_direction_output(struct gpio_chip *chip,
@@ -176,6 +187,10 @@ static int tegra186_gpio_direction_output(struct gpio_chip *chip,
 	struct tegra_gpio *gpio = gpiochip_get_data(chip);
 	void __iomem *base;
 	u32 value;
+	int err;
+
+	dev_info(gpio->gpio.parent, "> %s(chip=%px, offset=%u)\n", __func__, chip, offset);
+	dev_info(gpio->gpio.parent, "  GPIO: %s\n", gpio->gpio.names[offset]);
 
 	/* configure output level first */
 	chip->set(chip, offset, level);
@@ -194,7 +209,13 @@ static int tegra186_gpio_direction_output(struct gpio_chip *chip,
 	value |= TEGRA186_GPIO_ENABLE_CONFIG_OUT;
 	writel(value, base + TEGRA186_GPIO_ENABLE_CONFIG);
 
-	return 0;
+	err = pinctrl_gpio_direction_output(chip->base + offset);
+	if (err < 0)
+		dev_err(gpio->gpio.parent, "failed to set pinctrl output direction of GPIO %u: %d\n",
+			chip->base + offset, err);
+
+	dev_info(gpio->gpio.parent, "< %s() = %d\n", __func__, err);
+	return err;
 }
 
 #define HTE_BOTH_EDGES	(HTE_RISING_EDGE_TS | HTE_FALLING_EDGE_TS)
@@ -827,6 +848,8 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 
 	for (i = 0; i < gpio->soc->num_ports; i++)
 		gpio->gpio.ngpio += gpio->soc->ports[i].pins;
+
+	dev_info(gpio->gpio.parent, "number of pins: %u\n", gpio->gpio.ngpio);
 
 	names = devm_kcalloc(gpio->gpio.parent, gpio->gpio.ngpio,
 			     sizeof(*names), GFP_KERNEL);

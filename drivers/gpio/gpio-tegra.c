@@ -176,6 +176,8 @@ static int tegra_gpio_direction_input(struct gpio_chip *chip,
 	struct tegra_gpio_info *tgi = gpiochip_get_data(chip);
 	int ret;
 
+	dev_info(tgi->dev, "> %s(chip=%px, offset=%u)\n", __func__, chip, offset);
+
 	tegra_gpio_mask_write(tgi, GPIO_MSK_OE(tgi, offset), offset, 0);
 	tegra_gpio_enable(tgi, offset);
 
@@ -185,6 +187,7 @@ static int tegra_gpio_direction_input(struct gpio_chip *chip,
 			"Failed to set pinctrl input direction of GPIO %d: %d",
 			 chip->base + offset, ret);
 
+	dev_info(tgi->dev, "< %s() = %d\n", __func__, ret);
 	return ret;
 }
 
@@ -194,6 +197,8 @@ static int tegra_gpio_direction_output(struct gpio_chip *chip,
 {
 	struct tegra_gpio_info *tgi = gpiochip_get_data(chip);
 	int ret;
+
+	dev_info(tgi->dev, "> %s(chip=%px, offset=%u, value=%d)\n", __func__, chip, offset, value);
 
 	tegra_gpio_set(chip, offset, value);
 	tegra_gpio_mask_write(tgi, GPIO_MSK_OE(tgi, offset), offset, 1);
@@ -205,6 +210,7 @@ static int tegra_gpio_direction_output(struct gpio_chip *chip,
 			"Failed to set pinctrl output direction of GPIO %d: %d",
 			 chip->base + offset, ret);
 
+	dev_info(tgi->dev, "< %s() = %d\n", __func__, ret);
 	return ret;
 }
 
