@@ -178,7 +178,7 @@
 	clock-frequency = <400000>;
 
 	tps659038: tps659038@58 {
-		compatible = "ti,tps659038";
+		compatible = "ti,tps659038", "ti,palmas";
 		reg = <0x58>;
 		interrupts-extended = <&gpio6 16 IRQ_TYPE_LEVEL_HIGH
 			       &dra7_pmx_core 0x418>;
@@ -187,8 +187,8 @@
 		ti,system-power-controller;
 		ti,palmas-override-powerhold;
 
-		tps659038_pmic {
-			compatible = "ti,tps659038-pmic";
+		pmic {
+			compatible = "ti,tps659038-pmic", "ti,palmas-pmic";
 
 			smps12-in-supply = <&vmain>;
 			smps3-in-supply = <&vmain>;
@@ -359,14 +359,14 @@
 			};
 		};
 
-		tps659038_rtc: tps659038_rtc {
+		tps659038_rtc: rtc {
 			compatible = "ti,palmas-rtc";
 			interrupt-parent = <&tps659038>;
 			interrupts = <8 IRQ_TYPE_EDGE_FALLING>;
 			wakeup-source;
 		};
 
-		tps659038_pwr_button: tps659038_pwr_button {
+		tps659038_pwr_button: pwrbutton {
 			compatible = "ti,palmas-pwrbutton";
 			interrupt-parent = <&tps659038>;
 			interrupts = <1 IRQ_TYPE_EDGE_FALLING>;
@@ -374,13 +374,13 @@
 			ti,palmas-long-press-seconds = <12>;
 		};
 
-		tps659038_gpio: tps659038_gpio {
+		tps659038_gpio: gpio {
 			compatible = "ti,palmas-gpio";
 			gpio-controller;
 			#gpio-cells = <2>;
 		};
 
-		extcon_usb2: tps659038_usb {
+		extcon_usb2: usb {
 			compatible = "ti,palmas-usb-vid";
 			ti,enable-vbus-detection;
 			ti,enable-id-detection;

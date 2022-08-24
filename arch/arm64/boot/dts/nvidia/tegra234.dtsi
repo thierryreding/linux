@@ -764,6 +764,8 @@
 			clock-names = "serial";
 			resets = <&bpmp TEGRA234_RESET_UARTA>;
 			reset-names = "serial";
+			dmas = <&gpcdma 8>, <&gpcdma 8>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 
@@ -951,7 +953,7 @@
 		};
 
 		hda@3510000 {
-			compatible = "nvidia,tegra234-hda", "nvidia,tegra30-hda";
+			compatible = "nvidia,tegra234-hda";
 			reg = <0x3510000 0x10000>;
 			interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&bpmp TEGRA234_CLK_AZA_BIT>,
@@ -1583,11 +1585,31 @@
 			status = "okay";
 		};
 
-		dce-fabric@de00000 {
-			compatible = "nvidia,tegra234-sce-fabric";
-			reg = <0xde00000 0x40000>;
-			interrupts = <GIC_SPI 381 IRQ_TYPE_LEVEL_HIGH>;
-			status = "okay";
+		dce@d800000 {
+			compatible = "nvidia,tegra234-dce";
+			reg = <0x0d800000 0x20000>;
+			ranges = <0x0d800000 0x0d800000 0x800000>;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			hsp@d950000 {
+				compatible = "nvidia,tegra234-hsp", "nvidia,tegra194-hsp";
+				reg = <0x0d950000 0x90000>;
+				interrupts = <GIC_SPI 377 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 378 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 379 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 380 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "shared0", "shared1", "shared2", "shared3";
+				#mbox-cells = <2>;
+			};
+
+			dce-fabric@de00000 {
+				compatible = "nvidia,tegra234-sce-fabric";
+				reg = <0xde00000 0x40000>;
+				interrupts = <GIC_SPI 381 IRQ_TYPE_LEVEL_HIGH>;
+				status = "okay";
+			};
 		};
 
 		gic: interrupt-controller@f400000 {
@@ -1602,7 +1624,7 @@
 			interrupt-controller;
 		};
 
-		smmu_iso: iommu@10000000{
+		smmu_iso: iommu@10000000 {
 			compatible = "nvidia,tegra234-smmu", "nvidia,smmu-500";
 			reg = <0x10000000 0x1000000>;
 			interrupts = <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,

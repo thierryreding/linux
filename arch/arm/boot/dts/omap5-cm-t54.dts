@@ -420,7 +420,7 @@
 	};
 
 	palmas: palmas@48 {
-		compatible = "ti,palmas";
+		compatible = "ti,twl6037", "ti,palmas";
 		reg = <0x48>;
 		pinctrl-0 = <&palmas_sys_nirq_pins>;
 		pinctrl-names = "default";
@@ -444,10 +444,9 @@
 		};
 
 		palmas_pmic {
-			compatible = "ti,palmas-pmic";
+			compatible = "ti,twl6037-pmic", "ti,palmas-pmic";
 			interrupt-parent = <&palmas>;
 			interrupts = <14 IRQ_TYPE_NONE>;
-			interrupt-names = "short-irq";
 
 			ti,ldo6-vibrator;
 

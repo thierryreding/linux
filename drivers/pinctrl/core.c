@@ -292,9 +292,12 @@ pinctrl_match_gpio_range(struct pinctrl_dev *pctldev, unsigned gpio)
 {
 	struct pinctrl_gpio_range *range;
 
+	dev_info(pctldev->dev, "looking up range for GPIO %u...\n", gpio);
+
 	mutex_lock(&pctldev->mutex);
 	/* Loop over the ranges */
 	list_for_each_entry(range, &pctldev->gpio_ranges, node) {
+		dev_info(pctldev->dev, "  range: %u - %u\n", range->base, range->base + range->npins);
 		/* Check if we're in the valid range */
 		if (gpio >= range->base &&
 		    gpio < range->base + range->npins) {

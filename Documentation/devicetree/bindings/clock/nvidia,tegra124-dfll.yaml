@@ -47,12 +47,12 @@ properties:
       - const: i2c
 
   resets:
-    items:
-      - description: DFLL DVCO reset
+    minItems: 1
+    maxItems: 2
 
   reset-names:
-    items:
-      - const: dvco
+    minItems: 1
+    maxItems: 2
 
   "#clock-cells":
     const: 0
@@ -141,6 +141,39 @@ properties:
   pinctrl-0: true
   pinctrl-1: true
 
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: nvidia,tegra124-dfll
+    then:
+      properties:
+        resets:
+          items:
+            - description: DFLL DVCO reset
+
+        reset-names:
+          items:
+            - const: dvco
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: nvidia,tegra210-dfll
+    then:
+      properties:
+        resets:
+          items:
+            - description: DFLL DVCO reset
+            - description: DFLL reset
+
+        reset-names:
+          items:
+            - const: dvco
+            - const: dfll
+
 additionalProperties: false
 
 examples:
@@ -194,8 +227,9 @@ examples:
                  <&tegra_car TEGRA210_CLK_DFLL_REF>,
                  <&tegra_car TEGRA210_CLK_I2C5>;
         clock-names = "soc", "ref", "i2c";
-        resets = <&tegra_car TEGRA210_RST_DFLL_DVCO>;
-        reset-names = "dvco";
+        resets = <&tegra_car TEGRA210_RST_DFLL_DVCO>,
+                 <&tegra_car 155>;
+        reset-names = "dvco", "dfll";
         #clock-cells = <0>;
         clock-output-names = "dfllCPU_out";
 

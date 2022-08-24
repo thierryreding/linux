@@ -110,6 +110,7 @@ properties:
       required varies depending on compatible value.
 
   gpio-controller: true
+  gpio-ranges: true
 
   "#gpio-cells":
     description: |

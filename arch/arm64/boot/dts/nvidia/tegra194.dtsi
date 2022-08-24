@@ -1153,7 +1153,7 @@
 		};
 
 		hda@3510000 {
-			compatible = "nvidia,tegra194-hda", "nvidia,tegra30-hda";
+			compatible = "nvidia,tegra194-hda";
 			reg = <0x3510000 0x10000>;
 			interrupts = <GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&bpmp TEGRA194_CLK_HDA>,
@@ -1659,7 +1659,7 @@
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			gpio-range = <&pinmux_aon 0 0 30>;
+			gpio-ranges = <&pinmux_aon 0 0 30>;
 		};
 
 		pinmux_aon: pinmux@c300000 {

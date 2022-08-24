@@ -27,11 +27,15 @@
 
 static inline u32 pmx_readl(struct tegra_pmx *pmx, u32 bank, u32 reg)
 {
+	WARN_ON(bank >= pmx->nbanks);
+	WARN_ON(bank < pmx->nbanks && pmx->regs[bank] == NULL);
 	return readl(pmx->regs[bank] + reg);
 }
 
 static inline void pmx_writel(struct tegra_pmx *pmx, u32 val, u32 bank, u32 reg)
 {
+	WARN_ON(bank >= pmx->nbanks);
+	WARN_ON(bank < pmx->nbanks && pmx->regs[bank] == NULL);
 	writel_relaxed(val, pmx->regs[bank] + reg);
 	/* make sure pinmux register write completed */
 	pmx_readl(pmx, bank, reg);
@@ -276,7 +280,7 @@ static int tegra_pinctrl_set_mux(struct pinctrl_dev *pctldev,
 }
 
 static const struct tegra_pingroup *tegra_pinctrl_get_group(struct pinctrl_dev *pctldev,
-					unsigned int offset)
+							    unsigned int offset)
 {
 	struct tegra_pmx *pmx = pinctrl_dev_get_drvdata(pctldev);
 	unsigned int group, num_pins, j;
@@ -287,6 +291,7 @@ static const struct tegra_pingroup *tegra_pinctrl_get_group(struct pinctrl_dev *
 		ret = tegra_pinctrl_get_group_pins(pctldev, group, &pins, &num_pins);
 		if (ret < 0)
 			continue;
+
 		for (j = 0; j < num_pins; j++) {
 			if (offset == pins[j])
 				return &pmx->soc->groups[group];
@@ -309,7 +314,6 @@ static int tegra_pinctrl_gpio_request_enable(struct pinctrl_dev *pctldev,
 		return 0;
 
 	group = tegra_pinctrl_get_group(pctldev, offset);
-
 	if (!group)
 		return -EINVAL;
 
@@ -335,7 +339,6 @@ static void tegra_pinctrl_gpio_disable_free(struct pinctrl_dev *pctldev,
 		return;
 
 	group = tegra_pinctrl_get_group(pctldev, offset);
-
 	if (!group)
 		return;
 
@@ -347,6 +350,23 @@ static void tegra_pinctrl_gpio_disable_free(struct pinctrl_dev *pctldev,
 	pmx_writel(pmx, value, group->mux_bank, group->mux_reg);
 }
 
+static int tegra_pinctrl_gpio_set_direction(struct pinctrl_dev *pctldev,
+					    struct pinctrl_gpio_range *range,
+					    unsigned int offset, bool input)
+{
+	const struct tegra_pingroup *group;
+	int ret = 0;
+
+	dev_info(pctldev->dev, "> %s(pctldev=%px, range=%px, offset=%u, input=%d)\n", __func__, pctldev, range, offset, input);
+
+	group = tegra_pinctrl_get_group(pctldev, offset);
+	if (group)
+		dev_info(pctldev->dev, "  group: %s\n", group->name);
+
+	dev_info(pctldev->dev, "< %s() = %d\n", __func__, ret);
+	return ret;
+}
+
 static const struct pinmux_ops tegra_pinmux_ops = {
 	.get_functions_count = tegra_pinctrl_get_funcs_count,
 	.get_function_name = tegra_pinctrl_get_func_name,
@@ -354,6 +374,7 @@ static const struct pinmux_ops tegra_pinmux_ops = {
 	.set_mux = tegra_pinctrl_set_mux,
 	.gpio_request_enable = tegra_pinctrl_gpio_request_enable,
 	.gpio_disable_free = tegra_pinctrl_gpio_disable_free,
+	.gpio_set_direction = tegra_pinctrl_gpio_set_direction,
 };
 
 static int tegra_pinconf_reg(struct tegra_pmx *pmx,

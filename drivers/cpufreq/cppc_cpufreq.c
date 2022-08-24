@@ -493,6 +493,7 @@ static unsigned int get_perf_level_count(struct cpufreq_policy *policy)
 	return 1 + max_cap / CPPC_EM_CAP_STEP - min_cap / CPPC_EM_CAP_STEP;
 }
 
+#ifndef CONFIG_ARM64
 /*
  * The cost is defined as:
  *   cost = power * max_frequency / frequency
@@ -595,6 +596,7 @@ static int cppc_get_cpu_cost(struct device *cpu_dev, unsigned long KHz,
 
 	return 0;
 }
+#endif
 
 static int populate_efficiency_class(void)
 {

@@ -37,6 +37,8 @@ properties:
       trigger mask from ../interrupt-controller/interrupts.txt.
     const: 2
 
+  pinctrl-names: true
+
   ti,mux-pad1:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: Set the pad register 1 to the correct muxing for the hardware. Otherwise the
@@ -55,14 +57,15 @@ properties:
     $ref: /schemas/types.yaml#/definitions/flag
     description: Specifies whether or not this PMIC is controlling the system power.
 
-  pinctrl:
-    $ref: ../pinctrl/ti,palmas-pinctrl.yaml
-
-  pwrbutton:
-    $ref: ../input/ti,palmas-pwrbutton.yaml
-
-  rtc:
-    $ref: ../rtc/ti,palmas-rtc.yaml
+  ti,palmas-override-powerhold:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: This is applicable for PMICs for which GPIO7 is configured in POWERHOLD mode
+      which has higher priority over DEV_ON bit and keeps the PMIC supplies on even after the
+      DEV_ON bit is turned off. This property enables driver to over ride the POWERHOLD value to
+      GPIO7 so as to turn off the PMIC in power off scenarios. So for GPIO7 if this property is
+      set then the GPIO_7 field should never be muxed to anything else. It should be set to
+      POWERHOLD by default and only in case of power off scenarios the driver will over ride the
+      mux value.
 
 patternProperties:
   "^(palmas_)?adc$":
@@ -74,14 +77,22 @@ patternProperties:
   "^(palmas_)?gpio$":
     $ref: ../gpio/ti,palmas-gpio.yaml
 
-  "^(palmas_)?pinmux$":
+  "^(palmas_)?(pinctrl|pinmux)$":
     $ref: ../pinctrl/ti,palmas-pinctrl.yaml
 
   "^(palmas_)?pmic$":
     $ref: ../regulator/ti,palmas-pmic.yaml
 
+  "^(palmas_)?pwrbutton$":
+    $ref: ../input/ti,palmas-pwrbutton.yaml
+
+  "^(palmas_)?rtc$":
+    $ref: ../rtc/ti,palmas-rtc.yaml
+
   "^(palmas_)?usb$":
     $ref: ../extcon/ti,palmas-usb-vid.yaml
+
+  "^pinctrl-[0-9]+$": true
 
 additionalProperties: false
 
