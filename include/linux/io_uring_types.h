@@ -184,6 +184,7 @@ struct io_ev_fd {
 	struct eventfd_ctx	*cq_ev_fd;
 	unsigned int		eventfd_async: 1;
 	struct rcu_head		rcu;
+	atomic_t		refs;
 };
 
 struct io_alloc_cache {
@@ -300,6 +301,8 @@ struct io_ring_ctx {
 		struct io_wq_work_list	iopoll_list;
 		struct io_hash_table	cancel_table;
 		bool			poll_multi_queue;
+
+		struct llist_head	work_llist;
 
 		struct list_head	io_buffers_comp;
 	} ____cacheline_aligned_in_smp;

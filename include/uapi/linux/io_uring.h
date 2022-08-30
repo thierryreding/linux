@@ -12,6 +12,10 @@
 #include <linux/types.h>
 #include <linux/time_types.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * IO submission data structure (Submission Queue Entry)
  */
@@ -152,6 +156,13 @@ enum {
  * Only one task is allowed to submit requests
  */
 #define IORING_SETUP_SINGLE_ISSUER	(1U << 12)
+
+/*
+ * Defer running task work to get events.
+ * Rather than running bits of task work whenever the task transitions
+ * try to do it just before it is needed.
+ */
+#define IORING_SETUP_DEFER_TASKRUN	(1U << 13)
 
 enum io_uring_op {
 	IORING_OP_NOP,
@@ -660,5 +671,9 @@ struct io_uring_recvmsg_out {
 	__u32 payloadlen;
 	__u32 flags;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
