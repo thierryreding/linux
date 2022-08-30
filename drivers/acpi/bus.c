@@ -802,7 +802,7 @@ static bool acpi_of_modalias(struct acpi_device *adev,
 
 	str = obj->string.pointer;
 	chr = strchr(str, ',');
-	strlcpy(modalias, chr ? chr + 1 : str, len);
+	strscpy(modalias, chr ? chr + 1 : str, len);
 
 	return true;
 }
@@ -822,7 +822,7 @@ void acpi_set_modalias(struct acpi_device *adev, const char *default_id,
 		       char *modalias, size_t len)
 {
 	if (!acpi_of_modalias(adev, modalias, len))
-		strlcpy(modalias, default_id, len);
+		strscpy(modalias, default_id, len);
 }
 EXPORT_SYMBOL_GPL(acpi_set_modalias);
 
@@ -973,16 +973,13 @@ EXPORT_SYMBOL_GPL(acpi_driver_match_device);
  */
 int acpi_bus_register_driver(struct acpi_driver *driver)
 {
-	int ret;
-
 	if (acpi_disabled)
 		return -ENODEV;
 	driver->drv.name = driver->name;
 	driver->drv.bus = &acpi_bus_type;
 	driver->drv.owner = driver->owner;
 
-	ret = driver_register(&driver->drv);
-	return ret;
+	return driver_register(&driver->drv);
 }
 
 EXPORT_SYMBOL(acpi_bus_register_driver);
