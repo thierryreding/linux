@@ -1165,6 +1165,7 @@ int io_run_local_work(struct io_ring_ctx *ctx)
 	struct llist_node fake;
 	struct llist_node *current_final = NULL;
 	int ret;
+	unsigned int loops = 1;
 
 	if (unlikely(ctx->submitter_task != current)) {
 		/* maybe this is before any submissions */
@@ -1194,6 +1195,7 @@ again:
 
 	node = io_llist_cmpxchg(&ctx->work_llist, &fake, NULL);
 	if (node != &fake) {
+		loops++;
 		current_final = &fake;
 		node = io_llist_xchg(&ctx->work_llist, &fake);
 		goto again;
@@ -1203,6 +1205,7 @@ again:
 		io_submit_flush_completions(ctx);
 		mutex_unlock(&ctx->uring_lock);
 	}
+	trace_io_uring_local_work_run(ctx, ret, loops);
 	return ret;
 }
 
