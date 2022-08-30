@@ -1981,7 +1981,6 @@ static void dpu_encoder_helper_reset_mixers(struct dpu_encoder_phys *phys_enc)
 {
 	struct dpu_hw_mixer_cfg mixer;
 	int i, num_lm;
-	u32 flush_mask = 0;
 	struct dpu_global_state *global_state;
 	struct dpu_hw_blk *hw_lm[2];
 	struct dpu_hw_mixer *hw_mixer[2];
@@ -2000,9 +1999,8 @@ static void dpu_encoder_helper_reset_mixers(struct dpu_encoder_phys *phys_enc)
 
 	for (i = 0; i < num_lm; i++) {
 		hw_mixer[i] = to_dpu_hw_mixer(hw_lm[i]);
-		flush_mask = phys_enc->hw_ctl->ops.get_bitmask_mixer(ctl, hw_mixer[i]->idx);
-		if (phys_enc->hw_ctl->ops.update_pending_flush)
-			phys_enc->hw_ctl->ops.update_pending_flush(ctl, flush_mask);
+		if (phys_enc->hw_ctl->ops.update_pending_flush_mixer)
+			phys_enc->hw_ctl->ops.update_pending_flush_mixer(ctl, hw_mixer[i]->idx);
 
 		/* clear all blendstages */
 		if (phys_enc->hw_ctl->ops.setup_blendstage)
@@ -2062,6 +2060,12 @@ void dpu_encoder_helper_phys_cleanup(struct dpu_encoder_phys *phys_enc)
 
 	intf_cfg.stream_sel = 0; /* Don't care value for video mode */
 	intf_cfg.mode_3d = dpu_encoder_helper_get_3d_blend_mode(phys_enc);
+
+	if (phys_enc->hw_intf)
+		intf_cfg.intf = phys_enc->hw_intf->idx;
+	if (phys_enc->hw_wb)
+		intf_cfg.wb = phys_enc->hw_wb->idx;
+
 	if (phys_enc->hw_pp->merge_3d)
 		intf_cfg.merge_3d = phys_enc->hw_pp->merge_3d->idx;
 
