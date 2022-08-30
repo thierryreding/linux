@@ -478,33 +478,33 @@ static __cold void io_queue_deferred(struct io_ring_ctx *ctx)
 	}
 }
 
+
+static inline void __io_eventfd_put(struct io_ev_fd *ev_fd)
+{
+	if (atomic_dec_and_test(&ev_fd->refs)) {
+		eventfd_ctx_put(ev_fd->cq_ev_fd);
+		kfree(ev_fd);
+	}
+}
+
+static void io_eventfd_signal_put(struct rcu_head *rcu)
+{
+	struct io_ev_fd *ev_fd = container_of(rcu, struct io_ev_fd, rcu);
+
+	eventfd_signal(ev_fd->cq_ev_fd, 1);
+	__io_eventfd_put(ev_fd);
+}
+
 static void io_eventfd_put(struct rcu_head *rcu)
 {
 	struct io_ev_fd *ev_fd = container_of(rcu, struct io_ev_fd, rcu);
 
-	eventfd_ctx_put(ev_fd->cq_ev_fd);
-	kfree(ev_fd);
+	__io_eventfd_put(ev_fd);
 }
 
 static void io_eventfd_signal(struct io_ring_ctx *ctx)
 {
-	struct io_ev_fd *ev_fd;
-	bool skip;
-
-	spin_lock(&ctx->completion_lock);
-	/*
-	 * Eventfd should only get triggered when at least one event has been
-	 * posted. Some applications rely on the eventfd notification count only
-	 * changing IFF a new CQE has been added to the CQ ring. There's no
-	 * depedency on 1:1 relationship between how many times this function is
-	 * called (and hence the eventfd count) and number of CQEs posted to the
-	 * CQ ring.
-	 */
-	skip = ctx->cached_cq_tail == ctx->evfd_last_cq_tail;
-	ctx->evfd_last_cq_tail = ctx->cached_cq_tail;
-	spin_unlock(&ctx->completion_lock);
-	if (skip)
-		return;
+	struct io_ev_fd *ev_fd = NULL;
 
 	rcu_read_lock();
 	/*
@@ -522,11 +522,41 @@ static void io_eventfd_signal(struct io_ring_ctx *ctx)
 		goto out;
 	if (READ_ONCE(ctx->rings->cq_flags) & IORING_CQ_EVENTFD_DISABLED)
 		goto out;
+	if (ev_fd->eventfd_async && !io_wq_current_is_worker())
+		goto out;
 
-	if (!ev_fd->eventfd_async || io_wq_current_is_worker())
+	if (likely(eventfd_signal_allowed())) {
 		eventfd_signal(ev_fd->cq_ev_fd, 1);
+	} else {
+		atomic_inc(&ev_fd->refs);
+		call_rcu(&ev_fd->rcu, io_eventfd_signal_put);
+	}
+
 out:
 	rcu_read_unlock();
+}
+
+static void io_eventfd_flush_signal(struct io_ring_ctx *ctx)
+{
+	bool skip;
+
+	spin_lock(&ctx->completion_lock);
+
+	/*
+	 * Eventfd should only get triggered when at least one event has been
+	 * posted. Some applications rely on the eventfd notification count
+	 * only changing IFF a new CQE has been added to the CQ ring. There's
+	 * no depedency on 1:1 relationship between how many times this
+	 * function is called (and hence the eventfd count) and number of CQEs
+	 * posted to the CQ ring.
+	 */
+	skip = ctx->cached_cq_tail == ctx->evfd_last_cq_tail;
+	ctx->evfd_last_cq_tail = ctx->cached_cq_tail;
+	spin_unlock(&ctx->completion_lock);
+	if (skip)
+		return;
+
+	io_eventfd_signal(ctx);
 }
 
 void __io_commit_cqring_flush(struct io_ring_ctx *ctx)
@@ -540,7 +570,7 @@ void __io_commit_cqring_flush(struct io_ring_ctx *ctx)
 		spin_unlock(&ctx->completion_lock);
 	}
 	if (ctx->has_evfd)
-		io_eventfd_signal(ctx);
+		io_eventfd_flush_signal(ctx);
 }
 
 static inline void io_cqring_ev_posted(struct io_ring_ctx *ctx)
@@ -1071,6 +1101,8 @@ static void io_req_local_work_add(struct io_kiocb *req)
 	if (ctx->flags & IORING_SETUP_TASKRUN_FLAG)
 		atomic_or(IORING_SQ_TASKRUN, &ctx->rings->sq_flags);
 
+	if (ctx->has_evfd)
+		io_eventfd_signal(ctx);
 	io_cqring_wake(ctx);
 
 }
@@ -2473,6 +2505,7 @@ static int io_eventfd_register(struct io_ring_ctx *ctx, void __user *arg,
 	ev_fd->eventfd_async = eventfd_async;
 	ctx->has_evfd = true;
 	rcu_assign_pointer(ctx->io_ev_fd, ev_fd);
+	atomic_set(&ev_fd->refs, 1);
 	return 0;
 }
 
