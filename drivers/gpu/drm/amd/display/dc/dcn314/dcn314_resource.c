@@ -454,6 +454,7 @@ static const struct dcn31_hpo_dp_stream_encoder_registers hpo_dp_stream_enc_regs
 	hpo_dp_stream_encoder_reg_list(0),
 	hpo_dp_stream_encoder_reg_list(1),
 	hpo_dp_stream_encoder_reg_list(2),
+	hpo_dp_stream_encoder_reg_list(3)
 };
 
 static const struct dcn31_hpo_dp_stream_encoder_shift hpo_dp_se_shift = {
@@ -911,7 +912,6 @@ static const struct dc_debug_options debug_defaults_drv = {
 		}
 	},
 	.optimize_edp_link_rate = true,
-	.enable_sw_cntl_psr = true,
 	.seamless_boot_odm_combine = true
 };
 
@@ -1643,6 +1643,7 @@ static struct clock_source *dcn31_clock_source_create(
 	}
 
 	BREAK_TO_DEBUGGER();
+	kfree(clk_src);
 	return NULL;
 }
 
@@ -1715,6 +1716,7 @@ static struct clock_source *dcn30_clock_source_create(
 	}
 
 	BREAK_TO_DEBUGGER();
+	kfree(clk_src);
 	return NULL;
 }
 
@@ -1814,8 +1816,6 @@ static bool dcn314_resource_construct(
 
 	if (dc->ctx->dce_environment == DCE_ENV_PRODUCTION_DRV)
 		dc->debug = debug_defaults_drv;
-	else if (dc->ctx->dce_environment == DCE_ENV_FPGA_MAXIMUS)
-		dc->debug = debug_defaults_diags;
 	else
 		dc->debug = debug_defaults_diags;
 	// Init the vm_helper
