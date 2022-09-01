@@ -19,7 +19,6 @@ static int alloc_from_simple_generic_check(void)
 {
 	struct memblock_region *rgn = &memblock.reserved.regions[0];
 	void *allocated_ptr = NULL;
-	char *b;
 
 	PREFIX_PUSH();
 
@@ -31,10 +30,9 @@ static int alloc_from_simple_generic_check(void)
 	min_addr = memblock_end_of_DRAM() - SMP_CACHE_BYTES;
 
 	allocated_ptr = memblock_alloc_from(size, SMP_CACHE_BYTES, min_addr);
-	b = (char *)allocated_ptr;
 
 	ASSERT_NE(allocated_ptr, NULL);
-	ASSERT_EQ(*b, 0);
+	ASSERT_MEM_EQ(allocated_ptr, 0, size);
 
 	ASSERT_EQ(rgn->size, size);
 	ASSERT_EQ(rgn->base, min_addr);
@@ -66,7 +64,6 @@ static int alloc_from_misaligned_generic_check(void)
 {
 	struct memblock_region *rgn = &memblock.reserved.regions[0];
 	void *allocated_ptr = NULL;
-	char *b;
 
 	PREFIX_PUSH();
 
@@ -79,10 +76,9 @@ static int alloc_from_misaligned_generic_check(void)
 	min_addr = memblock_end_of_DRAM() - (SMP_CACHE_BYTES * 2 - 1);
 
 	allocated_ptr = memblock_alloc_from(size, SMP_CACHE_BYTES, min_addr);
-	b = (char *)allocated_ptr;
 
 	ASSERT_NE(allocated_ptr, NULL);
-	ASSERT_EQ(*b, 0);
+	ASSERT_MEM_EQ(allocated_ptr, 0, size);
 
 	ASSERT_EQ(rgn->size, size);
 	ASSERT_EQ(rgn->base, memblock_end_of_DRAM() - SMP_CACHE_BYTES);
@@ -361,10 +357,8 @@ static int alloc_from_bottom_up_min_addr_cap_check(void)
 static int alloc_from_simple_check(void)
 {
 	test_print("\tRunning %s...\n", __func__);
-	memblock_set_bottom_up(false);
-	alloc_from_simple_generic_check();
-	memblock_set_bottom_up(true);
-	alloc_from_simple_generic_check();
+	run_top_down(alloc_from_simple_generic_check);
+	run_bottom_up(alloc_from_simple_generic_check);
 
 	return 0;
 }
@@ -372,10 +366,8 @@ static int alloc_from_simple_check(void)
 static int alloc_from_misaligned_check(void)
 {
 	test_print("\tRunning %s...\n", __func__);
-	memblock_set_bottom_up(false);
-	alloc_from_misaligned_generic_check();
-	memblock_set_bottom_up(true);
-	alloc_from_misaligned_generic_check();
+	run_top_down(alloc_from_misaligned_generic_check);
+	run_bottom_up(alloc_from_misaligned_generic_check);
 
 	return 0;
 }
