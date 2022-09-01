@@ -42,7 +42,7 @@ intel_dp_aux_wait_done(struct intel_dp *intel_dp)
 	bool done;
 
 #define C (((status = intel_uncore_read_notrace(&i915->uncore, ch_ctl)) & DP_AUX_CH_CTL_SEND_BUSY) == 0)
-	done = wait_event_timeout(i915->gmbus_wait_queue, C,
+	done = wait_event_timeout(i915->display.gmbus.wait_queue, C,
 				  msecs_to_jiffies_timeout(timeout_ms));
 
 	/* just trace the final value */
@@ -86,7 +86,7 @@ static u32 ilk_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 	 * divide by 2000 and use that
 	 */
 	if (dig_port->aux_ch == AUX_CH_A)
-		freq = dev_priv->cdclk.hw.cdclk;
+		freq = dev_priv->display.cdclk.hw.cdclk;
 	else
 		freq = RUNTIME_INFO(dev_priv)->rawclk_freq;
 	return DIV_ROUND_CLOSEST(freq, 2000);
