@@ -219,7 +219,7 @@ EXPORT_SYMBOL(tty_wait_until_sent);
  *		Termios Helper Methods
  */
 
-static void unset_locked_termios(struct tty_struct *tty, struct ktermios *old)
+static void unset_locked_termios(struct tty_struct *tty, const struct ktermios *old)
 {
 	struct ktermios *termios = &tty->termios;
 	struct ktermios *locked  = &tty->termios_locked;
@@ -249,7 +249,7 @@ static void unset_locked_termios(struct tty_struct *tty, struct ktermios *old)
  *	in some cases where only minimal reconfiguration is supported
  */
 
-void tty_termios_copy_hw(struct ktermios *new, struct ktermios *old)
+void tty_termios_copy_hw(struct ktermios *new, const struct ktermios *old)
 {
 	/* The bits a dumb device handles in software. Smart devices need
 	   to always provide a set_termios method */
