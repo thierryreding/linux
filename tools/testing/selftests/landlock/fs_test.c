@@ -4,7 +4,7 @@
  *
  * Copyright © 2017-2020 Mickaël Salaün <mic@digikod.net>
  * Copyright © 2020 ANSSI
- * Copyright © 2020-2021 Microsoft Corporation
+ * Copyright © 2020-2022 Microsoft Corporation
  */
 
 #define _GNU_SOURCE
@@ -58,6 +58,7 @@ static const char file1_s2d3[] = TMP_DIR "/s2d1/s2d2/s2d3/f1";
 static const char file2_s2d3[] = TMP_DIR "/s2d1/s2d2/s2d3/f2";
 
 static const char dir_s3d1[] = TMP_DIR "/s3d1";
+static const char file1_s3d1[] = TMP_DIR "/s3d1/f1";
 /* dir_s3d2 is a mount point. */
 static const char dir_s3d2[] = TMP_DIR "/s3d1/s3d2";
 static const char dir_s3d3[] = TMP_DIR "/s3d1/s3d2/s3d3";
@@ -83,6 +84,7 @@ static const char dir_s3d3[] = TMP_DIR "/s3d1/s3d2/s3d3";
  * │           ├── f1
  * │           └── f2
  * └── s3d1
+ *     ├── f1
  *     └── s3d2
  *         └── s3d3
  */
@@ -208,6 +210,7 @@ static void create_layout1(struct __test_metadata *const _metadata)
 	create_file(_metadata, file1_s2d3);
 	create_file(_metadata, file2_s2d3);
 
+	create_file(_metadata, file1_s3d1);
 	create_directory(_metadata, dir_s3d2);
 	set_cap(_metadata, CAP_SYS_ADMIN);
 	ASSERT_EQ(0, mount("tmp", dir_s3d2, "tmpfs", 0, "size=4m,mode=700"));
@@ -230,6 +233,7 @@ static void remove_layout1(struct __test_metadata *const _metadata)
 	EXPECT_EQ(0, remove_path(file1_s2d2));
 	EXPECT_EQ(0, remove_path(file1_s2d1));
 
+	EXPECT_EQ(0, remove_path(file1_s3d1));
 	EXPECT_EQ(0, remove_path(dir_s3d3));
 	set_cap(_metadata, CAP_SYS_ADMIN);
 	umount(dir_s3d2);
@@ -371,6 +375,13 @@ TEST_F_FORK(layout1, inval)
 	ASSERT_EQ(EINVAL, errno);
 	path_beneath.allowed_access &= ~LANDLOCK_ACCESS_FS_EXECUTE;
 
+	/* Tests with denied-by-default access right. */
+	path_beneath.allowed_access |= LANDLOCK_ACCESS_FS_REFER;
+	ASSERT_EQ(-1, landlock_add_rule(ruleset_fd, LANDLOCK_RULE_PATH_BENEATH,
+					&path_beneath, 0));
+	ASSERT_EQ(EINVAL, errno);
+	path_beneath.allowed_access &= ~LANDLOCK_ACCESS_FS_REFER;
+
 	/* Test with unknown (64-bits) value. */
 	path_beneath.allowed_access |= (1ULL << 60);
 	ASSERT_EQ(-1, landlock_add_rule(ruleset_fd, LANDLOCK_RULE_PATH_BENEATH,
@@ -399,9 +410,10 @@ TEST_F_FORK(layout1, inval)
 #define ACCESS_FILE ( \
 	LANDLOCK_ACCESS_FS_EXECUTE | \
 	LANDLOCK_ACCESS_FS_WRITE_FILE | \
-	LANDLOCK_ACCESS_FS_READ_FILE)
+	LANDLOCK_ACCESS_FS_READ_FILE | \
+	LANDLOCK_ACCESS_FS_TRUNCATE)
 
-#define ACCESS_LAST LANDLOCK_ACCESS_FS_REFER
+#define ACCESS_LAST LANDLOCK_ACCESS_FS_TRUNCATE
 
 #define ACCESS_ALL ( \
 	ACCESS_FILE | \
@@ -415,7 +427,7 @@ TEST_F_FORK(layout1, inval)
 	LANDLOCK_ACCESS_FS_MAKE_FIFO | \
 	LANDLOCK_ACCESS_FS_MAKE_BLOCK | \
 	LANDLOCK_ACCESS_FS_MAKE_SYM | \
-	ACCESS_LAST)
+	LANDLOCK_ACCESS_FS_REFER)
 
 /* clang-format on */
 
@@ -1826,6 +1838,21 @@ TEST_F_FORK(layout1, link)
 	ASSERT_EQ(0, link(file1_s1d3, file2_s1d3));
 }
 
+static int test_rename(const char *oldpath, const char *newpath)
+{
+	if (rename(oldpath, newpath) != 0)
+		return errno;
+	return 0;
+}
+
+static int test_exchange(const char *oldpath, const char *newpath)
+{
+	if (renameat2(AT_FDCWD, oldpath, AT_FDCWD, newpath, RENAME_EXCHANGE) !=
+	    0)
+		return errno;
+	return 0;
+}
+
 TEST_F_FORK(layout1, rename_file)
 {
 	const struct rule rules[] = {
@@ -1867,10 +1894,10 @@ TEST_F_FORK(layout1, rename_file)
 	 * to a different directory (which allows file removal).
 	 */
 	ASSERT_EQ(-1, rename(file1_s2d1, file1_s1d3));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EACCES, errno);
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, file1_s2d1, AT_FDCWD, file1_s1d3,
 				RENAME_EXCHANGE));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EACCES, errno);
 	ASSERT_EQ(-1, renameat2(AT_FDCWD, dir_s2d2, AT_FDCWD, file1_s1d3,
 				RENAME_EXCHANGE));
 	ASSERT_EQ(EXDEV, errno);
@@ -1894,7 +1921,7 @@ TEST_F_FORK(layout1, rename_file)
 	ASSERT_EQ(EXDEV, errno);
 	ASSERT_EQ(0, unlink(file1_s1d3));
 	ASSERT_EQ(-1, rename(file1_s2d1, file1_s1d3));
-	ASSERT_EQ(EXDEV, errno);
+	ASSERT_EQ(EACCES, errno);
 
 	/* Exchanges and renames files with same parent. */
 	ASSERT_EQ(0, renameat2(AT_FDCWD, file2_s2d3, AT_FDCWD, file1_s2d3,
@@ -2012,6 +2039,115 @@ TEST_F_FORK(layout1, reparent_refer)
 	ASSERT_EQ(0, unlink(file1_s2d3));
 	ASSERT_EQ(0, unlink(file2_s2d3));
 	ASSERT_EQ(0, rename(dir_s1d3, dir_s2d3));
+}
+
+/* Checks renames beneath dir_s1d1. */
+static void refer_denied_by_default(struct __test_metadata *const _metadata,
+				    const struct rule layer1[],
+				    const int layer1_err,
+				    const struct rule layer2[])
+{
+	int ruleset_fd;
+
+	ASSERT_EQ(0, unlink(file1_s1d2));
+
+	ruleset_fd = create_ruleset(_metadata, layer1[0].access, layer1);
+	ASSERT_LE(0, ruleset_fd);
+	enforce_ruleset(_metadata, ruleset_fd);
+	ASSERT_EQ(0, close(ruleset_fd));
+
+	/*
+	 * If the first layer handles LANDLOCK_ACCESS_FS_REFER (according to
+	 * layer1_err), then it allows some different-parent renames and links.
+	 */
+	ASSERT_EQ(layer1_err, test_rename(file1_s1d1, file1_s1d2));
+	if (layer1_err == 0)
+		ASSERT_EQ(layer1_err, test_rename(file1_s1d2, file1_s1d1));
+	ASSERT_EQ(layer1_err, test_exchange(file2_s1d1, file2_s1d2));
+	ASSERT_EQ(layer1_err, test_exchange(file2_s1d2, file2_s1d1));
+
+	ruleset_fd = create_ruleset(_metadata, layer2[0].access, layer2);
+	ASSERT_LE(0, ruleset_fd);
+	enforce_ruleset(_metadata, ruleset_fd);
+	ASSERT_EQ(0, close(ruleset_fd));
+
+	/*
+	 * Now, either the first or the second layer does not handle
+	 * LANDLOCK_ACCESS_FS_REFER, which means that any different-parent
+	 * renames and links are denied, thus making the layer handling
+	 * LANDLOCK_ACCESS_FS_REFER null and void.
+	 */
+	ASSERT_EQ(EXDEV, test_rename(file1_s1d1, file1_s1d2));
+	ASSERT_EQ(EXDEV, test_exchange(file2_s1d1, file2_s1d2));
+	ASSERT_EQ(EXDEV, test_exchange(file2_s1d2, file2_s1d1));
+}
+
+const struct rule layer_dir_s1d1_refer[] = {
+	{
+		.path = dir_s1d1,
+		.access = LANDLOCK_ACCESS_FS_REFER,
+	},
+	{},
+};
+
+const struct rule layer_dir_s1d1_execute[] = {
+	{
+		/* Matches a parent directory. */
+		.path = dir_s1d1,
+		.access = LANDLOCK_ACCESS_FS_EXECUTE,
+	},
+	{},
+};
+
+const struct rule layer_dir_s2d1_execute[] = {
+	{
+		/* Does not match a parent directory. */
+		.path = dir_s2d1,
+		.access = LANDLOCK_ACCESS_FS_EXECUTE,
+	},
+	{},
+};
+
+/*
+ * Tests precedence over renames: denied by default for different parent
+ * directories, *with* a rule matching a parent directory, but not directly
+ * denying access (with MAKE_REG nor REMOVE).
+ */
+TEST_F_FORK(layout1, refer_denied_by_default1)
+{
+	refer_denied_by_default(_metadata, layer_dir_s1d1_refer, 0,
+				layer_dir_s1d1_execute);
+}
+
+/*
+ * Same test but this time turning around the ABI version order: the first
+ * layer does not handle LANDLOCK_ACCESS_FS_REFER.
+ */
+TEST_F_FORK(layout1, refer_denied_by_default2)
+{
+	refer_denied_by_default(_metadata, layer_dir_s1d1_execute, EXDEV,
+				layer_dir_s1d1_refer);
+}
+
+/*
+ * Tests precedence over renames: denied by default for different parent
+ * directories, *without* a rule matching a parent directory, but not directly
+ * denying access (with MAKE_REG nor REMOVE).
+ */
+TEST_F_FORK(layout1, refer_denied_by_default3)
+{
+	refer_denied_by_default(_metadata, layer_dir_s1d1_refer, 0,
+				layer_dir_s2d1_execute);
+}
+
+/*
+ * Same test but this time turning around the ABI version order: the first
+ * layer does not handle LANDLOCK_ACCESS_FS_REFER.
+ */
+TEST_F_FORK(layout1, refer_denied_by_default4)
+{
+	refer_denied_by_default(_metadata, layer_dir_s2d1_execute, EXDEV,
+				layer_dir_s1d1_refer);
 }
 
 TEST_F_FORK(layout1, reparent_link)
@@ -2336,11 +2472,12 @@ TEST_F_FORK(layout1, reparent_exdev_layers_rename1)
 	ASSERT_EQ(EXDEV, errno);
 
 	/*
-	 * However, moving the file2_s1d3 file below dir_s2d3 is allowed
-	 * because it cannot inherit MAKE_REG nor MAKE_DIR rights (which are
-	 * dedicated to directories).
+	 * Moving the file2_s1d3 file below dir_s2d3 is denied because the
+	 * second layer does not handle REFER, which is always denied by
+	 * default.
 	 */
-	ASSERT_EQ(0, rename(file2_s1d3, file1_s2d3));
+	ASSERT_EQ(-1, rename(file2_s1d3, file1_s2d3));
+	ASSERT_EQ(EXDEV, errno);
 }
 
 TEST_F_FORK(layout1, reparent_exdev_layers_rename2)
@@ -2373,8 +2510,12 @@ TEST_F_FORK(layout1, reparent_exdev_layers_rename2)
 	ASSERT_EQ(EACCES, errno);
 	ASSERT_EQ(-1, rename(file1_s1d1, file1_s2d3));
 	ASSERT_EQ(EXDEV, errno);
-	/* Modify layout! */
-	ASSERT_EQ(0, rename(file2_s1d2, file1_s2d3));
+	/*
+	 * Modifying the layout is now denied because the second layer does not
+	 * handle REFER, which is always denied by default.
+	 */
+	ASSERT_EQ(-1, rename(file2_s1d2, file1_s2d3));
+	ASSERT_EQ(EXDEV, errno);
 
 	/* Without REFER source, EACCES wins over EXDEV. */
 	ASSERT_EQ(-1, rename(dir_s1d1, file1_s2d2));
@@ -3020,6 +3161,249 @@ TEST_F_FORK(layout1, proc_pipe)
 
 	ASSERT_EQ(0, close(pipe_fds[0]));
 	ASSERT_EQ(0, close(pipe_fds[1]));
+}
+
+/* Invokes truncate(2) and returns its errno or 0. */
+static int test_truncate(const char *const path)
+{
+	if (truncate(path, 10) < 0)
+		return errno;
+	return 0;
+}
+
+/* Invokes ftruncate(2) and returns its errno or 0. */
+static int test_ftruncate(int fd)
+{
+	if (ftruncate(fd, 10) < 0)
+		return errno;
+	return 0;
+}
+
+/*
+ * Invokes creat(2) and returns its errno or 0.
+ * Closes the opened file descriptor on success.
+ */
+static int test_creat(const char *const path)
+{
+	int fd = creat(path, 0600);
+
+	if (fd < 0)
+		return errno;
+
+	/*
+	 * Mixing error codes from close(2) and creat(2) should not lead to any
+	 * (access type) confusion for this test.
+	 */
+	if (close(fd) < 0)
+		return errno;
+	return 0;
+}
+
+/*
+ * Exercises file truncation when it's not restricted,
+ * as it was the case before LANDLOCK_ACCESS_FS_TRUNCATE existed.
+ */
+TEST_F_FORK(layout1, truncate_unhandled)
+{
+	const char *const file_r = file1_s1d1;
+	const char *const file_w = file2_s1d1;
+	const char *const file_none = file1_s1d2;
+	const struct rule rules[] = {
+		{
+			.path = file_r,
+			.access = LANDLOCK_ACCESS_FS_READ_FILE,
+		},
+		{
+			.path = file_w,
+			.access = LANDLOCK_ACCESS_FS_WRITE_FILE,
+		},
+		/* Implicitly: No rights for file_none. */
+		{},
+	};
+	const __u64 handled = LANDLOCK_ACCESS_FS_READ_FILE |
+			      LANDLOCK_ACCESS_FS_WRITE_FILE;
+	int ruleset_fd, file_r_fd, file_w_fd, file_none_fd;
+
+	/*
+	 * Opens some writable file descriptors before enabling Landlock, so
+	 * that we can test ftruncate() without making open() a prerequisite.
+	 */
+	file_r_fd = open(file_r, O_WRONLY | O_CLOEXEC);
+	ASSERT_LE(0, file_r_fd);
+	file_w_fd = open(file_w, O_WRONLY | O_CLOEXEC);
+	ASSERT_LE(0, file_w_fd);
+	file_none_fd = open(file_none, O_WRONLY | O_CLOEXEC);
+	ASSERT_LE(0, file_none_fd);
+
+	/* Enables Landlock. */
+	ruleset_fd = create_ruleset(_metadata, handled, rules);
+
+	ASSERT_LE(0, ruleset_fd);
+	enforce_ruleset(_metadata, ruleset_fd);
+	ASSERT_EQ(0, close(ruleset_fd));
+
+	/*
+	 * Checks read right: truncate, ftruncate and open with O_TRUNC work,
+	 * unless the file is attempted to be opened for writing.
+	 */
+	EXPECT_EQ(0, test_truncate(file_r));
+	EXPECT_EQ(0, test_ftruncate(file_r_fd));
+	EXPECT_EQ(0, test_open(file_r, O_RDONLY | O_TRUNC));
+	EXPECT_EQ(EACCES, test_open(file_r, O_WRONLY | O_TRUNC));
+	EXPECT_EQ(EACCES, test_creat(file_r));
+
+	/*
+	 * Checks write right: truncate, ftruncate and open with O_TRUNC work,
+	 * unless the file is attempted to be opened for reading.
+	 */
+	EXPECT_EQ(0, test_truncate(file_w));
+	EXPECT_EQ(0, test_ftruncate(file_w_fd));
+	EXPECT_EQ(EACCES, test_open(file_w, O_RDONLY | O_TRUNC));
+	EXPECT_EQ(0, test_open(file_w, O_WRONLY | O_TRUNC));
+	EXPECT_EQ(0, test_creat(file_w));
+
+	/*
+	 * Checks "no rights" case: truncate and ftruncate work but all open
+	 * attempts fail, including creat.
+	 */
+	EXPECT_EQ(0, test_truncate(file_none));
+	EXPECT_EQ(0, test_ftruncate(file_none_fd));
+	EXPECT_EQ(EACCES, test_open(file_none, O_RDONLY | O_TRUNC));
+	EXPECT_EQ(EACCES, test_open(file_none, O_WRONLY | O_TRUNC));
+	EXPECT_EQ(EACCES, test_creat(file_none));
+
+	ASSERT_EQ(0, close(file_r_fd));
+	ASSERT_EQ(0, close(file_w_fd));
+	ASSERT_EQ(0, close(file_none_fd));
+}
+
+TEST_F_FORK(layout1, truncate)
+{
+	const char *const file_rwt = file1_s1d1;
+	const char *const file_rw = file2_s1d1;
+	const char *const file_rt = file1_s1d2;
+	const char *const file_t = file2_s1d2;
+	const char *const file_none = file1_s1d3;
+	const char *const dir_t = dir_s2d1;
+	const char *const file_in_dir_t = file1_s2d1;
+	const char *const dir_w = dir_s3d1;
+	const char *const file_in_dir_w = file1_s3d1;
+	const struct rule rules[] = {
+		{
+			.path = file_rwt,
+			.access = LANDLOCK_ACCESS_FS_READ_FILE |
+				  LANDLOCK_ACCESS_FS_WRITE_FILE |
+				  LANDLOCK_ACCESS_FS_TRUNCATE,
+		},
+		{
+			.path = file_rw,
+			.access = LANDLOCK_ACCESS_FS_READ_FILE |
+				  LANDLOCK_ACCESS_FS_WRITE_FILE,
+		},
+		{
+			.path = file_rt,
+			.access = LANDLOCK_ACCESS_FS_READ_FILE |
+				  LANDLOCK_ACCESS_FS_TRUNCATE,
+		},
+		{
+			.path = file_t,
+			.access = LANDLOCK_ACCESS_FS_TRUNCATE,
+		},
+		/* Implicitly: No access rights for file_none. */
+		{
+			.path = dir_t,
+			.access = LANDLOCK_ACCESS_FS_TRUNCATE,
+		},
+		{
+			.path = dir_w,
+			.access = LANDLOCK_ACCESS_FS_WRITE_FILE,
+		},
+		{},
+	};
+	const __u64 handled = LANDLOCK_ACCESS_FS_READ_FILE |
+			      LANDLOCK_ACCESS_FS_WRITE_FILE |
+			      LANDLOCK_ACCESS_FS_TRUNCATE;
+	int ruleset_fd, file_rwt_fd, file_rw_fd, file_rt_fd, file_t_fd,
+		file_none_fd, file_in_dir_t_fd, file_in_dir_w_fd;
+
+	/*
+	 * Opens some writable file descriptors before enabling Landlock, so
+	 * that we can test ftruncate() without making open() a prerequisite.
+	 */
+	file_rwt_fd = open(file_rwt, O_WRONLY | O_CLOEXEC);
+	ASSERT_LE(0, file_rwt_fd);
+	file_rw_fd = open(file_rw, O_WRONLY | O_CLOEXEC);
+	ASSERT_LE(0, file_rw_fd);
+	file_rt_fd = open(file_rt, O_WRONLY | O_CLOEXEC);
+	ASSERT_LE(0, file_rt_fd);
+	file_t_fd = open(file_t, O_WRONLY | O_CLOEXEC);
+	ASSERT_LE(0, file_t_fd);
+	file_none_fd = open(file_none, O_WRONLY | O_CLOEXEC);
+	ASSERT_LE(0, file_none_fd);
+	file_in_dir_t_fd = open(file_in_dir_t, O_WRONLY | O_CLOEXEC);
+	ASSERT_LE(0, file_in_dir_t_fd);
+	file_in_dir_w_fd = open(file_in_dir_w, O_WRONLY | O_CLOEXEC);
+	ASSERT_LE(0, file_in_dir_w_fd);
+
+	/* Enables Landlock. */
+	ruleset_fd = create_ruleset(_metadata, handled, rules);
+
+	ASSERT_LE(0, ruleset_fd);
+	enforce_ruleset(_metadata, ruleset_fd);
+	ASSERT_EQ(0, close(ruleset_fd));
+
+	/* Checks read, write and truncate rights: truncation works. */
+	EXPECT_EQ(0, test_truncate(file_rwt));
+	EXPECT_EQ(0, test_ftruncate(file_rwt_fd));
+	EXPECT_EQ(0, test_open(file_rwt, O_RDONLY | O_TRUNC));
+	EXPECT_EQ(0, test_open(file_rwt, O_WRONLY | O_TRUNC));
+
+	/* Checks read and write rights: no truncate variant works. */
+	EXPECT_EQ(EACCES, test_truncate(file_rw));
+	EXPECT_EQ(EACCES, test_ftruncate(file_rw_fd));
+	EXPECT_EQ(EACCES, test_open(file_rw, O_RDONLY | O_TRUNC));
+	EXPECT_EQ(EACCES, test_open(file_rw, O_WRONLY | O_TRUNC));
+
+	/*
+	 * Checks read and truncate rights: truncation works.
+	 *
+	 * Note: Files can get truncated using open() even with O_RDONLY.
+	 */
+	EXPECT_EQ(0, test_truncate(file_rt));
+	EXPECT_EQ(0, test_ftruncate(file_rt_fd));
+	EXPECT_EQ(0, test_open(file_rt, O_RDONLY | O_TRUNC));
+	EXPECT_EQ(EACCES, test_open(file_rt, O_WRONLY | O_TRUNC));
+
+	/* Checks truncate right: truncate works, but can't open file. */
+	EXPECT_EQ(0, test_truncate(file_t));
+	EXPECT_EQ(0, test_ftruncate(file_t_fd));
+	EXPECT_EQ(EACCES, test_open(file_t, O_RDONLY | O_TRUNC));
+	EXPECT_EQ(EACCES, test_open(file_t, O_WRONLY | O_TRUNC));
+
+	/* Checks "no rights" case: No form of truncation works. */
+	EXPECT_EQ(EACCES, test_truncate(file_none));
+	EXPECT_EQ(EACCES, test_ftruncate(file_none_fd));
+	EXPECT_EQ(EACCES, test_open(file_none, O_RDONLY | O_TRUNC));
+	EXPECT_EQ(EACCES, test_open(file_none, O_WRONLY | O_TRUNC));
+
+	/*
+	 * Checks truncate right on directory: truncate works on contained
+	 * files.
+	 */
+	EXPECT_EQ(0, test_truncate(file_in_dir_t));
+	EXPECT_EQ(0, test_ftruncate(file_in_dir_t_fd));
+	EXPECT_EQ(EACCES, test_open(file_in_dir_t, O_RDONLY | O_TRUNC));
+	EXPECT_EQ(EACCES, test_open(file_in_dir_t, O_WRONLY | O_TRUNC));
+
+	/*
+	 * Checks creat in dir_w: This requires the truncate right when
+	 * overwriting an existing file, but does not require it when the file
+	 * is new.
+	 */
+	EXPECT_EQ(EACCES, test_creat(file_in_dir_w));
+
+	ASSERT_EQ(0, unlink(file_in_dir_w));
+	EXPECT_EQ(0, test_creat(file_in_dir_w));
 }
 
 /* clang-format off */
