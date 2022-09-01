@@ -299,8 +299,8 @@ struct rtl819x_ops {
 	void (*tx_enable)(struct net_device *dev);
 	void (*interrupt_recognized)(struct net_device *dev,
 				     u32 *p_inta, u32 *p_intb);
-	bool (*TxCheckStuckHandler)(struct net_device *dev);
-	bool (*RxCheckStuckHandler)(struct net_device *dev);
+	bool (*tx_check_stuck_handler)(struct net_device *dev);
+	bool (*rx_check_stuck_handler)(struct net_device *dev);
 };
 
 struct r8192_priv {
@@ -598,6 +598,6 @@ bool rtl92e_enable_nic(struct net_device *dev);
 bool rtl92e_disable_nic(struct net_device *dev);
 
 bool rtl92e_set_rf_state(struct net_device *dev,
-			 enum rt_rf_power_state StateToSet,
+			 enum rt_rf_power_state state_to_set,
 			 RT_RF_CHANGE_SOURCE ChangeSource);
 #endif

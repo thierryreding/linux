@@ -10,9 +10,8 @@
  * Date: May 21, 1996
  *
  * Functions:
- *      MACbIsRegBitsOff - Test if All test Bits Off
- *      MACbIsIntDisable - Test if MAC interrupt disable
- *      MACvSetShortRetryLimit - Set 802.11 Short Retry limit
+ *      vt6655_mac_is_reg_bits_off - Test if All test Bits Off
+ *      vt6655_mac_set_short_retry_limit - Set 802.11 Short Retry limit
  *      MACvSetLongRetryLimit - Set 802.11 Long Retry limit
  *      MACvSetLoopbackMode - Set MAC Loopback Mode
  *      MACvSaveContext - Save Context of MAC Registers
@@ -86,43 +85,21 @@ static void vt6655_mac_clear_stck_ds(void __iomem *iobase)
  * Parameters:
  *  In:
  *      io_base    - Base Address for MAC
- *      byRegOfs    - Offset of MAC Register
- *      byTestBits  - Test bits
+ *      reg_offset - Offset of MAC Register
+ *      mask       - Test bits
  *  Out:
  *      none
  *
  * Return Value: true if all test bits Off; otherwise false
  *
  */
-bool MACbIsRegBitsOff(struct vnt_private *priv, unsigned char byRegOfs,
-		      unsigned char byTestBits)
+static bool vt6655_mac_is_reg_bits_off(struct vnt_private *priv,
+				       unsigned char reg_offset,
+				       unsigned char mask)
 {
 	void __iomem *io_base = priv->port_offset;
 
-	return !(ioread8(io_base + byRegOfs) & byTestBits);
-}
-
-/*
- * Description:
- *      Test if MAC interrupt disable
- *
- * Parameters:
- *  In:
- *      io_base    - Base Address for MAC
- *  Out:
- *      none
- *
- * Return Value: true if interrupt is disable; otherwise false
- *
- */
-bool MACbIsIntDisable(struct vnt_private *priv)
-{
-	void __iomem *io_base = priv->port_offset;
-
-	if (ioread32(io_base + MAC_REG_IMR))
-		return false;
-
-	return true;
+	return !(ioread8(io_base + reg_offset) & mask);
 }
 
 /*
@@ -132,19 +109,18 @@ bool MACbIsIntDisable(struct vnt_private *priv)
  * Parameters:
  *  In:
  *      io_base    - Base Address for MAC
- *      byRetryLimit- Retry Limit
+ *      retry_limit - Retry Limit
  *  Out:
  *      none
  *
  * Return Value: none
  *
  */
-void MACvSetShortRetryLimit(struct vnt_private *priv,
-			    unsigned char byRetryLimit)
+void vt6655_mac_set_short_retry_limit(struct vnt_private *priv, unsigned char retry_limit)
 {
 	void __iomem *io_base = priv->port_offset;
 	/* set SRT */
-	iowrite8(byRetryLimit, io_base + MAC_REG_SRT);
+	iowrite8(retry_limit, io_base + MAC_REG_SRT);
 }
 
 /*
@@ -213,13 +189,13 @@ void MACvSaveContext(struct vnt_private *priv, unsigned char *cxt_buf)
 	/* read page0 register */
 	memcpy_fromio(cxt_buf, io_base, MAC_MAX_CONTEXT_SIZE_PAGE0);
 
-	MACvSelectPage1(io_base);
+	VT6655_MAC_SELECT_PAGE1(io_base);
 
 	/* read page1 register */
 	memcpy_fromio(cxt_buf + MAC_MAX_CONTEXT_SIZE_PAGE0, io_base,
 		      MAC_MAX_CONTEXT_SIZE_PAGE1);
 
-	MACvSelectPage0(io_base);
+	VT6655_MAC_SELECT_PAGE0(io_base);
 }
 
 /*
@@ -240,12 +216,12 @@ void MACvRestoreContext(struct vnt_private *priv, unsigned char *cxt_buf)
 {
 	void __iomem *io_base = priv->port_offset;
 
-	MACvSelectPage1(io_base);
+	VT6655_MAC_SELECT_PAGE1(io_base);
 	/* restore page1 */
 	memcpy_toio(io_base, cxt_buf + MAC_MAX_CONTEXT_SIZE_PAGE0,
 		    MAC_MAX_CONTEXT_SIZE_PAGE1);
 
-	MACvSelectPage0(io_base);
+	VT6655_MAC_SELECT_PAGE0(io_base);
 
 	/* restore RCR,TCR,IMR... */
 	memcpy_toio(io_base + MAC_REG_RCR, cxt_buf + MAC_REG_RCR,
@@ -767,7 +743,7 @@ bool MACbPSWakeup(struct vnt_private *priv)
 	void __iomem *io_base = priv->port_offset;
 	unsigned int ww;
 	/* Read PSCTL */
-	if (MACbIsRegBitsOff(priv, MAC_REG_PSCTL, PSCTL_PS))
+	if (vt6655_mac_is_reg_bits_off(priv, MAC_REG_PSCTL, PSCTL_PS))
 		return true;
 
 	/* Disable PS */
