@@ -1305,6 +1305,8 @@ static int __init clk_disable_unused(void)
 {
 	struct clk_core *core;
 
+	pr_info("> %s()\n", __func__);
+
 	if (clk_ignore_unused) {
 		pr_warn("clk: Not disabling unused clocks\n");
 		return 0;
@@ -1326,6 +1328,7 @@ static int __init clk_disable_unused(void)
 
 	clk_prepare_unlock();
 
+	pr_info("< %s()\n", __func__);
 	return 0;
 }
 late_initcall_sync(clk_disable_unused);

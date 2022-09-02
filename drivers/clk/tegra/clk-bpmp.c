@@ -97,6 +97,8 @@ static int tegra_bpmp_clk_prepare(struct clk_hw *hw)
 	struct tegra_bpmp_clk *clk = to_tegra_bpmp_clk(hw);
 	struct tegra_bpmp_clk_message msg;
 
+	pr_info("enabling clock %s\n", clk_hw_get_name(hw));
+
 	memset(&msg, 0, sizeof(msg));
 	msg.cmd = CMD_CLK_ENABLE;
 	msg.id = clk->id;
@@ -109,6 +111,8 @@ static void tegra_bpmp_clk_unprepare(struct clk_hw *hw)
 	struct tegra_bpmp_clk *clk = to_tegra_bpmp_clk(hw);
 	struct tegra_bpmp_clk_message msg;
 	int err;
+
+	pr_info("disabling clock %s\n", clk_hw_get_name(hw));
 
 	memset(&msg, 0, sizeof(msg));
 	msg.cmd = CMD_CLK_DISABLE;

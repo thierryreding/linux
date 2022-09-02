@@ -2,6 +2,7 @@
 
 #include <linux/clk.h>
 #include <linux/of_clk.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/minmax.h>
 #include <linux/platform_data/simplefb.h>
 #include <linux/platform_device.h>
@@ -218,6 +219,8 @@ struct simpledrm_device {
 
 	/* memory management */
 	void __iomem *screen_base;
+	phys_addr_t sysmem_start;
+	size_t sysmem_size;
 
 	/* modesetting */
 	uint32_t formats[8];
@@ -455,39 +458,44 @@ static int simpledrm_device_init_regulators(struct simpledrm_device *sdev)
  * Memory management
  */
 
-static int simpledrm_device_init_mm_sysmem(struct simpledrm_device *sdev, struct resource *res)
+static int simpledrm_device_init_mm_sysmem(struct simpledrm_device *sdev, phys_addr_t start,
+					   size_t size)
 {
 	struct drm_device *dev = &sdev->dev;
+	phys_addr_t end = start + size - 1;
 
-	drm_info(dev, "using system memory framebuffer at %pr\n", res);
+	drm_info(dev, "using system memory framebuffer at %pa-%pa\n", &start, &end);
 
-	sdev->screen_base = memremap(res->start, resource_size(res), MEMREMAP_WB);
+	sdev->screen_base = memremap(start, size, MEMREMAP_WB);
 	if (!sdev->screen_base)
 		return -ENOMEM;
 
 	return 0;
 }
 
-static int simpledrm_device_init_mm_io(struct simpledrm_device *sdev, struct resource *res)
+static int simpledrm_device_init_mm_io(struct simpledrm_device *sdev, phys_addr_t start,
+				       size_t size)
 {
 	struct drm_device *dev = &sdev->dev;
+	phys_addr_t end = start + size - 1;
 	struct resource *mem;
 
-	drm_info(dev, "using I/O memory framebuffer at %pr\n", res);
+	drm_info(dev, "using I/O memory framebuffer at %pa-%pa\n", &start, &end);
 
-	mem = devm_request_mem_region(dev->dev, res->start, resource_size(res),
-				      sdev->dev.driver->name);
+	mem = devm_request_mem_region(dev->dev, start, size, sdev->dev.driver->name);
 	if (!mem) {
 		/*
 		 * We cannot make this fatal. Sometimes this comes from magic
 		 * spaces our resource handlers simply don't know about. Use
 		 * the I/O-memory resource as-is and try to map that instead.
 		 */
-		drm_warn(dev, "could not acquire memory region %pr\n", res);
-		mem = res;
+		drm_warn(dev, "could not acquire memory region [%pa-%pa]\n", &start, &end);
+	} else {
+		size = resource_size(mem);
+		start = mem->start;
 	}
 
-	sdev->screen_base = devm_ioremap_wc(dev->dev, mem->start, resource_size(mem));
+	sdev->screen_base = devm_ioremap_wc(dev->dev, start, size);
 	if (!sdev->screen_base)
 		return -ENOMEM;
 
@@ -496,26 +504,39 @@ static int simpledrm_device_init_mm_io(struct simpledrm_device *sdev, struct res
 
 static int simpledrm_device_init_mm(struct simpledrm_device *sdev)
 {
+	int (*init)(struct simpledrm_device *sdev, phys_addr_t start, size_t size);
 	struct drm_device *dev = &sdev->dev;
 	struct platform_device *pdev = to_platform_device(dev->dev);
-	struct resource *res;
+	phys_addr_t start, end;
+	size_t size;
 	int ret;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -EINVAL;
-
-	ret = devm_aperture_acquire_from_firmware(dev, res->start, resource_size(res));
+	ret = of_reserved_mem_device_init_by_idx(dev->dev, dev->dev->of_node, 0);
 	if (ret) {
-		drm_err(dev, "could not acquire memory range %pr: error %d\n", res, ret);
+		struct resource *res;
+
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		if (!res)
+			return -EINVAL;
+
+		init = simpledrm_device_init_mm_io;
+		size = resource_size(res);
+		start = res->start;
+	} else {
+		init = simpledrm_device_init_mm_sysmem;
+		start = sdev->sysmem_start;
+		size = sdev->sysmem_size;
+	}
+
+	end = start + size - 1;
+
+	ret = devm_aperture_acquire_from_firmware(dev, start, size);
+	if (ret) {
+		drm_err(dev, "could not acquire memory range [%pa-%pa]: %d\n", &start, &end, ret);
 		return ret;
 	}
 
-	if (memblock_is_memory(res->start)) {
-		return simpledrm_device_init_mm_sysmem(sdev, res);
-	}
-
-	return simpledrm_device_init_mm_io(sdev, res);
+	return init(sdev, start, size);
 }
 
 /*
@@ -578,12 +599,17 @@ static void simpledrm_primary_plane_helper_atomic_update(struct drm_plane *plane
 	struct drm_framebuffer *fb = plane_state->fb;
 	struct drm_device *dev = plane->dev;
 	struct simpledrm_device *sdev = simpledrm_device_of_dev(dev);
-	struct iosys_map dst = IOSYS_MAP_INIT_VADDR(sdev->screen_base);
 	struct drm_rect src_clip, dst_clip;
+	struct iosys_map dst;
 	int idx;
 
 	if (!fb)
 		return;
+
+	if (sdev->sysmem_size == 0)
+		iosys_map_set_vaddr_iomem(&dst, sdev->screen_base);
+	else
+		iosys_map_set_vaddr(&dst, sdev->screen_base);
 
 	if (!drm_atomic_helper_damage_merged(old_plane_state, plane_state, &src_clip))
 		return;
@@ -1001,6 +1027,39 @@ static struct platform_driver simpledrm_platform_driver = {
 };
 
 module_platform_driver(simpledrm_platform_driver);
+
+static int simple_framebuffer_device_init(struct reserved_mem *rmem, struct device *dev)
+{
+	struct simpledrm_device *sdev = dev_get_drvdata(dev);
+
+	dev_info(dev, "attaching to memory %pa...\n", &rmem->base);
+
+	sdev->sysmem_start = rmem->base;
+	sdev->sysmem_size = rmem->size;
+
+	return 0;
+}
+
+static void simple_framebuffer_device_release(struct reserved_mem *rmem, struct device *dev)
+{
+	dev_info(dev, "detaching from memory %pa...\n", &rmem->base);
+}
+
+static const struct reserved_mem_ops simple_framebuffer_ops = {
+	.device_init = simple_framebuffer_device_init,
+	.device_release = simple_framebuffer_device_release,
+};
+
+static int simple_framebuffer_init(struct reserved_mem *rmem)
+{
+	pr_info("simple-framebuffer memory at %pa, size %lu bytes\n", &rmem->base,
+		(unsigned long)rmem->size);
+
+	rmem->ops = &simple_framebuffer_ops;
+
+	return 0;
+}
+RESERVEDMEM_OF_DECLARE(simple_framebuffer, "simple-framebuffer", simple_framebuffer_init);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL v2");

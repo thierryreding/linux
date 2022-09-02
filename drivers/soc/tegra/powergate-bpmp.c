@@ -151,6 +151,8 @@ static int tegra_powergate_power_on(struct generic_pm_domain *domain)
 	struct tegra_powergate *powergate = to_tegra_powergate(domain);
 	struct tegra_bpmp *bpmp = powergate->bpmp;
 
+	dev_info(bpmp->dev, "power on %s\n", domain->name);
+
 	return tegra_bpmp_powergate_set_state(bpmp, powergate->id,
 					      PG_STATE_ON);
 }
@@ -159,6 +161,8 @@ static int tegra_powergate_power_off(struct generic_pm_domain *domain)
 {
 	struct tegra_powergate *powergate = to_tegra_powergate(domain);
 	struct tegra_bpmp *bpmp = powergate->bpmp;
+
+	dev_info(bpmp->dev, "power off %s\n", domain->name);
 
 	return tegra_bpmp_powergate_set_state(bpmp, powergate->id,
 					      PG_STATE_OFF);
