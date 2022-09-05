@@ -206,6 +206,7 @@ properties:
 
 allOf:
   - $ref: /schemas/pci/snps,dw-pcie.yaml#
+  - $ref: /schemas/pci/pci-iommu.yaml#
   - if:
       properties:
         compatible:
