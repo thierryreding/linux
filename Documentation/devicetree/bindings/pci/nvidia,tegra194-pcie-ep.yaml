@@ -185,6 +185,7 @@ properties:
 
 allOf:
   - $ref: /schemas/pci/snps,dw-pcie-ep.yaml#
+  - $ref: /schemas/pci/pci-iommu.yaml#
 
 unevaluatedProperties: false
 
