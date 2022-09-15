@@ -1543,6 +1543,12 @@
 			status = "disabled";
 		};
 
+		/*
+		 * XXX restructure this so that the "security" register region is merged into the
+		 * "gpio" region for non-VM capable controllers (i.e. AON). This allows us to more
+		 * idiomatically determine VM capability based on the existence of the "security"
+		 * register region.
+		 */
 		gpio_aon: gpio@c2f0000 {
 			compatible = "nvidia,tegra234-gpio-aon";
 			reg-names = "security", "gpio";
