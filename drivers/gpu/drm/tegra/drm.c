@@ -949,8 +949,12 @@ int host1x_client_iommu_attach(struct host1x_client *client)
 	struct tegra_drm *tegra = drm->dev_private;
 	struct iommu_group *group = NULL;
 
-	if (!domain)
+	dev_info(client->dev, "> %s(client=%px)\n", __func__, client);
+
+	if (!domain) {
+		dev_info(client->dev, "not attached to an IOMMU domain\n");
 		return 0;
+	}
 
 	/*
 	 * Prefer using the IOMMU-backed DMA API if that's already been set up
@@ -968,6 +972,7 @@ int host1x_client_iommu_attach(struct host1x_client *client)
 
 	client->group = group;
 
+	dev_info(client->dev, "< %s()\n", __func__);
 	return 0;
 }
 
