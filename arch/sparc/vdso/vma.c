@@ -354,7 +354,7 @@ static unsigned long vdso_addr(unsigned long start, unsigned int len)
 	unsigned int offset;
 
 	/* This loses some more bits than a modulo, but is cheaper */
-	offset = get_random_int() & (PTRS_PER_PTE - 1);
+	offset = get_random_u16() & (PTRS_PER_PTE - 1);
 	return start + (offset << PAGE_SHIFT);
 }
 
