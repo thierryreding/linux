@@ -54,7 +54,7 @@ static struct pll_vco lucid_vco[] = {
 };
 
 static struct pll_vco zonda_vco[] = {
-	{ 595200000, 3600000000, 0 },
+	{ 595200000, 3600000000UL, 0 },
 };
 
 static struct clk_alpha_pll gpll0 = {
@@ -686,18 +686,6 @@ static const struct clk_parent_data gcc_parent_data_14[] = {
 	{ .index = DT_BI_TCXO },
 	{ .hw = &gpll11.clkr.hw },
 	{ .hw = &gpll11.clkr.hw },
-};
-
-static const struct parent_map gcc_parent_map_15[] = {
-	{ P_BI_TCXO, 0 },
-	{ P_GPLL0_OUT_MAIN, 1 },
-	{ P_GPLL6_OUT_EVEN, 4 },
-};
-
-static const struct clk_parent_data gcc_parent_data_15[] = {
-	{ .index = DT_BI_TCXO },
-	{ .hw = &gpll0.clkr.hw },
-	{ .hw = &gpll6_out_even.clkr.hw },
 };
 
 static const struct freq_tbl ftbl_gcc_camss_axi_clk_src[] = {
