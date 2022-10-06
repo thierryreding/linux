@@ -847,9 +847,13 @@ static bool emit_cached_dirents(struct cached_dirents *cde,
 	int rc;
 
 	list_for_each_entry(dirent, &cde->entries, entry) {
-		if (ctx->pos >= dirent->pos)
+		/*
+		 * Skip ahead until we get to the current position of the
+		 * directory.
+		 */
+		if (ctx->pos > dirent->pos)
 			continue;
-		ctx->pos = dirent->pos;
+
 		rc = dir_emit(ctx, dirent->name, dirent->namelen,
 			      dirent->fattr.cf_uniqueid,
 			      dirent->fattr.cf_dtype);
