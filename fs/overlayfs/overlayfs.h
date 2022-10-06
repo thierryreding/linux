@@ -108,7 +108,7 @@ struct ovl_fh {
 	u8 padding[3];	/* make sure fb.fid is 32bit aligned */
 	union {
 		struct ovl_fb fb;
-		u8 buf[0];
+		DECLARE_FLEX_ARRAY(u8, buf);
 	};
 } __packed;
 
@@ -523,7 +523,8 @@ int ovl_check_origin_fh(struct ovl_fs *ofs, struct ovl_fh *fh, bool connected,
 int ovl_verify_set_fh(struct ovl_fs *ofs, struct dentry *dentry,
 		      enum ovl_xattr ox, struct dentry *real, bool is_upper,
 		      bool set);
-struct dentry *ovl_index_upper(struct ovl_fs *ofs, struct dentry *index);
+struct dentry *ovl_index_upper(struct ovl_fs *ofs, struct dentry *index,
+			       bool connected);
 int ovl_verify_index(struct ovl_fs *ofs, struct dentry *index);
 int ovl_get_index_name(struct ovl_fs *ofs, struct dentry *origin,
 		       struct qstr *name);
