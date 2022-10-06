@@ -1103,7 +1103,7 @@ int ksmbd_vfs_unlink(struct user_namespace *user_ns,
 	return err;
 }
 
-static int __dir_empty(struct dir_context *ctx, const char *name, int namlen,
+static bool __dir_empty(struct dir_context *ctx, const char *name, int namlen,
 		       loff_t offset, u64 ino, unsigned int d_type)
 {
 	struct ksmbd_readdir_data *buf;
@@ -1111,9 +1111,7 @@ static int __dir_empty(struct dir_context *ctx, const char *name, int namlen,
 	buf = container_of(ctx, struct ksmbd_readdir_data, ctx);
 	buf->dirent_count++;
 
-	if (buf->dirent_count > 2)
-		return -ENOTEMPTY;
-	return 0;
+	return buf->dirent_count <= 2;
 }
 
 /**
@@ -1140,7 +1138,7 @@ int ksmbd_vfs_empty_dir(struct ksmbd_file *fp)
 	return err;
 }
 
-static int __caseless_lookup(struct dir_context *ctx, const char *name,
+static bool __caseless_lookup(struct dir_context *ctx, const char *name,
 			     int namlen, loff_t offset, u64 ino,
 			     unsigned int d_type)
 {
@@ -1150,7 +1148,7 @@ static int __caseless_lookup(struct dir_context *ctx, const char *name,
 	buf = container_of(ctx, struct ksmbd_readdir_data, ctx);
 
 	if (buf->used != namlen)
-		return 0;
+		return true;
 	if (IS_ENABLED(CONFIG_UNICODE) && buf->um) {
 		const struct qstr q_buf = {.name = buf->private,
 					   .len = buf->used};
@@ -1164,9 +1162,9 @@ static int __caseless_lookup(struct dir_context *ctx, const char *name,
 	if (!cmp) {
 		memcpy((char *)buf->private, name, namlen);
 		buf->dirent_count = 1;
-		return -EEXIST;
+		return false;
 	}
-	return 0;
+	return true;
 }
 
 /**
