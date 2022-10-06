@@ -34,7 +34,7 @@ arch/powerpc/kernel/head_44x.o
 arch/powerpc/kernel/head_64.o
 arch/powerpc/kernel/head_8xx.o
 arch/powerpc/kernel/head_book3s_32.o
-arch/powerpc/kernel/head_fsl_booke.o
+arch/powerpc/kernel/head_85xx.o
 arch/powerpc/kernel/entry_64.o
 arch/powerpc/kernel/fpu.o
 arch/powerpc/kernel/vector.o
