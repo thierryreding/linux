@@ -882,7 +882,7 @@ static int print_bstack_flags(FILE *fp, struct branch_entry *br)
 		       br->flags.in_tx ? 'X' : '-',
 		       br->flags.abort ? 'A' : '-',
 		       br->flags.cycles,
-		       br->flags.type ? branch_type_name(br->flags.type) : "-");
+		       get_branch_type(br));
 }
 
 static int perf_sample__fprintf_brstack(struct perf_sample *sample,
@@ -2242,9 +2242,6 @@ static void __process_stat(struct evsel *counter, u64 tstamp)
 	int idx, thread;
 	struct perf_cpu cpu;
 	static int header_printed;
-
-	if (counter->core.system_wide)
-		nthreads = 1;
 
 	if (!header_printed) {
 		printf("%3s %8s %15s %15s %15s %15s %s\n",
