@@ -4413,8 +4413,6 @@ done:
 	if (wq_has_sleeper(&lruvec->mm_state.wait))
 		wake_up_all(&lruvec->mm_state.wait);
 
-	wakeup_flusher_threads(WB_REASON_VMSCAN);
-
 	return true;
 }
 
@@ -5078,7 +5076,7 @@ static bool should_abort_scan(struct lruvec *lruvec, unsigned long seq,
 	DEFINE_MAX_SEQ(lruvec);
 
 	if (!current_is_kswapd()) {
-		/* age each memcg once to ensure fairness */
+		/* age each memcg at most once to ensure fairness */
 		if (max_seq - seq > 1)
 			return true;
 
@@ -5103,10 +5101,9 @@ static bool should_abort_scan(struct lruvec *lruvec, unsigned long seq,
 
 	/*
 	 * A minimum amount of work was done under global memory pressure. For
-	 * kswapd, it may be overshooting. For direct reclaim, the target isn't
-	 * met, and yet the allocation may still succeed, since kswapd may have
-	 * caught up. In either case, it's better to stop now, and restart if
-	 * necessary.
+	 * kswapd, it may be overshooting. For direct reclaim, the allocation
+	 * may succeed if all suitable zones are somewhat safe. In either case,
+	 * it's better to stop now, and restart later if necessary.
 	 */
 	for (i = 0; i <= sc->reclaim_idx; i++) {
 		unsigned long wmark;
@@ -5847,8 +5844,8 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
 	enum lru_list lru;
 	unsigned long nr_reclaimed = 0;
 	unsigned long nr_to_reclaim = sc->nr_to_reclaim;
+	bool proportional_reclaim;
 	struct blk_plug plug;
-	bool scan_adjusted;
 
 	if (lru_gen_enabled()) {
 		lru_gen_shrink_lruvec(lruvec, sc);
@@ -5871,8 +5868,8 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
 	 * abort proportional reclaim if either the file or anon lru has already
 	 * dropped to zero at the first pass.
 	 */
-	scan_adjusted = (!cgroup_reclaim(sc) && !current_is_kswapd() &&
-			 sc->priority == DEF_PRIORITY);
+	proportional_reclaim = (!cgroup_reclaim(sc) && !current_is_kswapd() &&
+				sc->priority == DEF_PRIORITY);
 
 	blk_start_plug(&plug);
 	while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
@@ -5892,7 +5889,7 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
 
 		cond_resched();
 
-		if (nr_reclaimed < nr_to_reclaim || scan_adjusted)
+		if (nr_reclaimed < nr_to_reclaim || proportional_reclaim)
 			continue;
 
 		/*
@@ -5943,8 +5940,6 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
 		nr_scanned = targets[lru] - nr[lru];
 		nr[lru] = targets[lru] * (100 - percentage) / 100;
 		nr[lru] -= min(nr[lru], nr_scanned);
-
-		scan_adjusted = true;
 	}
 	blk_finish_plug(&plug);
 	sc->nr_reclaimed += nr_reclaimed;

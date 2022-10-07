@@ -93,6 +93,7 @@ struct mutex *hugetlb_fault_mutex_table ____cacheline_aligned_in_smp;
 static int hugetlb_acct_memory(struct hstate *h, long delta);
 static void hugetlb_vma_lock_free(struct vm_area_struct *vma);
 static void hugetlb_vma_lock_alloc(struct vm_area_struct *vma);
+static void __hugetlb_vma_unlock_write_free(struct vm_area_struct *vma);
 
 static inline bool subpool_is_free(struct hugepage_subpool *spool)
 {
@@ -4612,7 +4613,14 @@ static void hugetlb_vm_op_open(struct vm_area_struct *vma)
 		kref_get(&resv->refs);
 	}
 
-	hugetlb_vma_lock_alloc(vma);
+	/*
+	 * vma_lock structure for sharable mappings is vma specific.
+	 * Clear old pointer (if copied via vm_area_dup) and create new.
+	 */
+	if (vma->vm_flags & VM_MAYSHARE) {
+		vma->vm_private_data = NULL;
+		hugetlb_vma_lock_alloc(vma);
+	}
 }
 
 static void hugetlb_vm_op_close(struct vm_area_struct *vma)
@@ -5172,19 +5180,22 @@ void __unmap_hugepage_range_final(struct mmu_gather *tlb,
 			  unsigned long end, struct page *ref_page,
 			  zap_flags_t zap_flags)
 {
+	hugetlb_vma_lock_write(vma);
+	i_mmap_lock_write(vma->vm_file->f_mapping);
+
 	__unmap_hugepage_range(tlb, vma, start, end, ref_page, zap_flags);
 
 	/*
-	 * Clear this flag so that x86's huge_pmd_share page_table_shareable
-	 * test will fail on a vma being torn down, and not grab a page table
-	 * on its way out.  We're lucky that the flag has such an appropriate
-	 * name, and can in fact be safely cleared here. We could clear it
-	 * before the __unmap_hugepage_range above, but all that's necessary
-	 * is to clear it before releasing the i_mmap_rwsem. This works
-	 * because in the context this is called, the VMA is about to be
-	 * destroyed and the i_mmap_rwsem is held.
+	 * Unlock and free the vma lock before releasing i_mmap_rwsem.  When
+	 * the vma_lock is freed, this makes the vma ineligible for pmd
+	 * sharing.  And, i_mmap_rwsem is required to set up pmd sharing.
+	 * This is important as page tables for this unmapped range will
+	 * be asynchrously deleted.  If the page tables are shared, there
+	 * will be issues when accessed by someone else.
 	 */
-	vma->vm_flags &= ~VM_MAYSHARE;
+	__hugetlb_vma_unlock_write_free(vma);
+
+	i_mmap_unlock_write(vma->vm_file->f_mapping);
 }
 
 void unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
@@ -5524,6 +5535,23 @@ static inline vm_fault_t hugetlb_handle_userfault(struct vm_area_struct *vma,
 	return handle_userfault(&vmf, reason);
 }
 
+/*
+ * Recheck pte with pgtable lock.  Returns true if pte didn't change, or
+ * false if pte changed or is changing.
+ */
+static bool hugetlb_pte_stable(struct hstate *h, struct mm_struct *mm,
+			       pte_t *ptep, pte_t old_pte)
+{
+	spinlock_t *ptl;
+	bool same;
+
+	ptl = huge_pte_lock(h, mm, ptep);
+	same = pte_same(huge_ptep_get(ptep), old_pte);
+	spin_unlock(ptl);
+
+	return same;
+}
+
 static vm_fault_t hugetlb_no_page(struct mm_struct *mm,
 			struct vm_area_struct *vma,
 			struct address_space *mapping, pgoff_t idx,
@@ -5564,10 +5592,33 @@ static vm_fault_t hugetlb_no_page(struct mm_struct *mm,
 		if (idx >= size)
 			goto out;
 		/* Check for page in userfault range */
-		if (userfaultfd_missing(vma))
-			return hugetlb_handle_userfault(vma, mapping, idx,
-						       flags, haddr, address,
-						       VM_UFFD_MISSING);
+		if (userfaultfd_missing(vma)) {
+			/*
+			 * Since hugetlb_no_page() was examining pte
+			 * without pgtable lock, we need to re-test under
+			 * lock because the pte may not be stable and could
+			 * have changed from under us.  Try to detect
+			 * either changed or during-changing ptes and retry
+			 * properly when needed.
+			 *
+			 * Note that userfaultfd is actually fine with
+			 * false positives (e.g. caused by pte changed),
+			 * but not wrong logical events (e.g. caused by
+			 * reading a pte during changing).  The latter can
+			 * confuse the userspace, so the strictness is very
+			 * much preferred.  E.g., MISSING event should
+			 * never happen on the page after UFFDIO_COPY has
+			 * correctly installed the page and returned.
+			 */
+			if (!hugetlb_pte_stable(h, mm, ptep, old_pte)) {
+				ret = 0;
+				goto out;
+			}
+
+			return hugetlb_handle_userfault(vma, mapping, idx, flags,
+							haddr, address,
+							VM_UFFD_MISSING);
+		}
 
 		page = alloc_huge_page(vma, haddr, 0);
 		if (IS_ERR(page)) {
@@ -5583,11 +5634,10 @@ static vm_fault_t hugetlb_no_page(struct mm_struct *mm,
 			 * here.  Before returning error, get ptl and make
 			 * sure there really is no pte entry.
 			 */
-			ptl = huge_pte_lock(h, mm, ptep);
-			ret = 0;
-			if (huge_pte_none(huge_ptep_get(ptep)))
+			if (hugetlb_pte_stable(h, mm, ptep, old_pte))
 				ret = vmf_error(PTR_ERR(page));
-			spin_unlock(ptl);
+			else
+				ret = 0;
 			goto out;
 		}
 		clear_huge_page(page, address, pages_per_huge_page(h));
@@ -5633,9 +5683,14 @@ static vm_fault_t hugetlb_no_page(struct mm_struct *mm,
 		if (userfaultfd_minor(vma)) {
 			unlock_page(page);
 			put_page(page);
-			return hugetlb_handle_userfault(vma, mapping, idx,
-						       flags, haddr, address,
-						       VM_UFFD_MINOR);
+			/* See comment in userfaultfd_missing() block above */
+			if (!hugetlb_pte_stable(h, mm, ptep, old_pte)) {
+				ret = 0;
+				goto out;
+			}
+			return hugetlb_handle_userfault(vma, mapping, idx, flags,
+							haddr, address,
+							VM_UFFD_MINOR);
 		}
 	}
 
@@ -6133,6 +6188,72 @@ static inline bool __follow_hugetlb_must_fault(unsigned int flags, pte_t *pte,
 		return true;
 	}
 	return false;
+}
+
+struct page *hugetlb_follow_page_mask(struct vm_area_struct *vma,
+				unsigned long address, unsigned int flags)
+{
+	struct hstate *h = hstate_vma(vma);
+	struct mm_struct *mm = vma->vm_mm;
+	unsigned long haddr = address & huge_page_mask(h);
+	struct page *page = NULL;
+	spinlock_t *ptl;
+	pte_t *pte, entry;
+
+	/*
+	 * FOLL_PIN is not supported for follow_page(). Ordinary GUP goes via
+	 * follow_hugetlb_page().
+	 */
+	if (WARN_ON_ONCE(flags & FOLL_PIN))
+		return NULL;
+
+retry:
+	/*
+	 * vma lock prevents racing with another thread doing a pmd unshare.
+	 * This keeps pte as returned by huge_pte_offset valid.
+	 */
+	hugetlb_vma_lock_read(vma);
+
+	pte = huge_pte_offset(mm, haddr, huge_page_size(h));
+	if (!pte) {
+		hugetlb_vma_unlock_read(vma);
+		return NULL;
+	}
+
+	ptl = huge_pte_lock(h, mm, pte);
+	entry = huge_ptep_get(pte);
+	if (pte_present(entry)) {
+		page = pte_page(entry) +
+				((address & ~huge_page_mask(h)) >> PAGE_SHIFT);
+		/*
+		 * Note that page may be a sub-page, and with vmemmap
+		 * optimizations the page struct may be read only.
+		 * try_grab_page() will increase the ref count on the
+		 * head page, so this will be OK.
+		 *
+		 * try_grab_page() should always succeed here, because we hold
+		 * the ptl lock and have verified pte_present().
+		 */
+		if (WARN_ON_ONCE(!try_grab_page(page, flags))) {
+			page = NULL;
+			goto out;
+		}
+	} else {
+		if (is_hugetlb_entry_migration(entry)) {
+			spin_unlock(ptl);
+			hugetlb_vma_unlock_read(vma);
+			__migration_entry_wait_huge(pte, ptl);
+			goto retry;
+		}
+		/*
+		 * hwpoisoned entry is treated as no_page_table in
+		 * follow_page_mask().
+		 */
+	}
+out:
+	spin_unlock(ptl);
+	hugetlb_vma_unlock_read(vma);
+	return page;
 }
 
 long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
@@ -6668,19 +6789,23 @@ static unsigned long page_table_shareable(struct vm_area_struct *svma,
 	/*
 	 * match the virtual addresses, permission and the alignment of the
 	 * page table page.
+	 *
+	 * Also, vma_lock (vm_private_data) is required for sharing.
 	 */
 	if (pmd_index(addr) != pmd_index(saddr) ||
 	    vm_flags != svm_flags ||
-	    !range_in_vma(svma, sbase, s_end))
+	    !range_in_vma(svma, sbase, s_end) ||
+	    !svma->vm_private_data)
 		return 0;
 
 	return saddr;
 }
 
-static bool __vma_aligned_range_pmd_shareable(struct vm_area_struct *vma,
-				unsigned long start, unsigned long end,
-				bool check_vma_lock)
+bool want_pmd_share(struct vm_area_struct *vma, unsigned long addr)
 {
+	unsigned long start = addr & PUD_MASK;
+	unsigned long end = start + PUD_SIZE;
+
 #ifdef CONFIG_USERFAULTFD
 	if (uffd_disable_huge_pmd_share(vma))
 		return false;
@@ -6690,36 +6815,11 @@ static bool __vma_aligned_range_pmd_shareable(struct vm_area_struct *vma,
 	 */
 	if (!(vma->vm_flags & VM_MAYSHARE))
 		return false;
-	if (check_vma_lock && !vma->vm_private_data)
+	if (!vma->vm_private_data)	/* vma lock required for sharing */
 		return false;
 	if (!range_in_vma(vma, start, end))
 		return false;
 	return true;
-}
-
-static bool vma_pmd_shareable(struct vm_area_struct *vma)
-{
-	unsigned long start = ALIGN(vma->vm_start, PUD_SIZE),
-		      end = ALIGN_DOWN(vma->vm_end, PUD_SIZE);
-
-	if (start >= end)
-		return false;
-
-	return __vma_aligned_range_pmd_shareable(vma, start, end, false);
-}
-
-static bool vma_addr_pmd_shareable(struct vm_area_struct *vma,
-						unsigned long addr)
-{
-	unsigned long start = addr & PUD_MASK;
-	unsigned long end = start + PUD_SIZE;
-
-	return __vma_aligned_range_pmd_shareable(vma, start, end, true);
-}
-
-bool want_pmd_share(struct vm_area_struct *vma, unsigned long addr)
-{
-	return vma_addr_pmd_shareable(vma, addr);
 }
 
 /*
@@ -6818,28 +6918,43 @@ void hugetlb_vma_lock_release(struct kref *kref)
 	kfree(vma_lock);
 }
 
+void __hugetlb_vma_unlock_write_put(struct hugetlb_vma_lock *vma_lock)
+{
+	struct vm_area_struct *vma = vma_lock->vma;
+
+	/*
+	 * vma_lock structure may or not be released as a result of put,
+	 * it certainly will no longer be attached to vma so clear pointer.
+	 * Semaphore synchronizes access to vma_lock->vma field.
+	 */
+	vma_lock->vma = NULL;
+	vma->vm_private_data = NULL;
+	up_write(&vma_lock->rw_sema);
+	kref_put(&vma_lock->refs, hugetlb_vma_lock_release);
+}
+
+static void __hugetlb_vma_unlock_write_free(struct vm_area_struct *vma)
+{
+	if (__vma_shareable_flags_pmd(vma)) {
+		struct hugetlb_vma_lock *vma_lock = vma->vm_private_data;
+
+		__hugetlb_vma_unlock_write_put(vma_lock);
+	}
+}
+
 static void hugetlb_vma_lock_free(struct vm_area_struct *vma)
 {
 	/*
-	 * Only present in sharable vmas.  See comment in
-	 * __unmap_hugepage_range_final about how VM_SHARED could
-	 * be set without VM_MAYSHARE.  As a result, we need to
-	 * check if either is set in the free path.
+	 * Only present in sharable vmas.
 	 */
-	if (!vma || !(vma->vm_flags & (VM_MAYSHARE | VM_SHARED)))
+	if (!vma || !__vma_shareable_flags_pmd(vma))
 		return;
 
 	if (vma->vm_private_data) {
 		struct hugetlb_vma_lock *vma_lock = vma->vm_private_data;
 
-		/*
-		 * vma_lock structure may or not be released, but it
-		 * certainly will no longer be attached to vma so clear
-		 * pointer.
-		 */
-		vma_lock->vma = NULL;
-		kref_put(&vma_lock->refs, hugetlb_vma_lock_release);
-		vma->vm_private_data = NULL;
+		down_write(&vma_lock->rw_sema);
+		__hugetlb_vma_unlock_write_put(vma_lock);
 	}
 }
 
@@ -6855,17 +6970,21 @@ static void hugetlb_vma_lock_alloc(struct vm_area_struct *vma)
 	if (vma->vm_private_data)
 		return;
 
-	/* Check size/alignment for pmd sharing possible */
-	if (!vma_pmd_shareable(vma))
-		return;
-
 	vma_lock = kmalloc(sizeof(*vma_lock), GFP_KERNEL);
-	if (!vma_lock)
+	if (!vma_lock) {
 		/*
 		 * If we can not allocate structure, then vma can not
-		 * participate in pmd sharing.
+		 * participate in pmd sharing.  This is only a possible
+		 * performance enhancement and memory saving issue.
+		 * However, the lock is also used to synchronize page
+		 * faults with truncation.  If the lock is not present,
+		 * unlikely races could leave pages in a file past i_size
+		 * until the file is removed.  Warn in the unlikely case of
+		 * allocation failure.
 		 */
+		pr_warn_once("HugeTLB: unable to allocate vma specific lock\n");
 		return;
+	}
 
 	kref_init(&vma_lock->refs);
 	init_rwsem(&vma_lock->rw_sema);
@@ -6987,6 +7106,10 @@ void hugetlb_vma_assert_locked(struct vm_area_struct *vma)
 }
 
 void hugetlb_vma_lock_release(struct kref *kref)
+{
+}
+
+static void __hugetlb_vma_unlock_write_free(struct vm_area_struct *vma)
 {
 }
 
@@ -7125,122 +7248,6 @@ __weak unsigned long hugetlb_mask_last_page(struct hstate *h)
  * These functions are overwritable if your architecture needs its own
  * behavior.
  */
-struct page * __weak
-follow_huge_addr(struct mm_struct *mm, unsigned long address,
-			      int write)
-{
-	return ERR_PTR(-EINVAL);
-}
-
-struct page * __weak
-follow_huge_pd(struct vm_area_struct *vma,
-	       unsigned long address, hugepd_t hpd, int flags, int pdshift)
-{
-	WARN(1, "hugepd follow called with no support for hugepage directory format\n");
-	return NULL;
-}
-
-struct page * __weak
-follow_huge_pmd_pte(struct vm_area_struct *vma, unsigned long address, int flags)
-{
-	struct hstate *h = hstate_vma(vma);
-	struct mm_struct *mm = vma->vm_mm;
-	struct page *page = NULL;
-	spinlock_t *ptl;
-	pte_t *ptep, pte;
-
-	/*
-	 * FOLL_PIN is not supported for follow_page(). Ordinary GUP goes via
-	 * follow_hugetlb_page().
-	 */
-	if (WARN_ON_ONCE(flags & FOLL_PIN))
-		return NULL;
-
-retry:
-	ptep = huge_pte_offset(mm, address, huge_page_size(h));
-	if (!ptep)
-		return NULL;
-
-	ptl = huge_pte_lock(h, mm, ptep);
-	pte = huge_ptep_get(ptep);
-	if (pte_present(pte)) {
-		page = pte_page(pte) +
-			((address & ~huge_page_mask(h)) >> PAGE_SHIFT);
-		/*
-		 * try_grab_page() should always succeed here, because: a) we
-		 * hold the pmd (ptl) lock, and b) we've just checked that the
-		 * huge pmd (head) page is present in the page tables. The ptl
-		 * prevents the head page and tail pages from being rearranged
-		 * in any way. So this page must be available at this point,
-		 * unless the page refcount overflowed:
-		 */
-		if (WARN_ON_ONCE(!try_grab_page(page, flags))) {
-			page = NULL;
-			goto out;
-		}
-	} else {
-		if (is_hugetlb_entry_migration(pte)) {
-			spin_unlock(ptl);
-			__migration_entry_wait_huge(ptep, ptl);
-			goto retry;
-		}
-		/*
-		 * hwpoisoned entry is treated as no_page_table in
-		 * follow_page_mask().
-		 */
-	}
-out:
-	spin_unlock(ptl);
-	return page;
-}
-
-struct page * __weak
-follow_huge_pud(struct mm_struct *mm, unsigned long address,
-		pud_t *pud, int flags)
-{
-	struct page *page = NULL;
-	spinlock_t *ptl;
-	pte_t pte;
-
-	if (WARN_ON_ONCE(flags & FOLL_PIN))
-		return NULL;
-
-retry:
-	ptl = huge_pte_lock(hstate_sizelog(PUD_SHIFT), mm, (pte_t *)pud);
-	if (!pud_huge(*pud))
-		goto out;
-	pte = huge_ptep_get((pte_t *)pud);
-	if (pte_present(pte)) {
-		page = pud_page(*pud) + ((address & ~PUD_MASK) >> PAGE_SHIFT);
-		if (WARN_ON_ONCE(!try_grab_page(page, flags))) {
-			page = NULL;
-			goto out;
-		}
-	} else {
-		if (is_hugetlb_entry_migration(pte)) {
-			spin_unlock(ptl);
-			__migration_entry_wait(mm, (pte_t *)pud, ptl);
-			goto retry;
-		}
-		/*
-		 * hwpoisoned entry is treated as no_page_table in
-		 * follow_page_mask().
-		 */
-	}
-out:
-	spin_unlock(ptl);
-	return page;
-}
-
-struct page * __weak
-follow_huge_pgd(struct mm_struct *mm, unsigned long address, pgd_t *pgd, int flags)
-{
-	if (flags & (FOLL_GET | FOLL_PIN))
-		return NULL;
-
-	return pte_page(*(pte_t *)pgd) + ((address & ~PGDIR_MASK) >> PAGE_SHIFT);
-}
-
 int isolate_hugetlb(struct page *page, struct list_head *list)
 {
 	int ret = 0;
