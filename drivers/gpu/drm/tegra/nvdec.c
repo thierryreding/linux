@@ -67,12 +67,9 @@ static inline void nvdec_writel(struct nvdec *nvdec, u32 value,
 
 static int nvdec_boot_falcon(struct nvdec *nvdec)
 {
-#ifdef CONFIG_IOMMU_API
 	struct iommu_fwspec *spec = dev_iommu_fwspec_get(nvdec->dev);
-#endif
 	int err;
 
-#ifdef CONFIG_IOMMU_API
 	if (nvdec->config->supports_sid && spec) {
 		u32 value;
 
@@ -86,7 +83,6 @@ static int nvdec_boot_falcon(struct nvdec *nvdec)
 			nvdec_writel(nvdec, value, VIC_THI_STREAMID1);
 		}
 	}
-#endif
 
 	err = falcon_boot(&nvdec->falcon);
 	if (err < 0)
