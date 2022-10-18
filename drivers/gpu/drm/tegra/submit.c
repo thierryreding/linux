@@ -609,7 +609,6 @@ int tegra_drm_ioctl_channel_submit(struct drm_device *drm, void *data,
 			host1x_memory_context_get(job->memory_context);
 		}
 	} else if (context->client->ops->get_streamid_offset) {
-#ifdef CONFIG_IOMMU_API
 		struct iommu_fwspec *spec;
 
 		/*
@@ -621,9 +620,6 @@ int tegra_drm_ioctl_channel_submit(struct drm_device *drm, void *data,
 			job->engine_fallback_streamid = spec->ids[0] & 0xffff;
 		else
 			job->engine_fallback_streamid = 0x7f;
-#else
-		job->engine_fallback_streamid = 0x7f;
-#endif
 	}
 
 	/* Boot engine. */
