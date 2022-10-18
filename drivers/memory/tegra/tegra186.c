@@ -67,7 +67,6 @@ static void tegra186_mc_remove(struct tegra_mc *mc)
 	of_platform_depopulate(mc->dev);
 }
 
-#if IS_ENABLED(CONFIG_IOMMU_API)
 static void tegra186_mc_client_sid_override(struct tegra_mc *mc,
 					    const struct tegra_mc_client *client,
 					    unsigned int sid)
@@ -105,14 +104,15 @@ static void tegra186_mc_client_sid_override(struct tegra_mc *mc,
 		writel(sid, mc->regs + client->regs.sid.override);
 	}
 }
-#endif
 
 static int tegra186_mc_probe_device(struct tegra_mc *mc, struct device *dev)
 {
-#if IS_ENABLED(CONFIG_IOMMU_API)
 	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
 	struct of_phandle_args args;
 	unsigned int i, index = 0;
+
+	if (!fwspec)
+		return 0;
 
 	while (!of_parse_phandle_with_args(dev->of_node, "interconnects", "#interconnect-cells",
 					   index, &args)) {
@@ -130,7 +130,6 @@ static int tegra186_mc_probe_device(struct tegra_mc *mc, struct device *dev)
 
 		index++;
 	}
-#endif
 
 	return 0;
 }
