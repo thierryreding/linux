@@ -688,10 +688,33 @@ static struct snd_kcontrol_new tegra186_admaif_controls[] = {
 	TEGRA_ADMAIF_CIF_CTRL(20),
 };
 
+static int tegra210_admaif_pcm_construct(struct snd_soc_component *component,
+					 struct snd_soc_pcm_runtime *rtd)
+{
+	//struct tegra_admaif *admaif = snd_soc_component_get_drvdata(component);
+	struct dmaengine_pcm *pcm = soc_component_to_pcm(component);
+	//size_t size = pcm->config->pcm_hardware->buffer_bytes_max;
+	unsigned int i;
+
+	dev_info(component->dev, "channels:\n");
+
+	for_each_pcm_streams(i) {
+		struct snd_pcm_substream *substream = rtd->pcm->streams[i].substream;
+		if (!substream)
+			continue;
+
+		dev_info(component->dev, "  %px\n", pcm->chan[i]);
+	}
+
+	//snd_pcm_set_fixed_buffer_all(rtd->pcm, SNDRV_DMA_TYPE_DEV_WC, dev, size);
+
+	return tegra_pcm_construct(component, rtd);
+}
+
 static const struct snd_soc_component_driver tegra210_admaif_cmpnt = {
 	.controls		= tegra210_admaif_controls,
 	.num_controls		= ARRAY_SIZE(tegra210_admaif_controls),
-	.pcm_construct		= tegra_pcm_construct,
+	.pcm_construct		= tegra210_admaif_pcm_construct,
 	.open			= tegra_pcm_open,
 	.close			= tegra_pcm_close,
 	.hw_params		= tegra_pcm_hw_params,
