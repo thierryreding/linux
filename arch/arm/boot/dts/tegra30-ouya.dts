@@ -2037,17 +2037,6 @@
 		status = "okay";
 		clock-frequency = <400000>;
 
-		cpu_temp: nct1008@4c {
-			compatible = "onnn,nct1008";
-			reg = <0x4c>;
-			vcc-supply = <&sys_3v3_reg>;
-
-			interrupt-parent = <&gpio>;
-			interrupts = <TEGRA_GPIO(CC, 2) IRQ_TYPE_EDGE_FALLING>;
-
-			#thermal-sensor-cells = <1>;
-		};
-
 		pmic: pmic@2d {
 			compatible = "ti,tps65911";
 			reg = <0x2d>;
@@ -2159,6 +2148,17 @@
 					regulator-always-on;
 				};
 			};
+		};
+
+		cpu_temp: nct1008@4c {
+			compatible = "onnn,nct1008";
+			reg = <0x4c>;
+			vcc-supply = <&sys_3v3_reg>;
+
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(CC, 2) IRQ_TYPE_EDGE_FALLING>;
+
+			#thermal-sensor-cells = <1>;
 		};
 
 		vdd_core: tps62361@60 {

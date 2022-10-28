@@ -1187,17 +1187,6 @@
 		status = "okay";
 		clock-frequency = <400000>;
 
-		nct72: temperature-sensor@4c {
-			compatible = "onnn,nct1008";
-			reg = <0x4c>;
-
-			interrupt-parent = <&gpio>;
-			interrupts = <TEGRA_GPIO(CC, 2) IRQ_TYPE_EDGE_FALLING>;
-
-			vcc-supply = <&vdd_3v3_sys>;
-			#thermal-sensor-cells = <1>;
-		};
-
 		/* Texas Instruments TPS659110 PMIC */
 		pmic: pmic@2d {
 			compatible = "ti,tps65911";
@@ -1321,6 +1310,17 @@
 					ti,regulator-ext-sleep-control = <8>;
 				};
 			};
+		};
+
+		nct72: temperature-sensor@4c {
+			compatible = "onnn,nct1008";
+			reg = <0x4c>;
+
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(CC, 2) IRQ_TYPE_EDGE_FALLING>;
+
+			vcc-supply = <&vdd_3v3_sys>;
+			#thermal-sensor-cells = <1>;
 		};
 
 		vdd_core: core-regulator@60 {

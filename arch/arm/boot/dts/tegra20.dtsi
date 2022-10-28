@@ -356,18 +356,18 @@
 		operating-points-v2 = <&vde_dvfs_opp_table>;
 	};
 
-	apbmisc@70000800 {
-		compatible = "nvidia,tegra20-apbmisc";
-		reg = <0x70000800 0x64>, /* Chip revision */
-		      <0x70000008 0x04>; /* Strapping options */
-	};
-
 	pinmux: pinmux@70000014 {
 		compatible = "nvidia,tegra20-pinmux";
 		reg = <0x70000014 0x10>, /* Tri-state registers */
 		      <0x70000080 0x20>, /* Mux registers */
 		      <0x700000a0 0x14>, /* Pull-up/down registers */
 		      <0x70000868 0xa8>; /* Pad control registers */
+	};
+
+	apbmisc@70000800 {
+		compatible = "nvidia,tegra20-apbmisc";
+		reg = <0x70000800 0x64>, /* Chip revision */
+		      <0x70000008 0x04>; /* Strapping options */
 	};
 
 	das@70000c00 {
@@ -542,13 +542,6 @@
 		status = "disabled";
 	};
 
-	rtc@7000e000 {
-		compatible = "nvidia,tegra20-rtc";
-		reg = <0x7000e000 0x100>;
-		interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&tegra_car TEGRA20_CLK_RTC>;
-	};
-
 	i2c@7000c000 {
 		compatible = "nvidia,tegra20-i2c";
 		reg = <0x7000c000 0x100>;
@@ -681,6 +674,13 @@
 		dmas = <&apbdma 18>, <&apbdma 18>;
 		dma-names = "rx", "tx";
 		status = "disabled";
+	};
+
+	rtc@7000e000 {
+		compatible = "nvidia,tegra20-rtc";
+		reg = <0x7000e000 0x100>;
+		interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&tegra_car TEGRA20_CLK_RTC>;
 	};
 
 	kbc@7000e200 {

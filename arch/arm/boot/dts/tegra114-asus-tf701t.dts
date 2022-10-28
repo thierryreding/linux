@@ -298,6 +298,14 @@
 			pinctrl-0 = <&codec_default>;
 		};
 
+		temp_sensor: temperature-sensor@4c {
+			compatible = "onnn,nct1008";
+			reg = <0x4c>;
+
+			vcc-supply = <&vdd_3v3_sys>;
+			#thermal-sensor-cells = <1>;
+		};
+
 		motion-tracker@68 {
 			compatible = "invensense,mpu6500";
 			reg = <0x68>;
@@ -311,14 +319,6 @@
 
 			pinctrl-names = "default";
 			pinctrl-0 = <&imu_default>;
-		};
-
-		temp_sensor: temperature-sensor@4c {
-			compatible = "onnn,nct1008";
-			reg = <0x4c>;
-
-			vcc-supply = <&vdd_3v3_sys>;
-			#thermal-sensor-cells = <1>;
 		};
 	};
 

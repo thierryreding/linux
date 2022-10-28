@@ -1,9 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 / {
-	apbmisc@70000800 {
-		nvidia,long-ram-code;
-	};
-
 	clock@60006000 {
 		emc-timings-1 {
 			nvidia,ram-code = <1>;
@@ -247,6 +243,10 @@
 				clock-names = "emc-parent";
 			};
 		};
+	};
+
+	apbmisc@70000800 {
+		nvidia,long-ram-code;
 	};
 
 	memory-controller@70019000 {
