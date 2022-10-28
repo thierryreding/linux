@@ -232,13 +232,13 @@
 /* PCIE7 read clients */
 #define TEGRA234_MEMORY_CLIENT_PCIE7AR 0x2a
 #define TEGRA234_MEMORY_CLIENT_NVENCSWR 0x2b
-/* DLA0ARDB read clinets */
+/* DLA0ARDB read clients */
 #define TEGRA234_MEMORY_CLIENT_DLA0RDB 0x2c
-/* DLA0ARDB1 read clinets */
+/* DLA0ARDB1 read clients */
 #define TEGRA234_MEMORY_CLIENT_DLA0RDB1 0x2d
 /* DLA0 writes */
-#define TEGRA234_MEMORY_CLIENT_DLA0WDB 0x2e
-/* DLA1ARDB read clinets */
+#define TEGRA234_MEMORY_CLIENT_DLA0WRB 0x2e
+/* DLA1ARDB read clients */
 #define TEGRA234_MEMORY_CLIENT_DLA1RDB 0x2f
 /* PCIE7 write clients */
 #define TEGRA234_MEMORY_CLIENT_PCIE7AW 0x30
@@ -322,11 +322,11 @@
 #define TEGRA234_MEMORY_CLIENT_SUE1WR 0x69
 #define TEGRA234_MEMORY_CLIENT_VICSRD 0x6c
 #define TEGRA234_MEMORY_CLIENT_VICSWR 0x6d
-/* DLA1ARDB1 read clinets */
+/* DLA1ARDB1 read clients */
 #define TEGRA234_MEMORY_CLIENT_DLA1RDB1 0x6e
 /* DLA1 writes */
 #define TEGRA234_MEMORY_CLIENT_DLA1WRB 0x6f
-/* VI FLACON read clinets */
+/* VI FLACON read clients */
 #define TEGRA234_MEMORY_CLIENT_VI2FALR 0x71
 /* VI Write client */
 #define TEGRA234_MEMORY_CLIENT_VI2W 0x70
