@@ -3008,6 +3008,7 @@
 			next-level-cache = <&l2c1_3>;
 		};
 
+/*
 		cpu2_0: cpu@20000 {
 			compatible = "arm,cortex-a78";
 			device_type = "cpu";
@@ -3071,6 +3072,7 @@
 			d-cache-sets = <256>;
 			next-level-cache = <&l2c2_3>;
 		};
+*/
 
 		cpu-map {
 			cluster0 {
@@ -3109,6 +3111,7 @@
 				};
 			};
 
+/*
 			cluster2 {
 				core0 {
 					cpu = <&cpu2_0>;
@@ -3126,6 +3129,7 @@
 					cpu = <&cpu2_3>;
 				};
 			};
+*/
 		};
 
 		l2c0_0: l2-cache00 {
