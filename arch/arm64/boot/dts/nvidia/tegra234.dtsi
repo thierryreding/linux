@@ -1093,6 +1093,16 @@
 			clock-names = "fuse";
 		};
 
+		hte_lic: hardware-timestamp@3aa0000 {
+			compatible = "nvidia,tegra234-gte-lic";
+			reg = <0x3aa0000 0x10000>;
+			interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
+			nvidia,int-threshold = <1>;
+			nvidia,slices = <17>;
+			#timestamp-cells = <1>;
+			status = "okay";
+		};
+
 		hsp_top0: hsp@3c00000 {
 			compatible = "nvidia,tegra234-hsp", "nvidia,tegra194-hsp";
 			reg = <0x03c00000 0xa0000>;
@@ -1608,6 +1618,16 @@
 			 */
 			interrupt-names = "shared1", "shared2", "shared3", "shared4";
 			#mbox-cells = <2>;
+		};
+
+		hte_aon: hardware-timestamp@c1e0000 {
+			compatible = "nvidia,tegra234-gte-aon";
+			reg = <0xc1e0000 0x10000>;
+			interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
+			nvidia,int-threshold = <1>;
+			nvidia,slices = <3>;
+			#timestamp-cells = <1>;
+			status = "okay";
 		};
 
 		gen2_i2c: i2c@c240000 {
