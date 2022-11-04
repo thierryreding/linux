@@ -28,6 +28,18 @@
 
 #define NFB 24
 
+/*
+ * 3  = T_P8        P8
+ * 5  = T_A1R5G5B5  B5G5R5A
+ * 6  = T_R5G6B6    B5G6R5
+ * 7  = T_R5G5B5A1  AB5G5R5
+ * 8  = T_R4G4B4A4
+ * 12 = T_A8R8G8B8  B8G8R8A8
+ * 13 = T_A8B8G8R8  R8G8B8A8
+ *
+ * ...
+ */
+
 static const u32 tegra_shared_plane_formats[] = {
 	DRM_FORMAT_ARGB1555,
 	DRM_FORMAT_RGB565,
@@ -46,10 +58,14 @@ static const u32 tegra_shared_plane_formats[] = {
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_XBGR8888,
 	/* planar formats */
+	DRM_FORMAT_YVYU,   /* XXX */
 	DRM_FORMAT_UYVY,
-	DRM_FORMAT_YUYV,
-	DRM_FORMAT_YUV420,
-	DRM_FORMAT_YUV422,
+	DRM_FORMAT_YUV420, /* YU12 */
+	DRM_FORMAT_YUV444, /* YU24 */
+	/* semi-planar formats */
+	DRM_FORMAT_NV21,
+	DRM_FORMAT_NV16,
+	DRM_FORMAT_NV24,
 };
 
 static const u64 tegra_shared_plane_modifiers[] = {
@@ -438,8 +454,7 @@ static int tegra_shared_plane_atomic_check(struct drm_plane *plane,
 		return 0;
 
 	err = tegra_plane_format(new_plane_state->fb->format->format,
-				 &plane_state->format,
-				 &plane_state->swap);
+				 &plane_state->format, NULL);
 	if (err < 0)
 		return err;
 

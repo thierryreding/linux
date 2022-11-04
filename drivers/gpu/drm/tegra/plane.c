@@ -423,11 +423,12 @@ int tegra_plane_format(u32 fourcc, u32 *format, u32 *swap)
 		break;
 
 	case DRM_FORMAT_VYUY:
-		if (!swap)
-			return -EINVAL;
-
-		*format = WIN_COLOR_DEPTH_YCbCr422;
-		*swap = BYTE_SWAP_SWAP4HW;
+		if (swap) {
+			*format = WIN_COLOR_DEPTH_YCbCr422;
+			*swap = BYTE_SWAP_SWAP4HW;
+		} else {
+			*format = WIN_COLOR_DEPTH_YCbYCr422;
+		}
 		break;
 
 	case DRM_FORMAT_YUV420:
@@ -447,11 +448,17 @@ int tegra_plane_format(u32 fourcc, u32 *format, u32 *swap)
 		break;
 
 	case DRM_FORMAT_NV21:
-		*format = WIN_COLOR_DEPTH_YCrCb420SP;
+		if (swap)
+			*format = WIN_COLOR_DEPTH_YCrCb420SP;
+		else
+			*format = WIN_COLOR_DEPTH_YCbCr420SP;
 		break;
 
 	case DRM_FORMAT_NV16:
-		*format = WIN_COLOR_DEPTH_YCbCr422SP;
+		if (swap)
+			*format = WIN_COLOR_DEPTH_YCbCr422SP;
+		else
+			*format = WIN_COLOR_DEPTH_YCrCb422SP;
 		break;
 
 	case DRM_FORMAT_NV61:
@@ -459,7 +466,10 @@ int tegra_plane_format(u32 fourcc, u32 *format, u32 *swap)
 		break;
 
 	case DRM_FORMAT_NV24:
-		*format = WIN_COLOR_DEPTH_YCbCr444SP;
+		if (swap)
+			*format = WIN_COLOR_DEPTH_YCbCr444SP;
+		else
+			*format = WIN_COLOR_DEPTH_YCrCb444SP;
 		break;
 
 	case DRM_FORMAT_NV42:
