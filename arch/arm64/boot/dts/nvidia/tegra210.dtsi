@@ -189,7 +189,7 @@
 			status = "disabled";
 		};
 
-		dc@54200000 {
+		dc0: dc@54200000 {
 			compatible = "nvidia,tegra210-dc";
 			reg = <0x0 0x54200000 0x0 0x00040000>;
 			interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
@@ -204,7 +204,7 @@
 			nvidia,head = <0>;
 		};
 
-		dc@54240000 {
+		dc1: dc@54240000 {
 			compatible = "nvidia,tegra210-dc";
 			reg = <0x0 0x54240000 0x0 0x00040000>;
 			interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
