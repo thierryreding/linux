@@ -171,12 +171,14 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 			break;
 
 		default:
+			host1x_bo_put(bo);
 			err = -EINVAL;
 			goto unpin;
 		}
 
 		map = host1x_bo_pin(dev, bo, direction, NULL);
 		if (IS_ERR(map)) {
+			host1x_bo_put(bo);
 			err = PTR_ERR(map);
 			goto unpin;
 		}
@@ -187,6 +189,8 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 		 * contiguous chunk of I/O virtual memory.
 		 */
 		if (map->chunks > 1) {
+			host1x_bo_unpin(map);
+			host1x_bo_put(bo);
 			err = -EINVAL;
 			goto unpin;
 		}
@@ -224,6 +228,7 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 
 		map = host1x_bo_pin(host->dev, g->bo, DMA_TO_DEVICE, NULL);
 		if (IS_ERR(map)) {
+			host1x_bo_put(g->bo);
 			err = PTR_ERR(map);
 			goto unpin;
 		}
@@ -238,16 +243,20 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 			alloc = alloc_iova(&host->iova, gather_size >> shift,
 					   host->iova_end >> shift, true);
 			if (!alloc) {
+				host1x_bo_unpin(map);
+				host1x_bo_put(g->bo);
 				err = -ENOMEM;
-				goto put;
+				goto unpin;
 			}
 
 			err = iommu_map_sgtable(host->domain, iova_dma_addr(&host->iova, alloc),
 						map->sgt, IOMMU_READ);
 			if (err == 0) {
 				__free_iova(&host->iova, alloc);
+				host1x_bo_unpin(map);
+				host1x_bo_put(g->bo);
 				err = -EINVAL;
-				goto put;
+				goto unpin;
 			}
 
 			map->phys = iova_dma_addr(&host->iova, alloc);
@@ -263,8 +272,6 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 
 	return 0;
 
-put:
-	host1x_bo_put(g->bo);
 unpin:
 	host1x_job_unpin(job);
 	return err;
