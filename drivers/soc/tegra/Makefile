@@ -3,6 +3,7 @@ obj-y += fuse/
 obj-y += cbb/
 
 obj-y += common.o
+obj-$(CONFIG_SOC_TEGRA_DCE) += dce.o
 obj-$(CONFIG_SOC_TEGRA_FLOWCTRL) += flowctrl.o
 obj-$(CONFIG_SOC_TEGRA_PMC) += pmc.o
 obj-$(CONFIG_SOC_TEGRA_POWERGATE_BPMP) += powergate-bpmp.o
