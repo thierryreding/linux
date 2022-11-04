@@ -136,6 +136,16 @@
 			snps,rxpbl = <8>;
 		};
 
+		codec@242c000 {
+			compatible = "nvidia,tegra234-hdacodec";
+			reg = <0x0 0x242c000 0x0 0x1000>;
+			interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&bpmp TEGRA234_CLK_AZA_2XBIT>,
+				 <&bpmp TEGRA234_CLK_AZA_BIT>;
+			clock-names = "2x-bit", "bit";
+			status = "disabled";
+		};
+
 		gpcdma: dma-controller@2600000 {
 			compatible = "nvidia,tegra234-gpcdma",
 				     "nvidia,tegra186-gpcdma";
@@ -1016,6 +1026,17 @@
 			clock-names = "fuse";
 		};
 
+		mipi@3990000 {
+			compatible = "nvidia,tegra234-mipi";
+			reg = <0x0 0x3990000 0x0 0x10000>;
+			clocks = <&bpmp TEGRA234_CLK_MIPI_CAL>;
+			clock-names = "mipi-cal";
+			resets = <&bpmp TEGRA234_RESET_MIPI_CAL>;
+			status = "disabled";
+
+			#nvidia,mipi-calibrate-cells = <1>;
+		};
+
 		hsp_top0: hsp@3c00000 {
 			compatible = "nvidia,tegra234-hsp", "nvidia,tegra194-hsp";
 			reg = <0x0 0x03c00000 0x0 0xa0000>;
@@ -1653,11 +1674,31 @@
 			status = "okay";
 		};
 
-		dce-fabric@de00000 {
-			compatible = "nvidia,tegra234-sce-fabric";
-			reg = <0x0 0xde00000 0x0 0x40000>;
-			interrupts = <GIC_SPI 381 IRQ_TYPE_LEVEL_HIGH>;
-			status = "okay";
+		dce@d800000 {
+			compatible = "nvidia,tegra234-dce";
+			reg = <0x0 0x0d800000 0x0 0x20000>;
+
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges = <0x0 0x0d800000 0x0 0x0d800000 0x0 0x800000>;
+
+			hsp@d950000 {
+				compatible = "nvidia,tegra234-hsp", "nvidia,tegra194-hsp";
+				reg = <0x0 0x0d950000 0x0 0x90000>;
+				interrupts = <GIC_SPI 377 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 378 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 379 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 380 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "shared0", "shared1", "shared2", "shared3";
+				#mbox-cells = <2>;
+			};
+
+			dce-fabric@de00000 {
+				compatible = "nvidia,tegra234-sce-fabric";
+				reg = <0x0 0xde00000 0x0 0x40000>;
+				interrupts = <GIC_SPI 381 IRQ_TYPE_LEVEL_HIGH>;
+				status = "okay";
+			};
 		};
 
 		ccplex@e000000 {
@@ -1961,6 +2002,40 @@
 			status = "okay";
 		};
 
+		display-hub@13800000 {
+			compatible = "nvidia,tegra234-display";
+			interrupts = <GIC_SPI 416 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 417 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 418 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "host", "gsp", "pmu";
+			clocks = <&bpmp TEGRA234_CLK_DISP>,
+				 <&bpmp TEGRA234_CLK_HUB>,
+				 <&bpmp TEGRA234_CLK_DISPPLL>,
+				 <&bpmp TEGRA234_CLK_DISPHUBPLL>;
+			clock-names = "display", "hub", "display-pll", "hub-pll";
+			resets = <&bpmp TEGRA234_RESET_NVDISPLAY>;
+			reset-names = "display";
+			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_DISP>;
+
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges = <0x0 0x13800000 0x0 0x13800000 0x0 0x00100000>;
+
+			dc0: display@13800000 {
+				compatible = "nvidia,tegra234-dc";
+				reg = <0x0 0x13800000 0x0 0x40000>;
+				clocks = <&bpmp TEGRA234_CLK_NVDISPLAY_P0>;
+				nvidia,head = <0>;
+			};
+
+			dc1: display@13841000 {
+				compatible = "nvidia,tegra234-dc";
+				reg = <0x0 0x13841000 0x0 0xf000>;
+				clocks = <&bpmp TEGRA234_CLK_NVDISPLAY_P1>;
+				nvidia,head = <1>;
+			};
+		};
+
 		cbb-fabric@13a00000 {
 			compatible = "nvidia,tegra234-cbb-fabric";
 			reg = <0x0 0x13a00000 0x0 0x400000>;
@@ -2064,6 +2139,16 @@
 				 * Firmware needs to set this to "okay" once the above values have
 				 * been updated.
 				 */
+				status = "disabled";
+			};
+
+			dpaux@155c0000 {
+				compatible = "nvidia,tegra234-dpaux";
+				reg = <0x0 0x155c0000 0x0 0x10000>;
+				interrupts = <GIC_SPI 419 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&bpmp TEGRA234_CLK_DPAUX>,
+					 <&bpmp TEGRA234_CLK_SOR0_REF>;
+				clock-names = "dpaux", "parent";
 				status = "disabled";
 			};
 		};

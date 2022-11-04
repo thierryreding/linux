@@ -2047,6 +2047,12 @@
 			};
 		};
 
+		display-hub@13800000 {
+			display@13800000 {
+				memory-region = <&fb>;
+			};
+		};
+
 		pcie@14100000 {
 			status = "okay";
 
