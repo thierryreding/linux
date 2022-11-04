@@ -1771,11 +1771,31 @@
 			status = "okay";
 		};
 
-		dce-fabric@de00000 {
-			compatible = "nvidia,tegra234-sce-fabric";
-			reg = <0xde00000 0x40000>;
-			interrupts = <GIC_SPI 381 IRQ_TYPE_LEVEL_HIGH>;
-			status = "okay";
+		dce@d800000 {
+			compatible = "nvidia,tegra234-dce";
+			reg = <0x0d800000 0x20000>;
+			ranges = <0x0d800000 0x0d800000 0x800000>;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			hsp@d950000 {
+				compatible = "nvidia,tegra234-hsp", "nvidia,tegra194-hsp";
+				reg = <0x0d950000 0x90000>;
+				interrupts = <GIC_SPI 377 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 378 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 379 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 380 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "shared0", "shared1", "shared2", "shared3";
+				#mbox-cells = <2>;
+			};
+
+			dce-fabric@de00000 {
+				compatible = "nvidia,tegra234-sce-fabric";
+				reg = <0xde00000 0x40000>;
+				interrupts = <GIC_SPI 381 IRQ_TYPE_LEVEL_HIGH>;
+				status = "okay";
+			};
 		};
 
 		gic: interrupt-controller@f400000 {
