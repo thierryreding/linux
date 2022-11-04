@@ -25,7 +25,7 @@ properties:
     const: 135
 
 allOf:
-  - $ref: lvds.yaml#
+  - $ref: panel-lvds.yaml#
 
 unevaluatedProperties: false
 
