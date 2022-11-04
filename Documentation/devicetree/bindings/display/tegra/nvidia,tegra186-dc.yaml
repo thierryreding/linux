@@ -57,6 +57,8 @@ properties:
       - const: dma-mem # read-0
       - const: read-1
 
+  memory-region: true
+
   nvidia,outputs:
     description: A list of phandles of outputs that this display
       controller can drive.
