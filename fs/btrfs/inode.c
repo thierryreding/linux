@@ -4442,7 +4442,7 @@ static int btrfs_unlink(struct inode *dir, struct dentry *dentry)
 	trans = __unlink_start_trans(dir);
 	if (IS_ERR(trans)) {
 		ret = PTR_ERR(trans);
-		goto out;
+		goto fscrypt_free;
 	}
 
 	btrfs_record_unlink_dir(trans, BTRFS_I(dir), BTRFS_I(d_inode(dentry)),
@@ -4451,18 +4451,19 @@ static int btrfs_unlink(struct inode *dir, struct dentry *dentry)
 	ret = btrfs_unlink_inode(trans, BTRFS_I(dir), BTRFS_I(d_inode(dentry)),
 				 &name);
 	if (ret)
-		goto out;
+		goto end_trans;
 
 	if (inode->i_nlink == 0) {
 		ret = btrfs_orphan_add(trans, BTRFS_I(inode));
 		if (ret)
-			goto out;
+			goto end_trans;
 	}
 
-out:
-	fscrypt_free_filename(&fname);
+end_trans:
 	btrfs_end_transaction(trans);
 	btrfs_btree_balance_dirty(BTRFS_I(dir)->root->fs_info);
+fscrypt_free:
+	fscrypt_free_filename(&fname);
 	return ret;
 }
 
