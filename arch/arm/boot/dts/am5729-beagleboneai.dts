@@ -206,7 +206,7 @@
 	clock-frequency = <400000>;
 
 	tps659038: tps659038@58 {
-		compatible = "ti,tps659038";
+		compatible = "ti,tps659038", "ti,palmas";
 		reg = <0x58>;
 		interrupt-parent = <&gpio6>;
 		interrupts = <16 IRQ_TYPE_LEVEL_LOW>;
@@ -217,15 +217,14 @@
 		ti,system-power-controller;
 		ti,palmas-override-powerhold;
 
-		tps659038_pmic {
-			compatible = "ti,tps659038-pmic";
+		pmic {
+			compatible = "ti,tps659038-pmic", "ti,palmas-pmic";
 
 			smps12-in-supply = <&vdd_5v>;
 			smps3-in-supply = <&vdd_5v>;
 			smps45-in-supply = <&vdd_5v>;
 			smps6-in-supply = <&vdd_5v>;
 			smps7-in-supply = <&vdd_5v>;
-			mps3-in-supply = <&vdd_5v>;
 			smps8-in-supply = <&vdd_5v>;
 			smps9-in-supply = <&vdd_5v>;
 			ldo1-in-supply = <&vdd_5v>;
@@ -387,14 +386,14 @@
 			};
 		};
 
-		tps659038_rtc: tps659038_rtc {
+		tps659038_rtc: rtc {
 			compatible = "ti,palmas-rtc";
 			interrupt-parent = <&tps659038>;
 			interrupts = <8 IRQ_TYPE_EDGE_FALLING>;
 			wakeup-source;
 		};
 
-		tps659038_pwr_button: tps659038_pwr_button {
+		tps659038_pwr_button: pwrbutton {
 			compatible = "ti,palmas-pwrbutton";
 			interrupt-parent = <&tps659038>;
 			interrupts = <1 IRQ_TYPE_EDGE_FALLING>;
@@ -402,7 +401,7 @@
 			ti,palmas-long-press-seconds = <12>;
 		};
 
-		tps659038_gpio: tps659038_gpio {
+		tps659038_gpio: gpio {
 			compatible = "ti,palmas-gpio";
 			gpio-controller;
 			#gpio-cells = <2>;
