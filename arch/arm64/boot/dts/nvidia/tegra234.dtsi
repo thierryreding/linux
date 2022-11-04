@@ -705,6 +705,8 @@
 			clock-names = "serial";
 			resets = <&bpmp TEGRA234_RESET_UARTA>;
 			reset-names = "serial";
+			dmas = <&gpcdma 8>, <&gpcdma 8>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 
