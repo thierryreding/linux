@@ -8,6 +8,40 @@
 	model = "NVIDIA Jetson TX1 Developer Kit";
 	compatible = "nvidia,p2371-2180", "nvidia,tegra210";
 
+	chosen {
+		framebuffer {
+			compatible = "simple-framebuffer";
+			memory-region = <&fb>;
+			power-domains = <&pd_sor>;
+			clocks = <&tegra_car TEGRA210_CLK_DISP1>,
+				 <&tegra_car TEGRA210_CLK_SOR0>,
+				 <&tegra_car TEGRA210_CLK_SOR0_OUT>,
+				 <&tegra_car TEGRA210_CLK_SOR_SAFE>,
+				 <&tegra_car TEGRA210_CLK_PLL_D_OUT0>,
+				 <&tegra_car TEGRA210_CLK_PLL_DP>,
+				 <&tegra_car TEGRA210_CLK_DPAUX1>;
+			resets = <&tegra_car 27>,
+				 <&tegra_car 181>,
+				 <&tegra_car 182>;
+			width = <0>;
+			height = <0>;
+			stride = <0>;
+			format = "x8b8g8br";
+			status = "disabled";
+		};
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		fb: framebuffer@92cb5000 {
+			reg = <0x0 0x92cb5000 0x0 0x00800000>;
+			iommu-addresses = <&dc0 0x0 0x92cb5000 0x0 0x00800000>;
+		};
+	};
+
 	pcie@1003000 {
 		status = "okay";
 
@@ -32,8 +66,12 @@
 	};
 
 	host1x@50000000 {
+		dc@54200000 {
+			memory-region = <&fb>;
+		};
+
 		dsi@54300000 {
-			status = "okay";
+			status = "disabled";
 
 			avdd-dsi-csi-supply = <&vdd_dsi_csi>;
 
