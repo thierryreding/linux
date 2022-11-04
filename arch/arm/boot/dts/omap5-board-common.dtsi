@@ -374,7 +374,7 @@
 	clock-frequency = <400000>;
 
 	palmas: palmas@48 {
-		compatible = "ti,palmas";
+		compatible = "ti,twl6037", "ti,palmas";
 		/* sys_nirq/ext_sys_irq pins get inverted at mpuss wakeupgen */
 		interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_LOW>;
 		reg = <0x48>;
@@ -392,7 +392,7 @@
 			#gpio-cells = <2>;
 		};
 
-		extcon_usb3: palmas_usb {
+		extcon_usb3: usb {
 			compatible = "ti,palmas-usb-vid";
 			ti,enable-vbus-detection;
 			ti,enable-id-detection;
@@ -400,7 +400,7 @@
 			id-gpios = <&palmas_gpio 0 GPIO_ACTIVE_HIGH>;
 		};
 
-		clk32kgaudio: palmas_clk32k@1 {
+		clk32kgaudio: clk32kgaudio {
 			compatible = "ti,palmas-clk32kgaudio";
 			#clock-cells = <0>;
 		};
@@ -413,7 +413,7 @@
 			ti,backup-battery-charge-high-current;
 		};
 
-		gpadc: gpadc {
+		gpadc: adc {
 			compatible = "ti,palmas-gpadc";
 			interrupts = <18 0
 				      16 0
@@ -423,11 +423,10 @@
 			ti,channel3-current-microamp = <10>;
 		};
 
-		palmas_pmic {
-			compatible = "ti,palmas-pmic";
+		pmic {
+			compatible = "ti,twl6037-pmic", "ti,palmas-pmic";
 			interrupt-parent = <&palmas>;
 			interrupts = <14 IRQ_TYPE_NONE>;
-			interrupt-names = "short-irq";
 
 			ti,ldo6-vibrator;
 
@@ -437,8 +436,8 @@
 			smps7-in-supply = <&vsys_cobra>;
 			smps8-in-supply = <&vsys_cobra>;
 			smps9-in-supply = <&vsys_cobra>;
-			smps10_out2-in-supply = <&vsys_cobra>;
-			smps10_out1-in-supply = <&vsys_cobra>;
+			smps10-out2-in-supply = <&vsys_cobra>;
+			smps10-out1-in-supply = <&vsys_cobra>;
 			ldo1-in-supply = <&vsys_cobra>;
 			ldo2-in-supply = <&vsys_cobra>;
 			ldo3-in-supply = <&vdds_1v8_main>;
@@ -627,7 +626,7 @@
 			};
 		};
 
-		palmas_power_button: palmas_power_button {
+		palmas_power_button: pwrbutton {
 			compatible = "ti,palmas-pwrbutton";
 			interrupt-parent = <&palmas>;
 			interrupts = <1 IRQ_TYPE_EDGE_FALLING>;
