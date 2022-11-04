@@ -825,7 +825,6 @@
 				 <&bpmp TEGRA234_CLK_QSPI0_PM>;
 			clock-names = "qspi", "qspi_out";
 			resets = <&bpmp TEGRA234_RESET_QSPI0>;
-			reset-names = "qspi";
 			status = "disabled";
 		};
 
@@ -909,7 +908,6 @@
 				 <&bpmp TEGRA234_CLK_QSPI1_PM>;
 			clock-names = "qspi", "qspi_out";
 			resets = <&bpmp TEGRA234_RESET_QSPI1>;
-			reset-names = "qspi";
 			status = "disabled";
 		};
 
