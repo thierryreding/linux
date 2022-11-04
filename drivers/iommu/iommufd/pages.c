@@ -101,12 +101,20 @@ static void *temp_kmalloc(size_t *size, void *backup, size_t backup_len)
 
 static void iopt_pages_add_npinned(struct iopt_pages *pages, size_t npages)
 {
-	pages->npinned += npages;
+	int rc;
+
+	rc = check_add_overflow(pages->npinned, npages, &pages->npinned);
+	if (IS_ENABLED(CONFIG_IOMMUFD_TEST))
+		WARN_ON(rc || pages->npinned > pages->npages);
 }
 
 static void iopt_pages_sub_npinned(struct iopt_pages *pages, size_t npages)
 {
-	pages->npinned -= npages;
+	int rc;
+
+	rc = check_sub_overflow(pages->npinned, npages, &pages->npinned);
+	if (IS_ENABLED(CONFIG_IOMMUFD_TEST))
+		WARN_ON(rc || pages->npinned > pages->npages);
 }
 
 static void iopt_pages_err_unpin(struct iopt_pages *pages,
@@ -128,6 +136,9 @@ static void iopt_pages_err_unpin(struct iopt_pages *pages,
 static unsigned long iopt_area_index_to_iova(struct iopt_area *area,
 					     unsigned long index)
 {
+	if (IS_ENABLED(CONFIG_IOMMUFD_TEST))
+		WARN_ON(index < iopt_area_index(area) ||
+			index > iopt_area_last_index(area));
 	index -= iopt_area_index(area);
 	if (index == 0)
 		return iopt_area_iova(area);
@@ -137,6 +148,9 @@ static unsigned long iopt_area_index_to_iova(struct iopt_area *area,
 static unsigned long iopt_area_index_to_iova_last(struct iopt_area *area,
 						  unsigned long index)
 {
+	if (IS_ENABLED(CONFIG_IOMMUFD_TEST))
+		WARN_ON(index < iopt_area_index(area) ||
+			index > iopt_area_last_index(area));
 	if (index == iopt_area_last_index(area))
 		return iopt_area_last_iova(area);
 	return iopt_area_iova(area) - area->page_offset +
@@ -240,6 +254,8 @@ static int __batch_init(struct pfn_batch *batch, size_t max_pages, void *backup,
 	batch->pfns = temp_kmalloc(&size, backup, backup_len);
 	if (!batch->pfns)
 		return -ENOMEM;
+	if (IS_ENABLED(CONFIG_IOMMUFD_TEST) && WARN_ON(size < elmsz))
+		return -EINVAL;
 	batch->array_size = size / elmsz;
 	batch->npfns = (u32 *)(batch->pfns + batch->array_size);
 	batch_clear(batch);
@@ -366,6 +382,10 @@ static int batch_iommu_map_small(struct iommu_domain *domain,
 {
 	unsigned long start_iova = iova;
 	int rc;
+
+	if (IS_ENABLED(CONFIG_IOMMUFD_TEST))
+		WARN_ON(paddr % PAGE_SIZE || iova % PAGE_SIZE ||
+			size % PAGE_SIZE);
 
 	while (size) {
 		rc = iommu_map(domain, iova, paddr, PAGE_SIZE, prot);
@@ -652,6 +672,10 @@ static int pfn_reader_user_pin(struct pfn_reader_user *user,
 	uintptr_t uptr;
 	long rc;
 
+	if (IS_ENABLED(CONFIG_IOMMUFD_TEST) &&
+	    WARN_ON(last_index < start_index))
+		return -EINVAL;
+
 	if (!user->upages) {
 		/* All undone in pfn_reader_destroy() */
 		user->upages_len =
@@ -890,6 +914,10 @@ static int pfn_reader_fill_span(struct pfn_reader *pfns)
 	struct iopt_area *area;
 	int rc;
 
+	if (IS_ENABLED(CONFIG_IOMMUFD_TEST) &&
+	    WARN_ON(span->last_used < start_index))
+		return -EINVAL;
+
 	if (span->is_used == 1) {
 		batch_from_xarray(&pfns->batch, &pfns->pages->pinned_pfns,
 				  start_index, span->last_used);
@@ -941,6 +969,10 @@ static int pfn_reader_next(struct pfn_reader *pfns)
 
 	while (pfns->batch_end_index != pfns->last_index + 1) {
 		unsigned int npfns = pfns->batch.total_pfns;
+
+		if (IS_ENABLED(CONFIG_IOMMUFD_TEST) &&
+		    WARN_ON(interval_tree_double_span_iter_done(&pfns->span)))
+			return -EINVAL;
 
 		rc = pfn_reader_fill_span(pfns);
 		if (rc)
@@ -1024,6 +1056,10 @@ static int pfn_reader_first(struct pfn_reader *pfns, struct iopt_pages *pages,
 			    unsigned long start_index, unsigned long last_index)
 {
 	int rc;
+
+	if (IS_ENABLED(CONFIG_IOMMUFD_TEST) &&
+	    WARN_ON(last_index < start_index))
+		return -EINVAL;
 
 	rc = pfn_reader_init(pfns, pages, start_index, last_index);
 	if (rc)
