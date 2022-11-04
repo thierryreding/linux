@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/tegra/nvidia,tegra234-dce.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra234 (and later) Display Control Engine
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+
+properties:
+  compatible:
+    enum:
+      - nvidia,tegra234-dce
+
+  reg:
+    maxItems: 1
+
+  ranges:
+    maxItems: 1
+
+  "#address-cells":
+    enum: [ 1, 2 ]
+
+  "#size-cells":
+    enum: [ 1, 2 ]
+
+  mboxes:
+    maxItems: 8
+
+  mbox-names:
+    items:
+      - const: rm-rx
+      - const: rm-tx
+      - const: notify-rx
+      - const: notify-tx
+      - const: admin-rx
+      - const: admin-tx
+      - const: boot
+      - const: irq
+
+  iommus:
+    maxItems: 1
+
+additionalProperties:
+  type: object
+...
