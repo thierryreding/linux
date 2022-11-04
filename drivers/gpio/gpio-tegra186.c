@@ -12,6 +12,7 @@
 #include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/seq_file.h>
 
@@ -154,6 +155,7 @@ static int tegra186_gpio_direction_input(struct gpio_chip *chip,
 	struct tegra_gpio *gpio = gpiochip_get_data(chip);
 	void __iomem *base;
 	u32 value;
+	int err;
 
 	base = tegra186_gpio_get_base(gpio, offset);
 	if (WARN_ON(base == NULL))
@@ -168,7 +170,12 @@ static int tegra186_gpio_direction_input(struct gpio_chip *chip,
 	value &= ~TEGRA186_GPIO_ENABLE_CONFIG_OUT;
 	writel(value, base + TEGRA186_GPIO_ENABLE_CONFIG);
 
-	return 0;
+	err = pinctrl_gpio_direction_input(chip->base + offset);
+	if (err < 0)
+		dev_err(gpio->gpio.parent, "failed to set pinctrl input direction of GPIO %u: %d\n",
+			chip->base + offset, err);
+
+	return err;
 }
 
 static int tegra186_gpio_direction_output(struct gpio_chip *chip,
@@ -177,6 +184,7 @@ static int tegra186_gpio_direction_output(struct gpio_chip *chip,
 	struct tegra_gpio *gpio = gpiochip_get_data(chip);
 	void __iomem *base;
 	u32 value;
+	int err;
 
 	/* configure output level first */
 	chip->set(chip, offset, level);
@@ -195,7 +203,12 @@ static int tegra186_gpio_direction_output(struct gpio_chip *chip,
 	value |= TEGRA186_GPIO_ENABLE_CONFIG_OUT;
 	writel(value, base + TEGRA186_GPIO_ENABLE_CONFIG);
 
-	return 0;
+	err = pinctrl_gpio_direction_output(chip->base + offset);
+	if (err < 0)
+		dev_err(gpio->gpio.parent, "failed to set pinctrl output direction of GPIO %u: %d\n",
+			chip->base + offset, err);
+
+	return err;
 }
 
 #define HTE_BOTH_EDGES	(HTE_RISING_EDGE_TS | HTE_FALLING_EDGE_TS)
