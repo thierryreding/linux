@@ -39,6 +39,18 @@ properties:
 
   dma-names: true
 
+  iommus:
+    maxItems: 1
+
+  interconnects:
+    description: Description of the interconnect paths for the ADMA interface; see
+      ../interconnect/interconnect.txt for details.
+
+  interconnect-names:
+    items:
+      - const: dma-mem # read
+      - const: write
+
   ports:
     $ref: /schemas/graph.yaml#/properties/ports
     description: |
