@@ -102,8 +102,10 @@ int tegra_output_probe(struct tegra_output *output)
 
 	err = drm_of_find_panel_or_bridge(output->of_node, -1, -1,
 					  &output->panel, &output->bridge);
-	if (err && err != -ENODEV)
+	if (err && err != -ENODEV) {
+		dev_err(output->dev, "failed to get bridge or panel: %d\n", err);
 		return err;
+	}
 
 	panel = of_parse_phandle(output->of_node, "nvidia,panel", 0);
 	if (panel) {
@@ -116,8 +118,10 @@ int tegra_output_probe(struct tegra_output *output)
 		output->panel = of_drm_find_panel(panel);
 		of_node_put(panel);
 
-		if (IS_ERR(output->panel))
+		if (IS_ERR(output->panel)) {
+			dev_err(output->dev, "failed to get panel: %ld\n", PTR_ERR(output->panel));
 			return PTR_ERR(output->panel);
+		}
 	}
 
 	output->edid = of_get_property(output->of_node, "nvidia,edid", &size);
@@ -128,6 +132,7 @@ int tegra_output_probe(struct tegra_output *output)
 		of_node_put(ddc);
 
 		if (!output->ddc) {
+			dev_err(output->dev, "DDC/I2C adapter not found\n");
 			err = -EPROBE_DEFER;
 			return err;
 		}
@@ -139,8 +144,10 @@ int tegra_output_probe(struct tegra_output *output)
 					GPIOD_IN,
 					"HDMI hotplug detect");
 	if (IS_ERR(output->hpd_gpio)) {
-		if (PTR_ERR(output->hpd_gpio) != -ENOENT)
+		if (PTR_ERR(output->hpd_gpio) != -ENOENT) {
+			dev_err(output->dev, "failed to get HPD GPIO: %ld\n", PTR_ERR(output->hpd_gpio));
 			return PTR_ERR(output->hpd_gpio);
+		}
 
 		output->hpd_gpio = NULL;
 	}
