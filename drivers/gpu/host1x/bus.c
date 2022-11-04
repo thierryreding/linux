@@ -973,8 +973,10 @@ void host1x_bo_unpin(struct host1x_bo_mapping *mapping)
 {
 	struct host1x_bo_cache *cache = mapping->cache;
 
-	if (cache)
+	if (cache) {
 		mutex_lock(&cache->lock);
+		//kref_put(&mapping->ref, __host1x_bo_unpin);
+	}
 
 	kref_put(&mapping->ref, __host1x_bo_unpin);
 
