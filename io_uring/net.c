@@ -925,6 +925,9 @@ void io_send_zc_cleanup(struct io_kiocb *req)
 	}
 }
 
+#define IO_ZC_FLAGS_COMMON (IORING_RECVSEND_POLL_FIRST | IORING_RECVSEND_FIXED_BUF)
+#define IO_ZC_FLAGS_VALID  (IO_ZC_FLAGS_COMMON | IORING_SEND_ZC_REPORT_USAGE)
+
 int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_sr_msg *zc = io_kiocb_to_cmd(req, struct io_sr_msg);
@@ -937,11 +940,6 @@ int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	if (req->flags & REQ_F_CQE_SKIP)
 		return -EINVAL;
 
-	zc->flags = READ_ONCE(sqe->ioprio);
-	if (zc->flags & ~(IORING_RECVSEND_POLL_FIRST |
-			  IORING_RECVSEND_FIXED_BUF |
-			  IORING_SEND_ZC_REPORT_USAGE))
-		return -EINVAL;
 	notif = zc->notif = io_alloc_notif(ctx);
 	if (!notif)
 		return -ENOMEM;
@@ -949,6 +947,17 @@ int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	notif->cqe.res = 0;
 	notif->cqe.flags = IORING_CQE_F_NOTIF;
 	req->flags |= REQ_F_NEED_CLEANUP;
+
+	zc->flags = READ_ONCE(sqe->ioprio);
+	if (unlikely(zc->flags & ~IO_ZC_FLAGS_COMMON)) {
+		if (zc->flags & ~IO_ZC_FLAGS_VALID)
+			return -EINVAL;
+		if (zc->flags & IORING_SEND_ZC_REPORT_USAGE) {
+			io_notif_set_extended(notif);
+			io_notif_to_data(notif)->zc_report = true;
+		}
+	}
+
 	if (zc->flags & IORING_RECVSEND_FIXED_BUF) {
 		unsigned idx = READ_ONCE(sqe->buf_index);
 
@@ -957,9 +966,6 @@ int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		idx = array_index_nospec(idx, ctx->nr_user_bufs);
 		req->imu = READ_ONCE(ctx->user_bufs[idx]);
 		io_req_set_rsrc_node(notif, ctx, 0);
-	}
-	if (zc->flags & IORING_SEND_ZC_REPORT_USAGE) {
-		io_notif_to_data(notif)->zc_report = true;
 	}
 
 	if (req->opcode == IORING_OP_SEND_ZC) {
@@ -1093,6 +1099,7 @@ int io_send_zc(struct io_kiocb *req, unsigned int issue_flags)
 			return ret;
 		msg.sg_from_iter = io_sg_from_iter;
 	} else {
+		io_notif_set_extended(zc->notif);
 		ret = import_single_range(WRITE, zc->buf, zc->len, &iov,
 					  &msg.msg_iter);
 		if (unlikely(ret))
@@ -1153,6 +1160,8 @@ int io_sendmsg_zc(struct io_kiocb *req, unsigned int issue_flags)
 	struct socket *sock;
 	unsigned flags;
 	int ret, min_ret = 0;
+
+	io_notif_set_extended(sr->notif);
 
 	sock = sock_from_file(req->file);
 	if (unlikely(!sock))
