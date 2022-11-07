@@ -685,9 +685,9 @@
 		reg = <0x48>;
 	};
 
-	eeprom@51 {
+	eeprom@50 {
 		compatible = "atmel,24c64";
-		reg = <0x51>;
+		reg = <0x50>;
 	};
 
 	pca9551@60 {
