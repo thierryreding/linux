@@ -244,7 +244,7 @@ static int io_poll_check_events(struct io_kiocb *req, bool *locked)
 						    req->apoll_events);
 
 			if (!io_post_aux_cqe(ctx, req->cqe.user_data,
-					     mask, IORING_CQE_F_MORE, true))
+					     mask, IORING_CQE_F_MORE))
 				return -ECANCELED;
 		} else {
 			ret = io_poll_issue(req, locked);
