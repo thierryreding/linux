@@ -4381,11 +4381,11 @@ static void blk_mq_update_queue_map(struct blk_mq_tag_set *set)
 }
 
 static int blk_mq_realloc_tag_set_tags(struct blk_mq_tag_set *set,
-				  int cur_nr_hw_queues, int new_nr_hw_queues)
+				       int new_nr_hw_queues)
 {
 	struct blk_mq_tags **new_tags;
 
-	if (cur_nr_hw_queues >= new_nr_hw_queues)
+	if (set->nr_hw_queues >= new_nr_hw_queues)
 		return 0;
 
 	new_tags = kcalloc_node(new_nr_hw_queues, sizeof(struct blk_mq_tags *),
@@ -4394,19 +4394,13 @@ static int blk_mq_realloc_tag_set_tags(struct blk_mq_tag_set *set,
 		return -ENOMEM;
 
 	if (set->tags)
-		memcpy(new_tags, set->tags, cur_nr_hw_queues *
+		memcpy(new_tags, set->tags, set->nr_hw_queues *
 		       sizeof(*set->tags));
 	kfree(set->tags);
 	set->tags = new_tags;
 	set->nr_hw_queues = new_nr_hw_queues;
 
 	return 0;
-}
-
-static int blk_mq_alloc_tag_set_tags(struct blk_mq_tag_set *set,
-				int new_nr_hw_queues)
-{
-	return blk_mq_realloc_tag_set_tags(set, 0, new_nr_hw_queues);
 }
 
 /*
@@ -4471,11 +4465,13 @@ int blk_mq_alloc_tag_set(struct blk_mq_tag_set *set)
 			goto out_free_srcu;
 	}
 
-	ret = blk_mq_alloc_tag_set_tags(set, set->nr_hw_queues);
-	if (ret)
+	ret = -ENOMEM;
+	set->tags = kcalloc_node(set->nr_hw_queues,
+				 sizeof(struct blk_mq_tags *), GFP_KERNEL,
+				 set->numa_node);
+	if (!set->tags)
 		goto out_cleanup_srcu;
 
-	ret = -ENOMEM;
 	for (i = 0; i < set->nr_maps; i++) {
 		set->map[i].mq_map = kcalloc_node(nr_cpu_ids,
 						  sizeof(set->map[i].mq_map[0]),
@@ -4714,11 +4710,9 @@ static void __blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set,
 	}
 
 	prev_nr_hw_queues = set->nr_hw_queues;
-	if (blk_mq_realloc_tag_set_tags(set, set->nr_hw_queues, nr_hw_queues) <
-	    0)
+	if (blk_mq_realloc_tag_set_tags(set, nr_hw_queues) < 0)
 		goto reregister;
 
-	set->nr_hw_queues = nr_hw_queues;
 fallback:
 	blk_mq_update_queue_map(set);
 	list_for_each_entry(q, &set->tag_list, tag_set_list) {
