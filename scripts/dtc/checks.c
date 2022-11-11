@@ -743,6 +743,17 @@ static void fixup_addr_size_cells(struct check *c, struct dt_info *dti,
 	prop = get_property(node, "#size-cells");
 	if (prop)
 		node->size_cells = propval_cell(prop);
+
+	node->dma_addr_cells = -1;
+	node->dma_size_cells = -1;
+
+	prop = get_property(node, "#dma-address-cells");
+	if (prop)
+		node->dma_addr_cells = propval_cell(prop);
+
+	prop = get_property(node, "#dma-size-cells");
+	if (prop)
+		node->dma_size_cells = propval_cell(prop);
 }
 WARNING(addr_size_cells, fixup_addr_size_cells, NULL,
 	&address_cells_is_cell, &size_cells_is_cell);
@@ -751,6 +762,10 @@ WARNING(addr_size_cells, fixup_addr_size_cells, NULL,
 	(((n)->addr_cells == -1) ? 2 : (n)->addr_cells)
 #define node_size_cells(n) \
 	(((n)->size_cells == -1) ? 1 : (n)->size_cells)
+#define node_dma_addr_cells(n) \
+	(((n)->dma_addr_cells == -1) ? node_addr_cells(n) : (n)->dma_addr_cells)
+#define node_dma_size_cells(n) \
+	(((n)->dma_size_cells == -1) ? node_size_cells(n) : (n)->dma_size_cells)
 
 static void check_reg_format(struct check *c, struct dt_info *dti,
 			     struct node *node)
@@ -787,6 +802,7 @@ static void check_ranges_format(struct check *c, struct dt_info *dti,
 	struct property *prop;
 	int c_addr_cells, p_addr_cells, c_size_cells, p_size_cells, entrylen;
 	const char *ranges = c->data;
+	const char *prefix;
 
 	prop = get_property(node, ranges);
 	if (!prop)
@@ -798,28 +814,38 @@ static void check_ranges_format(struct check *c, struct dt_info *dti,
 		return;
 	}
 
-	p_addr_cells = node_addr_cells(node->parent);
-	p_size_cells = node_size_cells(node->parent);
-	c_addr_cells = node_addr_cells(node);
-	c_size_cells = node_size_cells(node);
+	if (strcmp(ranges, "dma-ranges") == 0) {
+		p_addr_cells = node_dma_addr_cells(node->parent);
+		p_size_cells = node_dma_size_cells(node->parent);
+		c_addr_cells = node_dma_addr_cells(node);
+		c_size_cells = node_dma_size_cells(node);
+		prefix = "dma-";
+	} else {
+		p_addr_cells = node_addr_cells(node->parent);
+		p_size_cells = node_size_cells(node->parent);
+		c_addr_cells = node_addr_cells(node);
+		c_size_cells = node_size_cells(node);
+		prefix = "";
+	}
+
 	entrylen = (p_addr_cells + c_addr_cells + c_size_cells) * sizeof(cell_t);
 
 	if (prop->val.len == 0) {
 		if (p_addr_cells != c_addr_cells)
 			FAIL_PROP(c, dti, node, prop, "empty \"%s\" property but its "
-				  "#address-cells (%d) differs from %s (%d)",
-				  ranges, c_addr_cells, node->parent->fullpath,
+				  "#%saddress-cells (%d) differs from %s (%d)",
+				  ranges, prefix, c_addr_cells, node->parent->fullpath,
 				  p_addr_cells);
 		if (p_size_cells != c_size_cells)
 			FAIL_PROP(c, dti, node, prop, "empty \"%s\" property but its "
-				  "#size-cells (%d) differs from %s (%d)",
-				  ranges, c_size_cells, node->parent->fullpath,
+				  "#%ssize-cells (%d) differs from %s (%d)",
+				  ranges, prefix, c_size_cells, node->parent->fullpath,
 				  p_size_cells);
 	} else if (!is_multiple_of(prop->val.len, entrylen)) {
 		FAIL_PROP(c, dti, node, prop, "\"%s\" property has invalid length (%d bytes) "
-			  "(parent #address-cells == %d, child #address-cells == %d, "
-			  "#size-cells == %d)", ranges, prop->val.len,
-			  p_addr_cells, c_addr_cells, c_size_cells);
+			  "(parent #%saddress-cells == %d, child #%saddress-cells == %d, "
+			  "#size-cells == %d)", ranges, prop->val.len, prefix,
+			  p_addr_cells, prefix, c_addr_cells, c_size_cells);
 	}
 }
 WARNING(ranges_format, check_ranges_format, "ranges", &addr_size_cells);

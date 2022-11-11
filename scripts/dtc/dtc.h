@@ -228,6 +228,7 @@ struct node {
 
 	cell_t phandle;
 	int addr_cells, size_cells;
+	int dma_addr_cells, dma_size_cells;
 
 	struct label *labels;
 	const struct bus_type *bus;
