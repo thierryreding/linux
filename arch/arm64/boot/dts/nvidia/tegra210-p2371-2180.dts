@@ -66,6 +66,16 @@
 	};
 
 	host1x@50000000 {
+		vi@54080000 {
+			status = "okay";
+
+			avdd-dsi-csi-supply = <&vdd_sys_1v2>;
+
+			csi@838 {
+				status = "okay";
+			};
+		};
+
 		dc@54200000 {
 			memory-region = <&fb>;
 		};
