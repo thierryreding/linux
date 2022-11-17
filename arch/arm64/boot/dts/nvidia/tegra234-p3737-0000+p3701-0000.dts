@@ -11,10 +11,44 @@
 	model = "NVIDIA Jetson AGX Orin Developer Kit";
 	compatible = "nvidia,p3737-0000+p3701-0000", "nvidia,p3701-0000", "nvidia,tegra234";
 
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		fb: framebuffer@0,0 {
+			compatible = "framebuffer";
+			reg = <0x0 0x0 0x0 0x0>;
+			iommu-addresses = <&dc0 0x0 0x0 0x0 0x0>;
+		};
+	};
+
 	aliases {
 		mmc3 = "/bus@0/mmc@3460000";
 		serial0 = &tcu;
 		serial1 = &uarta;
+	};
+
+	chosen {
+		bootargs = "console=ttyTCU0,115200n8";
+		stdout-path = "serial0:115200n8";
+
+		framebuffer {
+			compatible = "simple-framebuffer";
+			status = "disabled";
+			memory-region = <&fb>;
+			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_DISP>;
+			clocks = <&bpmp TEGRA234_CLK_HUB>,
+				 <&bpmp TEGRA234_CLK_DISP>,
+				 <&bpmp TEGRA234_CLK_NVDISPLAY_P0>,
+				 <&bpmp TEGRA234_CLK_DPAUX>,
+				 <&bpmp TEGRA234_CLK_DISPPLL>,
+				 <&bpmp TEGRA234_CLK_DISPHUBPLL>;
+			width = <0>;
+			height = <0>;
+			stride = <0>;
+			format = "x8b8g8r8";
+		};
 	};
 
 	bus@0 {
@@ -2022,14 +2056,7 @@
 			nvidia,model = "NVIDIA Jetson AGX Orin HDA";
 			status = "okay";
 		};
-	};
 
-	chosen {
-		bootargs = "console=ttyTCU0,115200n8";
-		stdout-path = "serial0:115200n8";
-	};
-
-	bus@0 {
 		ethernet@6800000 {
 			status = "okay";
 

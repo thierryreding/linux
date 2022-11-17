@@ -1690,6 +1690,13 @@
 			};
 		};
 
+		ccplex@e000000 {
+			compatible = "nvidia,tegra234-ccplex-cluster";
+			reg = <0x0 0x0e000000 0x0 0x5ffff>;
+			nvidia,bpmp = <&bpmp>;
+			status = "okay";
+		};
+
 		gic: interrupt-controller@f400000 {
 			compatible = "arm,gic-v3";
 			reg = <0x0 0x0f400000 0x0 0x010000>, /* GICD */
@@ -2092,12 +2099,6 @@
 		};
 	};
 
-	ccplex@e000000 {
-		compatible = "nvidia,tegra234-ccplex-cluster";
-		reg = <0x0 0x0e000000 0x0 0x5ffff>;
-		nvidia,bpmp = <&bpmp>;
-		status = "okay";
-	};
 
 		pcie@140a0000 {
 			compatible = "nvidia,tegra234-pcie";
