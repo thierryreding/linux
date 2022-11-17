@@ -18,6 +18,7 @@ properties:
     enum:
       - nvidia,tegra186-display
       - nvidia,tegra194-display
+      - nvidia,tegra234-display
 
   '#address-cells':
     enum: [ 1, 2 ]
@@ -29,35 +30,28 @@ properties:
     maxItems: 1
 
   interrupts:
-    maxItems: 1
+    minItems: 1
+    maxItems: 3
+
+  interrupt-names:
+    minItems: 1
+    maxItems: 3
 
   clocks:
     minItems: 2
-    maxItems: 3
+    maxItems: 4
 
   clock-names:
     minItems: 2
-    maxItems: 3
+    maxItems: 4
 
   resets:
-    items:
-      - description: display hub reset
-      - description: window group 0 reset
-      - description: window group 1 reset
-      - description: window group 2 reset
-      - description: window group 3 reset
-      - description: window group 4 reset
-      - description: window group 5 reset
+    minItems: 1
+    maxItems: 7
 
   reset-names:
-    items:
-      - const: misc
-      - const: wgrp0
-      - const: wgrp1
-      - const: wgrp2
-      - const: wgrp3
-      - const: wgrp4
-      - const: wgrp5
+    minItems: 1
+    maxItems: 7
 
   power-domains:
     maxItems: 1
@@ -68,6 +62,19 @@ properties:
 patternProperties:
   "^display@[0-9a-f]+$":
     type: object
+
+additionalProperties: false
+
+required:
+  - compatible
+  - clocks
+  - clock-names
+  - resets
+  - reset-names
+  - power-domains
+  - "#address-cells"
+  - "#size-cells"
+  - ranges
 
 allOf:
   - if:
@@ -88,7 +95,13 @@ allOf:
             - const: disp
             - const: dsc
             - const: hub
-    else:
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: nvidia,tegra194-display
+    then:
       properties:
         clocks:
           items:
@@ -100,19 +113,66 @@ allOf:
             - const: disp
             - const: hub
 
-additionalProperties: false
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - nvidia,tegra186-display
+              - nvidia,tegra194-display
+    then:
+      properties:
+        resets:
+          items:
+            - description: display hub reset
+            - description: window group 0 reset
+            - description: window group 1 reset
+            - description: window group 2 reset
+            - description: window group 3 reset
+            - description: window group 4 reset
+            - description: window group 5 reset
 
-required:
-  - compatible
-  - reg
-  - clocks
-  - clock-names
-  - resets
-  - reset-names
-  - power-domains
-  - "#address-cells"
-  - "#size-cells"
-  - ranges
+        reset-names:
+          items:
+            - const: misc
+            - const: wgrp0
+            - const: wgrp1
+            - const: wgrp2
+            - const: wgrp3
+            - const: wgrp4
+            - const: wgrp5
+
+      required:
+        - reg
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: nvidia,tegra234-display
+    then:
+      properties:
+        clocks:
+          items:
+            - description: display core clock
+            - description: display hub clock
+            - description: display core PLL
+            - description: display hub PLL
+
+        clock-names:
+          items:
+            - const: display
+            - const: hub
+            - const: display-pll
+            - const: hub-pll
+
+        resets:
+          items:
+            - description: display core reset
+
+        reset-names:
+          items:
+            - const: display
 
 examples:
   - |
