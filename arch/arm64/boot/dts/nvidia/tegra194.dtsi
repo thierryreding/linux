@@ -116,22 +116,22 @@
 			reg = <0x0 0x2430000 0x0 0x17000>;
 			status = "okay";
 
-			pex_rst_c5_out_state: pinmux-pex-rst-c5-out {
-				pex_rst {
-					nvidia,pins = "pex_l5_rst_n_pgg1";
+			pex_clkreq_c5_bi_dir_state: pinmux-pex-clkreq-c5-bi-dir {
+				clkreq {
+					nvidia,pins = "pex_l5_clkreq_n_pgg0";
 					nvidia,schmitt = <TEGRA_PIN_DISABLE>;
-					nvidia,enable-input = <TEGRA_PIN_DISABLE>;
+					nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 					nvidia,io-hv = <TEGRA_PIN_ENABLE>;
 					nvidia,tristate = <TEGRA_PIN_DISABLE>;
 					nvidia,pull = <TEGRA_PIN_PULL_NONE>;
 				};
 			};
 
-			clkreq_c5_bi_dir_state: pinmux-clkreq-c5-bi-dir {
-				clkreq {
-					nvidia,pins = "pex_l5_clkreq_n_pgg0";
+			pex_rst_c5_out_state: pinmux-pex-rst-c5-out {
+				pex_rst {
+					nvidia,pins = "pex_l5_rst_n_pgg1";
 					nvidia,schmitt = <TEGRA_PIN_DISABLE>;
-					nvidia,enable-input = <TEGRA_PIN_ENABLE>;
+					nvidia,enable-input = <TEGRA_PIN_DISABLE>;
 					nvidia,io-hv = <TEGRA_PIN_ENABLE>;
 					nvidia,tristate = <TEGRA_PIN_DISABLE>;
 					nvidia,pull = <TEGRA_PIN_PULL_NONE>;
@@ -1691,17 +1691,14 @@
 
 			#interrupt-cells = <2>;
 			interrupt-controller;
-			sdmmc1_3v3: sdmmc1-3v3 {
-				pins = "sdmmc1-hv";
-				power-source = <TEGRA_IO_PAD_VOLTAGE_3V3>;
-			};
 
 			sdmmc1_1v8: sdmmc1-1v8 {
 				pins = "sdmmc1-hv";
 				power-source = <TEGRA_IO_PAD_VOLTAGE_1V8>;
 			};
-			sdmmc3_3v3: sdmmc3-3v3 {
-				pins = "sdmmc3-hv";
+
+			sdmmc1_3v3: sdmmc1-3v3 {
+				pins = "sdmmc1-hv";
 				power-source = <TEGRA_IO_PAD_VOLTAGE_3V3>;
 			};
 
@@ -1710,6 +1707,10 @@
 				power-source = <TEGRA_IO_PAD_VOLTAGE_1V8>;
 			};
 
+			sdmmc3_3v3: sdmmc3-3v3 {
+				pins = "sdmmc3-hv";
+				power-source = <TEGRA_IO_PAD_VOLTAGE_3V3>;
+			};
 		};
 
 		aon-noc@c600000 {
@@ -2714,7 +2715,7 @@
 			linux,pci-domain = <5>;
 
 			pinctrl-names = "default";
-			pinctrl-0 = <&pex_rst_c5_out_state>, <&clkreq_c5_bi_dir_state>;
+			pinctrl-0 = <&pex_rst_c5_out_state>, <&pex_clkreq_c5_bi_dir_state>;
 
 			clocks = <&bpmp TEGRA194_CLK_PEX1_CORE_5>;
 			clock-names = "core";
@@ -2767,7 +2768,7 @@
 			num-ob-windows = <8>;
 
 			pinctrl-names = "default";
-			pinctrl-0 = <&clkreq_c5_bi_dir_state>;
+			pinctrl-0 = <&pex_clkreq_c5_bi_dir_state>;
 
 			clocks = <&bpmp TEGRA194_CLK_PEX1_CORE_5>;
 			clock-names = "core";
@@ -3095,6 +3096,13 @@
 		method = "smc";
 	};
 
+	tcu: serial {
+		compatible = "nvidia,tegra194-tcu";
+		mboxes = <&hsp_top0 TEGRA_HSP_MBOX_TYPE_SM TEGRA_HSP_SM_RX(0)>,
+			 <&hsp_aon TEGRA_HSP_MBOX_TYPE_SM TEGRA_HSP_SM_TX(1)>;
+		mbox-names = "rx", "tx";
+	};
+
 	sound {
 		status = "disabled";
 
@@ -3113,13 +3121,6 @@
 		 * for 8x and 11.025x sample rate streams.
 		 */
 		assigned-clock-rates = <258000000>;
-	};
-
-	tcu: serial {
-		compatible = "nvidia,tegra194-tcu";
-		mboxes = <&hsp_top0 TEGRA_HSP_MBOX_TYPE_SM TEGRA_HSP_SM_RX(0)>,
-		         <&hsp_aon TEGRA_HSP_MBOX_TYPE_SM TEGRA_HSP_SM_TX(1)>;
-		mbox-names = "rx", "tx";
 	};
 
 	thermal-zones {

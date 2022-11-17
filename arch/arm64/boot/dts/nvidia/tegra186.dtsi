@@ -1298,18 +1298,13 @@
 		#interrupt-cells = <2>;
 		interrupt-controller;
 
-		sdmmc1_3v3: sdmmc1-3v3 {
-			pins = "sdmmc1-hv";
-			power-source = <TEGRA_IO_PAD_VOLTAGE_3V3>;
-		};
-
 		sdmmc1_1v8: sdmmc1-1v8 {
 			pins = "sdmmc1-hv";
 			power-source = <TEGRA_IO_PAD_VOLTAGE_1V8>;
 		};
 
-		sdmmc2_3v3: sdmmc2-3v3 {
-			pins = "sdmmc2-hv";
+		sdmmc1_3v3: sdmmc1-3v3 {
+			pins = "sdmmc1-hv";
 			power-source = <TEGRA_IO_PAD_VOLTAGE_3V3>;
 		};
 
@@ -1318,14 +1313,19 @@
 			power-source = <TEGRA_IO_PAD_VOLTAGE_1V8>;
 		};
 
-		sdmmc3_3v3: sdmmc3-3v3 {
-			pins = "sdmmc3-hv";
+		sdmmc2_3v3: sdmmc2-3v3 {
+			pins = "sdmmc2-hv";
 			power-source = <TEGRA_IO_PAD_VOLTAGE_3V3>;
 		};
 
 		sdmmc3_1v8: sdmmc3-1v8 {
 			pins = "sdmmc3-hv";
 			power-source = <TEGRA_IO_PAD_VOLTAGE_1V8>;
+		};
+
+		sdmmc3_3v3: sdmmc3-3v3 {
+			pins = "sdmmc3-hv";
+			power-source = <TEGRA_IO_PAD_VOLTAGE_3V3>;
 		};
 	};
 
@@ -2036,20 +2036,20 @@
 		};
 	};
 
-	pmu_denver {
-		compatible = "nvidia,denver-pmu";
-		interrupts = <GIC_SPI 320 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 321 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-affinity = <&denver_0 &denver_1>;
-	};
-
-	pmu_a57 {
+	pmu-a57 {
 		compatible = "arm,cortex-a57-pmu";
 		interrupts = <GIC_SPI 296 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 297 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 298 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 299 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-affinity = <&ca57_0 &ca57_1 &ca57_2 &ca57_3>;
+	};
+
+	pmu-denver {
+		compatible = "nvidia,denver-pmu";
+		interrupts = <GIC_SPI 320 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 321 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-affinity = <&denver_0 &denver_1>;
 	};
 
 	sound {
