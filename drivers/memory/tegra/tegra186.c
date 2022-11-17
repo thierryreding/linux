@@ -107,11 +107,11 @@ static void tegra186_mc_client_sid_override(struct tegra_mc *mc,
 
 static int tegra186_mc_probe_device(struct tegra_mc *mc, struct device *dev)
 {
-	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
 	struct of_phandle_args args;
 	unsigned int i, index = 0;
+	u32 stream_id;
 
-	if (!fwspec)
+	if (!tegra_dev_iommu_get_stream_id(dev, &stream_id))
 		return 0;
 
 	while (!of_parse_phandle_with_args(dev->of_node, "interconnects", "#interconnect-cells",
@@ -121,9 +121,9 @@ static int tegra186_mc_probe_device(struct tegra_mc *mc, struct device *dev)
 				const struct tegra_mc_client *client = &mc->soc->clients[i];
 
 				if (client->id == args.args[0]) {
-					u32 sid = fwspec->ids[0] & MC_SID_STREAMID_OVERRIDE_MASK;
+					u32 value = stream_id & MC_SID_STREAMID_OVERRIDE_MASK;
 
-					tegra186_mc_client_sid_override(mc, client, sid);
+					tegra186_mc_client_sid_override(mc, client, value);
 				}
 			}
 		}
