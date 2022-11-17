@@ -2135,6 +2135,9 @@ skip_inexact:
 fail:
 	rcu_read_unlock();
 
+	if (!IS_ERR(ret))
+		printk("xfrm_policy_lookup_bytype: policy if_id %d, wanted if_id  %d\n", ret->if_id, if_id);
+
 	return ret;
 }
 
