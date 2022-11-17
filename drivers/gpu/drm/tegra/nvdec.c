@@ -67,21 +67,17 @@ static inline void nvdec_writel(struct nvdec *nvdec, u32 value,
 
 static int nvdec_boot_falcon(struct nvdec *nvdec)
 {
-	struct iommu_fwspec *spec = dev_iommu_fwspec_get(nvdec->dev);
+	u32 stream_id;
 	int err;
 
-	if (nvdec->config->supports_sid && spec) {
+	if (nvdec->config->supports_sid && tegra_dev_iommu_get_stream_id(nvdec->dev, &stream_id)) {
 		u32 value;
 
 		value = TRANSCFG_ATT(1, TRANSCFG_SID_FALCON) | TRANSCFG_ATT(0, TRANSCFG_SID_HW);
 		nvdec_writel(nvdec, value, NVDEC_TFBIF_TRANSCFG);
 
-		if (spec->num_ids > 0) {
-			value = spec->ids[0] & 0xffff;
-
-			nvdec_writel(nvdec, value, VIC_THI_STREAMID0);
-			nvdec_writel(nvdec, value, VIC_THI_STREAMID1);
-		}
+		nvdec_writel(nvdec, stream_id, VIC_THI_STREAMID0);
+		nvdec_writel(nvdec, stream_id, VIC_THI_STREAMID1);
 	}
 
 	err = falcon_boot(&nvdec->falcon);
