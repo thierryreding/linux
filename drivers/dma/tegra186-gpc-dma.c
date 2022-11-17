@@ -1347,7 +1347,6 @@ static int tegra_dma_program_sid(struct tegra_dma_channel *tdc, int stream_id)
 static int tegra_dma_probe(struct platform_device *pdev)
 {
 	const struct tegra_dma_chip_data *cdata = NULL;
-	struct iommu_fwspec *iommu_spec;
 	unsigned int stream_id, i;
 	struct tegra_dma *tdma;
 	int ret;
@@ -1377,12 +1376,10 @@ static int tegra_dma_probe(struct platform_device *pdev)
 
 	tdma->dma_dev.dev = &pdev->dev;
 
-	iommu_spec = dev_iommu_fwspec_get(&pdev->dev);
-	if (!iommu_spec) {
-		dev_err(&pdev->dev, "Missing iommu stream-id\n");
+	if (!tegra_dev_iommu_get_stream_id(&pdev->dev, &stream_id)) {
+		dev_err(&pdev->dev, "missing IOMMU stream ID\n");
 		return -EINVAL;
 	}
-	stream_id = iommu_spec->ids[0] & 0xffff;
 
 	ret = device_property_read_u32(&pdev->dev, "dma-channel-mask",
 				       &tdma->chan_mask);
@@ -1415,7 +1412,7 @@ static int tegra_dma_probe(struct platform_device *pdev)
 		vchan_init(&tdc->vc, &tdma->dma_dev);
 		tdc->vc.desc_free = tegra_dma_desc_free;
 
-		/* program stream-id for this channel */
+		/* program stream ID for this channel */
 		tegra_dma_program_sid(tdc, stream_id);
 		tdc->stream_id = stream_id;
 	}
