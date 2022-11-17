@@ -30,6 +30,7 @@ properties:
           - nvidia,tegra210-dpaux
           - nvidia,tegra186-dpaux
           - nvidia,tegra194-dpaux
+          - nvidia,tegra234-dpaux
 
       - items:
           - const: nvidia,tegra132-dpaux
