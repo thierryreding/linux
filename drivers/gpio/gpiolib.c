@@ -448,10 +448,11 @@ static unsigned long *gpiochip_allocate_mask(struct gpio_chip *gc)
 
 static unsigned int gpiochip_count_reserved_ranges(struct gpio_chip *gc)
 {
+	struct fwnode_handle *fwnode = dev_fwnode(&gc->gpiodev->dev);
 	int size;
 
 	/* Format is "start, count, ..." */
-	size = fwnode_property_count_u32(gc->fwnode, "gpio-reserved-ranges");
+	size = fwnode_property_count_u32(fwnode, "gpio-reserved-ranges");
 	if (size > 0 && size % 2 == 0)
 		return size;
 
@@ -472,6 +473,7 @@ static int gpiochip_alloc_valid_mask(struct gpio_chip *gc)
 
 static int gpiochip_apply_reserved_ranges(struct gpio_chip *gc)
 {
+	struct fwnode_handle *fwnode = dev_fwnode(&gc->gpiodev->dev);
 	unsigned int size;
 	u32 *ranges;
 	int ret;
@@ -484,7 +486,7 @@ static int gpiochip_apply_reserved_ranges(struct gpio_chip *gc)
 	if (!ranges)
 		return -ENOMEM;
 
-	ret = fwnode_property_read_u32_array(gc->fwnode, "gpio-reserved-ranges", ranges, size);
+	ret = fwnode_property_read_u32_array(fwnode, "gpio-reserved-ranges", ranges, size);
 	if (ret) {
 		kfree(ranges);
 		return ret;
