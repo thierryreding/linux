@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/nvidia,tegra234-hdacodec.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra234 HDA Codec
+
+description: |
+  The HDA codec is used to control various aspects of HDA audio output.
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jonathan Hunter <jonathanh@nvidia.com>
+
+properties:
+  $nodename:
+    pattern: "^codec@[0-9a-f]*$"
+
+  compatible:
+    enum:
+      - nvidia,tegra234-hdacodec
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 2
+
+  clock-names:
+    items:
+      - const: 2x-bit
+      - const: bit
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+
+examples:
+  - |
+    codec@242c000 {
+        compatible = "nvidia,tegra234-hdacodec";
+        reg = <0x242c000 0x1000>;
+        interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&bpmp TEGRA234_CLK_AZA_2XBIT>,
+                 <&bpmp TEGRA234_CLK_AZA_BIT>;
+        clock-names = "2x-bit", "bit";
+    };
+...
