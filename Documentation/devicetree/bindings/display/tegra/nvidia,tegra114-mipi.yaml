@@ -19,17 +19,20 @@ properties:
       - nvidia,tegra114-mipi
       - nvidia,tegra210-mipi
       - nvidia,tegra186-mipi
+      - nvidia,tegra234-mipi
 
   reg:
     maxItems: 1
 
   clocks:
-    items:
-      - description: module clock
+    maxItems: 1
 
   clock-names:
     items:
       - const: mipi-cal
+
+  resets:
+    maxItems: 1
 
   power-domains:
     maxItems: 1
