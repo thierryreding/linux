@@ -21,22 +21,20 @@ int host1x_memory_context_list_init(struct host1x *host1x)
 	unsigned int i;
 	int err;
 
-	cdl->devs = NULL;
-	cdl->len = 0;
 	mutex_init(&cdl->lock);
 
 	err = of_property_count_u32_elems(node, "iommu-map");
 	if (err < 0)
 		return 0;
 
-	cdl->devs = kcalloc(err, sizeof(*cdl->devs), GFP_KERNEL);
+	cdl->len = err / 4;
+
+	cdl->devs = kcalloc(cdl->len, sizeof(*cdl->devs), GFP_KERNEL);
 	if (!cdl->devs)
 		return -ENOMEM;
-	cdl->len = err / 4;
 
 	for (i = 0; i < cdl->len; i++) {
 		ctx = &cdl->devs[i];
-
 		ctx->host = host1x;
 
 		device_initialize(&ctx->dev);
@@ -83,7 +81,6 @@ del_devices:
 		device_del(&cdl->devs[i].dev);
 
 	kfree(cdl->devs);
-	cdl->len = 0;
 
 	return err;
 }
