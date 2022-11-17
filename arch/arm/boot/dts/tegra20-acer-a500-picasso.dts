@@ -347,6 +347,19 @@
 				nvidia,pins = "ddc";
 				nvidia,function = "i2c2";
 			};
+
+			pta {
+				nvidia,pins = "pta";
+				nvidia,function = "rsvd4";
+			};
+		};
+
+		state_i2cmux_idle: pinmux-i2cmux-idle {
+			ddc {
+				nvidia,pins = "ddc";
+				nvidia,function = "rsvd4";
+			};
+
 			pta {
 				nvidia,pins = "pta";
 				nvidia,function = "rsvd4";
@@ -358,20 +371,10 @@
 				nvidia,pins = "ddc";
 				nvidia,function = "rsvd4";
 			};
+
 			pta {
 				nvidia,pins = "pta";
 				nvidia,function = "i2c2";
-			};
-		};
-
-		state_i2cmux_idle: pinmux-i2cmux-idle {
-			ddc {
-				nvidia,pins = "ddc";
-				nvidia,function = "rsvd4";
-			};
-			pta {
-				nvidia,pins = "pta";
-				nvidia,function = "rsvd4";
 			};
 		};
 	};
@@ -1272,19 +1275,19 @@
 			debounce-interval = <10>;
 		};
 
-		key-volume-up {
-			label = "Volume Up";
-			gpios = <&gpio TEGRA_GPIO(Q, 4) GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_VOLUMEUP>;
+		key-volume-down {
+			label = "Volume Down";
+			gpios = <&gpio TEGRA_GPIO(Q, 5) GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEDOWN>;
 			debounce-interval = <10>;
 			wakeup-event-action = <EV_ACT_ASSERTED>;
 			wakeup-source;
 		};
 
-		key-volume-down {
-			label = "Volume Down";
-			gpios = <&gpio TEGRA_GPIO(Q, 5) GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_VOLUMEDOWN>;
+		key-volume-up {
+			label = "Volume Up";
+			gpios = <&gpio TEGRA_GPIO(Q, 4) GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEUP>;
 			debounce-interval = <10>;
 			wakeup-event-action = <EV_ACT_ASSERTED>;
 			wakeup-source;
@@ -1358,6 +1361,11 @@
 				};
 			};
 		};
+	};
+
+	opp-table-emc {
+		/delete-node/ opp-666000000;
+		/delete-node/ opp-760000000;
 	};
 
 	vdd_5v0_sys: regulator-5v0 {
@@ -1514,9 +1522,4 @@
 		post-power-on-delay-ms = <300>;
 		power-off-delay-us = <300>;
 	};
-};
-
-&emc_icc_dvfs_opp_table {
-	/delete-node/ opp-666000000;
-	/delete-node/ opp-760000000;
 };

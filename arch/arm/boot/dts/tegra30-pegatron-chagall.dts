@@ -37,6 +37,14 @@
 	 */
 	chosen {};
 
+	firmware {
+		trusted-foundations {
+			compatible = "tlm,trusted-foundations";
+			tlm,version-major = <2>;
+			tlm,version-minor = <8>;
+		};
+	};
+
 	memory@80000000 {
 		reg = <0x80000000 0x40000000>;
 	};
@@ -2506,17 +2514,6 @@
 		vqmmc-supply = <&vddio_usd>; /* ldo3 */
 	};
 
-	brcm_wifi_pwrseq: wifi-pwrseq {
-		compatible = "mmc-pwrseq-simple";
-
-		clocks = <&tegra_pmc TEGRA_PMC_CLK_BLINK>;
-		clock-names = "ext_clock";
-
-		reset-gpios = <&gpio TEGRA_GPIO(D, 3) GPIO_ACTIVE_LOW>;
-		post-power-on-delay-ms = <300>;
-		power-off-delay-us = <300>;
-	};
-
 	sdmmc3: mmc@78000400 {
 		status = "okay";
 
@@ -2674,14 +2671,6 @@
 		};
 	};
 
-	firmware {
-		trusted-foundations {
-			compatible = "tlm,trusted-foundations";
-			tlm,version-major = <2>;
-			tlm,version-minor = <8>;
-		};
-	};
-
 	gpio-keys {
 		compatible = "gpio-keys";
 
@@ -2689,15 +2678,6 @@
 			label = "Power";
 			gpios = <&gpio TEGRA_GPIO(V, 0) GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
-			debounce-interval = <10>;
-			wakeup-event-action = <EV_ACT_ASSERTED>;
-			wakeup-source;
-		};
-
-		key-volume-up {
-			label = "Volume Up";
-			gpios = <&gpio TEGRA_GPIO(Q, 0) GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_VOLUMEUP>;
 			debounce-interval = <10>;
 			wakeup-event-action = <EV_ACT_ASSERTED>;
 			wakeup-source;
@@ -2711,12 +2691,49 @@
 			wakeup-event-action = <EV_ACT_ASSERTED>;
 			wakeup-source;
 		};
+
+		key-volume-up {
+			label = "Volume Up";
+			gpios = <&gpio TEGRA_GPIO(Q, 0) GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEUP>;
+			debounce-interval = <10>;
+			wakeup-event-action = <EV_ACT_ASSERTED>;
+			wakeup-source;
+		};
 	};
 
 	haptic-feedback {
 		compatible = "gpio-vibrator";
 		enable-gpios = <&gpio TEGRA_GPIO(U, 4) GPIO_ACTIVE_HIGH>;
 		vcc-supply = <&vdd_3v3_sys>;
+	};
+
+	opp-table-actmon {
+		/delete-node/ opp-625000000;
+		/delete-node/ opp-667000000;
+		/delete-node/ opp-750000000;
+		/delete-node/ opp-800000000;
+		/delete-node/ opp-900000000;
+	};
+
+	opp-table-emc {
+		/delete-node/ opp-625000000-1200;
+		/delete-node/ opp-625000000-1250;
+		/delete-node/ opp-667000000-1200;
+		/delete-node/ opp-750000000-1300;
+		/delete-node/ opp-800000000-1300;
+		/delete-node/ opp-900000000-1350;
+	};
+
+	brcm_wifi_pwrseq: pwrseq-wifi {
+		compatible = "mmc-pwrseq-simple";
+
+		clocks = <&tegra_pmc TEGRA_PMC_CLK_BLINK>;
+		clock-names = "ext_clock";
+
+		reset-gpios = <&gpio TEGRA_GPIO(D, 3) GPIO_ACTIVE_LOW>;
+		post-power-on-delay-ms = <300>;
+		power-off-delay-us = <300>;
 	};
 
 	sound {
@@ -2838,21 +2855,4 @@
 			};
 		};
 	};
-};
-
-&emc_icc_dvfs_opp_table {
-	/delete-node/ opp-625000000-1200;
-	/delete-node/ opp-625000000-1250;
-	/delete-node/ opp-667000000-1200;
-	/delete-node/ opp-750000000-1300;
-	/delete-node/ opp-800000000-1300;
-	/delete-node/ opp-900000000-1350;
-};
-
-&emc_bw_dfs_opp_table {
-	/delete-node/ opp-625000000;
-	/delete-node/ opp-667000000;
-	/delete-node/ opp-750000000;
-	/delete-node/ opp-800000000;
-	/delete-node/ opp-900000000;
 };
