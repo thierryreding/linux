@@ -1084,6 +1084,7 @@ static const struct tegra_gpio_soc tegra194_aon_soc = {
 	.has_gte = true,
 };
 
+/* Tegra234 MAIN GPIO controller */
 #define TEGRA234_MAIN_GPIO_PORT(_name, _bank, _port, _pins)	\
 	[TEGRA234_MAIN_GPIO_PORT_##_name] = {			\
 		.name = #_name,					\
@@ -1128,6 +1129,7 @@ static const struct tegra_gpio_soc tegra234_main_soc = {
 	.num_irqs_per_bank = 8,
 };
 
+/* Tegra234 AON GPIO controller */
 #define TEGRA234_AON_GPIO_PORT(_name, _bank, _port, _pins)	\
 	[TEGRA234_AON_GPIO_PORT_##_name] = {			\
 		.name = #_name,					\
