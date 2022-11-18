@@ -76,6 +76,7 @@
 #include "g4x_hdmi.h"
 #include "hsw_ips.h"
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "i915_utils.h"
 #include "icl_dsi.h"
 #include "intel_acpi.h"
@@ -90,6 +91,7 @@
 #include "intel_display_types.h"
 #include "intel_dmc.h"
 #include "intel_dp_link_training.h"
+#include "intel_dpio_phy.h"
 #include "intel_dpt.h"
 #include "intel_dsb.h"
 #include "intel_fbc.h"
@@ -99,6 +101,7 @@
 #include "intel_frontbuffer.h"
 #include "intel_hdcp.h"
 #include "intel_hotplug.h"
+#include "intel_hti.h"
 #include "intel_modeset_verify.h"
 #include "intel_modeset_setup.h"
 #include "intel_overlay.h"
@@ -888,7 +891,7 @@ static bool gpu_reset_clobbers_display(struct drm_i915_private *dev_priv)
 
 void intel_display_prepare_reset(struct drm_i915_private *dev_priv)
 {
-	struct drm_modeset_acquire_ctx *ctx = &dev_priv->reset_ctx;
+	struct drm_modeset_acquire_ctx *ctx = &dev_priv->display.restore.reset_ctx;
 	struct drm_atomic_state *state;
 	int ret;
 
@@ -944,13 +947,13 @@ void intel_display_prepare_reset(struct drm_i915_private *dev_priv)
 		return;
 	}
 
-	dev_priv->modeset_restore_state = state;
+	dev_priv->display.restore.modeset_state = state;
 	state->acquire_ctx = ctx;
 }
 
 void intel_display_finish_reset(struct drm_i915_private *i915)
 {
-	struct drm_modeset_acquire_ctx *ctx = &i915->reset_ctx;
+	struct drm_modeset_acquire_ctx *ctx = &i915->display.restore.reset_ctx;
 	struct drm_atomic_state *state;
 	int ret;
 
@@ -961,7 +964,7 @@ void intel_display_finish_reset(struct drm_i915_private *i915)
 	if (!test_bit(I915_RESET_MODESET, &to_gt(i915)->reset.flags))
 		return;
 
-	state = fetch_and_zero(&i915->modeset_restore_state);
+	state = fetch_and_zero(&i915->display.restore.modeset_state);
 	if (!state)
 		goto unlock;
 
@@ -2441,7 +2444,7 @@ int intel_display_suspend(struct drm_device *dev)
 		drm_err(&dev_priv->drm, "Suspending crtc's failed with %i\n",
 			ret);
 	else
-		dev_priv->modeset_restore_state = state;
+		dev_priv->display.restore.modeset_state = state;
 	return ret;
 }
 
@@ -5930,7 +5933,7 @@ int intel_modeset_all_pipes(struct intel_atomic_state *state,
 			return PTR_ERR(crtc_state);
 
 		if (!crtc_state->hw.active ||
-		    drm_atomic_crtc_needs_modeset(&crtc_state->uapi))
+		    intel_crtc_needs_modeset(crtc_state))
 			continue;
 
 		drm_dbg_kms(&dev_priv->drm, "[CRTC:%d:%s] Full modeset due to %s\n",
@@ -8569,7 +8572,7 @@ static void intel_mode_config_init(struct drm_i915_private *i915)
 	struct drm_mode_config *mode_config = &i915->drm.mode_config;
 
 	drm_mode_config_init(&i915->drm);
-	INIT_LIST_HEAD(&i915->global_obj_list);
+	INIT_LIST_HEAD(&i915->display.global.obj_list);
 
 	mode_config->min_width = 0;
 	mode_config->min_height = 0;
@@ -8734,12 +8737,7 @@ int intel_modeset_init_nogem(struct drm_i915_private *i915)
 	if (i915->display.cdclk.max_cdclk_freq == 0)
 		intel_update_max_cdclk(i915);
 
-	/*
-	 * If the platform has HTI, we need to find out whether it has reserved
-	 * any display resources before we create our display outputs.
-	 */
-	if (INTEL_INFO(i915)->display.has_hti)
-		i915->hti_state = intel_de_read(i915, HDPORT_STATE);
+	intel_hti_init(i915);
 
 	/* Just disable it once at startup */
 	intel_vga_disable(i915);
@@ -8902,14 +8900,14 @@ void i830_disable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 void intel_display_resume(struct drm_device *dev)
 {
 	struct drm_i915_private *i915 = to_i915(dev);
-	struct drm_atomic_state *state = i915->modeset_restore_state;
+	struct drm_atomic_state *state = i915->display.restore.modeset_state;
 	struct drm_modeset_acquire_ctx ctx;
 	int ret;
 
 	if (!HAS_DISPLAY(i915))
 		return;
 
-	i915->modeset_restore_state = NULL;
+	i915->display.restore.modeset_state = NULL;
 	if (state)
 		state->acquire_ctx = &ctx;
 
