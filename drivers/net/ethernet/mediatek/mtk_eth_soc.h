@@ -22,6 +22,9 @@
 #include <linux/bpf_trace.h>
 #include "mtk_ppe.h"
 
+#define MTK_MAX_DSA_PORTS	7
+#define MTK_DSA_PORT_MASK	GENMASK(2, 0)
+
 #define MTK_QDMA_PAGE_SIZE	2048
 #define MTK_MAX_RX_LENGTH	1536
 #define MTK_MAX_RX_LENGTH_2K	2048
@@ -90,6 +93,9 @@
 /* CDMP Ingress Control Register */
 #define MTK_CDMQ_IG_CTRL	0x1400
 #define MTK_CDMQ_STAG_EN	BIT(0)
+
+/* CDMQ Exgress Control Register */
+#define MTK_CDMQ_EG_CTRL	0x1404
 
 /* CDMP Ingress Control Register */
 #define MTK_CDMP_IG_CTRL	0x400
@@ -466,8 +472,10 @@
 #define ETHSYS_DMA_AG_MAP_PPE	BIT(2)
 
 /* SGMII subsystem config registers */
-/* Register to auto-negotiation restart */
+/* BMCR (low 16) BMSR (high 16) */
 #define SGMSYS_PCS_CONTROL_1	0x0
+#define SGMII_BMCR		GENMASK(15, 0)
+#define SGMII_BMSR		GENMASK(31, 16)
 #define SGMII_AN_RESTART	BIT(9)
 #define SGMII_ISOLATE		BIT(10)
 #define SGMII_AN_ENABLE		BIT(12)
@@ -477,13 +485,18 @@
 #define SGMII_PCS_FAULT		BIT(23)
 #define SGMII_AN_EXPANSION_CLR	BIT(30)
 
+#define SGMSYS_PCS_ADVERTISE	0x8
+#define SGMII_ADVERTISE		GENMASK(15, 0)
+#define SGMII_LPA		GENMASK(31, 16)
+
 /* Register to programmable link timer, the unit in 2 * 8ns */
 #define SGMSYS_PCS_LINK_TIMER	0x18
-#define SGMII_LINK_TIMER_DEFAULT	(0x186a0 & GENMASK(19, 0))
+#define SGMII_LINK_TIMER_MASK	GENMASK(19, 0)
+#define SGMII_LINK_TIMER_DEFAULT	(0x186a0 & SGMII_LINK_TIMER_MASK)
 
 /* Register to control remote fault */
 #define SGMSYS_SGMII_MODE		0x20
-#define SGMII_IF_MODE_BIT0		BIT(0)
+#define SGMII_IF_MODE_SGMII		BIT(0)
 #define SGMII_SPEED_DUPLEX_AN		BIT(1)
 #define SGMII_SPEED_MASK		GENMASK(3, 2)
 #define SGMII_SPEED_10			FIELD_PREP(SGMII_SPEED_MASK, 0)
@@ -1113,6 +1126,8 @@ struct mtk_eth {
 	struct dim			tx_dim;
 
 	int				ip_align;
+
+	struct metadata_dst		*dsa_meta[MTK_MAX_DSA_PORTS];
 
 	struct mtk_ppe			*ppe[2];
 	struct rhashtable		flow_table;
