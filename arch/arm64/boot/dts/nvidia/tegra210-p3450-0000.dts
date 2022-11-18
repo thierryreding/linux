@@ -1739,14 +1739,6 @@
 		};
 	};
 
-	fan: pwm-fan {
-		compatible = "pwm-fan";
-		pwms = <&pwm 3 45334>;
-
-		cooling-levels = <0 64 128 255>;
-		#cooling-cells = <2>;
-	};
-
 	gpio-keys {
 		compatible = "gpio-keys";
 
@@ -1772,6 +1764,14 @@
 	psci {
 		compatible = "arm,psci-1.0";
 		method = "smc";
+	};
+
+	fan: pwm-fan {
+		compatible = "pwm-fan";
+		pwms = <&pwm 3 45334>;
+
+		cooling-levels = <0 64 128 255>;
+		#cooling-cells = <2>;
 	};
 
 	vdd_5v0_sys: regulator-vdd-5v0-sys {

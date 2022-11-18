@@ -2252,14 +2252,6 @@
 		};
 	};
 
-	fan: pwm-fan {
-		compatible = "pwm-fan";
-		pwms = <&pwm6 0 45334>;
-
-		cooling-levels = <0 64 128 255>;
-		#cooling-cells = <2>;
-	};
-
 	gpio-keys {
 		compatible = "gpio-keys";
 
@@ -2282,6 +2274,14 @@
 			wakeup-event-action = <EV_ACT_ASSERTED>;
 			wakeup-source;
 		};
+	};
+
+	fan: pwm-fan {
+		compatible = "pwm-fan";
+		pwms = <&pwm6 0 45334>;
+
+		cooling-levels = <0 64 128 255>;
+		#cooling-cells = <2>;
 	};
 
 	vdd_5v0_sys: regulator-vdd-5v0-sys {

@@ -2162,6 +2162,14 @@
 		};
 	};
 
+	pwm-fan {
+		compatible = "pwm-fan";
+		pwms = <&pwm3 0 45334>;
+
+		cooling-levels = <0 95 178 255>;
+		#cooling-cells = <2>;
+	};
+
 	serial {
 		status = "okay";
 	};
@@ -2227,13 +2235,5 @@
 		       <&dmic3_port>;
 
 		label = "NVIDIA Jetson AGX Orin APE";
-	};
-
-	pwm-fan {
-		compatible = "pwm-fan";
-		pwms = <&pwm3 0 45334>;
-
-		cooling-levels = <0 95 178 255>;
-		#cooling-cells = <2>;
 	};
 };
