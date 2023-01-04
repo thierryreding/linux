@@ -23,16 +23,6 @@
 
 #include <core/memory.h>
 
-int
-gk20a_vmm_aper(enum nvkm_memory_target target)
-{
-	switch (target) {
-	case NVKM_MEM_TARGET_NCOH: return 0;
-	default:
-		return -EINVAL;
-	}
-}
-
 static const struct nvkm_vmm_func
 gk20a_vmm_17 = {
 	.join = gf100_vmm_join,
