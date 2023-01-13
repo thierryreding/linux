@@ -228,7 +228,7 @@ static inline void btrfs_cleanup_ordered_extents(struct btrfs_inode *inode,
 {
 	unsigned long index = offset >> PAGE_SHIFT;
 	unsigned long end_index = (offset + bytes - 1) >> PAGE_SHIFT;
-	u64 page_start, page_end;
+	u64 page_start = 0, page_end = 0;
 	struct page *page;
 
 	if (locked_page) {
@@ -2969,7 +2969,7 @@ again:
 		unlock_extent(&inode->io_tree, page_start, page_end,
 			      &cached_state);
 		unlock_page(page);
-		btrfs_start_ordered_extent(ordered, 1);
+		btrfs_start_ordered_extent(ordered);
 		btrfs_put_ordered_extent(ordered);
 		goto again;
 	}
@@ -4987,7 +4987,7 @@ again:
 		unlock_extent(io_tree, block_start, block_end, &cached_state);
 		unlock_page(page);
 		put_page(page);
-		btrfs_start_ordered_extent(ordered, 1);
+		btrfs_start_ordered_extent(ordered);
 		btrfs_put_ordered_extent(ordered);
 		goto again;
 	}
@@ -7392,7 +7392,7 @@ static int lock_extent_direct(struct inode *inode, u64 lockstart, u64 lockend,
 			 */
 			if (writing ||
 			    test_bit(BTRFS_ORDERED_DIRECT, &ordered->flags))
-				btrfs_start_ordered_extent(ordered, 1);
+				btrfs_start_ordered_extent(ordered);
 			else
 				ret = nowait ? -EAGAIN : -ENOTBLK;
 			btrfs_put_ordered_extent(ordered);
@@ -8080,7 +8080,7 @@ static void btrfs_submit_direct(const struct iomap_iter *iter,
 		if (IS_ERR(em)) {
 			status = errno_to_blk_status(PTR_ERR(em));
 			em = NULL;
-			goto out_err_em;
+			goto out_err;
 		}
 		ret = btrfs_get_io_geometry(fs_info, em, btrfs_op(dio_bio),
 					    logical, &geom);
@@ -8552,7 +8552,7 @@ again:
 		unlock_extent(io_tree, page_start, page_end, &cached_state);
 		unlock_page(page);
 		up_read(&BTRFS_I(inode)->i_mmap_lock);
-		btrfs_start_ordered_extent(ordered, 1);
+		btrfs_start_ordered_extent(ordered);
 		btrfs_put_ordered_extent(ordered);
 		goto again;
 	}
@@ -10995,9 +10995,8 @@ static int btrfs_add_swap_extent(struct swap_info_struct *sis,
 		return 0;
 
 	max_pages = sis->max - bsi->nr_pages;
-	first_ppage = ALIGN(bsi->block_start, PAGE_SIZE) >> PAGE_SHIFT;
-	next_ppage = ALIGN_DOWN(bsi->block_start + bsi->block_len,
-				PAGE_SIZE) >> PAGE_SHIFT;
+	first_ppage = PAGE_ALIGN(bsi->block_start) >> PAGE_SHIFT;
+	next_ppage = PAGE_ALIGN_DOWN(bsi->block_start + bsi->block_len) >> PAGE_SHIFT;
 
 	if (first_ppage >= next_ppage)
 		return 0;
