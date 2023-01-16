@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Advanced Micro Devices, Inc.
+ * Copyright 2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,25 +19,13 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: AMD
- *
  */
 
-#ifndef __LINK_DPCD_H__
-#define __LINK_DPCD_H__
-#include <inc/core_status.h>
-#include <dc_link.h>
-#include <dc_link_dp.h>
+#ifndef __DF_V4_3_H__
+#define __DF_V4_3_H__
 
-enum dc_status core_link_read_dpcd(
-		struct dc_link *link,
-		uint32_t address,
-		uint8_t *data,
-		uint32_t size);
+#include "soc15_common.h"
 
-enum dc_status core_link_write_dpcd(
-		struct dc_link *link,
-		uint32_t address,
-		const uint8_t *data,
-		uint32_t size);
+extern const struct amdgpu_df_funcs df_v4_3_funcs;
+
 #endif

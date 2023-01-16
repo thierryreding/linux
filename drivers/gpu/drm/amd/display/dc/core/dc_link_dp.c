@@ -32,12 +32,12 @@
 
 #include "inc/core_types.h"
 #include "link_hwss.h"
-#include "dc_link_ddc.h"
+#include "link/link_ddc.h"
 #include "core_status.h"
 #include "dpcd_defs.h"
 #include "dc_dmub_srv.h"
 #include "dce/dmub_hw_lock_mgr.h"
-#include "inc/dc_link_dpia.h"
+#include "link/link_dp_dpia.h"
 #include "inc/link_enc_cfg.h"
 #include "link/link_dp_trace.h"
 
@@ -50,7 +50,7 @@ static const uint8_t DP_VGA_LVDS_CONVERTER_ID_3[] = "dnomlA";
 	link->ctx->logger
 #define DC_TRACE_LEVEL_MESSAGE(...) /* do nothing */
 
-#include "link_dpcd.h"
+#include "link/link_dpcd.h"
 
 #ifndef MAX
 #define MAX(X, Y) ((X) > (Y) ? (X) : (Y))
@@ -4094,6 +4094,12 @@ static void dp_test_send_link_training(struct dc_link *link)
 	dp_retrain_link_dp_test(link, &link_settings, false);
 }
 
+static bool is_dp_phy_sqaure_pattern(enum dp_test_pattern test_pattern)
+{
+	return (DP_TEST_PATTERN_SQUARE_BEGIN <= test_pattern &&
+			test_pattern <= DP_TEST_PATTERN_SQUARE_END);
+}
+
 /* TODO Raven hbr2 compliance eye output is unstable
  * (toggling on and off) with debugger break
  * This caueses intermittent PHY automation failure
@@ -4111,6 +4117,8 @@ static void dp_test_send_phy_test_pattern(struct dc_link *link)
 	union lane_adjust dpcd_lane_adjust;
 	unsigned int lane;
 	struct link_training_settings link_training_settings;
+	unsigned char no_preshoot = 0;
+	unsigned char no_deemphasis = 0;
 
 	dpcd_test_pattern.raw = 0;
 	memset(dpcd_lane_adjustment, 0, sizeof(dpcd_lane_adjustment));
@@ -4204,8 +4212,21 @@ static void dp_test_send_phy_test_pattern(struct dc_link *link)
 	case PHY_TEST_PATTERN_264BIT_CUSTOM:
 		test_pattern = DP_TEST_PATTERN_264BIT_CUSTOM;
 		break;
-	case PHY_TEST_PATTERN_SQUARE_PULSE:
-		test_pattern = DP_TEST_PATTERN_SQUARE_PULSE;
+	case PHY_TEST_PATTERN_SQUARE:
+		test_pattern = DP_TEST_PATTERN_SQUARE;
+		break;
+	case PHY_TEST_PATTERN_SQUARE_PRESHOOT_DISABLED:
+		test_pattern = DP_TEST_PATTERN_SQUARE_PRESHOOT_DISABLED;
+		no_preshoot = 1;
+		break;
+	case PHY_TEST_PATTERN_SQUARE_DEEMPHASIS_DISABLED:
+		test_pattern = DP_TEST_PATTERN_SQUARE_DEEMPHASIS_DISABLED;
+		no_deemphasis = 1;
+		break;
+	case PHY_TEST_PATTERN_SQUARE_PRESHOOT_DEEMPHASIS_DISABLED:
+		test_pattern = DP_TEST_PATTERN_SQUARE_PRESHOOT_DEEMPHASIS_DISABLED;
+		no_preshoot = 1;
+		no_deemphasis = 1;
 		break;
 	default:
 		test_pattern = DP_TEST_PATTERN_VIDEO_MODE;
@@ -4222,7 +4243,7 @@ static void dp_test_send_phy_test_pattern(struct dc_link *link)
 				test_pattern_size);
 	}
 
-	if (test_pattern == DP_TEST_PATTERN_SQUARE_PULSE) {
+	if (is_dp_phy_sqaure_pattern(test_pattern)) {
 		test_pattern_size = 1; // Square pattern data is 1 byte (DP spec)
 		core_link_read_dpcd(
 				link,
@@ -4259,8 +4280,10 @@ static void dp_test_send_phy_test_pattern(struct dc_link *link)
 				((dpcd_post_cursor_2_adjustment >> (lane * 2)) & 0x03);
 		} else if (dp_get_link_encoding_format(&link->cur_link_settings) ==
 				DP_128b_132b_ENCODING) {
-			link_training_settings.hw_lane_settings[lane].FFE_PRESET.raw =
+			link_training_settings.hw_lane_settings[lane].FFE_PRESET.settings.level =
 					dpcd_lane_adjust.tx_ffe.PRESET_VALUE;
+			link_training_settings.hw_lane_settings[lane].FFE_PRESET.settings.no_preshoot = no_preshoot;
+			link_training_settings.hw_lane_settings[lane].FFE_PRESET.settings.no_deemphasis = no_deemphasis;
 		}
 	}
 
@@ -4843,7 +4866,7 @@ static void get_active_converter_info(
 	/* decode converter info*/
 	if (!ds_port.fields.PORT_PRESENT) {
 		link->dpcd_caps.dongle_type = DISPLAY_DONGLE_NONE;
-		ddc_service_set_dongle_type(link->ddc,
+		set_dongle_type(link->ddc,
 				link->dpcd_caps.dongle_type);
 		link->dpcd_caps.is_branch_dev = false;
 		return;
@@ -4951,7 +4974,7 @@ static void get_active_converter_info(
 		}
 	}
 
-	ddc_service_set_dongle_type(link->ddc, link->dpcd_caps.dongle_type);
+	set_dongle_type(link->ddc, link->dpcd_caps.dongle_type);
 
 	{
 		struct dp_sink_hw_fw_revision dp_hw_fw_revision;
@@ -5329,7 +5352,7 @@ static bool retrieve_link_cap(struct dc_link *link)
 	 * default to LTTPR timeout (3.2ms) first as a W/A for DP link layer
 	 * CTS 4.2.1.1 regression introduced by CTS specs requirement update.
 	 */
-	dc_link_aux_try_to_configure_timeout(link->ddc,
+	try_to_configure_aux_timeout(link->ddc,
 			LINK_AUX_DEFAULT_LTTPR_TIMEOUT_PERIOD);
 
 	status = dp_retrieve_lttpr_cap(link);
@@ -5370,7 +5393,7 @@ static bool retrieve_link_cap(struct dc_link *link)
 	}
 
 	if (!dp_is_lttpr_present(link))
-		dc_link_aux_try_to_configure_timeout(link->ddc, LINK_AUX_DEFAULT_TIMEOUT_PERIOD);
+		try_to_configure_aux_timeout(link->ddc, LINK_AUX_DEFAULT_TIMEOUT_PERIOD);
 
 	{
 		union training_aux_rd_interval aux_rd_interval;
@@ -5843,22 +5866,6 @@ void detect_edp_sink_caps(struct dc_link *link)
 			sizeof(link->dpcd_caps.alpm_caps.raw));
 }
 
-void dc_link_dp_enable_hpd(const struct dc_link *link)
-{
-	struct link_encoder *encoder = link->link_enc;
-
-	if (encoder != NULL && encoder->funcs->enable_hpd != NULL)
-		encoder->funcs->enable_hpd(encoder);
-}
-
-void dc_link_dp_disable_hpd(const struct dc_link *link)
-{
-	struct link_encoder *encoder = link->link_enc;
-
-	if (encoder != NULL && encoder->funcs->enable_hpd != NULL)
-		encoder->funcs->disable_hpd(encoder);
-}
-
 static bool is_dp_phy_pattern(enum dp_test_pattern test_pattern)
 {
 	if ((DP_TEST_PATTERN_PHY_PATTERN_BEGIN <= test_pattern &&
@@ -6114,7 +6121,7 @@ bool dc_link_dp_set_test_pattern(
 			 * MuteAudioEndpoint(pPathMode->pDisplayPath, true);
 			 */
 			/* Blank stream */
-			pipes->stream_res.stream_enc->funcs->dp_blank(link, pipe_ctx->stream_res.stream_enc);
+			link->dc->hwss.blank_stream(pipe_ctx);
 		}
 
 		dp_set_hw_test_pattern(link, &pipe_ctx->link_res, test_pattern,
@@ -6178,8 +6185,17 @@ bool dc_link_dp_set_test_pattern(
 		case DP_TEST_PATTERN_264BIT_CUSTOM:
 			pattern = PHY_TEST_PATTERN_264BIT_CUSTOM;
 			break;
-		case DP_TEST_PATTERN_SQUARE_PULSE:
-			pattern = PHY_TEST_PATTERN_SQUARE_PULSE;
+		case DP_TEST_PATTERN_SQUARE:
+			pattern = PHY_TEST_PATTERN_SQUARE;
+			break;
+		case DP_TEST_PATTERN_SQUARE_PRESHOOT_DISABLED:
+			pattern = PHY_TEST_PATTERN_SQUARE_PRESHOOT_DISABLED;
+			break;
+		case DP_TEST_PATTERN_SQUARE_DEEMPHASIS_DISABLED:
+			pattern = PHY_TEST_PATTERN_SQUARE_DEEMPHASIS_DISABLED;
+			break;
+		case DP_TEST_PATTERN_SQUARE_PRESHOOT_DEEMPHASIS_DISABLED:
+			pattern = PHY_TEST_PATTERN_SQUARE_PRESHOOT_DEEMPHASIS_DISABLED;
 			break;
 		default:
 			return false;
@@ -6190,14 +6206,12 @@ bool dc_link_dp_set_test_pattern(
 			return false;
 
 		if (link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_12) {
-#if defined(CONFIG_DRM_AMD_DC_DCN)
-			if (test_pattern == DP_TEST_PATTERN_SQUARE_PULSE)
+			if (is_dp_phy_sqaure_pattern(test_pattern))
 				core_link_write_dpcd(link,
 						DP_LINK_SQUARE_PATTERN,
 						p_custom_pattern,
 						1);
 
-#endif
 			/* tell receiver that we are sending qualification
 			 * pattern DP 1.2 or later - DP receiver's link quality
 			 * pattern is set using DPCD LINK_QUAL_LANEx_SET
@@ -6554,18 +6568,10 @@ void dpcd_set_source_specific_data(struct dc_link *link)
 
 			uint8_t hblank_size = (uint8_t)link->dc->caps.min_horizontal_blanking_period;
 
-			if (link->preferred_link_setting.dpcd_source_device_specific_field_support) {
-				result_write_min_hblank = core_link_write_dpcd(link,
-					DP_SOURCE_MINIMUM_HBLANK_SUPPORTED, (uint8_t *)(&hblank_size),
-					sizeof(hblank_size));
-
-				if (result_write_min_hblank == DC_ERROR_UNEXPECTED)
-					link->preferred_link_setting.dpcd_source_device_specific_field_support = false;
-			} else {
-				DC_LOG_DC("Sink device does not support 00340h DPCD write. Skipping on purpose.\n");
-			}
+			result_write_min_hblank = core_link_write_dpcd(link,
+				DP_SOURCE_MINIMUM_HBLANK_SUPPORTED, (uint8_t *)(&hblank_size),
+				sizeof(hblank_size));
 		}
-
 		DC_TRACE_LEVEL_MESSAGE(DAL_TRACE_LEVEL_INFORMATION,
 							WPP_BIT_FLAG_DC_DETECTION_DP_CAPS,
 							"result=%u link_index=%u enum dce_version=%d DPCD=0x%04X min_hblank=%u branch_dev_id=0x%x branch_dev_name='%c%c%c%c%c%c'",
@@ -7254,59 +7260,35 @@ void dp_retrain_link_dp_test(struct dc_link *link,
 			struct dc_link_settings *link_setting,
 			bool skip_video_pattern)
 {
-	struct pipe_ctx *pipes =
-			&link->dc->current_state->res_ctx.pipe_ctx[0];
+	struct pipe_ctx *pipe;
 	unsigned int i;
-	bool do_fallback = false;
 
+	udelay(100);
 
 	for (i = 0; i < MAX_PIPES; i++) {
-		if (pipes[i].stream != NULL &&
-			!pipes[i].top_pipe && !pipes[i].prev_odm_pipe &&
-			pipes[i].stream->link != NULL &&
-			pipes[i].stream_res.stream_enc != NULL &&
-			pipes[i].stream->link == link) {
-			udelay(100);
+		pipe = &link->dc->current_state->res_ctx.pipe_ctx[i];
+		if (pipe->stream != NULL &&
+				pipe->stream->link == link &&
+				!pipe->stream->dpms_off &&
+				!pipe->top_pipe && !pipe->prev_odm_pipe) {
+			core_link_disable_stream(pipe);
+			pipe->link_config.dp_link_settings = *link_setting;
+			update_dp_encoder_resources_for_test_harness(
+					link->dc,
+					pipe->stream->ctx->dc->current_state,
+					pipe);
+		}
+	}
 
-			pipes[i].stream_res.stream_enc->funcs->dp_blank(link,
-					pipes[i].stream_res.stream_enc);
-
-			/* disable any test pattern that might be active */
-			dp_set_hw_test_pattern(link, &pipes[i].link_res,
-					DP_TEST_PATTERN_VIDEO_MODE, NULL, 0);
-
-			dp_receiver_power_ctrl(link, false);
-
-			link->dc->hwss.disable_stream(&pipes[i]);
-			if ((&pipes[i])->stream_res.audio && !link->dc->debug.az_endpoint_mute_only)
-				(&pipes[i])->stream_res.audio->funcs->az_disable((&pipes[i])->stream_res.audio);
-
-			if (link->link_enc)
-				link->link_enc->funcs->disable_output(
-						link->link_enc,
-						SIGNAL_TYPE_DISPLAY_PORT);
-
-			/* Clear current link setting. */
-			memset(&link->cur_link_settings, 0,
-				sizeof(link->cur_link_settings));
-
-			if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA)
-				do_fallback = true;
-
-			perform_link_training_with_retries(
-					link_setting,
-					skip_video_pattern,
-					LINK_TRAINING_ATTEMPTS,
-					&pipes[i],
-					SIGNAL_TYPE_DISPLAY_PORT,
-					do_fallback);
-
-			link->dc->hwss.enable_stream(&pipes[i]);
-
-			link->dc->hwss.unblank_stream(&pipes[i],
-					link_setting);
-
-			link->dc->hwss.enable_audio_stream(&pipes[i]);
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe = &link->dc->current_state->res_ctx.pipe_ctx[i];
+		if (pipe->stream != NULL &&
+				pipe->stream->link == link &&
+				!pipe->stream->dpms_off &&
+				!pipe->top_pipe && !pipe->prev_odm_pipe) {
+			core_link_enable_stream(
+					pipe->stream->ctx->dc->current_state,
+					pipe);
 		}
 	}
 }
@@ -7496,7 +7478,6 @@ bool dp_set_dsc_pps_sdp(struct pipe_ctx *pipe_ctx, bool enable, bool immediate_u
 		dsc_cfg.is_odm = pipe_ctx->next_odm_pipe ? true : false;
 		dsc_cfg.dc_dsc_cfg = stream->timing.dsc_cfg;
 
-		DC_LOG_DSC(" ");
 		dsc->funcs->dsc_get_packed_pps(dsc, &dsc_cfg, &dsc_packed_pps[0]);
 		memcpy(&stream->dsc_packed_pps[0], &dsc_packed_pps[0], sizeof(stream->dsc_packed_pps));
 		if (dc_is_dp_signal(stream->signal)) {
