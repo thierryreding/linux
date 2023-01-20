@@ -1230,13 +1230,15 @@ static int host1x_drm_probe(struct host1x_device *dev)
 
 	drm_mode_config_reset(drm);
 
-	err = drm_aperture_remove_framebuffers(false, &tegra_drm_driver);
-	if (err < 0)
-		goto hub;
+	if (drm->mode_config.num_crtc > 0) {
+		err = drm_aperture_remove_framebuffers(false, &tegra_drm_driver);
+		if (err < 0)
+			goto hub;
 
-	err = tegra_drm_fb_init(drm);
-	if (err < 0)
-		goto hub;
+		err = tegra_drm_fb_init(drm);
+		if (err < 0)
+			goto hub;
+	}
 
 	err = drm_dev_register(drm, 0);
 	if (err < 0)
@@ -1245,7 +1247,8 @@ static int host1x_drm_probe(struct host1x_device *dev)
 	return 0;
 
 fb:
-	tegra_drm_fb_exit(drm);
+	if (drm->mode_config.num_crtc > 0)
+		tegra_drm_fb_exit(drm);
 hub:
 	if (tegra->hub)
 		tegra_display_hub_cleanup(tegra->hub);

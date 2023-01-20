@@ -3,6 +3,9 @@
  * Copyright (c) 2016-2018, NVIDIA CORPORATION.  All rights reserved.
  */
 
+#define DEBUG
+
+#include <linux/component.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -121,6 +124,8 @@ struct tegra_hsp {
 	struct tegra_hsp_mailbox *mailboxes;
 
 	unsigned long mask;
+
+	bool debug;
 };
 
 static inline u32 tegra_hsp_readl(struct tegra_hsp *hsp, unsigned int offset)
@@ -225,6 +230,9 @@ static irqreturn_t tegra_hsp_shared_irq(int irq, void *data)
 	unsigned long bit, mask;
 	u32 status;
 
+	if (hsp->debug)
+		dev_info(hsp->dev, "> %s(irq=%d, data=%px)\n", __func__, irq, data);
+
 	status = tegra_hsp_readl(hsp, HSP_INT_IR) & hsp->mask;
 
 	/* process EMPTY interrupts first */
@@ -262,6 +270,9 @@ static irqreturn_t tegra_hsp_shared_irq(int irq, void *data)
 		if (!mb->producer)
 			mb->ops->recv(&mb->channel);
 	}
+
+	if (hsp->debug)
+		dev_info(hsp->dev, "< %s()\n", __func__);
 
 	return IRQ_HANDLED;
 }
@@ -376,6 +387,9 @@ static void tegra_hsp_sm_send32(struct tegra_hsp_channel *channel, void *data)
 	/* copy data and mark mailbox full */
 	value = (u32)(unsigned long)data;
 	value |= HSP_SM_SHRD_MBOX_FULL;
+
+	if (channel->hsp->debug)
+		dev_info(channel->hsp->dev, "%s(): value: %08x\n", __func__, value);
 
 	tegra_hsp_channel_writel(channel, value, HSP_SM_SHRD_MBOX);
 }
@@ -724,6 +738,30 @@ static int tegra_hsp_request_shared_irq(struct tegra_hsp *hsp)
 	return 0;
 }
 
+static int tegra_hsp_bind(struct device *dev, struct device *master,
+			  void *data)
+{
+	int err = 0;
+
+	dev_info(dev, "> %s(dev=%px, master=%px, data=%px)\n", __func__, dev, master, data);
+	dev_info(dev, "  master: %s\n", dev_name(master));
+	dev_info(dev, "< %s() = %d\n", __func__, err);
+	return err;
+}
+
+static void tegra_hsp_unbind(struct device *dev, struct device *master,
+			     void *data)
+{
+	dev_info(dev, "> %s(dev=%px, master=%px, data=%px)\n", __func__, dev, master, data);
+	dev_info(dev, "  master: %s\n", dev_name(master));
+	dev_info(dev, "< %s()\n", __func__);
+}
+
+static const struct component_ops tegra_hsp_ops = {
+	.bind = tegra_hsp_bind,
+	.unbind = tegra_hsp_unbind,
+};
+
 static int tegra_hsp_probe(struct platform_device *pdev)
 {
 	struct tegra_hsp *hsp;
@@ -731,6 +769,8 @@ static int tegra_hsp_probe(struct platform_device *pdev)
 	unsigned int i;
 	u32 value;
 	int err;
+
+	dev_info(&pdev->dev, "> %s(pdev=%px)\n", __func__, pdev);
 
 	hsp = devm_kzalloc(&pdev->dev, sizeof(*hsp), GFP_KERNEL);
 	if (!hsp)
@@ -746,12 +786,21 @@ static int tegra_hsp_probe(struct platform_device *pdev)
 	if (IS_ERR(hsp->regs))
 		return PTR_ERR(hsp->regs);
 
+	if (res->start == 0x0d950000)
+		hsp->debug = true;
+
 	value = tegra_hsp_readl(hsp, HSP_INT_DIMENSIONING);
 	hsp->num_sm = (value >> HSP_nSM_SHIFT) & HSP_nINT_MASK;
 	hsp->num_ss = (value >> HSP_nSS_SHIFT) & HSP_nINT_MASK;
 	hsp->num_as = (value >> HSP_nAS_SHIFT) & HSP_nINT_MASK;
 	hsp->num_db = (value >> HSP_nDB_SHIFT) & HSP_nINT_MASK;
 	hsp->num_si = (value >> HSP_nSI_SHIFT) & HSP_nINT_MASK;
+
+	dev_info(&pdev->dev, "%u shared mailboxes, %u shared semaphores\n",
+		 hsp->num_sm, hsp->num_ss);
+	dev_info(&pdev->dev, "%u arbitrated semaphores, %u doorbells\n",
+		 hsp->num_as, hsp->num_db);
+	dev_info(&pdev->dev, "%u shared interrupts\n", hsp->num_si);
 
 	err = platform_get_irq_byname_optional(pdev, "doorbell");
 	if (err >= 0)
@@ -867,6 +916,11 @@ static int tegra_hsp_probe(struct platform_device *pdev)
 	lockdep_register_key(&hsp->lock_key);
 	lockdep_set_class(&hsp->lock, &hsp->lock_key);
 
+	err = component_add(&pdev->dev, &tegra_hsp_ops);
+	if (err < 0)
+		dev_err(&pdev->dev, "failed to add component: %d\n", err);
+
+	dev_info(&pdev->dev, "< %s()\n", __func__);
 	return 0;
 }
 

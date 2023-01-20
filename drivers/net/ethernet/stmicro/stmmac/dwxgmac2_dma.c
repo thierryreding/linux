@@ -127,8 +127,10 @@ static void dwxgmac2_dma_axi(void __iomem *ioaddr, struct stmmac_axi *axi)
 	}
 
 	writel(value, ioaddr + XGMAC_DMA_SYSBUS_MODE);
-	writel(XGMAC_TDPS, ioaddr + XGMAC_TX_EDMA_CTRL);
-	writel(XGMAC_RDPS, ioaddr + XGMAC_RX_EDMA_CTRL);
+	//writel(XGMAC_TDPS, ioaddr + XGMAC_TX_EDMA_CTRL);
+	writel(5, ioaddr + XGMAC_TX_EDMA_CTRL);
+	//writel(XGMAC_RDPS, ioaddr + XGMAC_RX_EDMA_CTRL);
+	writel(5, ioaddr + XGMAC_RX_EDMA_CTRL);
 }
 
 static void dwxgmac2_dma_dump_regs(void __iomem *ioaddr, u32 *reg_space)

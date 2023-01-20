@@ -6,6 +6,7 @@
  *  Copyright (C) 2013 Eduardo Valentin <eduardo.valentin@ti.com>
  */
 
+#define DEBUG
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/err.h>
@@ -171,11 +172,15 @@ static struct device_node *of_thermal_zone_find(struct device_node *sensor, int 
 	struct device_node *np, *tz;
 	struct of_phandle_args sensor_specs;
 
+	pr_info("> %s(sensor=%pOF, id=%d)\n", __func__, sensor, id);
+
 	np = of_find_node_by_name(NULL, "thermal-zones");
 	if (!np) {
 		pr_debug("No thermal zones description\n");
 		return ERR_PTR(-ENODEV);
 	}
+
+	pr_info("  thermal zones: %pOF\n", np);
 
 	/*
 	 * Search for each thermal zone, a defined sensor
@@ -193,6 +198,8 @@ static struct device_node *of_thermal_zone_find(struct device_node *sensor, int 
 			goto out;
 		}
 
+		pr_info("  checking %pOF: %d sensors...\n", tz, count);
+
 		for (i = 0; i < count; i++) {
 
 			int ret;
@@ -206,6 +213,8 @@ static struct device_node *of_thermal_zone_find(struct device_node *sensor, int 
 				goto out;
 			}
 
+			pr_info("    %pOF: %d\n", sensor_specs.np, sensor_specs.args_count ? sensor_specs.args[0] : 0);
+
 			if ((sensor == sensor_specs.np) && id == (sensor_specs.args_count ?
 								  sensor_specs.args[0] : 0)) {
 				pr_debug("sensor %pOFn id=%d belongs to %pOFn\n", sensor, id, tz);
@@ -216,6 +225,7 @@ static struct device_node *of_thermal_zone_find(struct device_node *sensor, int 
 	tz = ERR_PTR(-ENODEV);
 out:
 	of_node_put(np);
+	pr_info("< %s() = %px\n", __func__, tz);
 	return tz;
 }
 

@@ -176,6 +176,8 @@ static int tegra_bpmp_thermal_probe(struct platform_device *pdev)
 	unsigned int i, max_num_zones;
 	int err;
 
+	dev_info(&pdev->dev, "> %s(pdev=%px)\n", __func__, pdev);
+
 	tegra = devm_kzalloc(&pdev->dev, sizeof(*tegra), GFP_KERNEL);
 	if (!tegra)
 		return -ENOMEM;
@@ -195,6 +197,8 @@ static int tegra_bpmp_thermal_probe(struct platform_device *pdev)
 	if (!tegra->zones)
 		return -ENOMEM;
 
+	dev_info(&pdev->dev, "  max. zones: %u\n", max_num_zones);
+
 	for (i = 0; i < max_num_zones; ++i) {
 		struct tegra_bpmp_thermal_zone *zone;
 		int temp;
@@ -212,15 +216,19 @@ static int tegra_bpmp_thermal_probe(struct platform_device *pdev)
 			continue;
 		}
 
+		dev_info(&pdev->dev, "    %u: %d\n", i, temp);
+
 		tzd = devm_thermal_of_zone_register(
 			&pdev->dev, i, zone, &tegra_bpmp_of_thermal_ops);
 		if (IS_ERR(tzd)) {
+			dev_info(&pdev->dev, "      failed to register zone: %ld\n", PTR_ERR(tzd));
 			if (PTR_ERR(tzd) == -EPROBE_DEFER)
 				return -EPROBE_DEFER;
 			devm_kfree(&pdev->dev, zone);
 			continue;
 		}
 
+		dev_info(&pdev->dev, "      zone registered: %px\n", tzd);
 		zone->tzd = tzd;
 		INIT_WORK(&zone->tz_device_update_work,
 			  tz_device_update_work_fn);
@@ -238,6 +246,7 @@ static int tegra_bpmp_thermal_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, tegra);
 
+	dev_info(&pdev->dev, "< %s()\n", __func__);
 	return 0;
 }
 

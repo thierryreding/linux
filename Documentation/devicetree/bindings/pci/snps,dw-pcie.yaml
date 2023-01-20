@@ -93,6 +93,9 @@ properties:
             the peripheral PCIe devices configuration space.
           const: config
         - description:
+            Memory-mapped ECAM-compatible configuration space.
+          const: ecam
+        - description:
             Vendor-specific CSR names. Consider using the generic names above
             for new bindings.
           oneOf:
@@ -102,8 +105,6 @@ properties:
               enum: [ atu_dma ]
             - description: Syscon-related CSR regions.
               enum: [ smu, mpu ]
-            - description: Tegra234 aperture
-              enum: [ ecam ]
     allOf:
       - contains:
           const: dbi

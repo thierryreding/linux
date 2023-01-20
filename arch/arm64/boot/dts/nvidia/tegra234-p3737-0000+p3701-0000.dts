@@ -2316,7 +2316,7 @@
 		};
 	};
 
-	pwm-fan {
+	fan: pwm-fan {
 		compatible = "pwm-fan";
 		pwms = <&pwm3 0 45334>;
 
@@ -2389,5 +2389,237 @@
 		       <&dmic3_port>;
 
 		label = "NVIDIA Jetson AGX Orin APE";
+	};
+
+	thermal-zones {
+		cpu-thermal {
+			polling-delay = <0>;
+			polling-delay-passive = <1000>;
+			status = "okay";
+
+			trips {
+				cpu_trip_critical: critical {
+					temperature = <104500>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+
+				cpu_trip_passive: passive {
+					temperature = <99000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				cpu_trip_hot: hot {
+					temperature = <70000>;
+					hysteresis = <4000>;
+					type = "hot";
+				};
+
+				cpu_trip_active: active {
+					temperature = <50000>;
+					hysteresis = <8000>;
+					type = "active";
+				};
+			};
+
+			cooling-maps {
+				critical {
+					cooling-device = <&fan 3 3>;
+					trip = <&cpu_trip_critical>;
+				};
+
+				passive {
+					cooling-device = <&fan 2 2>;
+					trip = <&cpu_trip_passive>;
+				};
+
+				hot {
+					cooling-device = <&fan 1 1>;
+					trip = <&cpu_trip_hot>;
+				};
+
+				active {
+					cooling-device = <&fan 0 0>;
+					trip = <&cpu_trip_active>;
+				};
+			};
+		};
+
+		gpu-thermal {
+			polling-delay = <0>;
+			polling-delay-passive = <1000>;
+			status = "okay";
+
+			trips {
+				critical {
+					temperature = <104500>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+			};
+		};
+
+		cv0-thermal {
+			polling-delay = <0>;
+			polling-delay-passive = <1000>;
+			status = "okay";
+
+			trips {
+				critical {
+					temperature = <104500>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+
+				passive {
+					temperature = <99000>;
+					hysteresis = <0>;
+					type = "passive";
+				};
+
+				hot {
+					temperature = <70000>;
+					hysteresis = <4000>;
+					type = "hot";
+				};
+			};
+		};
+
+		cv1-thermal {
+			polling-delay = <0>;
+			polling-delay-passive = <1000>;
+			status = "okay";
+
+			trips {
+				critical {
+					temperature = <104500>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+
+				passive {
+					temperature = <99000>;
+					hysteresis = <0>;
+					type = "passive";
+				};
+
+				hot {
+					temperature = <70000>;
+					hysteresis = <4000>;
+					type = "hot";
+				};
+			};
+		};
+
+		cv2-thermal {
+			polling-delay = <0>;
+			polling-delay-passive = <1000>;
+			status = "okay";
+
+			trips {
+				critical {
+					temperature = <104500>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+
+				passive {
+					temperature = <99000>;
+					hysteresis = <0>;
+					type = "passive";
+				};
+
+				hot {
+					temperature = <70000>;
+					hysteresis = <4000>;
+					type = "hot";
+				};
+			};
+		};
+
+		soc0-thermal {
+			polling-delay = <0>;
+			polling-delay-passive = <1000>;
+			status = "okay";
+
+			trips {
+				critical {
+					temperature = <104500>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+
+				passive {
+					temperature = <99000>;
+					hysteresis = <0>;
+					type = "passive";
+				};
+
+				hot {
+					temperature = <70000>;
+					hysteresis = <4000>;
+					type = "hot";
+				};
+			};
+		};
+
+		soc1-thermal {
+			polling-delay = <0>;
+			polling-delay-passive = <1000>;
+			status = "okay";
+
+			trips {
+				critical {
+					temperature = <104500>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+
+				passive {
+					temperature = <99000>;
+					hysteresis = <0>;
+					type = "passive";
+				};
+
+				hot {
+					temperature = <70000>;
+					hysteresis = <4000>;
+					type = "hot";
+				};
+			};
+		};
+
+		soc2-thermal {
+			polling-delay = <0>;
+			polling-delay-passive = <1000>;
+			status = "okay";
+
+			trips {
+				critical {
+					temperature = <104500>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+
+				passive {
+					temperature = <99000>;
+					hysteresis = <0>;
+					type = "passive";
+				};
+
+				hot {
+					temperature = <70000>;
+					hysteresis = <4000>;
+					type = "hot";
+				};
+			};
+		};
+
+		tj-thermal {
+			polling-delay = <0>;
+			polling-delay-passive = <1000>;
+			status = "okay";
+		};
 	};
 };
