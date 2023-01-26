@@ -139,4 +139,198 @@
 		gpio = <&gpio TEGRA234_MAIN_GPIO(A, 1) GPIO_ACTIVE_LOW>;
 		regulator-boot-on;
 	};
+
+	thermal-zones {
+		cpu-thermal {
+			polling-delay = <1000>;
+			polling-delay-passive = <1000>;
+			status = "okay";
+
+			trips {
+				cpu_trip_critical: critical {
+					temperature = <104500>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+
+				cpu_trip_passive: passive {
+					temperature = <99000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				cpu_trip_hot: hot {
+					temperature = <70000>;
+					hysteresis = <4000>;
+					type = "hot";
+				};
+
+				cpu_trip_active: active {
+					temperature = <50000>;
+					hysteresis = <8000>;
+					type = "active";
+				};
+			};
+		};
+
+		gpu-thermal {
+			polling-delay = <1000>;
+			polling-delay-passive = <1000>;
+			status = "okay";
+
+			trips {
+				critical {
+					temperature = <104500>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+
+				passive {
+					temperature = <99000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				hot {
+					temperature = <70000>;
+					hysteresis = <4000>;
+					type = "hot";
+				};
+			};
+		};
+
+		cv0-thermal {
+			polling-delay = <1000>;
+			polling-delay-passive = <1000>;
+			status = "okay";
+
+			trips {
+				critical {
+					temperature = <104500>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+
+				passive {
+					temperature = <99000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+			};
+		};
+
+		cv1-thermal {
+			polling-delay = <1000>;
+			polling-delay-passive = <1000>;
+			status = "okay";
+
+			trips {
+				critical {
+					temperature = <104500>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+
+				passive {
+					temperature = <99000>;
+					hysteresis = <0>;
+					type = "passive";
+				};
+			};
+		};
+
+		cv2-thermal {
+			polling-delay = <1000>;
+			polling-delay-passive = <1000>;
+			status = "okay";
+
+			trips {
+				critical {
+					temperature = <104500>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+
+				passive {
+					temperature = <99000>;
+					hysteresis = <0>;
+					type = "passive";
+				};
+			};
+		};
+
+		soc0-thermal {
+			polling-delay = <1000>;
+			polling-delay-passive = <1000>;
+			status = "okay";
+
+			trips {
+				critical {
+					temperature = <104500>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+
+				passive {
+					temperature = <99000>;
+					hysteresis = <0>;
+					type = "passive";
+				};
+			};
+		};
+
+		soc1-thermal {
+			polling-delay = <1000>;
+			polling-delay-passive = <1000>;
+			status = "okay";
+
+			trips {
+				critical {
+					temperature = <104500>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+
+				passive {
+					temperature = <99000>;
+					hysteresis = <1000>;
+					type = "passive";
+				};
+			};
+		};
+
+		soc2-thermal {
+			polling-delay = <1000>;
+			polling-delay-passive = <1000>;
+			status = "okay";
+
+			trips {
+				critical {
+					temperature = <104500>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+
+				passive {
+					temperature = <99000>;
+					hysteresis = <1000>;
+					type = "passive";
+				};
+			};
+		};
+
+		tj-thermal {
+			polling-delay = <1000>;
+			polling-delay-passive = <1000>;
+			status = "okay";
+
+			trips {
+				critical {
+					temperature = <104500>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+			};
+		};
+	};
 };
