@@ -3134,7 +3134,8 @@
 		};
 
 		bpmp_thermal: thermal {
-			compatible = "nvidia,tegra186-bpmp-thermal";
+			compatible = "nvidia,tegra234-bpmp-thermal",
+				     "nvidia,tegra186-bpmp-thermal";
 			#thermal-sensor-cells = <1>;
 		};
 	};
