@@ -2329,7 +2329,7 @@
 		};
 	};
 
-	pwm-fan {
+	fan: pwm-fan {
 		compatible = "pwm-fan";
 		pwms = <&pwm3 0 45334>;
 
@@ -2420,5 +2420,31 @@
 			  "CVB-RT SPK",			"CVB-RT SPORP",
 			  "CVB-RT DMIC1",		"CVB-RT MIC",
 			  "CVB-RT DMIC2",		"CVB-RT MIC";
+	};
+
+	thermal-zones {
+		cpu-thermal {
+			cooling-maps {
+				critical {
+					cooling-device = <&fan 3 3>;
+					trip = <&cpu_trip_critical>;
+				};
+
+				passive {
+					cooling-device = <&fan 2 2>;
+					trip = <&cpu_trip_passive>;
+				};
+
+				hot {
+					cooling-device = <&fan 1 1>;
+					trip = <&cpu_trip_hot>;
+				};
+
+				active {
+					cooling-device = <&fan 0 0>;
+					trip = <&cpu_trip_active>;
+				};
+			};
+		};
 	};
 };
