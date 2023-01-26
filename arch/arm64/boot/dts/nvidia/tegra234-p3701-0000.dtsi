@@ -80,6 +80,17 @@
 		};
 	};
 
+	bpmp {
+		i2c {
+			tmp451: thermal-sensor@4c {
+				compatible = "ti,tmp451";
+				reg = <0x4c>;
+				vcc-supply = <&vdd_1v8_ao>;
+				#thermal-sensor-cells = <1>;
+			};
+		};
+	};
+
 	vdd_5v0_sys: regulator-vdd-5v0-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "VIN_SYS_5V0";

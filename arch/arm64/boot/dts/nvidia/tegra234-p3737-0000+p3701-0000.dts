@@ -2446,5 +2446,35 @@
 				};
 			};
 		};
+
+		tboard-thermal {
+			polling-delay = <1000>;
+			polling-delay-passive = <1000>;
+			thermal-sensors = <&tmp451 0>;
+			status = "okay";
+
+			trips {
+				critical {
+					temperature = <107000>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+			};
+		};
+
+		tdiode-thermal {
+			polling-delay = <1000>;
+			polling-delay-passive = <1000>;
+			thermal-sensors = <&tmp451 1>;
+			status = "okay";
+
+			trips {
+				critical {
+					temperature = <107000>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+			};
+		};
 	};
 };
