@@ -52,8 +52,24 @@ static int __tegra_bpmp_thermal_get_temp(struct tegra_bpmp_thermal_zone *zone,
 	err = tegra_bpmp_transfer(zone->tegra->bpmp, &msg);
 	if (err)
 		return err;
-	if (msg.rx.ret)
+
+	if (msg.rx.ret) {
+		/*
+		 * Trying to read the temperature of a thermal zone in a
+		 * powered-off partition will cause this. Return -ENODATA to
+		 * let the probe function register the thermal zone so that
+		 * it can later be used.
+		 *
+		 * Note that there's currently no way to associate the zones
+		 * with their corresponding power domains, so that's perhaps
+		 * something to improve on. For now, all zones from domains
+		 * that may be powered off should remain disabled.
+		 */
+		if (msg.rx.ret == -BPMP_EFAULT)
+			return -ENODATA;
+
 		return -EINVAL;
+	}
 
 	*out_temp = reply.get_temp.temp;
 
@@ -209,7 +225,7 @@ static int tegra_bpmp_thermal_probe(struct platform_device *pdev)
 		zone->tegra = tegra;
 
 		err = __tegra_bpmp_thermal_get_temp(zone, &temp);
-		if (err < 0) {
+		if (err < 0 && err != -ENODATA) {
 			devm_kfree(&pdev->dev, zone);
 			continue;
 		}
