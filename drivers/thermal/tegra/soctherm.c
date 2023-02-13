@@ -2078,8 +2078,7 @@ static int tegra_soctherm_probe(struct platform_device *pdev)
 			goto disable_clocks;
 	}
 
-	err = soctherm_interrupts_init(tegra);
-
+	soctherm_interrupts_init(tegra);
 	soctherm_debug_init(tegra);
 
 	return 0;
