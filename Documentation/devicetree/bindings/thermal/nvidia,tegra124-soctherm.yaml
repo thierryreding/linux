@@ -120,6 +120,13 @@ properties:
               # high (85%, TEGRA_SOCTHERM_THROT_LEVEL_HIGH)
               - 3
 
+          temperature:
+            $ref: /schemas/types.yaml#/definitions/int32
+            minimum: -273000
+            maximum: 200000
+            description: The temperature threshold (in millicelsius) that,
+              when crossed, will trigger the configured automatic throttling.
+
           # optional
           # Tegra210 specific and valid only for OCx throttle events
           nvidia,count-threshold:
