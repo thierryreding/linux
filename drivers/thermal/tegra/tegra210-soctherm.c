@@ -61,6 +61,7 @@ static const struct tegra_tsensor_group tegra210_tsensor_group_cpu = {
 	.thermctl_lvl0_offset = THERMCTL_LEVEL0_GROUP_CPU,
 	.thermctl_lvl0_up_thresh_mask = TEGRA210_THERMCTL_LVL0_UP_THRESH_MASK,
 	.thermctl_lvl0_dn_thresh_mask = TEGRA210_THERMCTL_LVL0_DN_THRESH_MASK,
+	.can_throttle = true,
 };
 
 static const struct tegra_tsensor_group tegra210_tsensor_group_gpu = {
@@ -80,6 +81,7 @@ static const struct tegra_tsensor_group tegra210_tsensor_group_gpu = {
 	.thermctl_lvl0_offset = THERMCTL_LEVEL0_GROUP_GPU,
 	.thermctl_lvl0_up_thresh_mask = TEGRA210_THERMCTL_LVL0_UP_THRESH_MASK,
 	.thermctl_lvl0_dn_thresh_mask = TEGRA210_THERMCTL_LVL0_DN_THRESH_MASK,
+	.can_throttle = true,
 };
 
 static const struct tegra_tsensor_group tegra210_tsensor_group_pll = {
@@ -97,6 +99,7 @@ static const struct tegra_tsensor_group tegra210_tsensor_group_pll = {
 	.thermctl_lvl0_offset = THERMCTL_LEVEL0_GROUP_TSENSE,
 	.thermctl_lvl0_up_thresh_mask = TEGRA210_THERMCTL_LVL0_UP_THRESH_MASK,
 	.thermctl_lvl0_dn_thresh_mask = TEGRA210_THERMCTL_LVL0_DN_THRESH_MASK,
+	.can_throttle = false,
 };
 
 static const struct tegra_tsensor_group tegra210_tsensor_group_mem = {
@@ -116,6 +119,7 @@ static const struct tegra_tsensor_group tegra210_tsensor_group_mem = {
 	.thermctl_lvl0_offset = THERMCTL_LEVEL0_GROUP_MEM,
 	.thermctl_lvl0_up_thresh_mask = TEGRA210_THERMCTL_LVL0_UP_THRESH_MASK,
 	.thermctl_lvl0_dn_thresh_mask = TEGRA210_THERMCTL_LVL0_DN_THRESH_MASK,
+	.can_throttle = false,
 };
 
 static const struct tegra_tsensor_group *tegra210_tsensor_groups[] = {
