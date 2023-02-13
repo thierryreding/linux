@@ -83,6 +83,7 @@ struct tegra_tsensor_group {
 	u16 thermctl_lvl0_offset;
 	u32 thermctl_lvl0_up_thresh_mask;
 	u32 thermctl_lvl0_dn_thresh_mask;
+	bool can_throttle;
 };
 
 struct tegra_tsensor_configuration {
