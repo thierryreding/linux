@@ -1436,7 +1436,6 @@ static int soctherm_clk_enable(struct tegra_soctherm *tegra, bool enable)
 static int soctherm_thermtrips_parse(struct tegra_soctherm *ts)
 {
 	struct tsensor_group_thermtrips *tt = ts->soc->thermtrips;
-	const int max_num_prop = ts->soc->num_ttgs * 2;
 	unsigned int i, j, count;
 	u32 *tlb;
 	int ret;
@@ -1453,7 +1452,7 @@ static int soctherm_thermtrips_parse(struct tegra_soctherm *ts)
 
 	count = min_t(unsigned int, ret, ts->soc->num_ttgs * 2);
 
-	tlb = devm_kcalloc(ts->dev, max_num_prop, sizeof(u32), GFP_KERNEL);
+	tlb = devm_kcalloc(ts->dev, count, sizeof(u32), GFP_KERNEL);
 	if (!tlb)
 		return -ENOMEM;
 
@@ -1472,6 +1471,8 @@ static int soctherm_thermtrips_parse(struct tegra_soctherm *ts)
 		tt[i].temp = tlb[j + 1];
 		i++;
 	}
+
+	devm_kfree(ts->dev, tlb);
 
 	return 0;
 }
