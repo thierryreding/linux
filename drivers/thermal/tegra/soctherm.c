@@ -565,8 +565,9 @@ find_throttle_cfg_by_name(struct tegra_soctherm *ts, const char *name)
 
 static int tsensor_group_thermtrip_get(struct tegra_soctherm *ts, int id)
 {
-	int i, temp = min_low_temp;
 	struct tsensor_group_thermtrips *tt = ts->soc->thermtrips;
+	int temp = min_low_temp;
+	unsigned int i;
 
 	if (id >= TEGRA124_SOCTHERM_SENSOR_NUM)
 		return temp;
@@ -1436,33 +1437,34 @@ static int soctherm_thermtrips_parse(struct tegra_soctherm *ts)
 {
 	struct tsensor_group_thermtrips *tt = ts->soc->thermtrips;
 	const int max_num_prop = ts->soc->num_ttgs * 2;
+	unsigned int i, j, count;
 	u32 *tlb;
-	int i, j, n, ret;
+	int ret;
 
 	if (!tt)
 		return -ENOMEM;
 
-	n = of_property_count_u32_elems(ts->dev->of_node, "nvidia,thermtrips");
-	if (n <= 0) {
+	ret = of_property_count_u32_elems(ts->dev->of_node, "nvidia,thermtrips");
+	if (ret <= 0) {
 		dev_info(ts->dev,
-			 "missing thermtrips, will use critical trips as shut down temp\n");
-		return n;
+			 "missing thermtrips, will use critical trips as shut down temperature\n");
+		return ret;
 	}
 
-	n = min(max_num_prop, n);
+	count = min_t(unsigned int, ret, ts->soc->num_ttgs * 2);
 
 	tlb = devm_kcalloc(ts->dev, max_num_prop, sizeof(u32), GFP_KERNEL);
 	if (!tlb)
 		return -ENOMEM;
+
 	ret = of_property_read_u32_array(ts->dev->of_node, "nvidia,thermtrips",
-					 tlb, n);
+					 tlb, count);
 	if (ret) {
 		dev_err(ts->dev, "invalid num ele: thermtrips:%d\n", ret);
 		return ret;
 	}
 
-	i = 0;
-	for (j = 0; j < n; j = j + 2) {
+	for (i = 0, j = 0; j < count; j = j + 2) {
 		if (tlb[j] >= TEGRA124_SOCTHERM_SENSOR_NUM)
 			continue;
 
@@ -1556,7 +1558,7 @@ err:
 static void soctherm_init_hw_throttling(struct tegra_soctherm *tegra)
 {
 	struct device_node *np_stc, *np_stcc;
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < THROTTLE_SIZE; i++) {
 		tegra->throt_cfgs[i].name = throt_names[i];
@@ -1819,8 +1821,8 @@ static void soctherm_throttle_program(struct tegra_soctherm *ts,
 
 static void tegra_soctherm_throttle(struct tegra_soctherm *ts)
 {
+	unsigned int i;
 	u32 v;
-	int i;
 
 	/* configure LOW, MED and HIGH levels for CCROC NV_THERM */
 	if (ts->soc->use_ccroc) {
@@ -1894,8 +1896,8 @@ static int soctherm_interrupts_init(struct tegra_soctherm *tegra)
 static void soctherm_init(struct tegra_soctherm *tegra)
 {
 	const struct tegra_tsensor_group **ttgs = tegra->soc->ttgs;
-	int i;
 	u32 pdiv, hotspot;
+	unsigned int i;
 
 	/* Initialize raw sensors */
 	for (i = 0; i < tegra->soc->num_tsensors; ++i)
