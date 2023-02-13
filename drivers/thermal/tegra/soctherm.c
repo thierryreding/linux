@@ -1459,7 +1459,9 @@ static int soctherm_thermtrips_parse(struct tegra_soctherm *ts)
 	ret = of_property_read_u32_array(ts->dev->of_node, "nvidia,thermtrips",
 					 tlb, count);
 	if (ret) {
-		dev_err(ts->dev, "invalid num ele: thermtrips:%d\n", ret);
+		dev_err(ts->dev,
+			"failed to read \"nvidia,thermtrips\" property: %d\n",
+			ret);
 		return ret;
 	}
 
@@ -1756,7 +1758,7 @@ static void throttlectl_gpu_level_select(struct tegra_soctherm *ts,
 }
 
 static int soctherm_oc_cfg_program(struct tegra_soctherm *ts,
-				      enum soctherm_throttle_id throt)
+				   enum soctherm_throttle_id throt)
 {
 	u32 r;
 	struct soctherm_oc_cfg *oc = &ts->throt_cfgs[throt].oc_cfg;
@@ -2048,8 +2050,9 @@ static int tegra_soctherm_probe(struct platform_device *pdev)
 	soctherm_init(tegra);
 
 	for (i = 0; i < soc->num_ttgs; ++i) {
-		struct tegra_thermctl_zone *zone =
-			devm_kzalloc(&pdev->dev, sizeof(*zone), GFP_KERNEL);
+		struct tegra_thermctl_zone *zone;
+
+		zone = devm_kzalloc(&pdev->dev, sizeof(*zone), GFP_KERNEL);
 		if (!zone) {
 			err = -ENOMEM;
 			goto disable_clocks;
