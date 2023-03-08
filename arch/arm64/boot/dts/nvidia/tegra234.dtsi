@@ -109,6 +109,7 @@
 			interrupt-controller;
 			#gpio-cells = <2>;
 			gpio-controller;
+			gpio-ranges = <&pinmux 0 0 164>;
 		};
 
 		ethernet@2310000 {
@@ -145,6 +146,11 @@
 				 <&bpmp TEGRA234_CLK_AZA_BIT>;
 			clock-names = "2x-bit", "bit";
 			status = "disabled";
+		};
+
+		pinmux: pinmux@2430000 {
+			compatible = "nvidia,tegra234-pinmux";
+			reg = <0x2430000 0x19100>;
 		};
 
 		gpcdma: dma-controller@2600000 {
@@ -1805,6 +1811,12 @@
 			interrupt-controller;
 			#gpio-cells = <2>;
 			gpio-controller;
+			gpio-range = <&pinmux_aon 0 0 32>;
+		};
+
+		pinmux_aon: pinmux@c300000 {
+			compatible = "nvidia,tegra234-pinmux-aon";
+			reg = <0xc300000 0x4000>;
 		};
 
 		pwm4: pwm@c340000 {
