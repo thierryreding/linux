@@ -46,6 +46,9 @@ required:
 
 examples:
   - |
+    #include <dt-bindings/clock/tegra234-clock.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
     codec@242c000 {
         compatible = "nvidia,tegra234-hdacodec";
         reg = <0x242c000 0x1000>;
