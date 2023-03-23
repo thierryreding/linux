@@ -211,11 +211,6 @@
 
 #define GEN3_GEN4_EQ_PRESET_INIT	5
 
-#define GEN1_CORE_CLK_FREQ	62500000
-#define GEN2_CORE_CLK_FREQ	125000000
-#define GEN3_CORE_CLK_FREQ	250000000
-#define GEN4_CORE_CLK_FREQ	500000000
-
 #define LTR_MSG_TIMEOUT		(100 * 1000)
 
 #define PERST_DEBOUNCE_TIME	(5 * 1000)
@@ -224,11 +219,11 @@
 #define EP_STATE_ENABLED	1
 
 static const unsigned int pcie_gen_freq[] = {
-	GEN1_CORE_CLK_FREQ,	/* PCI_EXP_LNKSTA_CLS == 0; undefined */
-	GEN1_CORE_CLK_FREQ,
-	GEN2_CORE_CLK_FREQ,
-	GEN3_CORE_CLK_FREQ,
-	GEN4_CORE_CLK_FREQ
+	62500000,	/* PCI_EXP_LNKSTA_CLS == 0; undefined */
+	62500000,
+	125000000,
+	250000000,
+	500000000,
 };
 
 struct tegra_pcie_dw_of_data {
