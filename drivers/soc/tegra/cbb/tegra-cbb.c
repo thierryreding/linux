@@ -77,13 +77,9 @@ static int tegra_cbb_err_debugfs_init(struct tegra_cbb *cbb)
 {
 	static struct dentry *root;
 
-	if (!root) {
-		root = debugfs_create_file("tegra_cbb_err", 0444, NULL, cbb, &tegra_cbb_err_fops);
-		if (IS_ERR_OR_NULL(root)) {
-			pr_err("%s(): could not create debugfs node\n", __func__);
-			return PTR_ERR(root);
-		}
-	}
+	if (!root)
+		root = debugfs_create_file("tegra_cbb_err", 0444, NULL, cbb,
+					   &tegra_cbb_err_fops);
 
 	return 0;
 }
