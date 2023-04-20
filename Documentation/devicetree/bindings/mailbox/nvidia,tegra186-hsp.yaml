@@ -94,7 +94,8 @@ properties:
           - pattern: "^shared[0-7]$"
           - pattern: "^shared[0-7]$"
 
-      - items:
+      - minItems: 1
+        items:
           - pattern: "^shared[0-7]$"
           - pattern: "^shared[0-7]$"
           - pattern: "^shared[0-7]$"
