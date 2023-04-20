@@ -18,7 +18,6 @@ properties:
   reg:
     maxItems: 1
 
-
   ranges:
     maxItems: 1
 
@@ -27,6 +26,23 @@ properties:
 
   "#size-cells":
     enum: [ 1, 2 ]
+
+  mboxes:
+    maxItems: 8
+
+  mbox-names:
+    items:
+      - const: rm-rx
+      - const: rm-tx
+      - const: notify-rx
+      - const: notify-tx
+      - const: admin-rx
+      - const: admin-tx
+      - const: boot
+      - const: irq
+
+  iommus:
+    maxItems: 1
 
 additionalProperties:
   type: object
