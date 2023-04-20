@@ -118,6 +118,8 @@ properties:
         const: 5
       - description: using GPIO4 for jack-detect
         const: 6
+      - description: using HDA header for jack-detect
+        const: 7
 
   realtek,jack-detect-not-inverted:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -141,6 +143,16 @@ properties:
       - description: scale current by 1.5
         const: 3
 
+  port:
+    $ref: audio-graph-port.yaml#
+    unevaluatedProperties: false
+
+  # from component-common.yaml
+  sound-name-prefix: true
+
+allOf:
+  - $ref: component-common.yaml#
+
 additionalProperties: false
 
 required:
@@ -153,15 +165,15 @@ examples:
     #include <dt-bindings/interrupt-controller/irq.h>
 
     i2c {
-      #address-cells = <1>;
-      #size-cells = <0>;
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-      audio-codec@1c {
-        compatible = "realtek,rt5640";
-        reg = <0x1c>;
-        interrupt-parent = <&gpio>;
-        interrupts = <TEGRA_GPIO(W, 3) IRQ_TYPE_LEVEL_HIGH>;
-        realtek,ldo1-en-gpios =
-                <&gpio TEGRA_GPIO(V, 3) GPIO_ACTIVE_HIGH>;
-      };
+        audio-codec@1c {
+            compatible = "realtek,rt5640";
+            reg = <0x1c>;
+            interrupt-parent = <&gpio>;
+            interrupts = <TEGRA_GPIO(W, 3)>;
+            realtek,ldo1-en-gpios =
+                    <&gpio TEGRA_GPIO(V, 3) GPIO_ACTIVE_HIGH>;
+        };
     };
