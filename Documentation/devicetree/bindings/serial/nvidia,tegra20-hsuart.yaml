@@ -101,7 +101,6 @@ required:
   - interrupts
   - clocks
   - resets
-  - reset-names
   - dmas
   - dma-names
 
