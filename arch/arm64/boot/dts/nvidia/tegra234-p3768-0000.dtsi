@@ -29,7 +29,6 @@
 		};
 
 		serial@31d0000 {
-			current-speed = <115200>;
 			status = "okay";
 		};
 
@@ -84,6 +83,15 @@
 					vbus-supply = <&vdd_5v0_sys>;
 					status = "okay";
 					usb-role-switch;
+
+					connector {
+						compatible = "gpio-usb-b-connector",
+							     "usb-b-connector";
+						label = "micro-USB";
+						type = "micro";
+						vbus-gpios = <&gpio TEGRA234_MAIN_GPIO(Z, 1)
+								    GPIO_ACTIVE_LOW>;
+					};
 				};
 
 				/* hub */
@@ -119,7 +127,7 @@
 
 			phys = <&{/bus@0/padctl@3520000/pads/usb2/lanes/usb2-0}>,
 			       <&{/bus@0/padctl@3520000/pads/usb3/lanes/usb3-1}>;
-			phy-names = "usb2-0", "usb3-1";
+			phy-names = "usb2-0", "usb3-0";
 		};
 
 		usb@3610000 {

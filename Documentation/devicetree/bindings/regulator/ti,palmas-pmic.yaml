@@ -31,35 +31,35 @@ definitions:
         oneOf:
           - $ref: /schemas/types.yaml#/definitions/flag
           - $ref: /schemas/types.yaml#/definitions/uint32
-            #oneOf:
-            #  - description: ENABLE1 pin
-            #    const: 1
-            #  - description: ENABLE2 pin
-            #    const: 2
-            #  - description: NSLEEP pin
-            #    const: 3
+            # oneOf:
+            #   - description: ENABLE1 pin
+            #     const: 1
+            #   - description: ENABLE2 pin
+            #     const: 2
+            #   - description: NSLEEP pin
+            #     const: 3
 
       ti,mode-sleep:
         $ref: /schemas/types.yaml#/definitions/uint32
         description: Mode to adopt in PMIC sleep.
-        #oneOf:
-        #  - description: off
-        #    const: 0
-        #  - description: auto
-        #    const: 1
-        #  - description: ECO
-        #    const: 2
-        #  - description: forced PWM
-        #    const: 3
+        # oneOf:
+        #   - description: off
+        #     const: 0
+        #   - description: auto
+        #     const: 1
+        #   - description: ECO
+        #     const: 2
+        #   - description: forced PWM
+        #     const: 3
 
       ti,smps-range:
         $ref: /schemas/types.yaml#/definitions/uint32
         description: OTP has the wrong range set for the hardware so override
-        #oneOf:
-        #  - description: low range
-        #    const: 0
-        #  - description: high range
-        #    const: 1
+        # oneOf:
+        #   - description: low range
+        #     const: 0
+        #   - description: high range
+        #     const: 1
 
 properties:
   compatible:

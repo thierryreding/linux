@@ -150,7 +150,7 @@
 
 		pinmux: pinmux@2430000 {
 			compatible = "nvidia,tegra234-pinmux";
-			reg = <0x2430000 0x19100>;
+			reg = <0x0 0x2430000 0x0 0x19100>;
 		};
 
 		gpcdma: dma-controller@2600000 {
@@ -1460,6 +1460,16 @@
 			iommus = <&smmu_niso0 TEGRA234_SID_MGBE>;
 			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_MGBEA>;
 			status = "disabled";
+
+			/*
+			snps,axi-config = <&mgbe0_axi_setup>;
+
+			mgbe0_axi_setup: stmmac-axi-config {
+				snps,blen = <256 128 64 32 16 8 4>;
+				snps,rd_osr_lmt = <63>;
+				snps,wr_osr_lmt = <63>;
+			};
+			*/
 		};
 
 		ethernet@6900000 {
@@ -1811,12 +1821,12 @@
 			interrupt-controller;
 			#gpio-cells = <2>;
 			gpio-controller;
-			gpio-range = <&pinmux_aon 0 0 32>;
+			gpio-ranges = <&pinmux_aon 0 0 32>;
 		};
 
 		pinmux_aon: pinmux@c300000 {
 			compatible = "nvidia,tegra234-pinmux-aon";
-			reg = <0xc300000 0x4000>;
+			reg = <0x0 0xc300000 0x0 0x4000>;
 		};
 
 		pwm4: pwm@c340000 {
@@ -1884,14 +1894,31 @@
 			#size-cells = <2>;
 			ranges = <0x0 0x0d800000 0x0 0x0d800000 0x0 0x800000>;
 
-			hsp@d950000 {
+			mboxes = <&dce_hsp TEGRA_HSP_MBOX_TYPE_SM TEGRA_HSP_SM_RX(0)>,
+				 <&dce_hsp TEGRA_HSP_MBOX_TYPE_SM TEGRA_HSP_SM_TX(1)>,
+				 <&dce_hsp TEGRA_HSP_MBOX_TYPE_SM TEGRA_HSP_SM_RX(2)>,
+				 <&dce_hsp TEGRA_HSP_MBOX_TYPE_SM TEGRA_HSP_SM_TX(3)>,
+				 <&dce_hsp TEGRA_HSP_MBOX_TYPE_SM TEGRA_HSP_SM_RX(4)>,
+				 <&dce_hsp TEGRA_HSP_MBOX_TYPE_SM TEGRA_HSP_SM_TX(5)>,
+				 <&dce_hsp TEGRA_HSP_MBOX_TYPE_SM TEGRA_HSP_SM_TX(6)>,
+				 <&dce_hsp TEGRA_HSP_MBOX_TYPE_SM TEGRA_HSP_SM_RX(7)>;
+			mbox-names = "rm-rx", "rm-tx", "notify-rx", "notify-tx",
+				     "admin-rx", "admin-tx", "boot", "irq";
+
+			iommus = <&smmu_niso0 TEGRA234_SID_DCE>;
+
+			dce_hsp: hsp@d950000 {
 				compatible = "nvidia,tegra234-hsp", "nvidia,tegra194-hsp";
 				reg = <0x0 0x0d950000 0x0 0x90000>;
+				/*
 				interrupts = <GIC_SPI 377 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 378 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 379 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 380 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-names = "shared0", "shared1", "shared2", "shared3";
+				*/
+				interrupts = <GIC_SPI 377 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "shared1";
 				#mbox-cells = <2>;
 			};
 
@@ -3149,8 +3176,7 @@
 		};
 
 		bpmp_thermal: thermal {
-			compatible = "nvidia,tegra234-bpmp-thermal",
-				     "nvidia,tegra186-bpmp-thermal";
+			compatible = "nvidia,tegra234-bpmp-thermal";
 			#thermal-sensor-cells = <1>;
 		};
 	};
@@ -3176,6 +3202,8 @@
 			d-cache-line-size = <64>;
 			d-cache-sets = <256>;
 			next-level-cache = <&l2c0_0>;
+
+			#cooling-cells = <2>;
 		};
 
 		cpu0_1: cpu@100 {
@@ -3195,6 +3223,8 @@
 			d-cache-line-size = <64>;
 			d-cache-sets = <256>;
 			next-level-cache = <&l2c0_1>;
+
+			#cooling-cells = <2>;
 		};
 
 		cpu0_2: cpu@200 {
@@ -3214,6 +3244,8 @@
 			d-cache-line-size = <64>;
 			d-cache-sets = <256>;
 			next-level-cache = <&l2c0_2>;
+
+			#cooling-cells = <2>;
 		};
 
 		cpu0_3: cpu@300 {
@@ -3233,6 +3265,8 @@
 			d-cache-line-size = <64>;
 			d-cache-sets = <256>;
 			next-level-cache = <&l2c0_3>;
+
+			#cooling-cells = <2>;
 		};
 
 		cpu1_0: cpu@10000 {
@@ -3252,6 +3286,8 @@
 			d-cache-line-size = <64>;
 			d-cache-sets = <256>;
 			next-level-cache = <&l2c1_0>;
+
+			#cooling-cells = <2>;
 		};
 
 		cpu1_1: cpu@10100 {
@@ -3271,6 +3307,8 @@
 			d-cache-line-size = <64>;
 			d-cache-sets = <256>;
 			next-level-cache = <&l2c1_1>;
+
+			#cooling-cells = <2>;
 		};
 
 		cpu1_2: cpu@10200 {
@@ -3290,6 +3328,8 @@
 			d-cache-line-size = <64>;
 			d-cache-sets = <256>;
 			next-level-cache = <&l2c1_2>;
+
+			#cooling-cells = <2>;
 		};
 
 		cpu1_3: cpu@10300 {
@@ -3309,6 +3349,8 @@
 			d-cache-line-size = <64>;
 			d-cache-sets = <256>;
 			next-level-cache = <&l2c1_3>;
+
+			#cooling-cells = <2>;
 		};
 
 		cpu2_0: cpu@20000 {
@@ -3328,6 +3370,8 @@
 			d-cache-line-size = <64>;
 			d-cache-sets = <256>;
 			next-level-cache = <&l2c2_0>;
+
+			#cooling-cells = <2>;
 		};
 
 		cpu2_1: cpu@20100 {
@@ -3347,6 +3391,8 @@
 			d-cache-line-size = <64>;
 			d-cache-sets = <256>;
 			next-level-cache = <&l2c2_1>;
+
+			#cooling-cells = <2>;
 		};
 
 		cpu2_2: cpu@20200 {
@@ -3366,6 +3412,8 @@
 			d-cache-line-size = <64>;
 			d-cache-sets = <256>;
 			next-level-cache = <&l2c2_2>;
+
+			#cooling-cells = <2>;
 		};
 
 		cpu2_3: cpu@20300 {
@@ -3385,6 +3433,8 @@
 			d-cache-line-size = <64>;
 			d-cache-sets = <256>;
 			next-level-cache = <&l2c2_3>;
+
+			#cooling-cells = <2>;
 		};
 
 		cpu-map {

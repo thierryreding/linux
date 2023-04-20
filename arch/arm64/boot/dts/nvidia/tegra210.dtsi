@@ -916,9 +916,7 @@
 
 			pd_vic: vic {
 				clocks = <&tegra_car TEGRA210_CLK_VIC03>;
-				clock-names = "vic";
 				resets = <&tegra_car 178>;
-				reset-names = "vic";
 				#power-domain-cells = <0>;
 			};
 
@@ -1335,7 +1333,8 @@
 				nvidia,priority = <100>;
 				nvidia,cpu-throt-percent = <85>;
 				nvidia,gpu-throt-level = <TEGRA_SOCTHERM_THROT_LEVEL_HIGH>;
-				temperature = <98500>;
+				temperature-millicelsius = <98500>;
+				hysteresis-millicelsius = <5000>;
 			};
 		};
 	};
@@ -1999,6 +1998,7 @@
 		L2: l2-cache {
 			compatible = "cache";
 			cache-level = <2>;
+			cache-unified;
 		};
 	};
 
@@ -2075,7 +2075,7 @@
 			};
 
 			cooling-maps {
-				passive {
+				map-passive {
 					cooling-device = <&emc 1 1>;
 					trip = <&emc_throttle_trip>;
 				};

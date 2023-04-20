@@ -120,12 +120,19 @@ properties:
               # high (85%, TEGRA_SOCTHERM_THROT_LEVEL_HIGH)
               - 3
 
-          temperature:
-            $ref: /schemas/types.yaml#/definitions/int32
+          temperature-millicelsius:
             minimum: -273000
             maximum: 200000
             description: The temperature threshold (in millicelsius) that,
               when crossed, will trigger the configured automatic throttling.
+
+          hysteresis-millicelsius:
+            description: An unsigned integer expressing the hysteresis delta
+              (in millicelsius) with respect to the threshold temperature
+              property above. Throttling will be initiated when the
+              temperature falls below (temperature - hysteresis). This avoids
+              situations where throttling is repeatedly initiated and stopped
+              because of minor temperature variations.
 
           # optional
           # Tegra210 specific and valid only for OCx throttle events

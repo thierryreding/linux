@@ -98,10 +98,12 @@
 				 <&bpmp TEGRA234_CLK_MIPI_CAL>,
 				 <&bpmp TEGRA234_CLK_UART_FST_MIPI_CAL>,
 				 <&bpmp TEGRA234_CLK_SOR0_DIV>;
+			/*
 			resets = <&bpmp TEGRA234_RESET_NVDISPLAY>,
 				 <&bpmp TEGRA234_RESET_DPAUX>,
 				 <&bpmp TEGRA234_RESET_DSI_CORE>,
 				 <&bpmp TEGRA234_RESET_MIPI_CAL>;
+			*/
 			width = <0>;
 			height = <0>;
 			stride = <0>;
@@ -111,7 +113,6 @@
 
 	bus@0 {
 		serial@31d0000 {
-			current-speed = <115200>;
 			status = "okay";
 		};
 

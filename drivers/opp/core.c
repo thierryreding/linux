@@ -1407,6 +1407,7 @@ static struct opp_table *_update_opp_table_clk(struct device *dev,
 		 * frequency in opp->rates and also parse the entries in DT.
 		 */
 		opp_table->clk_count = 1;
+		opp_table->clk = NULL;
 
 		dev_dbg(dev, "%s: Couldn't find clock: %d\n", __func__, ret);
 		return opp_table;

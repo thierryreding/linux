@@ -147,22 +147,22 @@
 			};
 
 			cooling-maps {
-				passive {
+				map-passive {
 					cooling-device = <&fan 3 3>;
 					trip = <&board_trip_passive>;
 				};
 
-				active2 {
+				map-active-2 {
 					cooling-device = <&fan 2 3>;
 					trip = <&board_trip_active2>;
 				};
 
-				active1 {
+				map-active-1 {
 					cooling-device = <&fan 1 2>;
 					trip = <&board_trip_active1>;
 				};
 
-				active0 {
+				map-active-0 {
 					cooling-device = <&fan 0 1>;
 					trip = <&board_trip_active0>;
 				};

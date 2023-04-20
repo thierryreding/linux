@@ -2086,6 +2086,12 @@
 					hysteresis = <0>;
 					type = "critical";
 				};
+
+				hot {
+					temperature = <97000>;
+					hysteresis = <0>;
+					type = "hot";
+				};
 			};
 
 			cooling-maps {

@@ -31,6 +31,7 @@ properties:
     enum:
       - nvidia,tegra186-bpmp-thermal
       - nvidia,tegra194-bpmp-thermal
+      - nvidia,tegra234-bpmp-thermal
 
   '#thermal-sensor-cells':
     $ref: /schemas/types.yaml#/definitions/uint32

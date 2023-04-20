@@ -31,7 +31,6 @@
 	};
 
 	chosen {
-		bootargs = "console=ttyTCU0,115200n8";
 		stdout-path = "serial0:115200n8";
 
 		framebuffer {
@@ -102,10 +101,10 @@
 				 <&bpmp TEGRA234_CLK_MIPI_CAL>,
 				 <&bpmp TEGRA234_CLK_UART_FST_MIPI_CAL>,
 				 <&bpmp TEGRA234_CLK_SOR0_DIV>;
-			resets = <&bpmp TEGRA234_RESET_NVDISPLAY>,
-				 <&bpmp TEGRA234_RESET_DPAUX>,
-				 <&bpmp TEGRA234_RESET_DSI_CORE>,
-				 <&bpmp TEGRA234_RESET_MIPI_CAL>;
+//			resets = <&bpmp TEGRA234_RESET_NVDISPLAY>,
+//				 <&bpmp TEGRA234_RESET_DPAUX>,
+//				 <&bpmp TEGRA234_RESET_DSI_CORE>,
+//				 <&bpmp TEGRA234_RESET_MIPI_CAL>;
 			width = <0>;
 			height = <0>;
 			stride = <0>;
@@ -2104,7 +2103,6 @@
 		};
 
 		serial@31d0000 {
-			current-speed = <115200>;
 			status = "okay";
 		};
 
@@ -2188,6 +2186,7 @@
 				usb2-0 {
 					mode = "host";
 					status = "okay";
+
 					port {
 						hs_typec_p1: endpoint {
 							remote-endpoint = <&hs_ucsi_ccg_p1>;
@@ -2198,6 +2197,7 @@
 				usb2-1 {
 					mode = "host";
 					status = "okay";
+
 					port {
 						hs_typec_p0: endpoint {
 							remote-endpoint = <&hs_ucsi_ccg_p0>;
@@ -2218,6 +2218,7 @@
 				usb3-0 {
 					nvidia,usb2-companion = <1>;
 					status = "okay";
+
 					port {
 						ss_typec_p0: endpoint {
 							remote-endpoint = <&ss_ucsi_ccg_p0>;
@@ -2228,6 +2229,7 @@
 				usb3-1 {
 					nvidia,usb2-companion = <0>;
 					status = "okay";
+
 					port {
 						ss_typec_p1: endpoint {
 							remote-endpoint = <&ss_ucsi_ccg_p1>;
@@ -2334,6 +2336,7 @@
 
 		i2c@c240000 {
 			status = "okay";
+
 			typec@8 {
 				compatible = "cypress,cypd4226";
 				reg = <0x08>;
@@ -2343,44 +2346,56 @@
 				status = "okay";
 				#address-cells = <1>;
 				#size-cells = <0>;
+
 				ccg_typec_con0: connector@0 {
 					compatible = "usb-c-connector";
 					reg = <0>;
 					label = "USB-C";
 					data-role = "host";
+
 					ports {
 						#address-cells = <1>;
 						#size-cells = <0>;
+
 						port@0 {
 							reg = <0>;
+
 							hs_ucsi_ccg_p0: endpoint {
 								remote-endpoint = <&hs_typec_p0>;
 							};
 						};
+
 						port@1 {
 							reg = <1>;
+
 							ss_ucsi_ccg_p0: endpoint {
 								remote-endpoint = <&ss_typec_p0>;
 							};
 						};
 					};
 				};
+
 				ccg_typec_con1: connector@1 {
 					compatible = "usb-c-connector";
 					reg = <1>;
 					label = "USB-C";
 					data-role = "dual";
+
 					ports {
 						#address-cells = <1>;
 						#size-cells = <0>;
+
 						port@0 {
 							reg = <0>;
+
 							hs_ucsi_ccg_p1: endpoint {
 								remote-endpoint = <&hs_typec_p1>;
 							};
 						};
+
 						port@1 {
 							reg = <1>;
+
 							ss_ucsi_ccg_p1: endpoint {
 								remote-endpoint = <&ss_typec_p1>;
 							};
@@ -2514,27 +2529,23 @@
 
 	thermal-zones {
 		cpu-thermal {
-			cooling-maps {
-				critical {
-					cooling-device = <&fan 3 3>;
-					trip = <&cpu_trip_critical>;
-				};
+			status = "disabled";
+		};
 
-				passive {
-					cooling-device = <&fan 2 2>;
-					trip = <&cpu_trip_passive>;
-				};
+		soc0-thermal {
+			status = "disabled";
+		};
 
-				hot {
-					cooling-device = <&fan 1 1>;
-					trip = <&cpu_trip_hot>;
-				};
+		soc1-thermal {
+			status = "disabled";
+		};
 
-				active {
-					cooling-device = <&fan 0 0>;
-					trip = <&cpu_trip_active>;
-				};
-			};
+		soc2-thermal {
+			status = "disabled";
+		};
+
+		tj-thermal {
+			status = "disabled";
 		};
 
 		tboard-thermal {
@@ -2544,10 +2555,62 @@
 			status = "okay";
 
 			trips {
-				critical {
+				board_trip_critical: critical {
 					temperature = <107000>;
 					hysteresis = <0>;
 					type = "critical";
+				};
+
+				board_trip_hot: hot {
+					temperature = <99000>;
+					hysteresis = <1000>;
+					type = "hot";
+				};
+
+				board_trip_passive: passive {
+					temperature = <95000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				board_trip_active2: active-2 {
+					temperature = <80000>;
+					hysteresis = <4000>;
+					type = "active";
+				};
+
+				board_trip_active1: active-1 {
+					temperature = <65000>;
+					hysteresis = <4000>;
+					type = "active";
+				};
+
+				board_trip_active0: active-0 {
+					temperature = <50000>;
+					hysteresis = <4000>;
+					type = "active";
+				};
+			};
+
+			cooling-maps {
+				map-passive {
+					cooling-device = <&fan 3 3>;
+					trip = <&board_trip_passive>;
+				};
+
+				map-active2 {
+					cooling-device = <&fan 2 3>;
+					trip = <&board_trip_active2>;
+				};
+
+				map-active1 {
+					cooling-device = <&fan 1 2>;
+					trip = <&board_trip_active1>;
+				};
+
+				map-active0 {
+					cooling-device = <&fan 0 1>;
+					trip = <&board_trip_active0>;
 				};
 			};
 		};
@@ -2556,7 +2619,6 @@
 			polling-delay = <1000>;
 			polling-delay-passive = <1000>;
 			thermal-sensors = <&tmp451 1>;
-			status = "okay";
 
 			trips {
 				critical {

@@ -133,7 +133,7 @@ patternProperties:
     $ref: /schemas/gpio/gpio-hog.yaml#
 
 allOf:
-  #- $ref: /schemas/interrupt-controller.yaml
+#  - $ref: /schemas/interrupt-controller.yaml
   - $ref: /schemas/gpio/gpio.yaml
   - if:
       properties:

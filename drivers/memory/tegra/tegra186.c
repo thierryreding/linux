@@ -3,6 +3,8 @@
  * Copyright (C) 2017-2021 NVIDIA CORPORATION.  All rights reserved.
  */
 
+#define DEBUG
+
 #include <linux/io.h>
 #include <linux/iommu.h>
 #include <linux/module.h>
@@ -29,6 +31,8 @@ static int tegra186_mc_probe(struct tegra_mc *mc)
 	char name[8];
 	int err;
 
+	dev_info(mc->dev, "> %s(mc=%px)\n", __func__, mc);
+
 	mc->bcast_ch_regs = devm_platform_ioremap_resource_byname(pdev, "broadcast");
 	if (IS_ERR(mc->bcast_ch_regs)) {
 		if (PTR_ERR(mc->bcast_ch_regs) == -EINVAL) {
@@ -54,11 +58,35 @@ static int tegra186_mc_probe(struct tegra_mc *mc)
 			return PTR_ERR(mc->ch_regs[i]);
 	}
 
+	for (i = 0; i < mc->soc->num_clients; i++) {
+		const struct tegra_mc_client *client = &mc->soc->clients[i];
+		u32 override, security;
+
+		override = readl(mc->regs + client->regs.sid.override);
+		security = readl(mc->regs + client->regs.sid.security);
+
+		dev_info(mc->dev, "client %s: override: %x security: %x\n",
+			 client->name, override, security);
+
+		/*
+		dev_dbg(mc->dev, "setting SID %u for %s\n", client->sid,
+			client->name);
+		writel(client->sid, mc->regs + client->regs.sid.override);
+
+		override = readl(mc->regs + client->regs.sid.override);
+		security = readl(mc->regs + client->regs.sid.security);
+
+		dev_dbg(mc->dev, "client %s: override: %x security: %x\n",
+			       client->name, override, security);
+		*/
+	}
+
 populate:
 	err = of_platform_populate(mc->dev->of_node, NULL, NULL, mc->dev);
 	if (err < 0)
 		return err;
 
+	dev_info(mc->dev, "< %s()\n", __func__);
 	return 0;
 }
 

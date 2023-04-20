@@ -20,13 +20,15 @@
 				 <&tegra_car TEGRA210_CLK_PLL_D_OUT0>,
 				 <&tegra_car TEGRA210_CLK_PLL_DP>,
 				 <&tegra_car TEGRA210_CLK_DPAUX1>;
+			/*
 			resets = <&tegra_car 27>,
 				 <&tegra_car 181>,
 				 <&tegra_car 182>;
+			*/
 			width = <0>;
 			height = <0>;
 			stride = <0>;
-			format = "x8b8g8br";
+			format = "x8b8g8r8";
 			status = "disabled";
 		};
 	};

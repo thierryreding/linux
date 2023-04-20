@@ -879,7 +879,8 @@
 			heavy {
 				nvidia,priority = <100>;
 				nvidia,cpu-throt-level = <TEGRA_SOCTHERM_THROT_LEVEL_HIGH>;
-				temperature = <102000>;
+				temperature-millicelsius = <102000>;
+				hysteresis-millicelsius = <5000>;
 			};
 		};
 	};
