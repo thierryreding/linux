@@ -1119,6 +1119,9 @@ struct v4l2_subdev {
  * @vfh: pointer to &struct v4l2_fh
  * @state: pointer to &struct v4l2_subdev_state
  * @owner: module pointer to the owner of this file handle
+ * @client_caps:
+ *	client capabilities to inform the kernel of the behavior
+ *	of the client as set by VIDIOC_SUBDEV_S_CLIENT_CAP.
  */
 struct v4l2_subdev_fh {
 	struct v4l2_fh vfh;
