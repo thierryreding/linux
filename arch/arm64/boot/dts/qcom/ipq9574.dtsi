@@ -16,12 +16,6 @@
 	#size-cells = <2>;
 
 	clocks {
-		bias_pll_ubi_nc_clk: bias-pll-ubi-nc-clk {
-			compatible = "fixed-clock";
-			clock-frequency = <353000000>;
-			#clock-cells = <0>;
-		};
-
 		sleep_clk: sleep-clk {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
@@ -72,6 +66,14 @@
 		L2_0: l2-cache {
 			compatible = "cache";
 			cache-level = <2>;
+			cache-unified;
+		};
+	};
+
+	firmware {
+		scm {
+			compatible = "qcom,scm-ipq9574", "qcom,scm";
+			qcom,dload-mode = <&tcsr 0x6100>;
 		};
 	};
 
@@ -98,6 +100,13 @@
 
 		tz_region: tz@4a600000 {
 			reg = <0x0 0x4a600000 0x0 0x400000>;
+			no-map;
+		};
+
+		smem@4aa00000 {
+			compatible = "qcom,smem";
+			reg = <0x0 0x4aa00000 0x0 0x00100000>;
+			hwlocks = <&tcsr_mutex 0>;
 			no-map;
 		};
 	};
@@ -131,7 +140,7 @@
 			reg = <0x01800000 0x80000>;
 			clocks = <&xo_board_clk>,
 				 <&sleep_clk>,
-				 <&bias_pll_ubi_nc_clk>,
+				 <0>,
 				 <0>,
 				 <0>,
 				 <0>,
@@ -140,6 +149,17 @@
 			#clock-cells = <1>;
 			#reset-cells = <1>;
 			#power-domain-cells = <1>;
+		};
+
+		tcsr_mutex: hwlock@1905000 {
+			compatible = "qcom,tcsr-mutex";
+			reg = <0x01905000 0x20000>;
+			#hwlock-cells = <1>;
+		};
+
+		tcsr: syscon@1937000 {
+			compatible = "qcom,tcsr-ipq9574", "syscon";
+			reg = <0x01937000 0x21000>;
 		};
 
 		sdhc_1: mmc@7804000 {
@@ -172,14 +192,14 @@
 		intc: interrupt-controller@b000000 {
 			compatible = "qcom,msm-qgic2";
 			reg = <0x0b000000 0x1000>,  /* GICD */
-			      <0x0b002000 0x1000>,  /* GICC */
+			      <0x0b002000 0x2000>,  /* GICC */
 			      <0x0b001000 0x1000>,  /* GICH */
-			      <0x0b004000 0x1000>;  /* GICV */
+			      <0x0b004000 0x2000>;  /* GICV */
 			#address-cells = <1>;
 			#size-cells = <1>;
 			interrupt-controller;
 			#interrupt-cells = <3>;
-			interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
 			ranges = <0 0x0b00c000 0x3000>;
 
 			v2m0: v2m@0 {

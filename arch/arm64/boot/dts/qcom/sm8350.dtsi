@@ -58,12 +58,14 @@
 			power-domain-names = "psci";
 			#cooling-cells = <2>;
 			L2_0: l2-cache {
-			      compatible = "cache";
-			      cache-level = <2>;
-			      next-level-cache = <&L3_0>;
+				compatible = "cache";
+				cache-level = <2>;
+				cache-unified;
+				next-level-cache = <&L3_0>;
 				L3_0: l3-cache {
-				      compatible = "cache";
-				      cache-level = <3>;
+					compatible = "cache";
+					cache-level = <3>;
+					cache-unified;
 				};
 			};
 		};
@@ -80,9 +82,10 @@
 			power-domain-names = "psci";
 			#cooling-cells = <2>;
 			L2_100: l2-cache {
-			      compatible = "cache";
-			      cache-level = <2>;
-			      next-level-cache = <&L3_0>;
+				compatible = "cache";
+				cache-level = <2>;
+				cache-unified;
+				next-level-cache = <&L3_0>;
 			};
 		};
 
@@ -98,9 +101,10 @@
 			power-domain-names = "psci";
 			#cooling-cells = <2>;
 			L2_200: l2-cache {
-			      compatible = "cache";
-			      cache-level = <2>;
-			      next-level-cache = <&L3_0>;
+				compatible = "cache";
+				cache-level = <2>;
+				cache-unified;
+				next-level-cache = <&L3_0>;
 			};
 		};
 
@@ -116,9 +120,10 @@
 			power-domain-names = "psci";
 			#cooling-cells = <2>;
 			L2_300: l2-cache {
-			      compatible = "cache";
-			      cache-level = <2>;
-			      next-level-cache = <&L3_0>;
+				compatible = "cache";
+				cache-level = <2>;
+				cache-unified;
+				next-level-cache = <&L3_0>;
 			};
 		};
 
@@ -134,9 +139,10 @@
 			power-domain-names = "psci";
 			#cooling-cells = <2>;
 			L2_400: l2-cache {
-			      compatible = "cache";
-			      cache-level = <2>;
-			      next-level-cache = <&L3_0>;
+				compatible = "cache";
+				cache-level = <2>;
+				cache-unified;
+				next-level-cache = <&L3_0>;
 			};
 		};
 
@@ -152,9 +158,10 @@
 			power-domain-names = "psci";
 			#cooling-cells = <2>;
 			L2_500: l2-cache {
-			      compatible = "cache";
-			      cache-level = <2>;
-			      next-level-cache = <&L3_0>;
+				compatible = "cache";
+				cache-level = <2>;
+				cache-unified;
+				next-level-cache = <&L3_0>;
 			};
 		};
 
@@ -170,9 +177,10 @@
 			power-domain-names = "psci";
 			#cooling-cells = <2>;
 			L2_600: l2-cache {
-			      compatible = "cache";
-			      cache-level = <2>;
-			      next-level-cache = <&L3_0>;
+				compatible = "cache";
+				cache-level = <2>;
+				cache-unified;
+				next-level-cache = <&L3_0>;
 			};
 		};
 
@@ -188,9 +196,10 @@
 			power-domain-names = "psci";
 			#cooling-cells = <2>;
 			L2_700: l2-cache {
-			      compatible = "cache";
-			      cache-level = <2>;
-			      next-level-cache = <&L3_0>;
+				compatible = "cache";
+				cache-level = <2>;
+				cache-unified;
+				next-level-cache = <&L3_0>;
 			};
 		};
 
@@ -2149,6 +2158,32 @@
 			#phy-cells = <1>;
 
 			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					usb_1_qmpphy_out: endpoint {
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+
+					usb_1_qmpphy_usb_ss_in: endpoint {
+					};
+				};
+
+				port@2 {
+					reg = <2>;
+
+					usb_1_qmpphy_dp_in: endpoint {
+					};
+				};
+			};
 		};
 
 		usb_2_qmpphy: phy-wrapper@88eb000 {

@@ -63,10 +63,12 @@
 			L2_0: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
+				cache-unified;
 				next-level-cache = <&L3_0>;
 				L3_0: l3-cache {
-				      compatible = "cache";
-				      cache-level = <3>;
+					compatible = "cache";
+					cache-level = <3>;
+					cache-unified;
 				};
 			};
 		};
@@ -90,6 +92,7 @@
 			L2_100: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
+				cache-unified;
 				next-level-cache = <&L3_0>;
 			};
 		};
@@ -113,6 +116,7 @@
 			L2_200: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
+				cache-unified;
 				next-level-cache = <&L3_0>;
 			};
 		};
@@ -136,6 +140,7 @@
 			L2_300: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
+				cache-unified;
 				next-level-cache = <&L3_0>;
 			};
 		};
@@ -159,6 +164,7 @@
 			L2_400: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
+				cache-unified;
 				next-level-cache = <&L3_0>;
 			};
 		};
@@ -182,6 +188,7 @@
 			L2_500: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
+				cache-unified;
 				next-level-cache = <&L3_0>;
 			};
 		};
@@ -205,6 +212,7 @@
 			L2_600: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
+				cache-unified;
 				next-level-cache = <&L3_0>;
 			};
 		};
@@ -228,6 +236,7 @@
 			L2_700: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
+				cache-unified;
 				next-level-cache = <&L3_0>;
 			};
 		};
@@ -1353,14 +1362,11 @@
 			uart9: serial@a84000 {
 				compatible = "qcom,geni-uart";
 				reg = <0x0 0x00a84000 0x0 0x4000>;
-				reg-names = "se";
 				clocks = <&gcc GCC_QUPV3_WRAP1_S1_CLK>;
 				clock-names = "se";
 				pinctrl-0 = <&qup_uart9_default>;
 				pinctrl-names = "default";
 				interrupts = <GIC_SPI 354 IRQ_TYPE_LEVEL_HIGH>;
-				#address-cells = <1>;
-				#size-cells = <0>;
 				status = "disabled";
 			};
 
@@ -1817,7 +1823,7 @@
 		};
 
 		pcie0: pci@1c00000 {
-			compatible = "qcom,pcie-sm8150", "snps,dw-pcie";
+			compatible = "qcom,pcie-sm8150";
 			reg = <0 0x01c00000 0 0x3000>,
 			      <0 0x60000000 0 0xf1d>,
 			      <0 0x60000f20 0 0xa8>,
@@ -1912,7 +1918,7 @@
 		};
 
 		pcie1: pci@1c08000 {
-			compatible = "qcom,pcie-sm8150", "snps,dw-pcie";
+			compatible = "qcom,pcie-sm8150";
 			reg = <0 0x01c08000 0 0x3000>,
 			      <0 0x40000000 0 0xf1d>,
 			      <0 0x40000f20 0 0xa8>,
@@ -3977,7 +3983,7 @@
 		};
 
 		apps_smmu: iommu@15000000 {
-			compatible = "qcom,sm8150-smmu-500", "arm,mmu-500";
+			compatible = "qcom,sm8150-smmu-500", "qcom,smmu-500", "arm,mmu-500";
 			reg = <0 0x15000000 0 0x100000>;
 			#iommu-cells = <2>;
 			#global-interrupts = <1>;
