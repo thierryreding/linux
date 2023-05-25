@@ -1011,24 +1011,6 @@ static void fec_enet_enable_ring(struct net_device *ndev)
 	}
 }
 
-static void fec_enet_reset_skb(struct net_device *ndev)
-{
-	struct fec_enet_private *fep = netdev_priv(ndev);
-	struct fec_enet_priv_tx_q *txq;
-	int i, j;
-
-	for (i = 0; i < fep->num_tx_queues; i++) {
-		txq = fep->tx_queue[i];
-
-		for (j = 0; j < txq->bd.ring_size; j++) {
-			if (txq->tx_skbuff[j]) {
-				dev_kfree_skb_any(txq->tx_skbuff[j]);
-				txq->tx_skbuff[j] = NULL;
-			}
-		}
-	}
-}
-
 /*
  * This function is called to start or restart the FEC during a link
  * change, transmit timeout, or to reconfigure the FEC.  The network
@@ -1070,9 +1052,6 @@ fec_restart(struct net_device *ndev)
 	fec_enet_bd_init(ndev);
 
 	fec_enet_enable_ring(ndev);
-
-	/* Reset tx SKB buffers. */
-	fec_enet_reset_skb(ndev);
 
 	/* Enable MII mode */
 	if (fep->full_duplex == DUPLEX_FULL) {
@@ -3798,7 +3777,7 @@ static int fec_enet_txq_xmit_frame(struct fec_enet_private *fep,
 	entries_free = fec_enet_get_free_txdesc_num(txq);
 	if (entries_free < MAX_SKB_FRAGS + 1) {
 		netdev_err(fep->netdev, "NOT enough BD for SG!\n");
-		return NETDEV_TX_BUSY;
+		return -EBUSY;
 	}
 
 	/* Fill in a Tx ring entry */
@@ -3812,7 +3791,7 @@ static int fec_enet_txq_xmit_frame(struct fec_enet_private *fep,
 	dma_addr = dma_map_single(&fep->pdev->dev, frame->data,
 				  frame->len, DMA_TO_DEVICE);
 	if (dma_mapping_error(&fep->pdev->dev, dma_addr))
-		return FEC_ENET_XDP_CONSUMED;
+		return -ENOMEM;
 
 	status |= (BD_ENET_TX_INTR | BD_ENET_TX_LAST);
 	if (fep->bufdesc_ex)
@@ -3879,7 +3858,7 @@ static int fec_enet_xdp_xmit(struct net_device *dev,
 	__netif_tx_lock(nq, cpu);
 
 	for (i = 0; i < num_frames; i++) {
-		if (fec_enet_txq_xmit_frame(fep, txq, frames[i]) != 0)
+		if (fec_enet_txq_xmit_frame(fep, txq, frames[i]) < 0)
 			break;
 		sent_frames++;
 	}
@@ -4034,6 +4013,11 @@ static int fec_enet_init(struct net_device *ndev)
 	}
 
 	ndev->hw_features = ndev->features;
+
+	if (!(fep->quirks & FEC_QUIRK_SWAP_FRAME))
+		ndev->xdp_features = NETDEV_XDP_ACT_BASIC |
+				     NETDEV_XDP_ACT_REDIRECT |
+				     NETDEV_XDP_ACT_NDO_XMIT;
 
 	fec_restart(ndev);
 
