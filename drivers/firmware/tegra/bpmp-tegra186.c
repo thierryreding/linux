@@ -189,6 +189,88 @@ static void tegra186_bpmp_cleanup_channels(struct tegra_bpmp *bpmp)
 	}
 }
 
+static int tegra186_bpmp_dram_init(struct tegra_bpmp *bpmp)
+{
+	struct tegra186_bpmp *priv = bpmp->priv;
+	struct device_node *np;
+	struct resource res;
+	size_t size;
+	int err;
+
+	np = of_parse_phandle(bpmp->dev->of_node, "memory-region", 0);
+	if (!np)
+		return -ENODEV;
+
+	err = of_address_to_resource(np, 0, &res);
+	if (err < 0) {
+		dev_warn(bpmp->dev, "failed to parse memory region: %d\n", err);
+		return err;
+	}
+
+	size = resource_size(&res);
+
+	if (size < SZ_8K) {
+		dev_warn(bpmp->dev, "DRAM region must be larger than 8 KiB\n");
+		return -EINVAL;
+	}
+
+	priv->tx.phys = res.start;
+	priv->rx.phys = res.start + SZ_4K;
+
+	priv->tx.dram = devm_memremap(bpmp->dev, priv->tx.phys, size,
+				      MEMREMAP_WC);
+	if (IS_ERR(priv->tx.dram)) {
+		err = PTR_ERR(priv->tx.dram);
+		dev_warn(bpmp->dev, "failed to map DRAM region: %d\n", err);
+		return err;
+	}
+
+	priv->rx.dram = priv->tx.dram + SZ_4K;
+
+	return 0;
+}
+
+static int tegra186_bpmp_sram_init(struct tegra_bpmp *bpmp)
+{
+	struct tegra186_bpmp *priv = bpmp->priv;
+	int err;
+
+	priv->tx.pool = of_gen_pool_get(bpmp->dev->of_node, "shmem", 0);
+	if (!priv->tx.pool) {
+		dev_err(bpmp->dev, "TX shmem pool not found\n");
+		return -EPROBE_DEFER;
+	}
+
+	priv->tx.sram = (void __iomem *)gen_pool_dma_alloc(priv->tx.pool, 4096,
+							   &priv->tx.phys);
+	if (!priv->tx.sram) {
+		dev_err(bpmp->dev, "failed to allocate from TX pool\n");
+		return -ENOMEM;
+	}
+
+	priv->rx.pool = of_gen_pool_get(bpmp->dev->of_node, "shmem", 1);
+	if (!priv->rx.pool) {
+		dev_err(bpmp->dev, "RX shmem pool not found\n");
+		err = -EPROBE_DEFER;
+		goto free_tx;
+	}
+
+	priv->rx.sram = (void __iomem *)gen_pool_dma_alloc(priv->rx.pool, 4096,
+							   &priv->rx.phys);
+	if (!priv->rx.sram) {
+		dev_err(bpmp->dev, "failed to allocate from RX pool\n");
+		err = -ENOMEM;
+		goto free_tx;
+	}
+
+	return 0;
+
+free_tx:
+	gen_pool_free(priv->tx.pool, (unsigned long)priv->tx.sram, 4096);
+
+	return err;
+}
+
 static int tegra186_bpmp_setup_channels(struct tegra_bpmp *bpmp)
 {
 	unsigned int i;
@@ -238,88 +320,6 @@ static void tegra186_bpmp_reset_channels(struct tegra_bpmp *bpmp)
 
 	for (i = 0; i < bpmp->threaded.count; i++)
 		tegra186_bpmp_channel_reset(&bpmp->threaded_channels[i]);
-}
-
-static int tegra186_bpmp_sram_init(struct tegra_bpmp *bpmp)
-{
-	struct tegra186_bpmp *priv = bpmp->priv;
-	int err;
-
-	priv->tx.pool = of_gen_pool_get(bpmp->dev->of_node, "shmem", 0);
-	if (!priv->tx.pool) {
-		dev_err(bpmp->dev, "TX shmem pool not found\n");
-		return -EPROBE_DEFER;
-	}
-
-	priv->tx.sram = (void __iomem *)gen_pool_dma_alloc(priv->tx.pool, 4096,
-							   &priv->tx.phys);
-	if (!priv->tx.sram) {
-		dev_err(bpmp->dev, "failed to allocate from TX pool\n");
-		return -ENOMEM;
-	}
-
-	priv->rx.pool = of_gen_pool_get(bpmp->dev->of_node, "shmem", 1);
-	if (!priv->rx.pool) {
-		dev_err(bpmp->dev, "RX shmem pool not found\n");
-		err = -EPROBE_DEFER;
-		goto free_tx;
-	}
-
-	priv->rx.sram = (void __iomem *)gen_pool_dma_alloc(priv->rx.pool, 4096,
-							   &priv->rx.phys);
-	if (!priv->rx.sram) {
-		dev_err(bpmp->dev, "failed to allocate from RX pool\n");
-		err = -ENOMEM;
-		goto free_tx;
-	}
-
-	return 0;
-
-free_tx:
-	gen_pool_free(priv->tx.pool, (unsigned long)priv->tx.sram, 4096);
-
-	return err;
-}
-
-static int tegra186_bpmp_dram_init(struct tegra_bpmp *bpmp)
-{
-	struct tegra186_bpmp *priv = bpmp->priv;
-	struct device_node *np;
-	struct resource res;
-	size_t size;
-	int err;
-
-	np = of_parse_phandle(bpmp->dev->of_node, "memory-region", 0);
-	if (!np)
-		return -ENODEV;
-
-	err = of_address_to_resource(np, 0, &res);
-	if (err < 0) {
-		dev_warn(bpmp->dev, "failed to parse memory region: %d\n", err);
-		return err;
-	}
-
-	size = resource_size(&res);
-
-	if (size < SZ_8K) {
-		dev_warn(bpmp->dev, "DRAM region must be larger than 8 KiB\n");
-		return -EINVAL;
-	}
-
-	priv->tx.phys = res.start;
-	priv->rx.phys = res.start + SZ_4K;
-
-	priv->tx.dram = devm_memremap(bpmp->dev, priv->tx.phys, size,
-				      MEMREMAP_WC);
-	if (IS_ERR(priv->tx.dram)) {
-		err = PTR_ERR(priv->tx.dram);
-		dev_warn(bpmp->dev, "failed to map DRAM region: %d\n", err);
-		return err;
-	}
-
-	priv->rx.dram = priv->tx.dram + SZ_4K;
-
-	return 0;
 }
 
 static int tegra186_bpmp_init(struct tegra_bpmp *bpmp)

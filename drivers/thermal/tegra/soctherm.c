@@ -324,6 +324,8 @@ struct soctherm_throt_cfg {
 	u32 gpu_throt_level;
 	struct soctherm_oc_cfg oc_cfg;
 	bool init;
+
+	struct device_node *zone;
 };
 
 struct tegra_soctherm {
@@ -509,24 +511,33 @@ static int thermtrip_program(struct tegra_soctherm *ts,
  *
  * Return: 0 upon success, or %-EINVAL upon failure.
  */
-static int throttrip_program(struct tegra_soctherm *ts,
+static int throttrip_program(struct tegra_soctherm *tegra,
 			     struct soctherm_throt_cfg *stc)
 {
+	struct tegra_thermctl_zone *zone = NULL;
 	int high, low, cpu_throt, gpu_throt;
-	unsigned int throt;
+	unsigned int throt, i;
 	u32 r, reg_off;
 
-	if (!stc || !stc->init)
-		return -EINVAL;
+	for (i = 0; i < tegra->soc->num_ttgs; ++i) {
+		struct thermal_zone_device *tz = tegra->therm_tzs[i];
+		if (tz->device.of_node == stc->zone) {
+			zone = thermal_zone_device_priv(tz);
+			break;
+		}
+	}
 
-	high = enforce_temp_range(ts, stc->temperature);
-	high /= ts->soc->thresh_grain;
-	low = enforce_temp_range(ts, stc->temperature - stc->hysteresis);
-	low /= ts->soc->thresh_grain;
+	if (!zone)
+		return 0;
+
+	high = enforce_temp_range(tegra, stc->temperature);
+	high /= tegra->soc->thresh_grain;
+	low = enforce_temp_range(tegra, stc->temperature - stc->hysteresis);
+	low /= tegra->soc->thresh_grain;
 
 	/* Hardcode LIGHT on LEVEL1 and HEAVY on LEVEL2 */
 	throt = stc->id;
-	reg_off = THERMCTL_LVL_REG(sg->thermctl_lvl0_offset, throt + 1);
+	reg_off = THERMCTL_LVL_REG(zone->sg->thermctl_lvl0_offset, throt + 1);
 
 	if (throt == THROTTLE_LIGHT) {
 		cpu_throt = THERMCTL_LVL0_CPU0_CPU_THROT_LIGHT;
@@ -535,18 +546,18 @@ static int throttrip_program(struct tegra_soctherm *ts,
 		cpu_throt = THERMCTL_LVL0_CPU0_CPU_THROT_HEAVY;
 		gpu_throt = THERMCTL_LVL0_CPU0_GPU_THROT_HEAVY;
 		if (throt != THROTTLE_HEAVY)
-			dev_warn(ts->dev,
+			dev_warn(tegra->dev,
 				 "invalid throt id %d - assuming HEAVY",
 				 throt);
 	}
 
-	r = readl(ts->regs + reg_off);
-	r = REG_SET_MASK(r, sg->thermctl_lvl0_up_thresh_mask, high);
-	r = REG_SET_MASK(r, sg->thermctl_lvl0_dn_thresh_mask, low);
+	r = readl(tegra->regs + reg_off);
+	r = REG_SET_MASK(r, zone->sg->thermctl_lvl0_up_thresh_mask, high);
+	r = REG_SET_MASK(r, zone->sg->thermctl_lvl0_dn_thresh_mask, low);
 	r = REG_SET_MASK(r, THERMCTL_LVL0_CPU0_CPU_THROT_MASK, cpu_throt);
 	r = REG_SET_MASK(r, THERMCTL_LVL0_CPU0_GPU_THROT_MASK, gpu_throt);
 	r = REG_SET_MASK(r, THERMCTL_LVL0_CPU0_EN_MASK, 1);
-	writel(r, ts->regs + reg_off);
+	writel(r, tegra->regs + reg_off);
 
 	return 0;
 }
@@ -721,9 +732,10 @@ static int tegra_soctherm_set_hwtrips(struct tegra_soctherm *ts,
  * this one appears on the serial console:
  * ""throttrip: will throttle when sensor group XXX reaches YYYYYY mC"
  */
-static void soctherm_enable_hw_throttling(struct tegra_soctherm *ts)
+static void soctherm_enable_hw_throttling(struct tegra_soctherm *tegra)
 {
 	struct soctherm_throt_cfg *stc;
+	unsigned int i;
 	int err;
 
 	/* if configured, program the pulse skipper for CPU and GPU zones */
@@ -734,7 +746,7 @@ static void soctherm_enable_hw_throttling(struct tegra_soctherm *ts)
 	err = throttrip_program(ts, stc);
 	if (err)
 		dev_err(ts->dev, "throttrip: %s: failed to enable: %d\n",
-			sg->name, err);
+			stc->name, err);
 }
 
 static irqreturn_t soctherm_thermal_isr(int irq, void *dev_id)
@@ -1559,6 +1571,8 @@ static int soctherm_throt_cfg_parse(struct tegra_soctherm *ts,
 	if (ret < 0)
 		goto err;
 
+	stc->zone = of_parse_phandle(np, "nvidia,thermal-zone", 0);
+
 	return 0;
 
 err:
@@ -2094,7 +2108,7 @@ static int tegra_soctherm_probe(struct platform_device *pdev)
 			goto disable_clocks;
 	}
 
-	soctherm_enable_hw_throttling(ts);
+	soctherm_enable_hw_throttling(tegra);
 	soctherm_interrupts_init(tegra);
 	soctherm_debug_init(tegra);
 
@@ -2151,7 +2165,7 @@ static int __maybe_unused soctherm_resume(struct device *dev)
 		}
 	}
 
-	soctherm_enable_hw_throttling(ts);
+	soctherm_enable_hw_throttling(tegra);
 
 	return 0;
 }

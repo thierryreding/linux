@@ -3991,6 +3991,7 @@ static struct gpio_desc *gpiod_find_and_request(struct device *consumer,
 	blocking_notifier_call_chain(&desc->gdev->notifier,
 				     GPIOLINE_CHANGED_REQUESTED, desc);
 
+	dev_info(consumer, "requested GPIO %s (%s): %px\n", con_id, desc->name, desc);
 	return desc;
 }
 

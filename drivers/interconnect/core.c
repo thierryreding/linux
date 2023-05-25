@@ -916,8 +916,10 @@ EXPORT_SYMBOL_GPL(icc_link_create);
  */
 void icc_node_add(struct icc_node *node, struct icc_provider *provider)
 {
-	if (WARN_ON(node->provider))
+	if (WARN_ON(node->provider)) {
+		pr_info("provider already specified for node %s\n", node->name);
 		return;
+	}
 
 	mutex_lock(&icc_lock);
 

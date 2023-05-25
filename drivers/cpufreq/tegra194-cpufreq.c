@@ -69,9 +69,8 @@ struct tegra194_cpufreq_data {
 	struct cpufreq_frequency_table **bpmp_luts;
 	const struct tegra_cpufreq_soc *soc;
 	bool icc_dram_bw_scaling;
+	struct workqueue_struct *wq;
 };
-
-static struct workqueue_struct *read_counters_wq;
 
 static int tegra_cpufreq_set_bw(struct cpufreq_policy *policy, unsigned long freq_khz)
 {
@@ -285,10 +284,12 @@ static void tegra_read_counters(struct work_struct *work)
  *		   = (delta cycles * 408 * 10^6) / delta ref_clk_counter
  *	in KHz	   = (delta cycles * 408 * 10^3) / delta ref_clk_counter
  *
+ * @data - pointer to a driver-specific data structure
  * @cpu - logical cpu whose freq to be updated
  * Returns freq in KHz on success, 0 if cpu is offline
  */
-static unsigned int tegra194_calculate_speed(u32 cpu)
+static unsigned int tegra194_calculate_speed(struct tegra194_cpufreq_data *data,
+					     u32 cpu)
 {
 	struct read_counters_work read_counters_work;
 	struct tegra_cpu_ctr c;
@@ -303,7 +304,7 @@ static unsigned int tegra194_calculate_speed(u32 cpu)
 	 */
 	read_counters_work.c.cpu = cpu;
 	INIT_WORK_ONSTACK(&read_counters_work.work, tegra_read_counters);
-	queue_work_on(cpu, read_counters_wq, &read_counters_work.work);
+	queue_work_on(cpu, data->wq, &read_counters_work.work);
 	flush_work(&read_counters_work.work);
 	c = read_counters_work.c;
 
@@ -366,7 +367,7 @@ static unsigned int tegra194_get_speed(u32 cpu)
 	data->soc->ops->get_cpu_cluster_id(cpu, &cpuid, &clusterid);
 
 	/* reconstruct actual cpu freq using counters */
-	rate = tegra194_calculate_speed(cpu);
+	rate = tegra194_calculate_speed(data, cpu);
 
 	/* get last written ndiv value */
 	ret = data->soc->ops->get_cpu_ndiv(cpu, cpuid, clusterid, &ndiv);
@@ -551,9 +552,9 @@ static const struct tegra_cpufreq_soc tegra194_cpufreq_soc = {
 	.num_clusters = 4,
 };
 
-static void tegra194_cpufreq_free_resources(void)
+static void tegra194_cpufreq_free_resources(struct tegra194_cpufreq_data *data)
 {
-	destroy_workqueue(read_counters_wq);
+	destroy_workqueue(data->wq);
 }
 
 static struct cpufreq_frequency_table *
@@ -667,8 +668,8 @@ static int tegra194_cpufreq_probe(struct platform_device *pdev)
 	if (IS_ERR(bpmp))
 		return PTR_ERR(bpmp);
 
-	read_counters_wq = alloc_workqueue("read_counters_wq", __WQ_LEGACY, 1);
-	if (!read_counters_wq) {
+	data->wq = alloc_workqueue("read_counters_wq", __WQ_LEGACY, 1);
+	if (!data->wq) {
 		dev_err(&pdev->dev, "fail to create_workqueue\n");
 		err = -EINVAL;
 		goto put_bpmp;
@@ -702,7 +703,7 @@ static int tegra194_cpufreq_probe(struct platform_device *pdev)
 		goto put_bpmp;
 
 err_free_res:
-	tegra194_cpufreq_free_resources();
+	tegra194_cpufreq_free_resources(data);
 put_bpmp:
 	tegra_bpmp_put(bpmp);
 	return err;
@@ -710,8 +711,10 @@ put_bpmp:
 
 static int tegra194_cpufreq_remove(struct platform_device *pdev)
 {
+	struct tegra194_cpufreq_data *data = platform_get_drvdata(pdev);
+
 	cpufreq_unregister_driver(&tegra194_cpufreq_driver);
-	tegra194_cpufreq_free_resources();
+	tegra194_cpufreq_free_resources(data);
 
 	return 0;
 }
