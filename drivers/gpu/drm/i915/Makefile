@@ -25,6 +25,7 @@ subdir-ccflags-$(CONFIG_DRM_I915_WERROR) += -Werror
 
 # Fine grained warnings disable
 CFLAGS_i915_pci.o = $(call cc-disable-warning, override-init)
+CFLAGS_display/intel_display_device.o = $(call cc-disable-warning, override-init)
 CFLAGS_display/intel_fbdev.o = $(call cc-disable-warning, override-init)
 
 subdir-ccflags-y += -I$(srctree)/$(src)
@@ -237,9 +238,12 @@ i915-y += \
 	display/intel_crtc_state_dump.o \
 	display/intel_cursor.o \
 	display/intel_display.o \
+	display/intel_display_driver.o \
+	display/intel_display_irq.o \
 	display/intel_display_power.o \
 	display/intel_display_power_map.o \
 	display/intel_display_power_well.o \
+	display/intel_display_reset.o \
 	display/intel_display_rps.o \
 	display/intel_dmc.o \
 	display/intel_dpio_phy.o \
@@ -258,8 +262,11 @@ i915-y += \
 	display/intel_hdcp.o \
 	display/intel_hdcp_gsc.o \
 	display/intel_hotplug.o \
+	display/intel_hotplug_irq.o \
 	display/intel_hti.o \
+	display/intel_load_detect.o \
 	display/intel_lpe_audio.o \
+	display/intel_modeset_lock.o \
 	display/intel_modeset_verify.o \
 	display/intel_modeset_setup.o \
 	display/intel_overlay.o \
@@ -298,8 +305,10 @@ i915-y += \
 	display/icl_dsi.o \
 	display/intel_backlight.o \
 	display/intel_crt.o \
+	display/intel_cx0_phy.o \
 	display/intel_ddi.o \
 	display/intel_ddi_buf_trans.o \
+	display/intel_display_device.o \
 	display/intel_display_trace.o \
 	display/intel_dkl_phy.o \
 	display/intel_dp.o \
