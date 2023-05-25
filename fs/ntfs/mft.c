@@ -1964,7 +1964,7 @@ undo_alloc:
 	if (ctx) {
 		a = ctx->attr;
 		if (mp_rebuilt && !IS_ERR(ctx->mrec)) {
-			if (ntfs_mapping_pairs_build(vol, (u8*)a + le16_to_cpu(
+			if (ntfs_mapping_pairs_build(vol, (u8 *)a + le16_to_cpu(
 				a->data.non_resident.mapping_pairs_offset),
 				old_alen - le16_to_cpu(
 					a->data.non_resident.mapping_pairs_offset),
@@ -1980,14 +1980,12 @@ undo_alloc:
 			}
 			flush_dcache_mft_record_page(ctx->ntfs_ino);
 			mark_mft_record_dirty(ctx->ntfs_ino);
-		}
-		else if (IS_ERR(ctx->mrec)) {
+		} else if (IS_ERR(ctx->mrec)) {
 			ntfs_error(vol->sb, "Failed to restore attribute search "
 				"context.%s", es);
 			NVolSetErrors(vol);
 		}
-		if (ctx)
-			ntfs_attr_put_search_ctx(ctx);
+		ntfs_attr_put_search_ctx(ctx);
 	}
 	if (!IS_ERR(mrec))
 		unmap_mft_record(mft_ni);
