@@ -1143,50 +1143,50 @@
 			status = "okay";
 
 			trips {
-				cpu_trip_critical: critical {
-					temperature = <96500>;
-					hysteresis = <0>;
-					type = "critical";
+				cpu_trip_passive: passive {
+					temperature = <95000>;
+					hysteresis = <1000>;
+					type = "passive";
 				};
 
-				cpu_trip_hot: hot {
+				cpu_trip_active2: active-2 {
 					temperature = <79000>;
 					hysteresis = <2000>;
-					type = "hot";
+					type = "active";
 				};
 
-				cpu_trip_active: active {
+				cpu_trip_active1: active-1 {
 					temperature = <62000>;
 					hysteresis = <2000>;
 					type = "active";
 				};
 
-				cpu_trip_passive: passive {
+				cpu_trip_active0: active-0 {
 					temperature = <45000>;
 					hysteresis = <2000>;
-					type = "passive";
+					type = "active";
 				};
 			};
 
 			cooling-maps {
-				cpu-critical {
+				map-passive {
 					cooling-device = <&fan 3 3>;
-					trip = <&cpu_trip_critical>;
-				};
-
-				cpu-hot {
-					cooling-device = <&fan 2 2>;
-					trip = <&cpu_trip_hot>;
-				};
-
-				cpu-active {
-					cooling-device = <&fan 1 1>;
-					trip = <&cpu_trip_active>;
-				};
-
-				cpu-passive {
-					cooling-device = <&fan 0 0>;
 					trip = <&cpu_trip_passive>;
+				};
+
+				map-active-2 {
+					cooling-device = <&fan 2 3>;
+					trip = <&cpu_trip_active2>;
+				};
+
+				map-active-1 {
+					cooling-device = <&fan 1 2>;
+					trip = <&cpu_trip_active1>;
+				};
+
+				map-active-0 {
+					cooling-device = <&fan 0 1>;
+					trip = <&cpu_trip_active0>;
 				};
 			};
 		};
