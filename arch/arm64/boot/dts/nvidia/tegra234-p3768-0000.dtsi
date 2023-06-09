@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include <dt-bindings/usb/pd.h>
+
 / {
 	compatible = "nvidia,p3768-0000";
 
@@ -84,6 +86,12 @@
 					vbus-supply = <&vdd_5v0_sys>;
 					status = "okay";
 					usb-role-switch;
+
+					port {
+						usb_otg: endpoint {
+							remote-endpoint = <&typec>;
+						};
+					};
 				};
 
 				/* hub */
@@ -132,6 +140,43 @@
 			       <&{/bus@0/padctl@3520000/pads/usb3/lanes/usb3-1}>;
 			phy-names = "usb2-0", "usb2-1", "usb2-2", "usb3-0",
 				    "usb3-1";
+		};
+
+		i2c@c240000 {
+			status = "okay";
+
+			typec@25 {
+				compatible = "fcs,fusb302";
+				reg = <0x25>;
+				interrupt-parent = <&gpio>;
+				interrupts = <TEGRA234_MAIN_GPIO(Z, 1) IRQ_TYPE_LEVEL_LOW>;
+				vbus-supply = <&vdd_5v0_sys>;
+				status = "okay";
+
+				connector {
+					compatible = "usb-c-connector";
+					data-role = "dual";
+					label = "USB-C";
+					op-sink-microwatt = <1000000>;
+					power-role = "dual";
+					sink-pdos = <PDO_FIXED(5000, 2500, PDO_FIXED_USB_COMM)>;
+					source-pdos = <PDO_FIXED(5000, 1400, PDO_FIXED_USB_COMM)>;
+					try-power-role = "sink";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							typec: endpoint {
+								remote-endpoint = <&usb_otg>;
+							};
+						};
+					};
+				};
+			};
 		};
 
 		/* C8 - Ethernet */

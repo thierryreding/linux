@@ -55,6 +55,38 @@
 				};
 			};
 
+			typec@29 {
+				compatible = "st,stusb1600";
+				reg = <0x29>;
+				status = "okay";
+
+				interrupt-parent = <&gpio>;
+				interrupts = <TEGRA234_MAIN_GPIO(K, 6) IRQ_TYPE_LEVEL_LOW>;
+				vdd-supply = <&vdd_5v0_sys>;
+				vsys-supply = <&vdd_3v3_sys>;
+
+				connector {
+					compatible = "usb-c-connector";
+					label = "USB-C";
+					data-role = "dual";
+					power-role = "dual";
+					typec-power-opmode = "default";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							typec: endpoint {
+								remote-endpoint = <&usb_otg>;
+							};
+						};
+					};
+				};
+			};
+
 			/* carrier board ID EEPROM */
 			eeprom@55 {
 				compatible = "atmel,24c02";
@@ -122,9 +154,15 @@
 			ports {
 				usb2-0 {
 					mode = "otg";
+					vbus-supply = <&vdd_5v0_sys>;
 					usb-role-switch;
 					status = "okay";
-					vbus-supply = <&vdd_5v0_sys>;
+
+					port {
+						usb_otg: endpoint {
+							remote-endpoint = <&typec>;
+						};
+					};
 				};
 
 				usb2-1 {
