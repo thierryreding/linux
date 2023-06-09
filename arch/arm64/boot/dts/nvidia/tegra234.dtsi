@@ -1510,6 +1510,16 @@
 			iommus = <&smmu_niso0 TEGRA234_SID_MGBE>;
 			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_MGBEA>;
 			status = "disabled";
+
+			/*
+			snps,axi-config = <&mgbe0_axi_setup>;
+
+			mgbe0_axi_setup: stmmac-axi-config {
+				snps,blen = <256 128 64 32 16 8 4>;
+				snps,rd_osr_lmt = <63>;
+				snps,wr_osr_lmt = <63>;
+			};
+			*/
 		};
 
 		ethernet@6900000 {
