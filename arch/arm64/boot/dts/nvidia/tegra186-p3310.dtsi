@@ -32,6 +32,15 @@
 		reg = <0x0 0x80000000 0x2 0x00000000>;
 	};
 
+	gpio@2200000 {
+		hog-0 {
+			gpio-hog;
+			gpios = <TEGRA186_MAIN_GPIO(B, 6) GPIO_ACTIVE_HIGH>;
+			output-high;
+			line-name = "wifi-enable";
+		};
+	};
+
 	ethernet@2490000 {
 		status = "okay";
 
@@ -146,6 +155,20 @@
 	mmc@3440000 {
 		status = "okay";
 		vqmmc-supply = <&vddio_sdmmc3>;
+		bus-width = <4>;
+		non-removable;
+
+		/*
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		wifi@1 {
+			compatible = "brcm,bcm4354-fmac";
+			reg = <1>;
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(
+		};
+		*/
 	};
 
 	/* SDMMC4 (eMMC) */
@@ -342,8 +365,8 @@
 
 					vddio_sdmmc3: ldo5 {
 						regulator-name = "VDDIO_SDMMC3_AP";
-						regulator-min-microvolt = <2800000>;
-						regulator-max-microvolt = <2800000>;
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <3300000>;
 					};
 
 					vdd_hdmi_1v05: ldo7 {
