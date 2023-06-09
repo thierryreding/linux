@@ -929,10 +929,12 @@
 
 		throttle-cfgs {
 			heavy {
+				nvidia,thermal-zone = <&cpu_thermal>;
 				nvidia,priority = <100>;
 				nvidia,cpu-throt-percent = <85>;
 				nvidia,gpu-throt-level = <TEGRA_SOCTHERM_THROT_LEVEL_HIGH>;
-				temperature = <100000>;
+				temperature-millicelsius = <100000>;
+				hysteresis-millicelsius = <5000>;
 			};
 		};
 	};
@@ -1233,7 +1235,7 @@
 	};
 
 	thermal-zones {
-		cpu-thermal {
+		cpu_thermal: cpu-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <1000>;
 
