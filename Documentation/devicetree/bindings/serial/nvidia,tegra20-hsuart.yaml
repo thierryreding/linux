@@ -19,7 +19,10 @@ properties:
           - nvidia,tegra186-hsuart
           - nvidia,tegra194-hsuart
       - items:
-          - const: nvidia,tegra124-hsuart
+          - enum:
+              - nvidia,tegra114-hsuart
+              - nvidia,tegra124-hsuart
+              - nvidia,tegra210-hsuart
           - const: nvidia,tegra30-hsuart
 
   reg:
