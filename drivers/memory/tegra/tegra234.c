@@ -262,6 +262,54 @@ static const struct tegra_mc_client tegra234_mc_clients[] = {
 			},
 		},
 	}, {
+		.id = TEGRA234_MEMORY_CLIENT_XUSB_HOSTR,
+		.name = "xusb_hostr",
+		.bpmp_id = TEGRA_ICC_BPMP_XUSB_HOST,
+		.type = TEGRA_ICC_NISO,
+		.sid = TEGRA234_SID_XUSB_HOST,
+		.regs = {
+			.sid = {
+				.override = 0x250,
+				.security = 0x254,
+			},
+		},
+	}, {
+		.id = TEGRA234_MEMORY_CLIENT_XUSB_HOSTW,
+		.name = "xusb_hostw",
+		.bpmp_id = TEGRA_ICC_BPMP_XUSB_HOST,
+		.type = TEGRA_ICC_NISO,
+		.sid = TEGRA234_SID_XUSB_HOST,
+		.regs = {
+			.sid = {
+				.override = 0x258,
+				.security = 0x25c,
+			},
+		},
+	}, {
+		.id = TEGRA234_MEMORY_CLIENT_XUSB_DEVR,
+		.name = "xusb_devr",
+		.bpmp_id = TEGRA_ICC_BPMP_XUSB_DEV,
+		.type = TEGRA_ICC_NISO,
+		.sid = TEGRA234_SID_XUSB_DEV,
+		.regs = {
+			.sid = {
+				.override = 0x260,
+				.security = 0x264,
+			},
+		},
+	}, {
+		.id = TEGRA234_MEMORY_CLIENT_XUSB_DEVW,
+		.name = "xusb_devw",
+		.bpmp_id = TEGRA_ICC_BPMP_XUSB_DEV,
+		.type = TEGRA_ICC_NISO,
+		.sid = TEGRA234_SID_XUSB_DEV,
+		.regs = {
+			.sid = {
+				.override = 0x268,
+				.security = 0x26c,
+			},
+		},
+	}, {
 		.id = TEGRA234_MEMORY_CLIENT_MGBEARD,
 		.name = "mgbeard",
 		.bpmp_id = TEGRA_ICC_BPMP_EQOS,
