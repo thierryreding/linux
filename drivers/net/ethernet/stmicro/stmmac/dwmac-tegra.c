@@ -7,12 +7,14 @@
 
 #include "stmmac_platform.h"
 
-static const char *const mgbe_clks[] = {
-	"rx-pcs", "tx", "tx-pcs", "mac-divider", "mac", "mgbe", "ptp-ref", "mac"
+struct tegra_mgbe_soc {
+	const char *const *clks;
+	unsigned int num_clks;
 };
 
 struct tegra_mgbe {
 	struct device *dev;
+	const struct tegra_mgbe_soc *soc;
 
 	struct clk_bulk_data *clks;
 
@@ -61,7 +63,7 @@ static int __maybe_unused tegra_mgbe_suspend(struct device *dev)
 	if (err)
 		return err;
 
-	clk_bulk_disable_unprepare(ARRAY_SIZE(mgbe_clks), mgbe->clks);
+	clk_bulk_disable_unprepare(mgbe->soc->num_clks, mgbe->clks);
 
 	return reset_control_assert(mgbe->rst_mac);
 }
@@ -72,7 +74,7 @@ static int __maybe_unused tegra_mgbe_resume(struct device *dev)
 	u32 value;
 	int err;
 
-	err = clk_bulk_prepare_enable(ARRAY_SIZE(mgbe_clks), mgbe->clks);
+	err = clk_bulk_prepare_enable(mgbe->soc->num_clks, mgbe->clks);
 	if (err < 0)
 		return err;
 
@@ -98,13 +100,13 @@ static int __maybe_unused tegra_mgbe_resume(struct device *dev)
 				 500, 500 * 2000);
 	if (err < 0) {
 		dev_err(mgbe->dev, "timeout waiting for TX lane to become enabled\n");
-		clk_bulk_disable_unprepare(ARRAY_SIZE(mgbe_clks), mgbe->clks);
+		clk_bulk_disable_unprepare(mgbe->soc->num_clks, mgbe->clks);
 		return err;
 	}
 
 	err = stmmac_resume(dev);
 	if (err < 0)
-		clk_bulk_disable_unprepare(ARRAY_SIZE(mgbe_clks), mgbe->clks);
+		clk_bulk_disable_unprepare(mgbe->soc->num_clks, mgbe->clks);
 
 	return err;
 }
@@ -211,6 +213,7 @@ static int tegra_mgbe_probe(struct platform_device *pdev)
 	if (!mgbe)
 		return -ENOMEM;
 
+	mgbe->soc = device_get_match_data(&pdev->dev);
 	mgbe->dev = &pdev->dev;
 
 	memset(&res, 0, sizeof(res));
@@ -234,19 +237,19 @@ static int tegra_mgbe_probe(struct platform_device *pdev)
 	res.addr = mgbe->regs;
 	res.irq = irq;
 
-	mgbe->clks = devm_kcalloc(&pdev->dev, ARRAY_SIZE(mgbe_clks),
+	mgbe->clks = devm_kcalloc(&pdev->dev, mgbe->soc->num_clks,
 				  sizeof(*mgbe->clks), GFP_KERNEL);
 	if (!mgbe->clks)
 		return -ENOMEM;
 
-	for (i = 0; i <  ARRAY_SIZE(mgbe_clks); i++)
-		mgbe->clks[i].id = mgbe_clks[i];
+	for (i = 0; i < mgbe->soc->num_clks; i++)
+		mgbe->clks[i].id = mgbe->soc->clks[i];
 
-	err = devm_clk_bulk_get(mgbe->dev, ARRAY_SIZE(mgbe_clks), mgbe->clks);
+	err = devm_clk_bulk_get(mgbe->dev, mgbe->soc->num_clks, mgbe->clks);
 	if (err < 0)
 		return err;
 
-	err = clk_bulk_prepare_enable(ARRAY_SIZE(mgbe_clks), mgbe->clks);
+	err = clk_bulk_prepare_enable(mgbe->soc->num_clks, mgbe->clks);
 	if (err < 0)
 		return err;
 
@@ -349,7 +352,7 @@ static int tegra_mgbe_probe(struct platform_device *pdev)
 remove:
 	stmmac_remove_config_dt(pdev, plat);
 disable_clks:
-	clk_bulk_disable_unprepare(ARRAY_SIZE(mgbe_clks), mgbe->clks);
+	clk_bulk_disable_unprepare(mgbe->soc->num_clks, mgbe->clks);
 
 	return err;
 }
@@ -358,13 +361,22 @@ static void tegra_mgbe_remove(struct platform_device *pdev)
 {
 	struct tegra_mgbe *mgbe = get_stmmac_bsp_priv(&pdev->dev);
 
-	clk_bulk_disable_unprepare(ARRAY_SIZE(mgbe_clks), mgbe->clks);
+	clk_bulk_disable_unprepare(mgbe->soc->num_clks, mgbe->clks);
 
 	stmmac_pltfr_remove(pdev);
 }
 
+static const char *const tegra234_mgbe_clks[] = {
+	"rx-pcs", "tx", "tx-pcs", "mac-divider", "mac", "mgbe", "ptp-ref", "mac"
+};
+
+static const struct tegra_mgbe_soc tegra234_mgbe_soc = {
+	.num_clks = ARRAY_SIZE(tegra234_mgbe_clks),
+	.clks = tegra234_mgbe_clks,
+};
+
 static const struct of_device_id tegra_mgbe_match[] = {
-	{ .compatible = "nvidia,tegra234-mgbe", },
+	{ .compatible = "nvidia,tegra234-mgbe", .data = &tegra234_mgbe_soc },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, tegra_mgbe_match);
