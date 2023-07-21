@@ -1196,7 +1196,7 @@
 			interconnects = <&mc TEGRA234_MEMORY_CLIENT_XUSB_DEVR &emc>,
 					<&mc TEGRA234_MEMORY_CLIENT_XUSB_DEVW &emc>;
 			interconnect-names = "dma-mem", "write";
-			iommus = <&smmu_niso1 TEGRA234_SID_XUSB_DEV>;
+			//iommus = <&smmu_niso1 TEGRA234_SID_XUSB_DEV>;
 			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_XUSBB>,
 					<&bpmp TEGRA234_POWER_DOMAIN_XUSBA>;
 			power-domain-names = "dev", "ss";
@@ -1231,7 +1231,7 @@
 			interconnects = <&mc TEGRA234_MEMORY_CLIENT_XUSB_HOSTR &emc>,
 					<&mc TEGRA234_MEMORY_CLIENT_XUSB_HOSTW &emc>;
 			interconnect-names = "dma-mem", "write";
-			iommus = <&smmu_niso1 TEGRA234_SID_XUSB_HOST>;
+			//iommus = <&smmu_niso1 TEGRA234_SID_XUSB_HOST>;
 
 			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_XUSBC>,
 					<&bpmp TEGRA234_POWER_DOMAIN_XUSBA>;
@@ -1989,13 +1989,14 @@
 				interrupts = <GIC_SPI 377 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-names = "shared1";
 				#mbox-cells = <2>;
+				status = "disabled";
 			};
 
 			dce-fabric@de00000 {
-				compatible = "nvidia,tegra234-sce-fabric";
+				compatible = "nvidia,tegra234-dce-fabric";
 				reg = <0x0 0xde00000 0x0 0x40000>;
 				interrupts = <GIC_SPI 381 IRQ_TYPE_LEVEL_HIGH>;
-				status = "okay";
+				//status = "disabled";
 			};
 		};
 
@@ -2155,7 +2156,7 @@
 			#iommu-cells = <1>;
 
 			nvidia,memory-controller = <&mc>;
-			status = "okay";
+			status = "disabled";
 		};
 
 		smmu_niso0: iommu@12000000 {

@@ -4,7 +4,7 @@
 $id: "http://devicetree.org/schemas/usb/nvidia,tegra20-ehci.yaml#"
 $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 
-title: Device tree binding for NVIDIA Tegra USB controllers
+title: NVIDIA Tegra USB controllers
 
 description: |
   The device node for a USB controller that is part of a Tegra SOC is as

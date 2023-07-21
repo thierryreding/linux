@@ -1350,6 +1350,7 @@ static int tegra_dma_probe(struct platform_device *pdev)
 	const struct tegra_dma_chip_data *cdata = NULL;
 	unsigned int stream_id, i;
 	struct tegra_dma *tdma;
+	bool iommu = true;
 	int ret;
 
 	cdata = of_device_get_match_data(&pdev->dev);
@@ -1378,8 +1379,9 @@ static int tegra_dma_probe(struct platform_device *pdev)
 	tdma->dma_dev.dev = &pdev->dev;
 
 	if (!tegra_dev_iommu_get_stream_id(&pdev->dev, &stream_id)) {
-		dev_err(&pdev->dev, "missing IOMMU stream ID\n");
-		return -EINVAL;
+		dev_warn(&pdev->dev, "missing IOMMU stream ID\n");
+		//return -EINVAL;
+		iommu = false;
 	}
 
 	ret = device_property_read_u32(&pdev->dev, "dma-channel-mask",
@@ -1414,8 +1416,10 @@ static int tegra_dma_probe(struct platform_device *pdev)
 		tdc->vc.desc_free = tegra_dma_desc_free;
 
 		/* program stream ID for this channel */
-		tegra_dma_program_sid(tdc, stream_id);
-		tdc->stream_id = stream_id;
+		if (iommu) {
+			tegra_dma_program_sid(tdc, stream_id);
+			tdc->stream_id = stream_id;
+		}
 	}
 
 	dma_cap_set(DMA_SLAVE, tdma->dma_dev.cap_mask);

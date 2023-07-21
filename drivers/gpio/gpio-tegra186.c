@@ -97,6 +97,7 @@ struct tegra_gpio_soc {
 	const struct tegra186_pin_range *pin_ranges;
 	unsigned int num_pin_ranges;
 	const char *pinmux;
+	bool has_pinmux;
 	bool has_gte;
 	bool has_vm_support;
 };
@@ -113,6 +114,11 @@ struct tegra_gpio {
 	void __iomem *secure;
 	void __iomem *base;
 };
+
+static inline struct tegra_gpio *to_tegra_gpio(struct gpio_chip *chip)
+{
+	return container_of(chip, struct tegra_gpio, gpio);
+}
 
 static const struct tegra_gpio_port *
 tegra186_gpio_get_port(struct tegra_gpio *gpio, unsigned int *pin)
@@ -224,7 +230,7 @@ static int tegra186_gpio_direction_input(struct gpio_chip *chip,
 	struct tegra_gpio *gpio = gpiochip_get_data(chip);
 	void __iomem *base;
 	u32 value;
-	int err;
+	int err = 0;
 
 	base = tegra186_gpio_get_base(gpio, offset);
 	if (WARN_ON(base == NULL))
@@ -239,10 +245,12 @@ static int tegra186_gpio_direction_input(struct gpio_chip *chip,
 	value &= ~TEGRA186_GPIO_ENABLE_CONFIG_OUT;
 	writel(value, base + TEGRA186_GPIO_ENABLE_CONFIG);
 
-	err = pinctrl_gpio_direction_input(chip->base + offset);
-	if (err < 0)
-		dev_err(gpio->gpio.parent, "failed to set pinctrl input direction of GPIO %u: %d\n",
-			chip->base + offset, err);
+	if (gpio->soc->has_pinmux) {
+		err = pinctrl_gpio_direction_input(chip->base + offset);
+		if (err < 0)
+			dev_err(gpio->gpio.parent, "failed to set pinctrl input direction of GPIO %u: %d\n",
+				chip->base + offset, err);
+	}
 
 	return err;
 }
@@ -253,7 +261,7 @@ static int tegra186_gpio_direction_output(struct gpio_chip *chip,
 	struct tegra_gpio *gpio = gpiochip_get_data(chip);
 	void __iomem *base;
 	u32 value;
-	int err;
+	int err = 0;
 
 	/* configure output level first */
 	chip->set(chip, offset, level);
@@ -272,10 +280,12 @@ static int tegra186_gpio_direction_output(struct gpio_chip *chip,
 	value |= TEGRA186_GPIO_ENABLE_CONFIG_OUT;
 	writel(value, base + TEGRA186_GPIO_ENABLE_CONFIG);
 
-	err = pinctrl_gpio_direction_output(chip->base + offset);
-	if (err < 0)
-		dev_err(gpio->gpio.parent, "failed to set pinctrl output direction of GPIO %u: %d\n",
-			chip->base + offset, err);
+	if (gpio->soc->has_pinmux) {
+		err = pinctrl_gpio_direction_output(chip->base + offset);
+		if (err < 0)
+			dev_err(gpio->gpio.parent, "failed to set pinctrl output direction of GPIO %u: %d\n",
+				chip->base + offset, err);
+	}
 
 	return err;
 }
@@ -490,16 +500,18 @@ static int tegra186_gpio_of_xlate(struct gpio_chip *chip,
 		return -EINVAL;
 	}
 
+	dev_info(chip->parent, "%s(): port: %u (%s), pin: %u\n", __func__, port, gpio->soc->ports[port].name, pin);
+
 	for (i = 0; i < port; i++)
 		offset += gpio->soc->ports[i].pins;
+
+	dev_info(chip->parent, "%s(): offset: %u\n", __func__, offset);
 
 	if (flags)
 		*flags = spec->args[1];
 
 	return offset + pin;
 }
-
-#define to_tegra_gpio(x) container_of((x), struct tegra_gpio, gpio)
 
 static void tegra186_irq_ack(struct irq_data *data)
 {
@@ -909,6 +921,8 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 	for (i = 0; i < gpio->soc->num_ports; i++)
 		gpio->gpio.ngpio += gpio->soc->ports[i].pins;
 
+	dev_info(&pdev->dev, "%s: %u GPIOs\n", gpio->soc->name, gpio->gpio.ngpio);
+
 	names = devm_kcalloc(gpio->gpio.parent, gpio->gpio.ngpio,
 			     sizeof(*names), GFP_KERNEL);
 	if (!names)
@@ -1046,6 +1060,7 @@ static const struct tegra_gpio_soc tegra186_main_soc = {
 	.instance = 0,
 	.num_irqs_per_bank = 1,
 	.has_vm_support = false,
+	.has_pinmux = false,
 };
 
 #define TEGRA186_AON_GPIO_PORT(_name, _bank, _port, _pins)	\
@@ -1074,6 +1089,7 @@ static const struct tegra_gpio_soc tegra186_aon_soc = {
 	.instance = 1,
 	.num_irqs_per_bank = 1,
 	.has_vm_support = false,
+	.has_pinmux = false,
 };
 
 #define TEGRA194_MAIN_GPIO_PORT(_name, _bank, _port, _pins)	\
@@ -1130,6 +1146,7 @@ static const struct tegra_gpio_soc tegra194_main_soc = {
 	.pin_ranges = tegra194_main_pin_ranges,
 	.pinmux = "nvidia,tegra194-pinmux",
 	.has_vm_support = true,
+	.has_pinmux = true,
 };
 
 #define TEGRA194_AON_GPIO_PORT(_name, _bank, _port, _pins)	\
@@ -1154,6 +1171,7 @@ static const struct tegra_gpio_soc tegra194_aon_soc = {
 	.name = "tegra194-gpio-aon",
 	.instance = 1,
 	.num_irqs_per_bank = 8,
+	.has_pinmux = true,
 	.has_gte = true,
 	.has_vm_support = false,
 };
@@ -1202,6 +1220,7 @@ static const struct tegra_gpio_soc tegra234_main_soc = {
 	.instance = 0,
 	.num_irqs_per_bank = 8,
 	.has_vm_support = true,
+	.has_pinmux = false,
 };
 
 /* Tegra234 AON GPIO controller */
@@ -1230,6 +1249,7 @@ static const struct tegra_gpio_soc tegra234_aon_soc = {
 	.num_irqs_per_bank = 8,
 	.has_gte = true,
 	.has_vm_support = false,
+	.has_pinmux = false,
 };
 
 #define TEGRA241_MAIN_GPIO_PORT(_name, _bank, _port, _pins)	\
@@ -1261,6 +1281,7 @@ static const struct tegra_gpio_soc tegra241_main_soc = {
 	.instance = 0,
 	.num_irqs_per_bank = 8,
 	.has_vm_support = false,
+	.has_pinmux = false,
 };
 
 #define TEGRA241_AON_GPIO_PORT(_name, _bank, _port, _pins)	\
@@ -1283,6 +1304,7 @@ static const struct tegra_gpio_soc tegra241_aon_soc = {
 	.instance = 1,
 	.num_irqs_per_bank = 8,
 	.has_vm_support = false,
+	.has_pinmux = false,
 };
 
 static const struct of_device_id tegra186_gpio_of_match[] = {

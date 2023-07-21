@@ -3,20 +3,13 @@
  * Pinctrl data for the NVIDIA Tegra194 pinmux
  *
  * Copyright (c) 2019-2021, NVIDIA CORPORATION.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
-#include <linux/init.h>
-#include <linux/of.h>
+#include <linux/mod_devicetable.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
+
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
 
@@ -1880,7 +1873,7 @@ static const struct tegra_pinctrl_soc_data tegra194_pinctrl_aon = {
 
 static int tegra194_pinctrl_probe(struct platform_device *pdev)
 {
-	const struct tegra_pinctrl_soc_data *soc = of_device_get_match_data(&pdev->dev);
+	const struct tegra_pinctrl_soc_data *soc = device_get_match_data(&pdev->dev);
 
 	return tegra_pinctrl_probe(pdev, soc);
 }
@@ -1888,7 +1881,7 @@ static int tegra194_pinctrl_probe(struct platform_device *pdev)
 static const struct of_device_id tegra194_pinctrl_of_match[] = {
 	{ .compatible = "nvidia,tegra194-pinmux", .data = &tegra194_pinctrl },
 	{ .compatible = "nvidia,tegra194-pinmux-aon", .data = &tegra194_pinctrl_aon },
-	{ },
+	{ }
 };
 
 static struct platform_driver tegra194_pinctrl_driver = {

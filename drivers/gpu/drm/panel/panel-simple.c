@@ -1426,22 +1426,22 @@ static const struct panel_desc chefree_ch101olhlwh_002 = {
 	.connector_type = DRM_MODE_CONNECTOR_LVDS,
 };
 
-static const struct drm_display_mode chunghwa_claa070wp03xg_mode = {
-	.clock = 66770,
-	.hdisplay = 800,
-	.hsync_start = 800 + 49,
-	.hsync_end = 800 + 49 + 33,
-	.htotal = 800 + 49 + 33 + 17,
-	.vdisplay = 1280,
-	.vsync_start = 1280 + 1,
-	.vsync_end = 1280 + 1 + 7,
-	.vtotal = 1280 + 1 + 7 + 15,
-	.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
+static const struct display_timing chunghwa_claa070wp03xg_timing = {
+	.pixelclock = { 66770000, 66770000, 6670000 },
+	.hactive = { 800, 800, 800 },
+	.hfront_porch = { 49, 49, 49 },
+	.hback_porch = { 17, 17, 17 },
+	.hsync_len = { 33, 33, 33 },
+	.vactive = { 1280, 1280, 1280 },
+	.vfront_porch = { 1, 1, 1 },
+	.vback_porch = { 15, 15, 15 },
+	.vsync_len = { 7, 7, 7 },
+	.flags = DISPLAY_FLAGS_VSYNC_LOW | DISPLAY_FLAGS_HSYNC_LOW,
 };
 
 static const struct panel_desc chunghwa_claa070wp03xg = {
-	.modes = &chunghwa_claa070wp03xg_mode,
-	.num_modes = 1,
+	.timings = &chunghwa_claa070wp03xg_timing,
+	.num_timings = 1,
 	.bpc = 6,
 	.size = {
 		.width = 94,

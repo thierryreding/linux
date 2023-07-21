@@ -260,7 +260,12 @@ properties:
               voltage.
 
         dependencies:
-          usb-role-switch: [ connector ]
+          usb-role-switch:
+            oneOf:
+              - required:
+                  - connector
+              - required:
+                  - port
 
       usb2-1:
         type: object

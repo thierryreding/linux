@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/hwmon/gpio-fan.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Bindings for fan connected to GPIO lines
+title: fan connected to GPIO lines
 
 maintainers:
   - Guenter Roeck <linux@roeck-us.net>

@@ -50,6 +50,10 @@
 #define XUSB_CFG_16				0x040
 #define XUSB_CFG_24				0x060
 #define XUSB_CFG_AXI_CFG			0x0f8
+#define  XUSB_AR_FORCE_COH			BIT(0)
+#define  XUSB_AR_FORCE_NONCOH			BIT(1)
+#define  XUSB_AW_FORCE_COH			BIT(2)
+#define  XUSB_AW_FORCE_NONCOH			BIT(3)
 #define XUSB_CFG_ARU_C11_CSBRANGE		0x41c
 #define XUSB_CFG_ARU_CONTEXT			0x43c
 #define XUSB_CFG_ARU_CONTEXT_HS_PLS		0x478
@@ -781,6 +785,14 @@ static void tegra_xusb_config(struct tegra_xusb *tegra)
 {
 	u32 regs = tegra->hcd->rsrc_start;
 	u32 value;
+
+	/* force coherent (XXX parameterize) */
+	if (1) {
+		value = fpci_readl(tegra, XUSB_CFG_AXI_CFG);
+		value &= ~(XUSB_AR_FORCE_NONCOH | XUSB_AW_FORCE_NONCOH);
+		value |= XUSB_AR_FORCE_COH | XUSB_AW_FORCE_COH;
+		fpci_writel(tegra, value, XUSB_CFG_AXI_CFG);
+	}
 
 	if (tegra->soc->has_ipfs) {
 		value = ipfs_readl(tegra, IPFS_XUSB_HOST_CONFIGURATION_0);

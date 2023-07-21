@@ -607,13 +607,14 @@ static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
 	} else {
 		value = tegra_plane_readl(p, DC_WINC_PRECOMP_WGRP_PIPE_CAPE);
 
-		if (min_width < MAX_PIXELS_2TAP444(value))
-			value = HORIZONTAL_TAPS_2 | VERTICAL_TAPS_2;
-		else
+		if (min_width >= MAX_PIXELS_2TAP444(value)) {
 			dev_err(dc->dev, "invalid minimum width: %u\n", min_width);
+			value = HORIZONTAL_TAPS_5 | VERTICAL_TAPS_5;
+		} else {
+			value = HORIZONTAL_TAPS_2 | VERTICAL_TAPS_2;
+		}
 	}
 
-	value = HORIZONTAL_TAPS_5 | VERTICAL_TAPS_5;
 	tegra_plane_writel(p, value, DC_WIN_WINDOWGROUP_SET_CONTROL_INPUT_SCALER);
 
 	if (new_state->src_w != new_state->crtc_w << 16) {

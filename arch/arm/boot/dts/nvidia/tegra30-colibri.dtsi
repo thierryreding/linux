@@ -860,8 +860,8 @@
 		touchscreen@41 {
 			compatible = "st,stmpe811";
 			reg = <0x41>;
-			irq-gpio = <&gpio TEGRA_GPIO(V, 0) GPIO_ACTIVE_LOW>;
-			interrupt-controller;
+			interrupts = <TEGRA_GPIO(V, 0) IRQ_TYPE_LEVEL_LOW>;
+			interrupt-parent = <&gpio>;
 			/* 3.25 MHz ADC clock speed */
 			st,adc-freq = <1>;
 			/* 12-bit ADC */
@@ -872,12 +872,12 @@
 			st,sample-time = <4>;
 			/* forbid to use ADC channels 3-0 (touch) */
 
-			stmpe_adc {
+			adc {
 				compatible = "st,stmpe-adc";
 				st,norequest-mask = <0x0F>;
 			};
 
-			stmpe_touchscreen {
+			touchscreen {
 				compatible = "st,stmpe-ts";
 				/* 8 sample average control */
 				st,ave-ctrl = <3>;

@@ -4021,6 +4021,7 @@ static struct gpio_desc *gpiod_find_and_request(struct device *consumer,
 
 	gpiod_line_state_notify(desc, GPIOLINE_CHANGED_REQUESTED);
 
+	dev_info(consumer, "requested GPIO %s (%s): %px\n", con_id, desc->name, desc);
 	return desc;
 }
 

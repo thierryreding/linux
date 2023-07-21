@@ -5,9 +5,10 @@
  * Copyright (c) 2015, NVIDIA CORPORATION.  All rights reserved.
  */
 
-#include <linux/init.h>
-#include <linux/of.h>
+#include <linux/mod_devicetable.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
+
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
 
@@ -1563,7 +1564,7 @@ static int tegra210_pinctrl_probe(struct platform_device *pdev)
 
 static const struct of_device_id tegra210_pinctrl_of_match[] = {
 	{ .compatible = "nvidia,tegra210-pinmux", },
-	{ },
+	{ }
 };
 
 static struct platform_driver tegra210_pinctrl_driver = {

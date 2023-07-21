@@ -676,6 +676,10 @@ irqreturn_t tegra30_mc_handle_irq(int irq, void *data)
 			}
 		}
 
+		if (i == mc->soc->num_clients) {
+			dev_err(mc->dev, "unknown client: %u\n", id);
+		}
+
 		type = (value & MC_ERR_STATUS_TYPE_MASK) >>
 		       MC_ERR_STATUS_TYPE_SHIFT;
 		desc = tegra_mc_error_names[type];
