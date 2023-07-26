@@ -1,0 +1,85 @@
+// SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/mailbox/tegra186-hsp.h>
+
+LABEL(hsp_top0_): hsp@8800000 {
+	compatible = "nvidia,tegra264-hsp";
+	reg = <0x0 0x8800000 0x0 0xd0000>;
+	interrupts = <GIC_SPI 623 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 625 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 626 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 627 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 628 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 629 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 630 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 631 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 632 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 633 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 634 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 635 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 636 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 637 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 638 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 639 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 640 IRQ_TYPE_LEVEL_HIGH>;
+	interrupt-names = "doorbell", "shared0", "shared1", "shared2",
+			  "shared3", "shared4", "shared5", "shared6",
+			  "shared7", "shared8", "shared9", "shared10",
+			  "shared11", "shared12", "shared13", "shared14",
+			  "shared15";
+	#mbox-cells = <2>;
+};
+
+LABEL(uart0_): serial@c5f0000 {
+	compatible = "arm,sbsa-uart";
+	reg = <0x0 0xc5f0000 0x0 0x10000>;
+	interrupts = <GIC_SPI 514 IRQ_TYPE_LEVEL_HIGH>;
+	status = "disabled";
+};
+
+LABEL(gic): interrupt-controller@8146000000 {
+	compatible = "arm,gic-v3";
+	reg = <0x81 0x46000000 0x0 0x10000>, /* GICD */
+	      <0x81 0x46080000 0x0 0x40000>; /* GICR */
+	interrupt-parent = <PHANDLE(gic)>;
+	interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_LOW>;
+
+	#redistributor-regions = <1>;
+	#interrupt-cells = <3>;
+	interrupt-controller;
+
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	ranges = <0x0 0x81 0x46000000 0xc0000>;
+
+	LABEL(its): msi-controller@40000 {
+		compatible = "arm,gic-v3-its";
+		reg = <0x40000 0x10000>;
+		#msi-cells = <1>;
+		msi-controller;
+	};
+};
+
+bpmp {
+	compatible = "nvidia,tegra264-bpmp", "nvidia,tegra186-bpmp";
+	mboxes = <&LABEL(hsp_top0_) TEGRA_HSP_MBOX_TYPE_DB
+				    TEGRA_HSP_DB_MASTER_BPMP>;
+	memory-region = <&shmem_bpmp>;
+	#clock-cells = <1>;
+	#reset-cells = <1>;
+	#power-domain-cells = <1>;
+
+	i2c {
+		compatible = "nvidia,tegra186-bpmp-i2c";
+		nvidia,bpmp-bus-id = <5>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
+	thermal {
+		compatible = "nvidia,tegra186-bpmp-thermal";
+		#thermal-sensor-cells = <1>;
+	};
+};

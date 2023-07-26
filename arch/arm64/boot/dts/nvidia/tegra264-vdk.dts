@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+/dts-v1/;
+
+#include "tegra264.dtsi"
+
+/ {
+	model = "NVIDIA Tegra264 VDK";
+	compatible = "nvidia,tegra264-vdk", "nvidia,tegra264";
+
+	aliases {
+		serial0 = &uart0_0;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+};

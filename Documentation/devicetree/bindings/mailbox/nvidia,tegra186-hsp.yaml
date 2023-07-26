@@ -66,23 +66,42 @@ properties:
     oneOf:
       - const: nvidia,tegra186-hsp
       - const: nvidia,tegra194-hsp
-      - const: nvidia,tegra264-hsp
       - items:
           - const: nvidia,tegra234-hsp
           - const: nvidia,tegra194-hsp
+      - const: nvidia,tegra264-hsp
 
   reg:
     maxItems: 1
 
   interrupts:
     minItems: 1
-    maxItems: 9
+    maxItems: 17
 
   interrupt-names:
     oneOf:
       # shared interrupts are optional
       - items:
           - const: doorbell
+
+      - items:
+          - const: doorbell
+          - pattern: "^shared[1]?[0-9]$"
+          - pattern: "^shared[1]?[0-9]$"
+          - pattern: "^shared[1]?[0-9]$"
+          - pattern: "^shared[1]?[0-9]$"
+          - pattern: "^shared[1]?[0-9]$"
+          - pattern: "^shared[1]?[0-9]$"
+          - pattern: "^shared[1]?[0-9]$"
+          - pattern: "^shared[1]?[0-9]$"
+          - pattern: "^shared[1]?[0-9]$"
+          - pattern: "^shared[1]?[0-9]$"
+          - pattern: "^shared[1]?[0-9]$"
+          - pattern: "^shared[1]?[0-9]$"
+          - pattern: "^shared[1]?[0-9]$"
+          - pattern: "^shared[1]?[0-9]$"
+          - pattern: "^shared[1]?[0-9]$"
+          - pattern: "^shared[1]?[0-9]$"
 
       - items:
           - const: doorbell

@@ -1,0 +1,81 @@
+// SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+
+#define __LABEL(name, package) name ## package
+#define _LABEL(name, package) __LABEL(name, package)
+#define LABEL(name) _LABEL(name, PACKAGE)
+
+#define __PHANDLE(name, package) & ## name ## package
+#define _PHANDLE(name, package) __PHANDLE(name, package)
+#define PHANDLE(name) _PHANDLE(name, PACKAGE)
+
+/ {
+	compatible = "nvidia,tegra264";
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		shmem_bpmp: shmem@86070000 {
+			compatible = "nvidia,tegra264-bpmp-shmem";
+			reg = <0x0 0x86070000 0x0 0x2000>;
+			no-map;
+		};
+	};
+
+	bus@0 {
+		compatible = "simple-bus";
+		interrupt-parent = <&gic0>;
+
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges = <0x0 0x0 0x000 0x0 0x100 0x0>;
+
+		#define PACKAGE 0
+		#include "tegra264-package.dtsi"
+		#undef PACKAGE
+	};
+
+	bus@10000000000 {
+		compatible = "simple-bus";
+		interrupt-parent = <&gic1>;
+
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges = <0x0 0x0 0x100 0x0 0x100 0x0>;
+
+		#define PACKAGE 1
+		#include "tegra264-package.dtsi"
+		#undef PACKAGE
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu0_0: cpu@0 {
+			compatible = "arm,armv8";
+			device_type = "cpu";
+			reg = <0x00000>;
+			status = "okay";
+
+			enable-method = "psci";
+		};
+
+		cpu-map {
+			cluster0 {
+				core0 {
+					cpu = <&cpu0_0>;
+				};
+			};
+		};
+	};
+
+	psci {
+		compatible = "arm,psci-1.0";
+		status = "okay";
+		method = "smc";
+	};
+};

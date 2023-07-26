@@ -130,6 +130,18 @@ config ARCH_TEGRA_234_SOC
 	help
 	  Enable support for the NVIDIA Tegra234 SoC.
 
+config ARCH_TEGRA_264_SOC
+	bool "NVIDIA Tegra264 SoC"
+	depends on !CPU_BIG_ENDIAN
+	select MAILBOX
+	#select PINCTRL_TEGRA264
+	select TEGRA_BPMP
+	select TEGRA_HSP_MBOX
+	select TEGRA_IVC
+	select SOC_TEGRA_PMC
+	help
+	  Enable support for the NVIDIA Tegra264 SoC.
+
 endif
 endif
 

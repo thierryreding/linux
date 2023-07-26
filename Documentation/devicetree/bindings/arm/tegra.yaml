@@ -236,5 +236,9 @@ properties:
           - const: nvidia,p3768-0000+p3767-0005
           - const: nvidia,p3767-0005
           - const: nvidia,tegra234
+      - description: NVIDIA Tegra264 VDK
+        items:
+          - const: nvidia,tegra264-vdk
+          - const: nvidia,tegra264
 
 additionalProperties: true
