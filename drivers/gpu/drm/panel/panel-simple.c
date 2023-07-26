@@ -2106,13 +2106,13 @@ static const struct panel_desc hannstar_hsd100pxn1 = {
 static const struct display_timing hannstar_hsd101pww2_timing = {
 	.pixelclock = { 64300000, 71100000, 82000000 },
 	.hactive = { 1280, 1280, 1280 },
-	.hfront_porch = { 1, 1, 10 },
-	.hback_porch = { 1, 1, 10 },
-	.hsync_len = { 58, 158, 661 },
+	.hfront_porch = { 1, 1, 64 },
+	.hback_porch = { 1, 1, 64 },
+	.hsync_len = { 58, 158, 553 },
 	.vactive = { 800, 800, 800 },
-	.vfront_porch = { 1, 1, 10 },
-	.vback_porch = { 1, 1, 10 },
-	.vsync_len = { 1, 21, 203 },
+	.vfront_porch = { 1, 1, 32 },
+	.vback_porch = { 1, 1, 32 },
+	.vsync_len = { 1, 21, 159 },
 	.flags = DISPLAY_FLAGS_DE_HIGH,
 };
 
