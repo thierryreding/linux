@@ -771,14 +771,16 @@ static int tegra_i2c_empty_rx_fifo(struct tegra_i2c_dev *i2c_dev)
 	 * manually to prevent overwriting past the end of buffer.
 	 */
 	if (rx_fifo_avail > 0 && buf_remaining > 0) {
+		__le32 partial;
+
 		/*
 		 * buf_remaining > 3 check not needed as rx_fifo_avail == 0
 		 * when (words_to_transfer was > rx_fifo_avail) earlier
 		 * in this function.
 		 */
 		val = i2c_readl(i2c_dev, I2C_RX_FIFO);
-		val = cpu_to_le32(val);
-		memcpy(buf, &val, buf_remaining);
+		partial = cpu_to_le32(val);
+		memcpy(buf, &partial, buf_remaining);
 		buf_remaining = 0;
 		rx_fifo_avail--;
 	}
@@ -848,13 +850,15 @@ static int tegra_i2c_fill_tx_fifo(struct tegra_i2c_dev *i2c_dev)
 	 * boundary and fault.
 	 */
 	if (tx_fifo_avail > 0 && buf_remaining > 0) {
+		__le32 partial;
+
 		/*
 		 * buf_remaining > 3 check not needed as tx_fifo_avail == 0
 		 * when (words_to_transfer was > tx_fifo_avail) earlier
 		 * in this function for non-zero words_to_transfer.
 		 */
-		memcpy(&val, buf, buf_remaining);
-		val = le32_to_cpu(val);
+		memcpy(&partial, buf, buf_remaining);
+		val = le32_to_cpu(partial);
 
 		i2c_dev->msg_buf_remaining = 0;
 		i2c_dev->msg_buf = NULL;
