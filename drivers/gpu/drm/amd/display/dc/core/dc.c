@@ -386,6 +386,30 @@ static void dc_perf_trace_destroy(struct dc_perf_trace **perf_trace)
 	*perf_trace = NULL;
 }
 
+static bool set_long_vtotal(struct dc *dc, struct dc_stream_state *stream, struct dc_crtc_timing_adjust *adjust)
+{
+	if (!dc || !stream || !adjust)
+		return false;
+
+	if (!dc->current_state)
+		return false;
+
+	int i;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		struct pipe_ctx *pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+
+		if (pipe->stream == stream && pipe->stream_res.tg) {
+			if (dc->hwss.set_long_vtotal)
+				dc->hwss.set_long_vtotal(&pipe, 1, adjust->v_total_min, adjust->v_total_max);
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
 /**
  *  dc_stream_adjust_vmin_vmax - look up pipe context & update parts of DRR
  *  @dc:     dc reference
@@ -420,6 +444,15 @@ bool dc_stream_adjust_vmin_vmax(struct dc *dc,
 	stream->adjust.v_total_mid = adjust->v_total_mid;
 	stream->adjust.v_total_mid_frame_num = adjust->v_total_mid_frame_num;
 	stream->adjust.v_total_min = adjust->v_total_min;
+	stream->adjust.allow_otg_v_count_halt = adjust->allow_otg_v_count_halt;
+
+	if (dc->caps.max_v_total != 0 &&
+		(adjust->v_total_max > dc->caps.max_v_total || adjust->v_total_min > dc->caps.max_v_total)) {
+		if (adjust->allow_otg_v_count_halt)
+			return set_long_vtotal(dc, stream, adjust);
+		else
+			return false;
+	}
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct pipe_ctx *pipe = &dc->current_state->res_ctx.pipe_ctx[i];
@@ -3114,6 +3147,10 @@ static bool update_planes_and_stream_state(struct dc *dc,
 
 			if (otg_master && otg_master->stream->test_pattern.type != DP_TEST_PATTERN_VIDEO_MODE)
 				resource_build_test_pattern_params(&context->res_ctx, otg_master);
+
+			if (otg_master && (otg_master->stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR422 ||
+					otg_master->stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR420))
+				resource_build_subsampling_params(&context->res_ctx, otg_master);
 		}
 	}
 
@@ -3268,6 +3305,9 @@ static bool dc_dmub_should_send_dirty_rect_cmd(struct dc *dc, struct dc_stream_s
 		return true;
 
 	if (stream->link->replay_settings.config.replay_supported)
+		return true;
+
+	if (stream->ctx->dce_version >= DCN_VERSION_3_5 && stream->abm_level)
 		return true;
 
 	return false;
@@ -4817,10 +4857,14 @@ bool dc_set_replay_allow_active(struct dc *dc, bool active)
 	return true;
 }
 
-void dc_allow_idle_optimizations(struct dc *dc, bool allow)
+void dc_allow_idle_optimizations_internal(struct dc *dc, bool allow, char const *caller_name)
 {
 	if (dc->debug.disable_idle_power_optimizations)
 		return;
+
+	if (allow != dc->idle_optimizations_allowed)
+		DC_LOG_IPS("%s: allow_idle old=%d new=%d (caller=%s)\n", __func__,
+			   dc->idle_optimizations_allowed, allow, caller_name);
 
 	if (dc->caps.ips_support && (dc->config.disable_ips == DMUB_IPS_DISABLE_ALL))
 		return;
@@ -4836,30 +4880,24 @@ void dc_allow_idle_optimizations(struct dc *dc, bool allow)
 		dc->idle_optimizations_allowed = allow;
 }
 
-void dc_exit_ips_for_hw_access(struct dc *dc)
+void dc_exit_ips_for_hw_access_internal(struct dc *dc, const char *caller_name)
 {
 	if (dc->caps.ips_support)
-		dc_allow_idle_optimizations(dc, false);
+		dc_allow_idle_optimizations_internal(dc, false, caller_name);
 }
 
 bool dc_dmub_is_ips_idle_state(struct dc *dc)
 {
-	uint32_t idle_state = 0;
-
 	if (dc->debug.disable_idle_power_optimizations)
 		return false;
 
 	if (!dc->caps.ips_support || (dc->config.disable_ips == DMUB_IPS_DISABLE_ALL))
 		return false;
 
-	if (dc->hwss.get_idle_state)
-		idle_state = dc->hwss.get_idle_state(dc);
+	if (!dc->ctx->dmub_srv)
+		return false;
 
-	if (!(idle_state & DMUB_IPS1_ALLOW_MASK) ||
-		!(idle_state & DMUB_IPS2_ALLOW_MASK))
-		return true;
-
-	return false;
+	return dc->ctx->dmub_srv->idle_allowed;
 }
 
 /* set min and max memory clock to lowest and highest DPM level, respectively */

@@ -39,7 +39,7 @@
 static const struct hw_sequencer_funcs dcn35_funcs = {
 	.program_gamut_remap = dcn30_program_gamut_remap,
 	.init_hw = dcn35_init_hw,
-	.power_down_on_boot = dcn35_power_down_on_boot,
+	.power_down_on_boot = NULL,
 	.apply_ctx_to_hw = dce110_apply_ctx_to_hw,
 	.apply_ctx_for_surface = NULL,
 	.program_front_end_for_ctx = dcn20_program_front_end_for_ctx,
@@ -122,7 +122,8 @@ static const struct hw_sequencer_funcs dcn35_funcs = {
 	.hw_block_power_down = dcn35_hw_block_power_down,
 	.root_clock_control = dcn35_root_clock_control,
 	.set_idle_state = dcn35_set_idle_state,
-	.get_idle_state = dcn35_get_idle_state
+	.get_idle_state = dcn35_get_idle_state,
+	.set_long_vtotal = dcn35_set_long_vblank,
 };
 
 static const struct hwseq_private_funcs dcn35_private_funcs = {
