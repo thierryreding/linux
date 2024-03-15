@@ -3540,6 +3540,10 @@
 			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_MGBEB>;
 			status = "disabled";
 
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x0 0x6820000 0x80000>;
+
 			snps,axi-config = <&mgbe0_axi_setup>;
 
 			mgbe0_axi_setup: stmmac-axi-config {
@@ -3547,6 +3551,105 @@
 				snps,rd_osr_lmt = <63>;
 				snps,wr_osr_lmt = <63>;
 			};
+
+			ethernet@0 {
+				compatible = "nvidia,tegra234-mgbe";
+				reg = <0x00000 0x10000>;
+				reg-names = "mac";
+				interrupts = <GIC_SPI 385 IRQ_TYPE_LEVEL_HIGH>;
+				iommus = <&smmu_niso0 TEGRA234_SID_MGBE_VF1>;
+				phy-mode = "internal";
+
+				fixed-link {
+					speed = <10000>;
+					full-duplex;
+				};
+			};
+
+			ethernet@10000 {
+				compatible = "nvidia,tegra234-mgbe";
+				reg = <0x10000 0x10000>;
+				reg-names = "mac";
+				interrupts = <GIC_SPI 386 IRQ_TYPE_LEVEL_HIGH>;
+				iommus = <&smmu_niso0 TEGRA234_SID_MGBE_VF2>;
+				phy-mode = "internal";
+
+				fixed-link {
+					speed = <10000>;
+					full-duplex;
+				};
+			};
+
+			ethernet@20000 {
+				compatible = "nvidia,tegra234-mgbe";
+				reg = <0x20000 0x10000>;
+				reg-names = "mac";
+				interrupts = <GIC_SPI 387 IRQ_TYPE_LEVEL_HIGH>;
+				iommus = <&smmu_niso0 TEGRA234_SID_MGBE_VF3>;
+				phy-mode = "internal";
+
+				fixed-link {
+					speed = <10000>;
+					full-duplex;
+				};
+			};
+
+			ethernet@30000 {
+				compatible = "nvidia,tegra234-mgbe";
+				reg = <0x30000 0x10000>;
+				reg-names = "mac";
+				interrupts = <GIC_SPI 388 IRQ_TYPE_LEVEL_HIGH>;
+				iommus = <&smmu_niso0 TEGRA234_SID_MGBE_VF4>;
+				phy-mode = "internal";
+
+				fixed-link {
+					speed = <10000>;
+					full-duplex;
+				};
+			};
+
+			ethernet@40000 {
+				compatible = "nvidia,tegra234-mgbe";
+				reg = <0x40000 0x10000>;
+				reg-names = "mac";
+				interrupts = <GIC_SPI 389 IRQ_TYPE_LEVEL_HIGH>;
+				iommus = <&smmu_niso0 TEGRA234_SID_MGBE_VF5>;
+				phy-mode = "internal";
+
+				fixed-link {
+					speed = <10000>;
+					full-duplex;
+				};
+			};
+
+			/*
+			ethernet@50000 {
+				compatible = "nvidia,tegra234-mgbe";
+				reg = <0x50000 0x10000>;
+				reg-names = "mac";
+				interrupts = <GIC_SPI 385 IRQ_TYPE_LEVEL_HIGH>;
+				iommus = <&smmu_niso0 TEGRA234_SID_MGBE_VF6>;
+				phy-mode = "internal";
+			};
+
+			ethernet@60000 {
+				compatible = "nvidia,tegra234-mgbe";
+				reg = <0x60000 0x10000>;
+				reg-names = "mac";
+				interrupts = <GIC_SPI 385 IRQ_TYPE_LEVEL_HIGH>;
+				iommus = <&smmu_niso0 TEGRA234_SID_MGBE_VF7>;
+				phy-mode = "internal";
+			};
+
+			ethernet@70000 {
+				compatible = "nvidia,tegra234-mgbe";
+				reg = <0x70000 0x10000>;
+				reg-names = "mac";
+				interrupts = <GIC_SPI 385 IRQ_TYPE_LEVEL_HIGH>;
+				iommus = <&smmu_niso0 TEGRA234_SID_MGBE_VF8>;
+				phy-mode = "internal";
+			};
+			*/
 		};
 
 		ethernet@6900000 {
