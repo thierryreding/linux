@@ -74,6 +74,9 @@ devm_platform_ioremap_resource(struct platform_device *pdev,
 extern void __iomem *
 devm_platform_ioremap_resource_byname(struct platform_device *pdev,
 				      const char *name);
+extern void __iomem *
+devm_platform_ioremap_resource_byname_optional(struct platform_device *pdev,
+					       const char *name);
 #else
 
 static inline void __iomem *
@@ -98,6 +101,12 @@ devm_platform_ioremap_resource_byname(struct platform_device *pdev,
 	return ERR_PTR(-EINVAL);
 }
 
+static inline void __iomem *
+devm_platform_ioremap_resource_byname_optional(struct platform_device *pdev,
+					       const char *name)
+{
+	return ERR_PTR(-EINVAL);
+}
 #endif
 
 extern int platform_get_irq(struct platform_device *, unsigned int);

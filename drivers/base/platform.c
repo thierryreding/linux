@@ -148,6 +148,20 @@ devm_platform_ioremap_resource_byname(struct platform_device *pdev,
 	return devm_ioremap_resource(&pdev->dev, res);
 }
 EXPORT_SYMBOL_GPL(devm_platform_ioremap_resource_byname);
+
+void __iomem *
+devm_platform_ioremap_resource_byname_optional(struct platform_device *pdev,
+					       const char *name)
+{
+	struct resource *res;
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, name);
+	if (!res)
+		return NULL;
+
+	return devm_ioremap_resource(&pdev->dev, res);
+}
+EXPORT_SYMBOL_GPL(devm_platform_ioremap_resource_byname_optional);
 #endif /* CONFIG_HAS_IOMEM */
 
 /**
