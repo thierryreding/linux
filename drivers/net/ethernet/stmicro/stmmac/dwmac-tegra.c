@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #include <linux/platform_device.h>
 #include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/module.h>
 #include <linux/stmmac.h>
 #include <linux/clk.h>
@@ -63,9 +64,13 @@ static int __maybe_unused tegra_mgbe_suspend(struct device *dev)
 	if (err)
 		return err;
 
-	clk_bulk_disable_unprepare(mgbe->soc->num_clks, mgbe->clks);
+	if (mgbe->hv) {
+		clk_bulk_disable_unprepare(mgbe->soc->num_clks, mgbe->clks);
 
-	return reset_control_assert(mgbe->rst_mac);
+		return reset_control_assert(mgbe->rst_mac);
+	}
+
+	return 0;
 }
 
 static int __maybe_unused tegra_mgbe_resume(struct device *dev)
@@ -74,39 +79,49 @@ static int __maybe_unused tegra_mgbe_resume(struct device *dev)
 	u32 value;
 	int err;
 
-	err = clk_bulk_prepare_enable(mgbe->soc->num_clks, mgbe->clks);
-	if (err < 0)
-		return err;
+	if (mgbe->hv) {
+		err = clk_bulk_prepare_enable(mgbe->soc->num_clks, mgbe->clks);
+		if (err < 0)
+			return err;
 
-	err = reset_control_deassert(mgbe->rst_mac);
-	if (err < 0)
-		return err;
+		err = reset_control_deassert(mgbe->rst_mac);
+		if (err < 0)
+			return err;
+	}
 
 	/* Enable common interrupt at wrapper level */
 	writel(MAC_SBD_INTR, mgbe->regs + MGBE_WRAP_COMMON_INTR_ENABLE);
 
 	/* Program SID */
-	writel(MGBE_SID, mgbe->hv + MGBE_WRAP_AXI_ASID0_CTRL);
+	if (mgbe->hv)
+		writel(MGBE_SID, mgbe->hv + MGBE_WRAP_AXI_ASID0_CTRL);
 
-	value = readl(mgbe->xpcs + XPCS_WRAP_UPHY_STATUS);
-	if ((value & XPCS_WRAP_UPHY_STATUS_TX_P_UP) == 0) {
-		value = readl(mgbe->xpcs + XPCS_WRAP_UPHY_HW_INIT_CTRL);
-		value |= XPCS_WRAP_UPHY_HW_INIT_CTRL_TX_EN;
-		writel(value, mgbe->xpcs + XPCS_WRAP_UPHY_HW_INIT_CTRL);
-	}
+	if (mgbe->xpcs) {
+		value = readl(mgbe->xpcs + XPCS_WRAP_UPHY_STATUS);
+		if ((value & XPCS_WRAP_UPHY_STATUS_TX_P_UP) == 0) {
+			value = readl(mgbe->xpcs + XPCS_WRAP_UPHY_HW_INIT_CTRL);
+			value |= XPCS_WRAP_UPHY_HW_INIT_CTRL_TX_EN;
+			writel(value, mgbe->xpcs + XPCS_WRAP_UPHY_HW_INIT_CTRL);
+		}
 
-	err = readl_poll_timeout(mgbe->xpcs + XPCS_WRAP_UPHY_HW_INIT_CTRL, value,
-				 (value & XPCS_WRAP_UPHY_HW_INIT_CTRL_TX_EN) == 0,
-				 500, 500 * 2000);
-	if (err < 0) {
-		dev_err(mgbe->dev, "timeout waiting for TX lane to become enabled\n");
-		clk_bulk_disable_unprepare(mgbe->soc->num_clks, mgbe->clks);
-		return err;
+		err = readl_poll_timeout(mgbe->xpcs + XPCS_WRAP_UPHY_HW_INIT_CTRL, value,
+					 (value & XPCS_WRAP_UPHY_HW_INIT_CTRL_TX_EN) == 0,
+					 500, 500 * 2000);
+		if (err < 0) {
+			dev_err(mgbe->dev, "timeout waiting for TX lane to become enabled\n");
+
+			if (mgbe->hv)
+				clk_bulk_disable_unprepare(mgbe->soc->num_clks, mgbe->clks);
+
+			return err;
+		}
 	}
 
 	err = stmmac_resume(dev);
-	if (err < 0)
-		clk_bulk_disable_unprepare(mgbe->soc->num_clks, mgbe->clks);
+	if (err < 0) {
+		if (mgbe->hv)
+			clk_bulk_disable_unprepare(mgbe->soc->num_clks, mgbe->clks);
+	}
 
 	return err;
 }
@@ -222,7 +237,7 @@ static int tegra_mgbe_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	mgbe->hv = devm_platform_ioremap_resource_byname(pdev, "hypervisor");
+	mgbe->hv = devm_platform_ioremap_resource_byname_optional(pdev, "hypervisor");
 	if (IS_ERR(mgbe->hv))
 		return PTR_ERR(mgbe->hv);
 
@@ -230,62 +245,66 @@ static int tegra_mgbe_probe(struct platform_device *pdev)
 	if (IS_ERR(mgbe->regs))
 		return PTR_ERR(mgbe->regs);
 
-	mgbe->xpcs = devm_platform_ioremap_resource_byname(pdev, "xpcs");
+	mgbe->xpcs = devm_platform_ioremap_resource_byname_optional(pdev, "xpcs");
 	if (IS_ERR(mgbe->xpcs))
 		return PTR_ERR(mgbe->xpcs);
 
 	res.addr = mgbe->regs;
 	res.irq = irq;
 
-	mgbe->clks = devm_kcalloc(&pdev->dev, mgbe->soc->num_clks,
-				  sizeof(*mgbe->clks), GFP_KERNEL);
-	if (!mgbe->clks)
-		return -ENOMEM;
+	if (mgbe->hv) {
+		mgbe->clks = devm_kcalloc(&pdev->dev, mgbe->soc->num_clks,
+					  sizeof(*mgbe->clks), GFP_KERNEL);
+		if (!mgbe->clks)
+			return -ENOMEM;
 
-	for (i = 0; i < mgbe->soc->num_clks; i++)
-		mgbe->clks[i].id = mgbe->soc->clks[i];
+		for (i = 0; i < mgbe->soc->num_clks; i++)
+			mgbe->clks[i].id = mgbe->soc->clks[i];
 
-	err = devm_clk_bulk_get(mgbe->dev, mgbe->soc->num_clks, mgbe->clks);
-	if (err < 0)
-		return err;
+		err = devm_clk_bulk_get(mgbe->dev, mgbe->soc->num_clks, mgbe->clks);
+		if (err < 0)
+			return err;
 
-	err = clk_bulk_prepare_enable(mgbe->soc->num_clks, mgbe->clks);
-	if (err < 0)
-		return err;
+		err = clk_bulk_prepare_enable(mgbe->soc->num_clks, mgbe->clks);
+		if (err < 0)
+			return err;
 
-	/* Perform MAC reset */
-	mgbe->rst_mac = devm_reset_control_get(&pdev->dev, "mac");
-	if (IS_ERR(mgbe->rst_mac)) {
-		err = PTR_ERR(mgbe->rst_mac);
-		goto disable_clks;
+		/* Perform MAC reset */
+		mgbe->rst_mac = devm_reset_control_get(&pdev->dev, "mac");
+		if (IS_ERR(mgbe->rst_mac)) {
+			err = PTR_ERR(mgbe->rst_mac);
+			goto disable_clks;
+		}
+
+		err = reset_control_assert(mgbe->rst_mac);
+		if (err < 0)
+			goto disable_clks;
+
+		usleep_range(2000, 4000);
+
+		err = reset_control_deassert(mgbe->rst_mac);
+		if (err < 0)
+			goto disable_clks;
 	}
 
-	err = reset_control_assert(mgbe->rst_mac);
-	if (err < 0)
-		goto disable_clks;
+	if (mgbe->xpcs) {
+		/* Perform PCS reset */
+		mgbe->rst_pcs = devm_reset_control_get(&pdev->dev, "pcs");
+		if (IS_ERR(mgbe->rst_pcs)) {
+			err = PTR_ERR(mgbe->rst_pcs);
+			goto disable_clks;
+		}
 
-	usleep_range(2000, 4000);
+		err = reset_control_assert(mgbe->rst_pcs);
+		if (err < 0)
+			goto disable_clks;
 
-	err = reset_control_deassert(mgbe->rst_mac);
-	if (err < 0)
-		goto disable_clks;
+		usleep_range(2000, 4000);
 
-	/* Perform PCS reset */
-	mgbe->rst_pcs = devm_reset_control_get(&pdev->dev, "pcs");
-	if (IS_ERR(mgbe->rst_pcs)) {
-		err = PTR_ERR(mgbe->rst_pcs);
-		goto disable_clks;
+		err = reset_control_deassert(mgbe->rst_pcs);
+		if (err < 0)
+			goto disable_clks;
 	}
-
-	err = reset_control_assert(mgbe->rst_pcs);
-	if (err < 0)
-		goto disable_clks;
-
-	usleep_range(2000, 4000);
-
-	err = reset_control_deassert(mgbe->rst_pcs);
-	if (err < 0)
-		goto disable_clks;
 
 	plat = devm_stmmac_probe_config_dt(pdev, res.mac);
 	if (IS_ERR(plat)) {
@@ -298,37 +317,39 @@ static int tegra_mgbe_probe(struct platform_device *pdev)
 	plat->pmt = 1;
 	plat->bsp_priv = mgbe;
 
-	if (!plat->mdio_node)
-		plat->mdio_node = of_get_child_by_name(pdev->dev.of_node, "mdio");
+	if (mgbe->xpcs) {
+		if (!plat->mdio_node)
+			plat->mdio_node = of_get_child_by_name(pdev->dev.of_node, "mdio");
 
-	if (!plat->mdio_bus_data) {
-		plat->mdio_bus_data = devm_kzalloc(&pdev->dev, sizeof(*plat->mdio_bus_data),
-						   GFP_KERNEL);
 		if (!plat->mdio_bus_data) {
-			err = -ENOMEM;
+			plat->mdio_bus_data = devm_kzalloc(&pdev->dev, sizeof(*plat->mdio_bus_data),
+							   GFP_KERNEL);
+			if (!plat->mdio_bus_data) {
+				err = -ENOMEM;
+				goto disable_clks;
+			}
+		}
+
+		plat->mdio_bus_data->needs_reset = true;
+
+		value = readl(mgbe->xpcs + XPCS_WRAP_UPHY_STATUS);
+		if ((value & XPCS_WRAP_UPHY_STATUS_TX_P_UP) == 0) {
+			value = readl(mgbe->xpcs + XPCS_WRAP_UPHY_HW_INIT_CTRL);
+			value |= XPCS_WRAP_UPHY_HW_INIT_CTRL_TX_EN;
+			writel(value, mgbe->xpcs + XPCS_WRAP_UPHY_HW_INIT_CTRL);
+		}
+
+		err = readl_poll_timeout(mgbe->xpcs + XPCS_WRAP_UPHY_HW_INIT_CTRL, value,
+					 (value & XPCS_WRAP_UPHY_HW_INIT_CTRL_TX_EN) == 0,
+					 500, 500 * 2000);
+		if (err < 0) {
+			dev_err(mgbe->dev, "timeout waiting for TX lane to become enabled\n");
 			goto disable_clks;
 		}
+
+		plat->serdes_powerup = mgbe_uphy_lane_bringup_serdes_up;
+		plat->serdes_powerdown = mgbe_uphy_lane_bringup_serdes_down;
 	}
-
-	plat->mdio_bus_data->needs_reset = true;
-
-	value = readl(mgbe->xpcs + XPCS_WRAP_UPHY_STATUS);
-	if ((value & XPCS_WRAP_UPHY_STATUS_TX_P_UP) == 0) {
-		value = readl(mgbe->xpcs + XPCS_WRAP_UPHY_HW_INIT_CTRL);
-		value |= XPCS_WRAP_UPHY_HW_INIT_CTRL_TX_EN;
-		writel(value, mgbe->xpcs + XPCS_WRAP_UPHY_HW_INIT_CTRL);
-	}
-
-	err = readl_poll_timeout(mgbe->xpcs + XPCS_WRAP_UPHY_HW_INIT_CTRL, value,
-				 (value & XPCS_WRAP_UPHY_HW_INIT_CTRL_TX_EN) == 0,
-				 500, 500 * 2000);
-	if (err < 0) {
-		dev_err(mgbe->dev, "timeout waiting for TX lane to become enabled\n");
-		goto disable_clks;
-	}
-
-	plat->serdes_powerup = mgbe_uphy_lane_bringup_serdes_up;
-	plat->serdes_powerdown = mgbe_uphy_lane_bringup_serdes_down;
 
 	/* Tx FIFO Size - 128KB */
 	plat->tx_fifo_size = 131072;
@@ -339,7 +360,8 @@ static int tegra_mgbe_probe(struct platform_device *pdev)
 	writel(MAC_SBD_INTR, mgbe->regs + MGBE_WRAP_COMMON_INTR_ENABLE);
 
 	/* Program SID */
-	writel(MGBE_SID, mgbe->hv + MGBE_WRAP_AXI_ASID0_CTRL);
+	if (mgbe->hv)
+		writel(MGBE_SID, mgbe->hv + MGBE_WRAP_AXI_ASID0_CTRL);
 
 	plat->flags |= STMMAC_FLAG_SERDES_UP_AFTER_PHY_LINKUP;
 
@@ -347,10 +369,40 @@ static int tegra_mgbe_probe(struct platform_device *pdev)
 	if (err < 0)
 		goto disable_clks;
 
+	if (1) {
+		struct device_node *np, *child;
+
+		//np = of_get_child_by_name(pdev->dev.of_node, "virtual-functions");
+		np = of_node_get(pdev->dev.of_node);
+		if (np) {
+			dev_info(&pdev->dev, "  found virtual functions: %pOF\n", np);
+
+			for_each_child_of_node(np, child) {
+				struct platform_device *dev;
+
+				dev_info(&pdev->dev, "    child: %pOF\n", child);
+
+				if (!of_property_present(child, "compatible"))
+					continue;
+
+				dev = of_platform_device_create(child, NULL, &pdev->dev);
+				if (IS_ERR(dev)) {
+					dev_err(&pdev->dev, "failed to create platform device: %ld\n", PTR_ERR(dev));
+					continue;
+				}
+
+				dev_info(&pdev->dev, "      device created: %px\n", dev);
+			}
+
+			of_node_put(np);
+		}
+	}
+
 	return 0;
 
 disable_clks:
-	clk_bulk_disable_unprepare(mgbe->soc->num_clks, mgbe->clks);
+	if (mgbe->hv)
+		clk_bulk_disable_unprepare(mgbe->soc->num_clks, mgbe->clks);
 
 	return err;
 }
@@ -359,7 +411,8 @@ static void tegra_mgbe_remove(struct platform_device *pdev)
 {
 	struct tegra_mgbe *mgbe = get_stmmac_bsp_priv(&pdev->dev);
 
-	clk_bulk_disable_unprepare(mgbe->soc->num_clks, mgbe->clks);
+	if (mgbe->hv)
+		clk_bulk_disable_unprepare(mgbe->soc->num_clks, mgbe->clks);
 
 	stmmac_pltfr_remove(pdev);
 }
