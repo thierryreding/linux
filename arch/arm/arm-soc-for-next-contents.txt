@@ -64,6 +64,8 @@ soc/dt
 		arm64: dts: nuvoton: Add syscon to the system-management node
 		arm64: dts: nuvoton: ma35d1: Add pinctrl and gpio nodes
 		arm64: dts: nuvoton: ma35d1: Add uart pinctrl settings
+	sunxi/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/sunxi/linux tags/sunxi-dt-for-6.12
 
 soc/drivers
 	patch
@@ -112,7 +114,6 @@ soc/drivers
 	imx/drivers
 		https://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/imx-drivers-6.12
 	omap/drivers
-ti/drivers
 		https://git.kernel.org/pub/scm/linux/kernel/git/khilman/linux-omap tags/omap-for-v6.12/drivers-signed
 	patch
 		soc: fsl: qe: ucc: Export ucc_mux_set_grant_tsa_bkpt
@@ -122,6 +123,10 @@ ti/drivers
 		https://git.kernel.org/pub/scm/linux/kernel/git/qcom/linux tags/qcom-drivers-for-6.12
 	amlogic/drivers
 		https://git.kernel.org/pub/scm/linux/kernel/git/amlogic/linux tags/amlogic-drivers-for-v6.12
+	patch
+		platform: cznic: turris-omnia-mcu: Fix error check in omnia_mcu_register_trng()
+	sunxi/drivers
+		https://git.kernel.org/pub/scm/linux/kernel/git/sunxi/linux tags/sunxi-drivers-for-6.12
 
 soc/defconfig
 	at91/defconfig
