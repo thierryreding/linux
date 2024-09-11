@@ -1,7 +1,7 @@
 soc/arm
 	versatile/drivers
 		https://git.kernel.org/pub/scm/linux/kernel/git/linusw/linux-integrator tags/integrator-v6.12
-	<no branch> (1934b0c82e980df4c9503315bed4e178905cc1d8)
+	integrator/soc
 		https://git.kernel.org/pub/scm/linux/kernel/git/khilman/linux-omap tags/omap-for-v6.12/soc-signed
 	davinci/soc
 		https://git.kernel.org/pub/scm/linux/kernel/git/brgl/linux tags/davinci-updates-for-v6.12-rc1
@@ -9,6 +9,10 @@ soc/arm
 		https://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/imx-soc-6.12
 	samsung/soc
 		https://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-soc-6.12
+	mvebu/soc
+		https://git.kernel.org/pub/scm/linux/kernel/git/gclement/mvebu tags/mvebu-arm-6.12-1
+	broadcom/soc
+		https://github.com/Broadcom/stblinux tags/arm-soc/for-6.12/soc
 
 soc/dt
 	thead/dt
@@ -55,7 +59,7 @@ soc/dt
 		https://git.kernel.org/pub/scm/linux/kernel/git/qcom/linux tags/qcom-arm64-for-6.12
 	patch
 		arm64: dts: toshiba: Fix pl011 and pl022 clocks
-	<no branch> (488386d7ec680c8900f81b3fd7570797935bf1ff)
+	amlogic/dt
 		https://git.kernel.org/pub/scm/linux/kernel/git/amlogic/linux tags/amlogic-arm-dt-for-v6.11
 	amlogic/dt64
 		https://git.kernel.org/pub/scm/linux/kernel/git/amlogic/linux tags/amlogic-arm64-dt-for-v6.12
@@ -66,6 +70,22 @@ soc/dt
 		arm64: dts: nuvoton: ma35d1: Add uart pinctrl settings
 	sunxi/dt
 		https://git.kernel.org/pub/scm/linux/kernel/git/sunxi/linux tags/sunxi-dt-for-6.12
+	dt-cleanup/arm64
+		https://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux-dt tags/dt64-cleanup-6.12
+	dt-cleanup/arm32
+		https://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux-dt tags/dt-cleanup-6.12
+	broadcom/dt
+		https://github.com/Broadcom/stblinux tags/arm-soc/for-6.12/devicetree
+	rockchip/dt64-2
+		https://git.kernel.org/pub/scm/linux/kernel/git/mmind/linux-rockchip tags/v6.12-rockchip-dts64-2
+	rockchip/dt32-2
+		https://git.kernel.org/pub/scm/linux/kernel/git/mmind/linux-rockchip tags/v6.12-rockchip-dts32-2
+	aspeed/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/joel/bmc tags/aspeed-6.12-devicetree
+	mediatek/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/mediatek/linux tags/v6.11-next-dts64
+	broadcom/dt64
+		https://github.com/Broadcom/stblinux tags/arm-soc/for-6.12/devicetree-arm64
 
 soc/drivers
 	patch
@@ -101,11 +121,11 @@ soc/drivers
 		https://git.kernel.org/pub/scm/linux/kernel/git/tegra/linux tags/tegra-for-6.12-soc
 	tegra/firmware
 		https://git.kernel.org/pub/scm/linux/kernel/git/tegra/linux tags/tegra-for-6.12-firmware
-	<no branch> (7a99b1c0bce5cf8c554ceecd29ad1e8085557fd3)
+	fsl/drivers
 		https://github.com/chleroy/linux tags/soc_fsl-6.12-2
 	patch
 		soc: fsl: cpm1: qmc: Fix dependency on fsl_soc.h
-	<no branch> (68123510b7c1c610387dd306f92ff539c3c546b5)
+	ti/drivers
 		https://git.kernel.org/pub/scm/linux/kernel/git/ti/linux tags/ti-driver-soc-for-v6.12
 	versatile/drivers
 		https://git.kernel.org/pub/scm/linux/kernel/git/linusw/linux-integrator tags/integrator-v6.12
@@ -127,6 +147,14 @@ soc/drivers
 		platform: cznic: turris-omnia-mcu: Fix error check in omnia_mcu_register_trng()
 	sunxi/drivers
 		https://git.kernel.org/pub/scm/linux/kernel/git/sunxi/linux tags/sunxi-drivers-for-6.12
+	patch
+		firmware: imx: remove duplicate scmi_imx_misc_ctrl_get()
+	mediatek/drivers
+		https://git.kernel.org/pub/scm/linux/kernel/git/mediatek/linux tags/v6.11-next-soc
+	<no branch> (59420d8ad7809827524824a3891d6a081e735449)
+		https://git.kernel.org/pub/scm/linux/kernel/git/mmind/linux-rockchip tags/v6.12-rockchip-drivers-2
+	broadcom/drivers
+		https://github.com/Broadcom/stblinux tags/arm-soc/for-6.12/drivers
 
 soc/defconfig
 	at91/defconfig
@@ -141,12 +169,20 @@ soc/defconfig
 		https://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/imx-defconfig-6.12
 	qcom/defconfig
 		https://git.kernel.org/pub/scm/linux/kernel/git/qcom/linux tags/qcom-arm64-defconfig-for-6.12
+	riscv/defconfig
+		https://git.kernel.org/pub/scm/linux/kernel/git/conor/linux tags/riscv-config-for-v6.12
+	mediatek/defconfig
+		https://git.kernel.org/pub/scm/linux/kernel/git/mediatek/linux tags/v6.11-next-defconfig
 
 soc/late
 
 arm/fixes
-	<no branch> (db213b0cfe3268d8b1d382b3bcc999c687a2567f)
+	qcom/fixes
 		https://git.kernel.org/pub/scm/linux/kernel/git/qcom/linux tags/qcom-drivers-fixes-for-6.11-2
 	rockchip/fixes
 		https://git.kernel.org/pub/scm/linux/kernel/git/mmind/linux-rockchip tags/v6.11-rockchip-dtsfixes
+	patch
+		platform: cznic: turris-omnia-mcu: fix HW_RANDOM dependency
+	<no branch> (61f2e8a3a94175dbbaad6a54f381b2a505324610)
+		https://git.kernel.org/pub/scm/linux/kernel/git/conor/linux tags/riscv-soc-fixes-for-v6.11-final
 
