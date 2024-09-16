@@ -86,6 +86,8 @@ soc/dt
 		https://git.kernel.org/pub/scm/linux/kernel/git/mediatek/linux tags/v6.11-next-dts64
 	broadcom/dt64
 		https://github.com/Broadcom/stblinux tags/arm-soc/for-6.12/devicetree-arm64
+	<no branch> (605f56405a6719dfdc9f91464c082856cd929d6c)
+		https://git.kernel.org/pub/scm/linux/kernel/git/sunxi/linux tags/sunxi-dt-for-6.12-2
 
 soc/drivers
 	patch
@@ -151,10 +153,12 @@ soc/drivers
 		firmware: imx: remove duplicate scmi_imx_misc_ctrl_get()
 	mediatek/drivers
 		https://git.kernel.org/pub/scm/linux/kernel/git/mediatek/linux tags/v6.11-next-soc
-	<no branch> (59420d8ad7809827524824a3891d6a081e735449)
+	rockchips/drivers-2
 		https://git.kernel.org/pub/scm/linux/kernel/git/mmind/linux-rockchip tags/v6.12-rockchip-drivers-2
 	broadcom/drivers
 		https://github.com/Broadcom/stblinux tags/arm-soc/for-6.12/drivers
+	drivers/memory-2
+		https://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux-mem-ctrl tags/memory-controller-drv-6.12-2
 
 soc/defconfig
 	at91/defconfig
@@ -185,4 +189,53 @@ arm/fixes
 		platform: cznic: turris-omnia-mcu: fix HW_RANDOM dependency
 	<no branch> (61f2e8a3a94175dbbaad6a54f381b2a505324610)
 		https://git.kernel.org/pub/scm/linux/kernel/git/conor/linux tags/riscv-soc-fixes-for-v6.11-final
+
+ep93xx/dt-conversion
+	patch
+		ep93xx: clock: Fix off by one in ep93xx_div_recalc_rate()
+	ep93xx/clk-dependency
+		Merge branch 'ep93xx/clk-dependency' into ep93xx/dt-conversion
+	patch
+		gpio: ep93xx: split device in multiple
+		ARM: ep93xx: add regmap aux_dev
+		clk: ep93xx: add DT support for Cirrus EP93xx
+		pinctrl: add a Cirrus ep93xx SoC pin controller
+		power: reset: Add a driver for the ep93xx reset
+		dt-bindings: soc: Add Cirrus EP93xx
+		soc: Add SoC driver for Cirrus ep93xx
+		dt-bindings: dma: Add Cirrus EP93xx
+		dmaengine: cirrus: Convert to DT for Cirrus EP93xx
+		dt-bindings: pwm: Add Cirrus EP93xx
+		pwm: ep93xx: add DT support for Cirrus EP93xx
+		dt-bindings: spi: Add Cirrus EP93xx
+		spi: ep93xx: add DT support for Cirrus EP93xx
+		dt-bindings: net: Add Cirrus EP93xx
+		net: cirrus: add DT support for Cirrus EP93xx
+		dt-bindings: mtd: Add ts7200 nand-controller
+		mtd: rawnand: add support for ts72xx
+		dt-bindings: ata: Add Cirrus EP93xx
+		ata: pata_ep93xx: add device tree support
+		dt-bindings: input: Add Cirrus EP93xx keypad
+		input: keypad: ep93xx: add DT support for Cirrus EP93xx
+		wdt: ts72xx: add DT support for ts72xx
+		gpio: ep93xx: add DT support for gpio-ep93xx
+		ASoC: dt-bindings: ep93xx: Document DMA support
+		ASoC: dt-bindings: ep93xx: Document Audio Port support
+		ASoC: ep93xx: Drop legacy DMA support
+		ARM: dts: add Cirrus EP93XX SoC .dtsi
+		ARM: dts: ep93xx: add ts7250 board
+		ARM: dts: ep93xx: Add EDB9302 DT
+		ARM: ep93xx: DT for the Cirrus ep93xx SoC platforms
+		pwm: ep93xx: drop legacy pinctrl
+		ata: pata_ep93xx: remove legacy pinctrl use
+		ARM: ep93xx: delete all boardfiles
+		ARM: ep93xx: soc: drop defines
+		ASoC: cirrus: edb93xx: Delete driver
+		dmaengine: cirrus: remove platform code
+		clk: ep93xx: add module license
+		clk: ep93xx: Fix off by one in ep93xx_div_recalc_rate()
+		spi: ep93xx: update kerneldoc comments for ep93xx_spi
+		pinctrl: ep93xx: Fix raster pins typo
+		dmaengine: ep93xx: Fix a NULL vs IS_ERR() check in probe()
+		dmaengine: cirrus: use snprintf() to calm down gcc 13.3.0
 
