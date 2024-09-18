@@ -282,7 +282,7 @@ struct smb3_fs_context {
 	bool witness:1; /* use witness protocol */
 	char *leaf_fullpath;
 	struct cifs_ses *dfs_root_ses;
-	bool dfs_automount:1; /* set for dfs automount only */
+	bool automount:1; /* set for automounts */
 	enum cifs_reparse_type reparse_type;
 	bool dfs_conn:1; /* set for dfs mounts */
 };

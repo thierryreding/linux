@@ -3386,7 +3386,8 @@ int cifs_mount_get_session(struct cifs_mount_ctx *mnt_ctx)
 	ses = cifs_get_smb_ses(server, ctx);
 	if (IS_ERR(ses)) {
 		rc = PTR_ERR(ses);
-		if (rc == -ENOKEY && ctx->sectype == Kerberos)
+		if (rc == -ENOKEY && ctx->sectype == Kerberos &&
+		    !ctx->automount)
 			cifs_dbg(VFS, "Verify user has a krb5 ticket and keyutils is installed\n");
 		ses = NULL;
 		goto out;

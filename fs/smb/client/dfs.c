@@ -263,11 +263,10 @@ static int update_fs_context_dstaddr(struct smb3_fs_context *ctx)
 	struct sockaddr *addr = (struct sockaddr *)&ctx->dstaddr;
 	int rc = 0;
 
-	if (!ctx->nodfs && ctx->dfs_automount) {
+	if (!ctx->nodfs && ctx->automount && ctx->dfs_conn) {
 		rc = dns_resolve_server_name_to_ip(ctx->source, addr, NULL);
 		if (!rc)
 			cifs_set_port(addr, ctx->port);
-		ctx->dfs_automount = false;
 	}
 	return rc;
 }

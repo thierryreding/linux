@@ -921,7 +921,7 @@ cifs_smb3_do_mount(struct file_system_type *fs_type,
 	if (cifsFYI) {
 		cifs_dbg(FYI, "%s: devname=%s flags=0x%x\n", __func__,
 			 old_ctx->source, flags);
-	} else {
+	} else if (!old_ctx->automount) {
 		cifs_info("Attempting to mount %s\n", old_ctx->source);
 	}
 
@@ -948,7 +948,7 @@ cifs_smb3_do_mount(struct file_system_type *fs_type,
 
 	rc = cifs_mount(cifs_sb, cifs_sb->ctx);
 	if (rc) {
-		if (!(flags & SB_SILENT))
+		if (!(flags & SB_SILENT) && !old_ctx->automount)
 			cifs_dbg(VFS, "cifs_mount failed w/return code = %d\n",
 				 rc);
 		root = ERR_PTR(rc);
