@@ -1636,8 +1636,8 @@ SMB2_auth_kerberos(struct SMB2_sess_data *sess_data)
 	spnego_key = cifs_get_spnego_key(ses, server);
 	if (IS_ERR(spnego_key)) {
 		rc = PTR_ERR(spnego_key);
-		if (rc == -ENOKEY)
-			cifs_dbg(VFS, "Verify user has a krb5 ticket and keyutils is installed\n");
+		cifs_dbg(FYI, "%s: couldn't auth with kerberos: %d\n",
+			 __func__, rc);
 		spnego_key = NULL;
 		goto out;
 	}
