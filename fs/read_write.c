@@ -1509,7 +1509,7 @@ static int generic_copy_file_checks(struct file *file_in, loff_t pos_in,
 	struct inode *inode_in = file_inode(file_in);
 	struct inode *inode_out = file_inode(file_out);
 	uint64_t count = *req_count;
-	loff_t size_in;
+	loff_t size_in, tmp;
 	int ret;
 
 	ret = generic_file_rw_checks(file_in, file_out);
@@ -1544,7 +1544,8 @@ static int generic_copy_file_checks(struct file *file_in, loff_t pos_in,
 		return -ETXTBSY;
 
 	/* Ensure offsets don't wrap. */
-	if (pos_in + count < pos_in || pos_out + count < pos_out)
+	if (check_add_overflow(pos_in, count, &tmp) ||
+	    check_add_overflow(pos_out, count, &tmp))
 		return -EOVERFLOW;
 
 	/* Shorten the copy to EOF */
