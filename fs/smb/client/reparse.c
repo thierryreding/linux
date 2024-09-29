@@ -510,6 +510,16 @@ int smb2_parse_native_symlink(char **target, const char *buf, unsigned int len,
 	int rc;
 	int i;
 
+	/*
+	 * Check that buffer does not contain UTF-16 null codepoint
+	 * because Linux cannot process symlink with null byte.
+	 */
+	if (unicode && UniStrnlen((wchar_t *)buf, len/2) != len/2) {
+		cifs_dbg(VFS, "srv returned null byte in native symlink target location\n");
+		rc = -EIO;
+		goto out;
+	}
+
 	smb_target = cifs_strndup_from_utf16(buf, len, unicode, cifs_sb->local_nls);
 	if (!smb_target) {
 		rc = -ENOMEM;
