@@ -24,13 +24,16 @@ int smb2_create_reparse_symlink(const unsigned int xid, struct inode *inode,
 	struct inode *new;
 	struct kvec iov;
 	__le16 *path;
+	bool directory = false;
 	char *sym, sep = CIFS_DIR_SEP(cifs_sb);
 	u16 len, plen;
 	int rc = 0;
 
-	sym = kstrdup(symname, GFP_KERNEL);
+	len = strlen(symname)+1;
+	sym = kzalloc(len+1, GFP_KERNEL); /* +1 for possible directory slash */
 	if (!sym)
 		return -ENOMEM;
+	memcpy(sym, symname, len);
 
 	data = (struct cifs_open_info_data) {
 		.reparse_point = true,
@@ -43,6 +46,126 @@ int smb2_create_reparse_symlink(const unsigned int xid, struct inode *inode,
 	if (!path) {
 		rc = -ENOMEM;
 		goto out;
+	}
+
+	/*
+	 * SMB distinguish between symlink to directory and symlink to file.
+	 * They cannot be exchanged (symlink of file type which points to
+	 * directory cannot be resolved and vice-versa). First do some simple
+	 * check, if the original Linux symlink target ends with slash, or
+	 * last path component is dot or dot dot then it is for sure symlink
+	 * to the directory.
+	 */
+	if (!directory) {
+		const char *basename = kbasename(symname);
+		int basename_len = strlen(basename);
+
+		if (basename_len == 0 || /* symname ends with slash */
+		    (basename_len == 1 && basename[0] == '.') || /* last component is "." */
+		    (basename_len == 2 && basename[0] == '.' && basename[1] == '.')) /* or ".." */
+			directory = true;
+	}
+
+	/*
+	 * If it was not detected as directory yet and the symlink is relative
+	 * then try to resolve the path on the SMB server, check if the path
+	 * exists and determinate if it is a directory or not.
+	 */
+	if (!directory && symname[0] != '/') {
+		__u32 oplock;
+		struct tcon_link *tlink;
+		struct cifs_tcon *tcon;
+		struct cifs_fid fid;
+		struct cifs_open_parms oparms;
+		char *resolved_path;
+		char *path_sep;
+		int open_rc;
+		int full_path_len = strlen(full_path);
+		int symname_len = strlen(symname);
+
+		tlink = cifs_sb_tlink(cifs_sb);
+		if (IS_ERR(tlink)) {
+			rc = PTR_ERR(tlink);
+			goto out;
+		}
+
+		resolved_path = kzalloc(full_path_len + symname_len + 1, GFP_KERNEL);
+		if (!resolved_path) {
+			rc = -ENOMEM;
+			goto out;
+		}
+
+		/*
+		 * Compose the resolved SMB symlink path from the SMB full path
+		 * and Linux target symlink path.
+		 */
+		memcpy(resolved_path, full_path, full_path_len+1);
+		path_sep = strrchr(resolved_path, sep);
+		if (path_sep)
+			path_sep++;
+		else
+			path_sep = resolved_path;
+		memcpy(path_sep, symname, symname_len+1);
+		if (sep == '\\')
+			convert_delimiter(path_sep, sep);
+
+		tcon = tlink_tcon(tlink);
+
+		oparms = (struct cifs_open_parms) {
+			.tcon = tcon,
+			.cifs_sb = cifs_sb,
+			.desired_access = FILE_READ_ATTRIBUTES,
+			.disposition = FILE_OPEN,
+			.path = resolved_path,
+			.fid = &fid,
+		};
+
+		/* Try to open as NOT_FILE */
+		oplock = 0;
+		oparms.create_options = cifs_create_options(cifs_sb, CREATE_NOT_FILE);
+		open_rc = tcon->ses->server->ops->open(xid, &oparms, &oplock, NULL);
+		if (open_rc == 0) {
+			/* Successful open means that the target path is definitely a directory. */
+			directory = true;
+			tcon->ses->server->ops->close(xid, tcon, &fid);
+		} else if (open_rc != -ENOTDIR) {
+			/* Try to open as NOT_DIR */
+			oplock = 0;
+			oparms.create_options = cifs_create_options(cifs_sb, CREATE_NOT_DIR);
+			open_rc = tcon->ses->server->ops->open(xid, &oparms, &oplock, NULL);
+			if (open_rc == 0) {
+				tcon->ses->server->ops->close(xid, tcon, &fid);
+			} else if (open_rc == -EISDIR) {
+				/* -EISDIR means that the target path is definitely a directory. */
+				directory = true;
+			} else {
+				cifs_dbg(FYI,
+					 "%s: cannot determinate if the symlink target path '%s' "
+					 "is directory or not, creating '%s' as file symlink\n",
+					 __func__, symname, full_path);
+			}
+		}
+
+		kfree(resolved_path);
+		cifs_put_tlink(tlink);
+	}
+
+	/*
+	 * For absolute symlinks it is not possible to determinate
+	 * if it should point to directory or file.
+	 */
+	if (!directory && symname[0] == '/')
+		cifs_dbg(FYI,
+			 "%s: cannot determinate if the symlink target path '%s' "
+			 "is directory or not, creating '%s' as file symlink\n",
+			 __func__, symname, full_path);
+
+	/* Ensure that directory symlink target in inode would have trailing slash */
+	len = strlen(data.symlink_target);
+	if (directory && data.symlink_target[len-1] != '/') {
+		/* symlink_target has already preallocated one byte more */
+		data.symlink_target[len] = '/';
+		data.symlink_target[len+1] = '\0';
 	}
 
 	plen = 2 * UniStrnlen((wchar_t *)path, PATH_MAX);
@@ -69,7 +192,8 @@ int smb2_create_reparse_symlink(const unsigned int xid, struct inode *inode,
 	iov.iov_base = buf;
 	iov.iov_len = len;
 	new = smb2_get_reparse_inode(&data, inode->i_sb, xid,
-				     tcon, full_path, &iov, NULL);
+					tcon, full_path, directory,
+					&iov, NULL);
 	if (!IS_ERR(new))
 		d_instantiate(dentry, new);
 	else
@@ -137,7 +261,7 @@ static int mknod_nfs(unsigned int xid, struct inode *inode,
 	};
 
 	new = smb2_get_reparse_inode(&data, inode->i_sb, xid,
-				     tcon, full_path, &iov, NULL);
+					tcon, full_path, false, &iov, NULL);
 	if (!IS_ERR(new))
 		d_instantiate(dentry, new);
 	else
@@ -283,7 +407,7 @@ static int mknod_wsl(unsigned int xid, struct inode *inode,
 	data.wsl.eas_len = len;
 
 	new = smb2_get_reparse_inode(&data, inode->i_sb,
-				     xid, tcon, full_path,
+					xid, tcon, full_path, false,
 				     &reparse_iov, &xattr_iov);
 	if (!IS_ERR(new))
 		d_instantiate(dentry, new);
