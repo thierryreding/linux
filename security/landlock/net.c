@@ -39,26 +39,14 @@ int landlock_append_net_rule(struct landlock_ruleset *const ruleset,
 	return err;
 }
 
-static access_mask_t
-get_raw_handled_net_accesses(const struct landlock_ruleset *const domain)
-{
-	access_mask_t access_dom = 0;
-	size_t layer_level;
-
-	for (layer_level = 0; layer_level < domain->num_layers; layer_level++)
-		access_dom |= landlock_get_net_access_mask(domain, layer_level);
-	return access_dom;
-}
-
 static const struct landlock_ruleset *get_current_net_domain(void)
 {
-	const struct landlock_ruleset *const dom =
-		landlock_get_current_domain();
+	const union access_masks all_net = {
+		.net = ~0,
+	};
 
-	if (!dom || !get_raw_handled_net_accesses(dom))
-		return NULL;
-
-	return dom;
+	return landlock_filter_access_masks(landlock_get_current_domain(),
+					    all_net);
 }
 
 static int current_check_access_socket(struct socket *const sock,
