@@ -389,32 +389,21 @@ static bool is_nouser_or_private(const struct dentry *dentry)
 }
 
 static access_mask_t
-get_raw_handled_fs_accesses(const struct landlock_ruleset *const domain)
-{
-	access_mask_t access_dom = 0;
-	size_t layer_level;
-
-	for (layer_level = 0; layer_level < domain->num_layers; layer_level++)
-		access_dom |=
-			landlock_get_raw_fs_access_mask(domain, layer_level);
-	return access_dom;
-}
-
-static access_mask_t
 get_handled_fs_accesses(const struct landlock_ruleset *const domain)
 {
 	/* Handles all initially denied by default access rights. */
-	return get_raw_handled_fs_accesses(domain) |
+	return landlock_merge_access_masks(domain).fs |
 	       LANDLOCK_ACCESS_FS_INITIALLY_DENIED;
 }
 
 static const struct landlock_ruleset *
 get_fs_domain(const struct landlock_ruleset *const domain)
 {
-	if (!domain || !get_raw_handled_fs_accesses(domain))
-		return NULL;
+	const union access_masks all_fs = {
+		.fs = ~0,
+	};
 
-	return domain;
+	return landlock_filter_access_masks(domain, all_fs);
 }
 
 static const struct landlock_ruleset *get_current_fs_domain(void)
