@@ -17,10 +17,6 @@
 #include "run_flags.h"
 #include "../mmu.h"
 
-#define MSR_TYPE_R	1
-#define MSR_TYPE_W	2
-#define MSR_TYPE_RW	3
-
 #define X2APIC_MSR(r) (APIC_BASE_MSR + ((r) >> 4))
 
 #ifdef CONFIG_X86_64
@@ -406,6 +402,7 @@ u64 construct_eptp(struct kvm_vcpu *vcpu, hpa_t root_hpa, int root_level);
 bool vmx_guest_inject_ac(struct kvm_vcpu *vcpu);
 void vmx_update_exception_bitmap(struct kvm_vcpu *vcpu);
 bool vmx_nmi_blocked(struct kvm_vcpu *vcpu);
+bool __vmx_interrupt_blocked(struct kvm_vcpu *vcpu);
 bool vmx_interrupt_blocked(struct kvm_vcpu *vcpu);
 bool vmx_get_nmi_mask(struct kvm_vcpu *vcpu);
 void vmx_set_nmi_mask(struct kvm_vcpu *vcpu, bool masked);
@@ -727,7 +724,7 @@ static inline bool vmx_need_pf_intercept(struct kvm_vcpu *vcpu)
 		return true;
 
 	return allow_smaller_maxphyaddr &&
-	       cpuid_maxphyaddr(vcpu) < kvm_get_shadow_phys_bits();
+	       cpuid_maxphyaddr(vcpu) < kvm_host.maxphyaddr;
 }
 
 static inline bool is_unrestricted_guest(struct kvm_vcpu *vcpu)
@@ -753,6 +750,11 @@ static inline int vmx_get_instr_info_reg2(u32 vmx_instr_info)
 static inline bool vmx_can_use_ipiv(struct kvm_vcpu *vcpu)
 {
 	return  lapic_in_kernel(vcpu) && enable_ipiv;
+}
+
+static inline void vmx_segment_cache_clear(struct vcpu_vmx *vmx)
+{
+	vmx->segment_cache.bitmask = 0;
 }
 
 #endif /* __KVM_X86_VMX_H */

@@ -148,10 +148,11 @@ static struct wx_dec_ptype wx_ptype_lookup[256] = {
 	[0xFD] = WX_PTT(IP, IPV6, IGMV, IPV6, SCTP, PAY4),
 };
 
-static struct wx_dec_ptype wx_decode_ptype(const u8 ptype)
+struct wx_dec_ptype wx_decode_ptype(const u8 ptype)
 {
 	return wx_ptype_lookup[ptype];
 }
+EXPORT_SYMBOL(wx_decode_ptype);
 
 /* wx_test_staterr - tests bits in Rx descriptor status and error fields */
 static __le32 wx_test_staterr(union wx_rx_desc *rx_desc,
@@ -250,10 +251,7 @@ static struct sk_buff *wx_build_skb(struct wx_ring *rx_ring,
 				  rx_buffer->page_offset;
 
 		/* prefetch first cache line of first page */
-		prefetch(page_addr);
-#if L1_CACHE_BYTES < 128
-		prefetch(page_addr + L1_CACHE_BYTES);
-#endif
+		net_prefetch(page_addr);
 
 		/* allocate a skb to store the frags */
 		skb = napi_alloc_skb(&rx_ring->q_vector->napi, WX_RXBUFFER_256);
@@ -1453,6 +1451,7 @@ static void wx_tx_csum(struct wx_ring *tx_ring, struct wx_tx_buffer *first,
 static netdev_tx_t wx_xmit_frame_ring(struct sk_buff *skb,
 				      struct wx_ring *tx_ring)
 {
+	struct wx *wx = netdev_priv(tx_ring->netdev);
 	u16 count = TXD_USE_COUNT(skb_headlen(skb));
 	struct wx_tx_buffer *first;
 	u8 hdr_len = 0, ptype;
@@ -1498,6 +1497,10 @@ static netdev_tx_t wx_xmit_frame_ring(struct sk_buff *skb,
 		goto out_drop;
 	else if (!tso)
 		wx_tx_csum(tx_ring, first, ptype);
+
+	if (test_bit(WX_FLAG_FDIR_CAPABLE, wx->flags) && tx_ring->atr_sample_rate)
+		wx->atr(tx_ring, first, ptype);
+
 	wx_tx_map(tx_ring, first, hdr_len);
 
 	return NETDEV_TX_OK;
@@ -1574,8 +1577,27 @@ static void wx_set_rss_queues(struct wx *wx)
 	f = &wx->ring_feature[RING_F_RSS];
 	f->indices = f->limit;
 
-	wx->num_rx_queues = f->limit;
-	wx->num_tx_queues = f->limit;
+	if (!(test_bit(WX_FLAG_FDIR_CAPABLE, wx->flags)))
+		goto out;
+
+	clear_bit(WX_FLAG_FDIR_HASH, wx->flags);
+
+	/* Use Flow Director in addition to RSS to ensure the best
+	 * distribution of flows across cores, even when an FDIR flow
+	 * isn't matched.
+	 */
+	if (f->indices > 1) {
+		f = &wx->ring_feature[RING_F_FDIR];
+
+		f->indices = f->limit;
+
+		if (!(test_bit(WX_FLAG_FDIR_PERFECT, wx->flags)))
+			set_bit(WX_FLAG_FDIR_HASH, wx->flags);
+	}
+
+out:
+	wx->num_rx_queues = f->indices;
+	wx->num_tx_queues = f->indices;
 }
 
 static void wx_set_num_queues(struct wx *wx)
@@ -2684,6 +2706,7 @@ int wx_set_features(struct net_device *netdev, netdev_features_t features)
 {
 	netdev_features_t changed = netdev->features ^ features;
 	struct wx *wx = netdev_priv(netdev);
+	bool need_reset = false;
 
 	if (features & NETIF_F_RXHASH) {
 		wr32m(wx, WX_RDB_RA_CTL, WX_RDB_RA_CTL_RSS_EN,
@@ -2700,6 +2723,36 @@ int wx_set_features(struct net_device *netdev, netdev_features_t features)
 		wx->do_reset(netdev);
 	else if (changed & (NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_VLAN_CTAG_FILTER))
 		wx_set_rx_mode(netdev);
+
+	if (!(test_bit(WX_FLAG_FDIR_CAPABLE, wx->flags)))
+		return 0;
+
+	/* Check if Flow Director n-tuple support was enabled or disabled.  If
+	 * the state changed, we need to reset.
+	 */
+	switch (features & NETIF_F_NTUPLE) {
+	case NETIF_F_NTUPLE:
+		/* turn off ATR, enable perfect filters and reset */
+		if (!(test_and_set_bit(WX_FLAG_FDIR_PERFECT, wx->flags)))
+			need_reset = true;
+
+		clear_bit(WX_FLAG_FDIR_HASH, wx->flags);
+		break;
+	default:
+		/* turn off perfect filters, enable ATR and reset */
+		if (test_and_clear_bit(WX_FLAG_FDIR_PERFECT, wx->flags))
+			need_reset = true;
+
+		/* We cannot enable ATR if RSS is disabled */
+		if (wx->ring_feature[RING_F_RSS].limit <= 1)
+			break;
+
+		set_bit(WX_FLAG_FDIR_HASH, wx->flags);
+		break;
+	}
+
+	if (need_reset)
+		wx->do_reset(netdev);
 
 	return 0;
 }

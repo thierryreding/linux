@@ -501,16 +501,21 @@ remote_event_create(wait_queue_head_t *wq, struct remote_event *event)
  * routines where switched to the "interruptible" family of functions, as the
  * former was deemed unjustified and the use "killable" set all VCHIQ's
  * threads in D state.
+ *
+ * Returns: 0 on success, a negative error code on failure
  */
 static inline int
 remote_event_wait(wait_queue_head_t *wq, struct remote_event *event)
 {
+	int ret = 0;
+
 	if (!event->fired) {
 		event->armed = 1;
 		dsb(sy);
-		if (wait_event_interruptible(*wq, event->fired)) {
+		ret = wait_event_interruptible(*wq, event->fired);
+		if (ret) {
 			event->armed = 0;
-			return 0;
+			return ret;
 		}
 		event->armed = 0;
 		/* Ensure that the peer sees that we are not waiting (armed == 0). */
@@ -518,7 +523,7 @@ remote_event_wait(wait_queue_head_t *wq, struct remote_event *event)
 	}
 
 	event->fired = 0;
-	return 1;
+	return ret;
 }
 
 /*
@@ -1134,12 +1139,13 @@ queue_message_sync(struct vchiq_state *state, struct vchiq_service *service,
 		   int msgid,
 		   ssize_t (*copy_callback)(void *context, void *dest,
 					    size_t offset, size_t maxsize),
-		   void *context, int size, int is_blocking)
+		   void *context, int size)
 {
 	struct vchiq_shared_state *local;
 	struct vchiq_header *header;
 	ssize_t callback_result;
 	int svc_fourcc;
+	int ret;
 
 	local = state->local;
 
@@ -1147,7 +1153,9 @@ queue_message_sync(struct vchiq_state *state, struct vchiq_service *service,
 	    mutex_lock_killable(&state->sync_mutex))
 		return -EAGAIN;
 
-	remote_event_wait(&state->sync_release_event, &local->sync_release);
+	ret = remote_event_wait(&state->sync_release_event, &local->sync_release);
+	if (ret)
+		return ret;
 
 	/* Ensure that reads don't overtake the remote_event_wait. */
 	rmb();
@@ -1509,7 +1517,7 @@ parse_open(struct vchiq_state *state, struct vchiq_header *header)
 		/* Acknowledge the OPEN */
 		if (service->sync) {
 			if (queue_message_sync(state, NULL, openack_id, memcpy_copy_callback,
-					       &ack_payload, sizeof(ack_payload), 0) == -EAGAIN)
+					       &ack_payload, sizeof(ack_payload)) == -EAGAIN)
 				goto bail_not_ready;
 
 			/* The service is now open */
@@ -1929,13 +1937,16 @@ slot_handler_func(void *v)
 {
 	struct vchiq_state *state = v;
 	struct vchiq_shared_state *local = state->local;
+	int ret;
 
 	DEBUG_INITIALISE(local);
 
-	while (1) {
+	while (!kthread_should_stop()) {
 		DEBUG_COUNT(SLOT_HANDLER_COUNT);
 		DEBUG_TRACE(SLOT_HANDLER_LINE);
-		remote_event_wait(&state->trigger_event, &local->trigger);
+		ret = remote_event_wait(&state->trigger_event, &local->trigger);
+		if (ret)
+			return ret;
 
 		/* Ensure that reads don't overtake the remote_event_wait. */
 		rmb();
@@ -1966,6 +1977,7 @@ recycle_func(void *v)
 	struct vchiq_shared_state *local = state->local;
 	u32 *found;
 	size_t length;
+	int ret;
 
 	length = sizeof(*found) * BITSET_SIZE(VCHIQ_MAX_SERVICES);
 
@@ -1974,8 +1986,10 @@ recycle_func(void *v)
 	if (!found)
 		return -ENOMEM;
 
-	while (1) {
-		remote_event_wait(&state->recycle_event, &local->recycle);
+	while (!kthread_should_stop()) {
+		ret = remote_event_wait(&state->recycle_event, &local->recycle);
+		if (ret)
+			return ret;
 
 		process_free_queue(state, found, length);
 	}
@@ -1992,14 +2006,17 @@ sync_func(void *v)
 		(struct vchiq_header *)SLOT_DATA_FROM_INDEX(state,
 			state->remote->slot_sync);
 	int svc_fourcc;
+	int ret;
 
-	while (1) {
+	while (!kthread_should_stop()) {
 		struct vchiq_service *service;
 		int msgid, size;
 		int type;
 		unsigned int localport, remoteport;
 
-		remote_event_wait(&state->sync_trigger_event, &local->sync_trigger);
+		ret = remote_event_wait(&state->sync_trigger_event, &local->sync_trigger);
+		if (ret)
+			return ret;
 
 		/* Ensure that reads don't overtake the remote_event_wait. */
 		rmb();
@@ -2163,14 +2180,12 @@ vchiq_init_state(struct vchiq_state *state, struct vchiq_slot_zero *slot_zero, s
 	mutex_init(&state->slot_mutex);
 	mutex_init(&state->recycle_mutex);
 	mutex_init(&state->sync_mutex);
-	mutex_init(&state->bulk_transfer_mutex);
 
 	spin_lock_init(&state->msg_queue_spinlock);
 	spin_lock_init(&state->bulk_waiter_spinlock);
 	spin_lock_init(&state->quota_spinlock);
 
 	init_completion(&state->slot_available_event);
-	init_completion(&state->slot_remove_event);
 	init_completion(&state->data_quota_event);
 
 	state->slot_queue_available = 0;
@@ -2640,6 +2655,132 @@ close_service_complete(struct vchiq_service *service, int failstate)
 	return status;
 }
 
+/*
+ * Prepares a bulk transfer to be queued. The function is interruptible and is
+ * intended to be called from user threads. It may return -EAGAIN to indicate
+ * that a signal has been received and the call should be retried after being
+ * returned to user context.
+ */
+static int
+vchiq_bulk_xfer_queue_msg_interruptible(struct vchiq_service *service,
+					void *offset, void __user *uoffset,
+					int size, void *userdata,
+					enum vchiq_bulk_mode mode,
+					enum vchiq_bulk_dir dir)
+{
+	struct vchiq_bulk_queue *queue;
+	struct bulk_waiter *bulk_waiter = NULL;
+	struct vchiq_bulk *bulk;
+	struct vchiq_state *state = service->state;
+	const char dir_char = (dir == VCHIQ_BULK_TRANSMIT) ? 't' : 'r';
+	const int dir_msgtype = (dir == VCHIQ_BULK_TRANSMIT) ?
+		VCHIQ_MSG_BULK_TX : VCHIQ_MSG_BULK_RX;
+	int status = -EINVAL;
+	int payload[2];
+
+	if (mode == VCHIQ_BULK_MODE_BLOCKING) {
+		bulk_waiter = userdata;
+		init_completion(&bulk_waiter->event);
+		bulk_waiter->actual = 0;
+		bulk_waiter->bulk = NULL;
+	}
+
+	queue = (dir == VCHIQ_BULK_TRANSMIT) ?
+		&service->bulk_tx : &service->bulk_rx;
+
+	if (mutex_lock_killable(&service->bulk_mutex))
+		return -EAGAIN;
+
+	if (queue->local_insert == queue->remove + VCHIQ_NUM_SERVICE_BULKS) {
+		VCHIQ_SERVICE_STATS_INC(service, bulk_stalls);
+		do {
+			mutex_unlock(&service->bulk_mutex);
+			if (wait_for_completion_interruptible(&service->bulk_remove_event))
+				return -EAGAIN;
+			if (mutex_lock_killable(&service->bulk_mutex))
+				return -EAGAIN;
+		} while (queue->local_insert == queue->remove +
+				VCHIQ_NUM_SERVICE_BULKS);
+	}
+
+	bulk = &queue->bulks[BULK_INDEX(queue->local_insert)];
+
+	bulk->mode = mode;
+	bulk->dir = dir;
+	bulk->userdata = userdata;
+	bulk->size = size;
+	bulk->actual = VCHIQ_BULK_ACTUAL_ABORTED;
+
+	if (vchiq_prepare_bulk_data(service->instance, bulk, offset, uoffset, size, dir))
+		goto unlock_error_exit;
+
+	/*
+	 * Ensure that the bulk data record is visible to the peer
+	 * before proceeding.
+	 */
+	wmb();
+
+	dev_dbg(state->dev, "core: %d: bt (%d->%d) %cx %x@%pad %pK\n",
+		state->id, service->localport, service->remoteport,
+		dir_char, size, &bulk->data, userdata);
+
+	/*
+	 * The slot mutex must be held when the service is being closed, so
+	 * claim it here to ensure that isn't happening
+	 */
+	if (mutex_lock_killable(&state->slot_mutex)) {
+		status = -EAGAIN;
+		goto cancel_bulk_error_exit;
+	}
+
+	if (service->srvstate != VCHIQ_SRVSTATE_OPEN)
+		goto unlock_both_error_exit;
+
+	payload[0] = lower_32_bits(bulk->data);
+	payload[1] = bulk->size;
+	status = queue_message(state,
+			       NULL,
+			       VCHIQ_MAKE_MSG(dir_msgtype,
+					      service->localport,
+					      service->remoteport),
+			       memcpy_copy_callback,
+			       &payload,
+			       sizeof(payload),
+			       QMFLAGS_IS_BLOCKING |
+			       QMFLAGS_NO_MUTEX_LOCK |
+			       QMFLAGS_NO_MUTEX_UNLOCK);
+	if (status)
+		goto unlock_both_error_exit;
+
+	queue->local_insert++;
+
+	mutex_unlock(&state->slot_mutex);
+	mutex_unlock(&service->bulk_mutex);
+
+	dev_dbg(state->dev, "core: %d: bt:%d %cx li=%x ri=%x p=%x\n",
+		state->id, service->localport, dir_char, queue->local_insert,
+		queue->remote_insert, queue->process);
+
+        if (bulk_waiter) {
+                bulk_waiter->bulk = bulk;
+                if (wait_for_completion_interruptible(&bulk_waiter->event))
+                        status = -EAGAIN;
+                else if (bulk_waiter->actual == VCHIQ_BULK_ACTUAL_ABORTED)
+                        status = -EINVAL;
+        }
+
+	return status;
+
+unlock_both_error_exit:
+	mutex_unlock(&state->slot_mutex);
+cancel_bulk_error_exit:
+	vchiq_complete_bulk(service->instance, bulk);
+unlock_error_exit:
+	mutex_unlock(&service->bulk_mutex);
+
+	return status;
+}
+
 /* Called by the slot handler */
 int
 vchiq_close_service_internal(struct vchiq_service *service, int close_recvd)
@@ -2963,30 +3104,51 @@ vchiq_remove_service(struct vchiq_instance *instance, unsigned int handle)
 	return status;
 }
 
-/*
- * This function may be called by kernel threads or user threads.
- * User threads may receive -EAGAIN to indicate that a signal has been
- * received and the call should be retried after being returned to user
- * context.
- * When called in blocking mode, the userdata field points to a bulk_waiter
- * structure.
- */
-int vchiq_bulk_transfer(struct vchiq_instance *instance, unsigned int handle,
-			void *offset, void __user *uoffset, int size, void *userdata,
-			enum vchiq_bulk_mode mode, enum vchiq_bulk_dir dir)
+int
+vchiq_bulk_xfer_blocking_interruptible(struct vchiq_instance *instance, unsigned int handle,
+				       void *offset, void __user *uoffset, int size,
+				       void __user *userdata, enum vchiq_bulk_dir dir)
 {
 	struct vchiq_service *service = find_service_by_handle(instance, handle);
-	struct vchiq_bulk_queue *queue;
-	struct vchiq_bulk *bulk;
-	struct vchiq_state *state;
-	struct bulk_waiter *bulk_waiter = NULL;
-	const char dir_char = (dir == VCHIQ_BULK_TRANSMIT) ? 't' : 'r';
-	const int dir_msgtype = (dir == VCHIQ_BULK_TRANSMIT) ?
-		VCHIQ_MSG_BULK_TX : VCHIQ_MSG_BULK_RX;
+	enum vchiq_bulk_mode mode = VCHIQ_BULK_MODE_BLOCKING;
 	int status = -EINVAL;
-	int payload[2];
 
 	if (!service)
+		return -EINVAL;
+
+	if (service->srvstate != VCHIQ_SRVSTATE_OPEN)
+		goto error_exit;
+
+	if (!offset && !uoffset)
+		goto error_exit;
+
+	if (vchiq_check_service(service))
+		goto error_exit;
+
+
+	status = vchiq_bulk_xfer_queue_msg_interruptible(service, offset, uoffset, size,
+							 userdata, mode, dir);
+
+error_exit:
+	vchiq_service_put(service);
+
+	return status;
+}
+
+int
+vchiq_bulk_xfer_callback_interruptible(struct vchiq_instance *instance, unsigned int handle,
+				       void *offset, void __user *uoffset, int size,
+				       enum vchiq_bulk_mode mode, void *userdata,
+				       enum vchiq_bulk_dir dir)
+{
+	struct vchiq_service *service = find_service_by_handle(instance, handle);
+	int status = -EINVAL;
+
+	if (!service)
+		return -EINVAL;
+
+	if (mode != VCHIQ_BULK_MODE_CALLBACK &&
+	    mode != VCHIQ_BULK_MODE_NOCALLBACK)
 		goto error_exit;
 
 	if (service->srvstate != VCHIQ_SRVSTATE_OPEN)
@@ -2998,133 +3160,56 @@ int vchiq_bulk_transfer(struct vchiq_instance *instance, unsigned int handle,
 	if (vchiq_check_service(service))
 		goto error_exit;
 
-	switch (mode) {
-	case VCHIQ_BULK_MODE_NOCALLBACK:
-	case VCHIQ_BULK_MODE_CALLBACK:
-		break;
-	case VCHIQ_BULK_MODE_BLOCKING:
-		bulk_waiter = userdata;
-		init_completion(&bulk_waiter->event);
-		bulk_waiter->actual = 0;
-		bulk_waiter->bulk = NULL;
-		break;
-	case VCHIQ_BULK_MODE_WAITING:
-		bulk_waiter = userdata;
-		bulk = bulk_waiter->bulk;
-		goto waiting;
-	default:
+	status = vchiq_bulk_xfer_queue_msg_interruptible(service, offset, uoffset,
+							 size, userdata, mode, dir);
+
+error_exit:
+	vchiq_service_put(service);
+
+	return status;
+}
+
+/*
+ * This function is called by VCHIQ ioctl interface and is interruptible.
+ * It may receive -EAGAIN to indicate that a signal has been received
+ * and the call should be retried after being returned to user context.
+ */
+int
+vchiq_bulk_xfer_waiting_interruptible(struct vchiq_instance *instance,
+				      unsigned int handle, struct bulk_waiter *userdata)
+{
+	struct vchiq_service *service = find_service_by_handle(instance, handle);
+	struct bulk_waiter *bulk_waiter;
+	int status = -EINVAL;
+
+	if (!service)
+		return -EINVAL;
+
+	if (!userdata)
 		goto error_exit;
-	}
-
-	state = service->state;
-
-	queue = (dir == VCHIQ_BULK_TRANSMIT) ?
-		&service->bulk_tx : &service->bulk_rx;
-
-	if (mutex_lock_killable(&service->bulk_mutex)) {
-		status = -EAGAIN;
-		goto error_exit;
-	}
-
-	if (queue->local_insert == queue->remove + VCHIQ_NUM_SERVICE_BULKS) {
-		VCHIQ_SERVICE_STATS_INC(service, bulk_stalls);
-		do {
-			mutex_unlock(&service->bulk_mutex);
-			if (wait_for_completion_interruptible(&service->bulk_remove_event)) {
-				status = -EAGAIN;
-				goto error_exit;
-			}
-			if (mutex_lock_killable(&service->bulk_mutex)) {
-				status = -EAGAIN;
-				goto error_exit;
-			}
-		} while (queue->local_insert == queue->remove +
-				VCHIQ_NUM_SERVICE_BULKS);
-	}
-
-	bulk = &queue->bulks[BULK_INDEX(queue->local_insert)];
-
-	bulk->mode = mode;
-	bulk->dir = dir;
-	bulk->userdata = userdata;
-	bulk->size = size;
-	bulk->actual = VCHIQ_BULK_ACTUAL_ABORTED;
-
-	if (vchiq_prepare_bulk_data(instance, bulk, offset, uoffset, size, dir))
-		goto unlock_error_exit;
-
-	/*
-	 * Ensure that the bulk data record is visible to the peer
-	 * before proceeding.
-	 */
-	wmb();
-
-	dev_dbg(state->dev, "core: %d: bt (%d->%d) %cx %x@%pad %pK\n",
-		state->id, service->localport, service->remoteport,
-		dir_char, size, &bulk->data, userdata);
-
-	/*
-	 * The slot mutex must be held when the service is being closed, so
-	 * claim it here to ensure that isn't happening
-	 */
-	if (mutex_lock_killable(&state->slot_mutex)) {
-		status = -EAGAIN;
-		goto cancel_bulk_error_exit;
-	}
 
 	if (service->srvstate != VCHIQ_SRVSTATE_OPEN)
-		goto unlock_both_error_exit;
+		goto error_exit;
 
-	payload[0] = lower_32_bits(bulk->data);
-	payload[1] = bulk->size;
-	status = queue_message(state,
-			       NULL,
-			       VCHIQ_MAKE_MSG(dir_msgtype,
-					      service->localport,
-					      service->remoteport),
-			       memcpy_copy_callback,
-			       &payload,
-			       sizeof(payload),
-			       QMFLAGS_IS_BLOCKING |
-			       QMFLAGS_NO_MUTEX_LOCK |
-			       QMFLAGS_NO_MUTEX_UNLOCK);
-	if (status)
-		goto unlock_both_error_exit;
+	if (vchiq_check_service(service))
+		goto error_exit;
 
-	queue->local_insert++;
+	bulk_waiter = userdata;
 
-	mutex_unlock(&state->slot_mutex);
-	mutex_unlock(&service->bulk_mutex);
-
-	dev_dbg(state->dev, "core: %d: bt:%d %cx li=%x ri=%x p=%x\n",
-		state->id, service->localport, dir_char, queue->local_insert,
-		queue->remote_insert, queue->process);
-
-waiting:
 	vchiq_service_put(service);
 
 	status = 0;
 
-	if (bulk_waiter) {
-		bulk_waiter->bulk = bulk;
-		if (wait_for_completion_interruptible(&bulk_waiter->event))
-			status = -EAGAIN;
-		else if (bulk_waiter->actual == VCHIQ_BULK_ACTUAL_ABORTED)
-			status = -EINVAL;
-	}
+	if (wait_for_completion_interruptible(&bulk_waiter->event))
+		return -EAGAIN;
+	else if (bulk_waiter->actual == VCHIQ_BULK_ACTUAL_ABORTED)
+		return -EINVAL;
 
 	return status;
 
-unlock_both_error_exit:
-	mutex_unlock(&state->slot_mutex);
-cancel_bulk_error_exit:
-	vchiq_complete_bulk(service->instance, bulk);
-unlock_error_exit:
-	mutex_unlock(&service->bulk_mutex);
-
 error_exit:
-	if (service)
-		vchiq_service_put(service);
+	vchiq_service_put(service);
+
 	return status;
 }
 
@@ -3160,11 +3245,12 @@ vchiq_queue_message(struct vchiq_instance *instance, unsigned int handle,
 	switch (service->srvstate) {
 	case VCHIQ_SRVSTATE_OPEN:
 		status = queue_message(service->state, service, data_id,
-				       copy_callback, context, size, 1);
+				       copy_callback, context, size,
+				       QMFLAGS_IS_BLOCKING);
 		break;
 	case VCHIQ_SRVSTATE_OPENSYNC:
 		status = queue_message_sync(service->state, service, data_id,
-					    copy_callback, context, size, 1);
+					    copy_callback, context, size);
 		break;
 	default:
 		status = -EINVAL;
@@ -3372,7 +3458,7 @@ vchiq_dump_shared_state(struct seq_file *f, struct vchiq_state *state,
 	};
 	int i;
 
-	seq_printf(f, "  %s: slots %d-%d tx_pos=%x recycle=%x\n",
+	seq_printf(f, "  %s: slots %d-%d tx_pos=0x%x recycle=0x%x\n",
 		   label, shared->slot_first, shared->slot_last,
 		   shared->tx_pos, shared->slot_queue_recycle);
 
@@ -3388,7 +3474,7 @@ vchiq_dump_shared_state(struct seq_file *f, struct vchiq_state *state,
 	}
 
 	for (i = 1; i < shared->debug[DEBUG_ENTRIES]; i++) {
-		seq_printf(f, "    DEBUG: %s = %d(%x)\n",
+		seq_printf(f, "    DEBUG: %s = %d(0x%x)\n",
 			   debug_names[i], shared->debug[i], shared->debug[i]);
 	}
 }
@@ -3416,7 +3502,7 @@ vchiq_dump_service_state(struct seq_file *f, struct vchiq_service *service)
 
 			if (service->public_fourcc != VCHIQ_FOURCC_INVALID)
 				scnprintf(remoteport + len2, sizeof(remoteport) - len2,
-					  " (client %x)", service->client_id);
+					  " (client 0x%x)", service->client_id);
 		} else {
 			strscpy(remoteport, "n/a", sizeof(remoteport));
 		}
@@ -3477,7 +3563,7 @@ void vchiq_dump_state(struct seq_file *f, struct vchiq_state *state)
 	seq_printf(f, "State %d: %s\n", state->id,
 		   conn_state_names[state->conn_state]);
 
-	seq_printf(f, "  tx_pos=%x(@%pK), rx_pos=%x(@%pK)\n",
+	seq_printf(f, "  tx_pos=0x%x(@%pK), rx_pos=0x%x(@%pK)\n",
 		   state->local->tx_pos,
 		   state->tx_data + (state->local_tx_pos & VCHIQ_SLOT_MASK),
 		   state->rx_pos,

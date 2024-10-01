@@ -1940,12 +1940,15 @@ lpfc_issue_cmf_sync_wqe(struct lpfc_hba *phba, u32 ms, u64 total)
 	atot = atomic_xchg(&phba->cgn_sync_alarm_cnt, 0);
 	wtot = atomic_xchg(&phba->cgn_sync_warn_cnt, 0);
 
+	spin_lock_irqsave(&phba->hbalock, iflags);
+
 	/* ONLY Managed mode will send the CMF_SYNC_WQE to the HBA */
 	if (phba->cmf_active_mode != LPFC_CFG_MANAGED ||
-	    phba->link_state == LPFC_LINK_DOWN)
-		return 0;
+	    phba->link_state < LPFC_LINK_UP) {
+		ret_val = 0;
+		goto out_unlock;
+	}
 
-	spin_lock_irqsave(&phba->hbalock, iflags);
 	sync_buf = __lpfc_sli_get_iocbq(phba);
 	if (!sync_buf) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_CGN_MGMT,
@@ -4687,6 +4690,17 @@ lpfc_sli_flush_io_rings(struct lpfc_hba *phba)
 	/* Look on all the FCP Rings for the iotag */
 	if (phba->sli_rev >= LPFC_SLI_REV4) {
 		for (i = 0; i < phba->cfg_hdw_queue; i++) {
+			if (!phba->sli4_hba.hdwq ||
+			    !phba->sli4_hba.hdwq[i].io_wq) {
+				lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+						"7777 hdwq's deleted %lx "
+						"%lx %x %x\n",
+						phba->pport->load_flag,
+						phba->hba_flag,
+						phba->link_state,
+						phba->sli.sli_flag);
+				return;
+			}
 			pring = phba->sli4_hba.hdwq[i].io_wq->pring;
 
 			spin_lock_irq(&pring->ring_lock);
@@ -8807,7 +8821,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	rc = lpfc_sli4_queue_setup(phba);
 	if (unlikely(rc)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
-				"0381 Error %d during queue setup.\n ", rc);
+				"0381 Error %d during queue setup.\n", rc);
 		goto out_stop_timers;
 	}
 	/* Initialize the driver internal SLI layer lists. */
@@ -10579,10 +10593,11 @@ lpfc_prep_embed_io(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd)
 {
 	struct lpfc_iocbq *piocb = &lpfc_cmd->cur_iocbq;
 	union lpfc_wqe128 *wqe = &lpfc_cmd->cur_iocbq.wqe;
-	struct sli4_sge *sgl;
+	struct sli4_sge_le *sgl;
+	u32 type_size;
 
 	/* 128 byte wqe support here */
-	sgl = (struct sli4_sge *)lpfc_cmd->dma_sgl;
+	sgl = (struct sli4_sge_le *)lpfc_cmd->dma_sgl;
 
 	if (phba->fcp_embed_io) {
 		struct fcp_cmnd *fcp_cmnd;
@@ -10591,9 +10606,9 @@ lpfc_prep_embed_io(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd)
 		fcp_cmnd = lpfc_cmd->fcp_cmnd;
 
 		/* Word 0-2 - FCP_CMND */
-		wqe->generic.bde.tus.f.bdeFlags =
-			BUFF_TYPE_BDE_IMMED;
-		wqe->generic.bde.tus.f.bdeSize = sgl->sge_len;
+		type_size = le32_to_cpu(sgl->sge_len);
+		type_size |= ULP_BDE64_TYPE_BDE_IMMED;
+		wqe->generic.bde.tus.w = type_size;
 		wqe->generic.bde.addrHigh = 0;
 		wqe->generic.bde.addrLow =  72;  /* Word 18 */
 
@@ -10602,13 +10617,13 @@ lpfc_prep_embed_io(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd)
 
 		/* Word 18-29  FCP CMND Payload */
 		ptr = &wqe->words[18];
-		memcpy(ptr, fcp_cmnd, sgl->sge_len);
+		lpfc_sli_pcimem_bcopy(fcp_cmnd, ptr, le32_to_cpu(sgl->sge_len));
 	} else {
 		/* Word 0-2 - Inline BDE */
 		wqe->generic.bde.tus.f.bdeFlags =  BUFF_TYPE_BDE_64;
-		wqe->generic.bde.tus.f.bdeSize = sgl->sge_len;
-		wqe->generic.bde.addrHigh = sgl->addr_hi;
-		wqe->generic.bde.addrLow =  sgl->addr_lo;
+		wqe->generic.bde.tus.f.bdeSize = le32_to_cpu(sgl->sge_len);
+		wqe->generic.bde.addrHigh = le32_to_cpu(sgl->addr_hi);
+		wqe->generic.bde.addrLow = le32_to_cpu(sgl->addr_lo);
 
 		/* Word 10 */
 		bf_set(wqe_dbde, &wqe->generic.wqe_com, 1);
@@ -11078,9 +11093,17 @@ __lpfc_sli_prep_xmit_seq64_s4(struct lpfc_iocbq *cmdiocbq,
 	/* Word 9 */
 	bf_set(wqe_rcvoxid, &wqe->xmit_sequence.wqe_com, ox_id);
 
-	/* Word 12 */
-	if (cmdiocbq->cmd_flag & (LPFC_IO_LIBDFC | LPFC_IO_LOOPBACK))
+	if (cmdiocbq->cmd_flag & (LPFC_IO_LIBDFC | LPFC_IO_LOOPBACK)) {
+		/* Word 10 */
+		if (cmdiocbq->cmd_flag & LPFC_IO_VMID) {
+			bf_set(wqe_appid, &wqe->xmit_sequence.wqe_com, 1);
+			bf_set(wqe_wqes, &wqe->xmit_sequence.wqe_com, 1);
+			wqe->words[31] = LOOPBACK_SRC_APPID;
+		}
+
+		/* Word 12 */
 		wqe->xmit_sequence.xmit_len = full_size;
+	}
 	else
 		wqe->xmit_sequence.xmit_len =
 			wqe->xmit_sequence.bde.tus.f.bdeSize;
@@ -12301,18 +12324,16 @@ lpfc_sli_abort_els_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				goto release_iocb;
 			}
 		}
-
-		lpfc_printf_log(phba, KERN_WARNING, LOG_ELS | LOG_SLI,
-				"0327 Cannot abort els iocb x%px "
-				"with io cmd xri %x abort tag : x%x, "
-				"abort status %x abort code %x\n",
-				cmdiocb, get_job_abtsiotag(phba, cmdiocb),
-				(phba->sli_rev == LPFC_SLI_REV4) ?
-				get_wqe_reqtag(cmdiocb) :
-				cmdiocb->iocb.un.acxri.abortContextTag,
-				ulp_status, ulp_word4);
-
 	}
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_ELS | LOG_SLI,
+			"0327 Abort els iocb complete x%px with io cmd xri %x "
+			"abort tag x%x abort status %x abort code %x\n",
+			cmdiocb, get_job_abtsiotag(phba, cmdiocb),
+			(phba->sli_rev == LPFC_SLI_REV4) ?
+			get_wqe_reqtag(cmdiocb) :
+			cmdiocb->iocb.ulpIoTag,
+			ulp_status, ulp_word4);
 release_iocb:
 	lpfc_sli_release_iocbq(phba, cmdiocb);
 	return;
@@ -12474,8 +12495,6 @@ lpfc_sli_issue_abort_iotag(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 				cmdiocb->iocb.ulpClass,
 				LPFC_WQE_CQ_ID_DEFAULT, ia, false);
 
-	abtsiocbp->vport = vport;
-
 	/* ABTS WQE must go to the same WQ as the WQE to be aborted */
 	abtsiocbp->hba_wqidx = cmdiocb->hba_wqidx;
 	if (cmdiocb->cmd_flag & LPFC_IO_FCP)
@@ -12509,10 +12528,10 @@ abort_iotag_exit:
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_SLI,
 			 "0339 Abort IO XRI x%x, Original iotag x%x, "
 			 "abort tag x%x Cmdjob : x%px Abortjob : x%px "
-			 "retval x%x : IA %d\n",
+			 "retval x%x : IA %d cmd_cmpl %ps\n",
 			 ulp_context, (phba->sli_rev == LPFC_SLI_REV4) ?
 			 cmdiocb->iotag : iotag, iotag, cmdiocb, abtsiocbp,
-			 retval, ia);
+			 retval, ia, abtsiocbp->cmd_cmpl);
 	if (retval) {
 		cmdiocb->cmd_flag &= ~LPFC_DRIVER_ABORTED;
 		__lpfc_sli_release_iocbq(phba, abtsiocbp);
@@ -18423,6 +18442,7 @@ lpfc_fc_frame_check(struct lpfc_hba *phba, struct fc_frame_header *fc_hdr)
 {
 	/*  make rctl_names static to save stack space */
 	struct fc_vft_header *fc_vft_hdr;
+	struct fc_app_header *fc_app_hdr;
 	uint32_t *header = (uint32_t *) fc_hdr;
 
 #define FC_RCTL_MDS_DIAGS	0xF4
@@ -18476,6 +18496,32 @@ lpfc_fc_frame_check(struct lpfc_hba *phba, struct fc_frame_header *fc_hdr)
 	case FC_TYPE_ILS:
 	default:
 		goto drop;
+	}
+
+	if (unlikely(phba->link_flag == LS_LOOPBACK_MODE &&
+				phba->cfg_vmid_app_header)) {
+		/* Application header is 16B device header */
+		if (fc_hdr->fh_df_ctl & LPFC_FC_16B_DEVICE_HEADER) {
+			fc_app_hdr = (struct fc_app_header *) (fc_hdr + 1);
+			if (be32_to_cpu(fc_app_hdr->src_app_id) !=
+					LOOPBACK_SRC_APPID) {
+				lpfc_printf_log(phba, KERN_WARNING,
+						LOG_ELS | LOG_LIBDFC,
+						"1932 Loopback src app id "
+						"not matched, app_id:x%x\n",
+						be32_to_cpu(fc_app_hdr->src_app_id));
+
+				goto drop;
+			}
+		} else {
+			lpfc_printf_log(phba, KERN_WARNING,
+					LOG_ELS | LOG_LIBDFC,
+					"1933 Loopback df_ctl bit not set, "
+					"df_ctl:x%x\n",
+					fc_hdr->fh_df_ctl);
+
+			goto drop;
+		}
 	}
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
@@ -21141,7 +21187,7 @@ lpfc_drain_txq(struct lpfc_hba *phba)
 		if (!piocbq) {
 			spin_unlock_irqrestore(&pring->ring_lock, iflags);
 			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
-				"2823 txq empty and txq_cnt is %d\n ",
+				"2823 txq empty and txq_cnt is %d\n",
 				txq_cnt);
 			break;
 		}

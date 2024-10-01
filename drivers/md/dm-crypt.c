@@ -147,6 +147,7 @@ enum cipher_flags {
 	CRYPT_MODE_INTEGRITY_AEAD,	/* Use authenticated mode for cipher */
 	CRYPT_IV_LARGE_SECTORS,		/* Calculate IV from sector_size, not 512B sectors */
 	CRYPT_ENCRYPT_PREPROCESS,	/* Must preprocess data for encryption (elephant) */
+	CRYPT_KEY_MAC_SIZE_SET,		/* The integrity_key_size option was used */
 };
 
 /*
@@ -214,7 +215,8 @@ struct crypt_config {
 
 	unsigned int integrity_tag_size;
 	unsigned int integrity_iv_size;
-	unsigned int on_disk_tag_size;
+	unsigned int used_tag_size;
+	unsigned int tuple_size;
 
 	/*
 	 * pool for per bio private data, crypto requests,
@@ -241,6 +243,31 @@ static unsigned int dm_crypt_clients_n;
 static volatile unsigned long dm_crypt_pages_per_client;
 #define DM_CRYPT_MEMORY_PERCENT			2
 #define DM_CRYPT_MIN_PAGES_PER_CLIENT		(BIO_MAX_VECS * 16)
+#define DM_CRYPT_DEFAULT_MAX_READ_SIZE		131072
+#define DM_CRYPT_DEFAULT_MAX_WRITE_SIZE		131072
+
+static unsigned int max_read_size = 0;
+module_param(max_read_size, uint, 0644);
+MODULE_PARM_DESC(max_read_size, "Maximum size of a read request");
+static unsigned int max_write_size = 0;
+module_param(max_write_size, uint, 0644);
+MODULE_PARM_DESC(max_write_size, "Maximum size of a write request");
+static unsigned get_max_request_size(struct crypt_config *cc, bool wrt)
+{
+	unsigned val, sector_align;
+	val = !wrt ? READ_ONCE(max_read_size) : READ_ONCE(max_write_size);
+	if (likely(!val))
+		val = !wrt ? DM_CRYPT_DEFAULT_MAX_READ_SIZE : DM_CRYPT_DEFAULT_MAX_WRITE_SIZE;
+	if (wrt || cc->used_tag_size) {
+		if (unlikely(val > BIO_MAX_VECS << PAGE_SHIFT))
+			val = BIO_MAX_VECS << PAGE_SHIFT;
+	}
+	sector_align = max(bdev_logical_block_size(cc->dev->bdev), (unsigned)cc->sector_size);
+	val = round_down(val, sector_align);
+	if (unlikely(!val))
+		val = sector_align;
+	return val >> SECTOR_SHIFT;
+}
 
 static void crypt_endio(struct bio *clone);
 static void kcryptd_queue_crypt(struct dm_crypt_io *io);
@@ -1151,14 +1178,14 @@ static int dm_crypt_integrity_io_alloc(struct dm_crypt_io *io, struct bio *bio)
 	unsigned int tag_len;
 	int ret;
 
-	if (!bio_sectors(bio) || !io->cc->on_disk_tag_size)
+	if (!bio_sectors(bio) || !io->cc->tuple_size)
 		return 0;
 
 	bip = bio_integrity_alloc(bio, GFP_NOIO, 1);
 	if (IS_ERR(bip))
 		return PTR_ERR(bip);
 
-	tag_len = io->cc->on_disk_tag_size * (bio_sectors(bio) >> io->cc->sector_shift);
+	tag_len = io->cc->tuple_size * (bio_sectors(bio) >> io->cc->sector_shift);
 
 	bip->bip_iter.bi_sector = io->cc->start + io->sector;
 
@@ -1176,24 +1203,24 @@ static int crypt_integrity_ctr(struct crypt_config *cc, struct dm_target *ti)
 	struct blk_integrity *bi = blk_get_integrity(cc->dev->bdev->bd_disk);
 	struct mapped_device *md = dm_table_get_md(ti->table);
 
-	/* From now we require underlying device with our integrity profile */
-	if (!bi || strcasecmp(bi->profile->name, "DM-DIF-EXT-TAG")) {
+	/* We require an underlying device with non-PI metadata */
+	if (!bi || bi->csum_type != BLK_INTEGRITY_CSUM_NONE) {
 		ti->error = "Integrity profile not supported.";
 		return -EINVAL;
 	}
 
-	if (bi->tag_size != cc->on_disk_tag_size ||
-	    bi->tuple_size != cc->on_disk_tag_size) {
+	if (bi->tuple_size < cc->used_tag_size) {
 		ti->error = "Integrity profile tag size mismatch.";
 		return -EINVAL;
 	}
+	cc->tuple_size = bi->tuple_size;
 	if (1 << bi->interval_exp != cc->sector_size) {
 		ti->error = "Integrity profile sector size mismatch.";
 		return -EINVAL;
 	}
 
 	if (crypt_integrity_aead(cc)) {
-		cc->integrity_tag_size = cc->on_disk_tag_size - cc->integrity_iv_size;
+		cc->integrity_tag_size = cc->used_tag_size - cc->integrity_iv_size;
 		DMDEBUG("%s: Integrity AEAD, tag size %u, IV size %u.", dm_device_name(md),
 		       cc->integrity_tag_size, cc->integrity_iv_size);
 
@@ -1205,7 +1232,7 @@ static int crypt_integrity_ctr(struct crypt_config *cc, struct dm_target *ti)
 		DMDEBUG("%s: Additional per-sector space %u bytes for IV.", dm_device_name(md),
 		       cc->integrity_iv_size);
 
-	if ((cc->integrity_tag_size + cc->integrity_iv_size) != bi->tag_size) {
+	if ((cc->integrity_tag_size + cc->integrity_iv_size) > cc->tuple_size) {
 		ti->error = "Not enough space for integrity tag in the profile.";
 		return -EINVAL;
 	}
@@ -1284,7 +1311,7 @@ static void *tag_from_dmreq(struct crypt_config *cc,
 	struct dm_crypt_io *io = container_of(ctx, struct dm_crypt_io, ctx);
 
 	return &io->integrity_metadata[*org_tag_of_dmreq(cc, dmreq) *
-		cc->on_disk_tag_size];
+		cc->tuple_size];
 }
 
 static void *iv_tag_from_dmreq(struct crypt_config *cc,
@@ -1365,9 +1392,9 @@ static int crypt_convert_block_aead(struct crypt_config *cc,
 		aead_request_set_crypt(req, dmreq->sg_in, dmreq->sg_out,
 				       cc->sector_size, iv);
 		r = crypto_aead_encrypt(req);
-		if (cc->integrity_tag_size + cc->integrity_iv_size != cc->on_disk_tag_size)
+		if (cc->integrity_tag_size + cc->integrity_iv_size != cc->tuple_size)
 			memset(tag + cc->integrity_tag_size + cc->integrity_iv_size, 0,
-			       cc->on_disk_tag_size - (cc->integrity_tag_size + cc->integrity_iv_size));
+			       cc->tuple_size - (cc->integrity_tag_size + cc->integrity_iv_size));
 	} else {
 		aead_request_set_crypt(req, dmreq->sg_in, dmreq->sg_out,
 				       cc->sector_size + cc->integrity_tag_size, iv);
@@ -1797,7 +1824,7 @@ static void crypt_dec_pending(struct dm_crypt_io *io)
 		return;
 
 	if (likely(!io->ctx.aead_recheck) && unlikely(io->ctx.aead_failed) &&
-	    cc->on_disk_tag_size && bio_data_dir(base_bio) == READ) {
+	    cc->used_tag_size && bio_data_dir(base_bio) == READ) {
 		io->ctx.aead_recheck = true;
 		io->ctx.aead_failed = false;
 		io->error = 0;
@@ -2587,35 +2614,31 @@ static int crypt_set_keyring_key(struct crypt_config *cc, const char *key_string
 
 	key = request_key(type, key_desc + 1, NULL);
 	if (IS_ERR(key)) {
-		kfree_sensitive(new_key_string);
-		return PTR_ERR(key);
+		ret = PTR_ERR(key);
+		goto free_new_key_string;
 	}
 
 	down_read(&key->sem);
-
 	ret = set_key(cc, key);
-	if (ret < 0) {
-		up_read(&key->sem);
-		key_put(key);
-		kfree_sensitive(new_key_string);
-		return ret;
-	}
-
 	up_read(&key->sem);
 	key_put(key);
+	if (ret < 0)
+		goto free_new_key_string;
 
 	/* clear the flag since following operations may invalidate previously valid key */
 	clear_bit(DM_CRYPT_KEY_VALID, &cc->flags);
 
 	ret = crypt_setkey(cc);
+	if (ret)
+		goto free_new_key_string;
 
-	if (!ret) {
-		set_bit(DM_CRYPT_KEY_VALID, &cc->flags);
-		kfree_sensitive(cc->key_string);
-		cc->key_string = new_key_string;
-	} else
-		kfree_sensitive(new_key_string);
+	set_bit(DM_CRYPT_KEY_VALID, &cc->flags);
+	kfree_sensitive(cc->key_string);
+	cc->key_string = new_key_string;
+	return 0;
 
+free_new_key_string:
+	kfree_sensitive(new_key_string);
 	return ret;
 }
 
@@ -2911,7 +2934,8 @@ static int crypt_ctr_auth_cipher(struct crypt_config *cc, char *cipher_api)
 	if (IS_ERR(mac))
 		return PTR_ERR(mac);
 
-	cc->key_mac_size = crypto_ahash_digestsize(mac);
+	if (!test_bit(CRYPT_KEY_MAC_SIZE_SET, &cc->cipher_flags))
+		cc->key_mac_size = crypto_ahash_digestsize(mac);
 	crypto_free_ahash(mac);
 
 	cc->authenc_key = kmalloc(crypt_authenckey_size(cc), GFP_KERNEL);
@@ -3181,7 +3205,7 @@ static int crypt_ctr_optional(struct dm_target *ti, unsigned int argc, char **ar
 				ti->error = "Invalid integrity arguments";
 				return -EINVAL;
 			}
-			cc->on_disk_tag_size = val;
+			cc->used_tag_size = val;
 			sval = strchr(opt_string + strlen("integrity:"), ':') + 1;
 			if (!strcasecmp(sval, "aead")) {
 				set_bit(CRYPT_MODE_INTEGRITY_AEAD, &cc->cipher_flags);
@@ -3193,6 +3217,13 @@ static int crypt_ctr_optional(struct dm_target *ti, unsigned int argc, char **ar
 			cc->cipher_auth = kstrdup(sval, GFP_KERNEL);
 			if (!cc->cipher_auth)
 				return -ENOMEM;
+		} else if (sscanf(opt_string, "integrity_key_size:%u%c", &val, &dummy) == 1) {
+			if (!val) {
+				ti->error = "Invalid integrity_key_size argument";
+				return -EINVAL;
+			}
+			cc->key_mac_size = val;
+			set_bit(CRYPT_KEY_MAC_SIZE_SET, &cc->cipher_flags);
 		} else if (sscanf(opt_string, "sector_size:%hu%c", &cc->sector_size, &dummy) == 1) {
 			if (cc->sector_size < (1 << SECTOR_SHIFT) ||
 			    cc->sector_size > 4096 ||
@@ -3393,12 +3424,12 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		if (ret)
 			goto bad;
 
-		cc->tag_pool_max_sectors = POOL_ENTRY_SIZE / cc->on_disk_tag_size;
+		cc->tag_pool_max_sectors = POOL_ENTRY_SIZE / cc->tuple_size;
 		if (!cc->tag_pool_max_sectors)
 			cc->tag_pool_max_sectors = 1;
 
 		ret = mempool_init_kmalloc_pool(&cc->tag_pool, MIN_IOS,
-			cc->tag_pool_max_sectors * cc->on_disk_tag_size);
+			cc->tag_pool_max_sectors * cc->tuple_size);
 		if (ret) {
 			ti->error = "Cannot allocate integrity tags mempool";
 			goto bad;
@@ -3474,6 +3505,7 @@ static int crypt_map(struct dm_target *ti, struct bio *bio)
 {
 	struct dm_crypt_io *io;
 	struct crypt_config *cc = ti->private;
+	unsigned max_sectors;
 
 	/*
 	 * If bio is REQ_PREFLUSH or REQ_OP_DISCARD, just bypass crypt queues.
@@ -3492,9 +3524,9 @@ static int crypt_map(struct dm_target *ti, struct bio *bio)
 	/*
 	 * Check if bio is too large, split as needed.
 	 */
-	if (unlikely(bio->bi_iter.bi_size > (BIO_MAX_VECS << PAGE_SHIFT)) &&
-	    (bio_data_dir(bio) == WRITE || cc->on_disk_tag_size))
-		dm_accept_partial_bio(bio, ((BIO_MAX_VECS << PAGE_SHIFT) >> SECTOR_SHIFT));
+	max_sectors = get_max_request_size(cc, bio_data_dir(bio) == WRITE);
+	if (unlikely(bio_sectors(bio) > max_sectors))
+		dm_accept_partial_bio(bio, max_sectors);
 
 	/*
 	 * Ensure that bio is a multiple of internal sector encryption size
@@ -3509,8 +3541,8 @@ static int crypt_map(struct dm_target *ti, struct bio *bio)
 	io = dm_per_bio_data(bio, cc->per_bio_data_size);
 	crypt_io_init(io, cc, bio, dm_target_offset(ti, bio->bi_iter.bi_sector));
 
-	if (cc->on_disk_tag_size) {
-		unsigned int tag_len = cc->on_disk_tag_size * (bio_sectors(bio) >> cc->sector_shift);
+	if (cc->tuple_size) {
+		unsigned int tag_len = cc->tuple_size * (bio_sectors(bio) >> cc->sector_shift);
 
 		if (unlikely(tag_len > KMALLOC_MAX_SIZE))
 			io->integrity_metadata = NULL;
@@ -3580,10 +3612,10 @@ static void crypt_status(struct dm_target *ti, status_type_t type,
 		num_feature_args += test_bit(DM_CRYPT_NO_OFFLOAD, &cc->flags);
 		num_feature_args += test_bit(DM_CRYPT_NO_READ_WORKQUEUE, &cc->flags);
 		num_feature_args += test_bit(DM_CRYPT_NO_WRITE_WORKQUEUE, &cc->flags);
+		num_feature_args += !!cc->used_tag_size;
 		num_feature_args += cc->sector_size != (1 << SECTOR_SHIFT);
 		num_feature_args += test_bit(CRYPT_IV_LARGE_SECTORS, &cc->cipher_flags);
-		if (cc->on_disk_tag_size)
-			num_feature_args++;
+		num_feature_args += test_bit(CRYPT_KEY_MAC_SIZE_SET, &cc->cipher_flags);
 		if (num_feature_args) {
 			DMEMIT(" %d", num_feature_args);
 			if (ti->num_discard_bios)
@@ -3598,12 +3630,14 @@ static void crypt_status(struct dm_target *ti, status_type_t type,
 				DMEMIT(" no_read_workqueue");
 			if (test_bit(DM_CRYPT_NO_WRITE_WORKQUEUE, &cc->flags))
 				DMEMIT(" no_write_workqueue");
-			if (cc->on_disk_tag_size)
-				DMEMIT(" integrity:%u:%s", cc->on_disk_tag_size, cc->cipher_auth);
+			if (cc->used_tag_size)
+				DMEMIT(" integrity:%u:%s", cc->used_tag_size, cc->cipher_auth);
 			if (cc->sector_size != (1 << SECTOR_SHIFT))
 				DMEMIT(" sector_size:%d", cc->sector_size);
 			if (test_bit(CRYPT_IV_LARGE_SECTORS, &cc->cipher_flags))
 				DMEMIT(" iv_large_sectors");
+			if (test_bit(CRYPT_KEY_MAC_SIZE_SET, &cc->cipher_flags))
+				DMEMIT(" integrity_key_size:%u", cc->key_mac_size);
 		}
 		break;
 
@@ -3621,9 +3655,9 @@ static void crypt_status(struct dm_target *ti, status_type_t type,
 		DMEMIT(",iv_large_sectors=%c", test_bit(CRYPT_IV_LARGE_SECTORS, &cc->cipher_flags) ?
 		       'y' : 'n');
 
-		if (cc->on_disk_tag_size)
+		if (cc->used_tag_size)
 			DMEMIT(",integrity_tag_size=%u,cipher_auth=%s",
-			       cc->on_disk_tag_size, cc->cipher_auth);
+			       cc->used_tag_size, cc->cipher_auth);
 		if (cc->sector_size != (1 << SECTOR_SHIFT))
 			DMEMIT(",sector_size=%d", cc->sector_size);
 		if (cc->cipher_string)
@@ -3731,7 +3765,7 @@ static void crypt_io_hints(struct dm_target *ti, struct queue_limits *limits)
 
 static struct target_type crypt_target = {
 	.name   = "crypt",
-	.version = {1, 26, 0},
+	.version = {1, 28, 0},
 	.module = THIS_MODULE,
 	.ctr    = crypt_ctr,
 	.dtr    = crypt_dtr,

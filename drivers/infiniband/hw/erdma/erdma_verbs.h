@@ -329,7 +329,7 @@ int erdma_query_device(struct ib_device *dev, struct ib_device_attr *attr,
 int erdma_get_port_immutable(struct ib_device *dev, u32 port,
 			     struct ib_port_immutable *ib_port_immutable);
 int erdma_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
-		    struct ib_udata *data);
+		    struct uverbs_attr_bundle *attrs);
 int erdma_query_port(struct ib_device *dev, u32 port,
 		     struct ib_port_attr *attr);
 int erdma_query_gid(struct ib_device *dev, u32 port, int idx,
@@ -344,6 +344,7 @@ int erdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int mask,
 		    struct ib_udata *data);
 int erdma_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata);
 int erdma_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata);
+void erdma_disassociate_ucontext(struct ib_ucontext *ibcontext);
 int erdma_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags);
 struct ib_mr *erdma_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
 				u64 virt, int access, struct ib_udata *udata);

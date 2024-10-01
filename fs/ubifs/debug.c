@@ -2807,7 +2807,6 @@ static const struct file_operations dfs_fops = {
 	.read = dfs_file_read,
 	.write = dfs_file_write,
 	.owner = THIS_MODULE,
-	.llseek = no_llseek,
 };
 
 /**
@@ -2827,9 +2826,9 @@ void dbg_debugfs_init_fs(struct ubifs_info *c)
 	const char *fname;
 	struct ubifs_debug_info *d = c->dbg;
 
-	n = snprintf(d->dfs_dir_name, UBIFS_DFS_DIR_LEN + 1, UBIFS_DFS_DIR_NAME,
+	n = snprintf(d->dfs_dir_name, UBIFS_DFS_DIR_LEN, UBIFS_DFS_DIR_NAME,
 		     c->vi.ubi_num, c->vi.vol_id);
-	if (n > UBIFS_DFS_DIR_LEN) {
+	if (n >= UBIFS_DFS_DIR_LEN) {
 		/* The array size is too small */
 		return;
 	}
@@ -2952,7 +2951,6 @@ static const struct file_operations dfs_global_fops = {
 	.read = dfs_global_file_read,
 	.write = dfs_global_file_write,
 	.owner = THIS_MODULE,
-	.llseek = no_llseek,
 };
 
 /**

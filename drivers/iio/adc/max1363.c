@@ -13,6 +13,7 @@
   */
 
 #include <linux/interrupt.h>
+#include <linux/cleanup.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/sysfs.h>
@@ -818,7 +819,6 @@ static int max1363_read_event_config(struct iio_dev *indio_dev,
 
 static int max1363_monitor_mode_update(struct max1363_state *st, int enabled)
 {
-	u8 *tx_buf;
 	int ret, i = 3, j;
 	unsigned long numelements;
 	int len;
@@ -850,11 +850,10 @@ static int max1363_monitor_mode_update(struct max1363_state *st, int enabled)
 	}
 	numelements = bitmap_weight(modemask, MAX1363_MAX_CHANNELS);
 	len = 3 * numelements + 3;
-	tx_buf = kmalloc(len, GFP_KERNEL);
-	if (!tx_buf) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
+	u8 *tx_buf __free(kfree) = kmalloc(len, GFP_KERNEL);
+	if (!tx_buf)
+		return -ENOMEM;
+
 	tx_buf[0] = st->configbyte;
 	tx_buf[1] = st->setupbyte;
 	tx_buf[2] = (st->monitor_speed << 1);
@@ -893,11 +892,9 @@ static int max1363_monitor_mode_update(struct max1363_state *st, int enabled)
 
 	ret = st->send(st->client, tx_buf, len);
 	if (ret < 0)
-		goto error_ret;
-	if (ret != len) {
-		ret = -EIO;
-		goto error_ret;
-	}
+		return ret;
+	if (ret != len)
+		return -EIO;
 
 	/*
 	 * Now that we hopefully have sensible thresholds in place it is
@@ -910,18 +907,13 @@ static int max1363_monitor_mode_update(struct max1363_state *st, int enabled)
 	tx_buf[1] = MAX1363_MON_INT_ENABLE | (st->monitor_speed << 1) | 0xF0;
 	ret = st->send(st->client, tx_buf, 2);
 	if (ret < 0)
-		goto error_ret;
-	if (ret != 2) {
-		ret = -EIO;
-		goto error_ret;
-	}
-	ret = 0;
+		return ret;
+	if (ret != 2)
+		return -EIO;
+
 	st->monitor_on = true;
-error_ret:
 
-	kfree(tx_buf);
-
-	return ret;
+	return 0;
 }
 
 /*
@@ -1561,18 +1553,12 @@ static const struct of_device_id max1363_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, max1363_of_match);
 
-static void max1363_reg_disable(void *reg)
-{
-	regulator_disable(reg);
-}
-
 static int max1363_probe(struct i2c_client *client)
 {
 	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	int ret;
 	struct max1363_state *st;
 	struct iio_dev *indio_dev;
-	struct regulator *vref;
 
 	indio_dev = devm_iio_device_alloc(&client->dev,
 					  sizeof(struct max1363_state));
@@ -1589,26 +1575,12 @@ static int max1363_probe(struct i2c_client *client)
 	st->chip_info = i2c_get_match_data(client);
 	st->client = client;
 
-	st->vref_uv = st->chip_info->int_vref_mv * 1000;
-	vref = devm_regulator_get_optional(&client->dev, "vref");
-	if (!IS_ERR(vref)) {
-		int vref_uv;
+	ret = devm_regulator_get_enable_read_voltage(&client->dev, "vref");
+	if (ret < 0 && ret != -ENODEV)
+		return ret;
 
-		ret = regulator_enable(vref);
-		if (ret)
-			return ret;
 
-		ret = devm_add_action_or_reset(&client->dev, max1363_reg_disable, vref);
-		if (ret)
-			return ret;
-
-		st->vref = vref;
-		vref_uv = regulator_get_voltage(vref);
-		if (vref_uv <= 0)
-			return -EINVAL;
-
-		st->vref_uv = vref_uv;
-	}
+	st->vref_uv = ret == -ENODEV ? st->chip_info->int_vref_mv * 1000 : ret;
 
 	if (i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		st->send = i2c_master_send;

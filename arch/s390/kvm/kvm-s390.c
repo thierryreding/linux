@@ -348,20 +348,29 @@ static inline int plo_test_bit(unsigned char nr)
 	return cc == 0;
 }
 
-static __always_inline void __insn32_query(unsigned int opcode, u8 *query)
+static __always_inline void __sortl_query(u8 (*query)[32])
 {
 	asm volatile(
 		"	lghi	0,0\n"
-		"	lgr	1,%[query]\n"
+		"	la	1,%[query]\n"
 		/* Parameter registers are ignored */
-		"	.insn	rrf,%[opc] << 16,2,4,6,0\n"
+		"	.insn	rre,0xb9380000,2,4\n"
+		: [query] "=R" (*query)
 		:
-		: [query] "d" ((unsigned long)query), [opc] "i" (opcode)
-		: "cc", "memory", "0", "1");
+		: "cc", "0", "1");
 }
 
-#define INSN_SORTL 0xb938
-#define INSN_DFLTCC 0xb939
+static __always_inline void __dfltcc_query(u8 (*query)[32])
+{
+	asm volatile(
+		"	lghi	0,0\n"
+		"	la	1,%[query]\n"
+		/* Parameter registers are ignored */
+		"	.insn	rrf,0xb9390000,2,4,6,0\n"
+		: [query] "=R" (*query)
+		:
+		: "cc", "0", "1");
+}
 
 static void __init kvm_s390_cpu_feat_init(void)
 {
@@ -415,10 +424,10 @@ static void __init kvm_s390_cpu_feat_init(void)
 			      kvm_s390_available_subfunc.kdsa);
 
 	if (test_facility(150)) /* SORTL */
-		__insn32_query(INSN_SORTL, kvm_s390_available_subfunc.sortl);
+		__sortl_query(&kvm_s390_available_subfunc.sortl);
 
 	if (test_facility(151)) /* DFLTCC */
-		__insn32_query(INSN_DFLTCC, kvm_s390_available_subfunc.dfltcc);
+		__dfltcc_query(&kvm_s390_available_subfunc.dfltcc);
 
 	if (MACHINE_HAS_ESOP)
 		allow_cpu_feat(KVM_S390_VM_CPU_FEAT_ESOP);
@@ -2997,14 +3006,9 @@ int kvm_arch_vm_ioctl(struct file *filp, unsigned int ioctl, unsigned long arg)
 		break;
 	}
 	case KVM_CREATE_IRQCHIP: {
-		struct kvm_irq_routing_entry routing;
-
 		r = -EINVAL;
-		if (kvm->arch.use_irqchip) {
-			/* Set up dummy routing. */
-			memset(&routing, 0, sizeof(routing));
-			r = kvm_set_irq_routing(kvm, &routing, 0, 0);
-		}
+		if (kvm->arch.use_irqchip)
+			r = 0;
 		break;
 	}
 	case KVM_SET_DEVICE_ATTR: {
@@ -4080,7 +4084,7 @@ static void kvm_gmap_notifier(struct gmap *gmap, unsigned long start,
 bool kvm_arch_no_poll(struct kvm_vcpu *vcpu)
 {
 	/* do not poll with more than halt_poll_max_steal percent of steal time */
-	if (S390_lowcore.avg_steal_timer * 100 / (TICK_USEC << 12) >=
+	if (get_lowcore()->avg_steal_timer * 100 / (TICK_USEC << 12) >=
 	    READ_ONCE(halt_poll_max_steal)) {
 		vcpu->stat.halt_no_poll_steal++;
 		return true;
@@ -4830,7 +4834,8 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 			       sizeof(sie_page->pv_grregs));
 		}
 		exit_reason = sie64a(vcpu->arch.sie_block,
-				     vcpu->run->s.regs.gprs);
+				     vcpu->run->s.regs.gprs,
+				     gmap_get_enabled()->asce);
 		if (kvm_s390_pv_cpu_is_protected(vcpu)) {
 			memcpy(vcpu->run->s.regs.gprs,
 			       sie_page->pv_grregs,
@@ -5032,7 +5037,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 	if (vcpu->kvm->arch.pv.dumping)
 		return -EINVAL;
 
-	if (kvm_run->immediate_exit)
+	if (!vcpu->wants_to_run)
 		return -EINTR;
 
 	if (kvm_run->kvm_valid_regs & ~KVM_SYNC_S390_VALID_FIELDS ||
@@ -5748,6 +5753,9 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 				   enum kvm_mr_change change)
 {
 	gpa_t size;
+
+	if (kvm_is_ucontrol(kvm))
+		return -EINVAL;
 
 	/* When we are protected, we should not change the memory slots */
 	if (kvm_s390_pv_get_handle(kvm))

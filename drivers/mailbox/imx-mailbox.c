@@ -30,7 +30,7 @@
 #define IMX_MU_SCU_CHANS	6
 /* TX0/RX0 */
 #define IMX_MU_S4_CHANS		2
-#define IMX_MU_CHAN_NAME_SIZE	20
+#define IMX_MU_CHAN_NAME_SIZE	32
 
 #define IMX_MU_V2_PAR_OFF	0x4
 #define IMX_MU_V2_TR_MASK	GENMASK(7, 0)
@@ -225,6 +225,8 @@ static int imx_mu_generic_tx(struct imx_mu_priv *priv,
 			     void *data)
 {
 	u32 *arg = data;
+	u32 val;
+	int ret;
 
 	switch (cp->type) {
 	case IMX_MU_TYPE_TX:
@@ -236,7 +238,13 @@ static int imx_mu_generic_tx(struct imx_mu_priv *priv,
 		queue_work(system_bh_wq, &cp->txdb_work);
 		break;
 	case IMX_MU_TYPE_TXDB_V2:
-		imx_mu_xcr_rmw(priv, IMX_MU_GCR, IMX_MU_xCR_GIRn(priv->dcfg->type, cp->idx), 0);
+		imx_mu_write(priv, IMX_MU_xCR_GIRn(priv->dcfg->type, cp->idx),
+			     priv->dcfg->xCR[IMX_MU_GCR]);
+		ret = readl_poll_timeout(priv->base + priv->dcfg->xCR[IMX_MU_GCR], val,
+					 !(val & IMX_MU_xCR_GIRn(priv->dcfg->type, cp->idx)),
+					 0, 1000);
+		if (ret)
+			dev_warn_ratelimited(priv->dev, "channel type: %d failure\n", cp->type);
 		break;
 	default:
 		dev_warn_ratelimited(priv->dev, "Send data on wrong channel type: %d\n", cp->type);
@@ -774,7 +782,7 @@ static int imx_mu_init_generic(struct imx_mu_priv *priv)
 		cp->chan = &priv->mbox_chans[i];
 		priv->mbox_chans[i].con_priv = cp;
 		snprintf(cp->irq_desc, sizeof(cp->irq_desc),
-			 "imx_mu_chan[%i-%i]", cp->type, cp->idx);
+			 "%s[%i-%i]", dev_name(priv->dev), cp->type, cp->idx);
 	}
 
 	priv->mbox.num_chans = IMX_MU_CHANS;
@@ -811,7 +819,7 @@ static int imx_mu_init_specific(struct imx_mu_priv *priv)
 		cp->chan = &priv->mbox_chans[i];
 		priv->mbox_chans[i].con_priv = cp;
 		snprintf(cp->irq_desc, sizeof(cp->irq_desc),
-			 "imx_mu_chan[%i-%i]", cp->type, cp->idx);
+			 "%s[%i-%i]", dev_name(priv->dev), cp->type, cp->idx);
 	}
 
 	priv->mbox.num_chans = num_chans;

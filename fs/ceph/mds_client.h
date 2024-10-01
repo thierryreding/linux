@@ -416,6 +416,8 @@ struct ceph_quotarealm_inode {
 	struct inode *inode;
 };
 
+#ifdef CONFIG_DEBUG_FS
+
 struct cap_wait {
 	struct list_head	list;
 	u64			ino;
@@ -423,6 +425,8 @@ struct cap_wait {
 	int			need;
 	int			want;
 };
+
+#endif
 
 enum {
 	CEPH_MDSC_STOPPING_BEGIN = 1,
@@ -512,7 +516,9 @@ struct ceph_mds_client {
 	spinlock_t	caps_list_lock;
 	struct		list_head caps_list; /* unused (reserved or
 						unreserved) */
+#ifdef CONFIG_DEBUG_FS
 	struct		list_head cap_wait_list;
+#endif
 	int		caps_total_count;    /* total caps allocated */
 	int		caps_use_count;      /* in use */
 	int		caps_use_max;	     /* max used caps */
@@ -552,9 +558,6 @@ extern const char *ceph_session_state_name(int s);
 extern struct ceph_mds_session *
 ceph_get_mds_session(struct ceph_mds_session *s);
 extern void ceph_put_mds_session(struct ceph_mds_session *s);
-
-extern int ceph_send_msg_mds(struct ceph_mds_client *mdsc,
-			     struct ceph_msg *msg, int mds);
 
 extern int ceph_mdsc_init(struct ceph_fs_client *fsc);
 extern void ceph_mdsc_close_sessions(struct ceph_mds_client *mdsc);
@@ -596,8 +599,8 @@ extern void ceph_mdsc_iterate_sessions(struct ceph_mds_client *mdsc,
 extern struct ceph_msg *ceph_create_session_msg(u32 op, u64 seq);
 extern void __ceph_queue_cap_release(struct ceph_mds_session *session,
 				    struct ceph_cap *cap);
-extern void ceph_flush_cap_releases(struct ceph_mds_client *mdsc,
-				    struct ceph_mds_session *session);
+extern void ceph_flush_session_cap_releases(struct ceph_mds_client *mdsc,
+					    struct ceph_mds_session *session);
 extern void ceph_queue_cap_reclaim_work(struct ceph_mds_client *mdsc);
 extern void ceph_reclaim_caps_nr(struct ceph_mds_client *mdsc, int nr);
 extern void ceph_queue_cap_unlink_work(struct ceph_mds_client *mdsc);

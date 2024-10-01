@@ -860,9 +860,8 @@ static int ltc2688_setup(struct ltc2688_state *st, struct regulator *vref)
 		/* bring device out of reset */
 		gpiod_set_value_cansleep(gpio, 0);
 	} else {
-		ret = regmap_update_bits(st->regmap, LTC2688_CMD_CONFIG,
-					 LTC2688_CONFIG_RST,
-					 LTC2688_CONFIG_RST);
+		ret = regmap_set_bits(st->regmap, LTC2688_CMD_CONFIG,
+				      LTC2688_CONFIG_RST);
 		if (ret)
 			return ret;
 	}
@@ -919,7 +918,7 @@ static bool ltc2688_reg_writable(struct device *dev, unsigned int reg)
 	return false;
 }
 
-static struct regmap_bus ltc2688_regmap_bus = {
+static const struct regmap_bus ltc2688_regmap_bus = {
 	.read = ltc2688_spi_read,
 	.write = ltc2688_spi_write,
 	.read_flag_mask = LTC2688_READ_OPERATION,

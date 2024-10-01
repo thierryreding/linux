@@ -157,6 +157,7 @@ int svc_print_xprts(char *buf, int maxlen)
  */
 void svc_xprt_deferred_close(struct svc_xprt *xprt)
 {
+	trace_svc_xprt_close(xprt);
 	if (!test_and_set_bit(XPT_CLOSE, &xprt->xpt_flags))
 		svc_xprt_enqueue(xprt);
 }
@@ -267,7 +268,7 @@ static int _svc_xprt_create(struct svc_serv *serv, const char *xprt_name,
 		spin_unlock(&svc_xprt_class_lock);
 		newxprt = xcl->xcl_ops->xpo_create(serv, net, sap, len, flags);
 		if (IS_ERR(newxprt)) {
-			trace_svc_xprt_create_err(serv->sv_program->pg_name,
+			trace_svc_xprt_create_err(serv->sv_programs->pg_name,
 						  xcl->xcl_name, sap, len,
 						  newxprt);
 			module_put(xcl->xcl_owner);
@@ -903,15 +904,6 @@ void svc_recv(struct svc_rqst *rqstp)
 #endif
 }
 EXPORT_SYMBOL_GPL(svc_recv);
-
-/*
- * Drop request
- */
-void svc_drop(struct svc_rqst *rqstp)
-{
-	trace_svc_drop(rqstp);
-}
-EXPORT_SYMBOL_GPL(svc_drop);
 
 /**
  * svc_send - Return reply to client

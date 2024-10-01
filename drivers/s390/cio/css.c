@@ -1332,7 +1332,6 @@ static ssize_t cio_settle_write(struct file *file, const char __user *buf,
 static const struct proc_ops cio_settle_proc_ops = {
 	.proc_open	= nonseekable_open,
 	.proc_write	= cio_settle_write,
-	.proc_lseek	= no_llseek,
 };
 
 static int __init cio_settle_init(void)
@@ -1354,10 +1353,10 @@ int sch_is_pseudo_sch(struct subchannel *sch)
 	return sch == to_css(sch->dev.parent)->pseudo_subchannel;
 }
 
-static int css_bus_match(struct device *dev, struct device_driver *drv)
+static int css_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	struct subchannel *sch = to_subchannel(dev);
-	struct css_driver *driver = to_cssdriver(drv);
+	const struct css_driver *driver = to_cssdriver(drv);
 	struct css_device_id *id;
 
 	/* When driver_override is set, only bind to the matching driver */

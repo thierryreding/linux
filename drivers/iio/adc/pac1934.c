@@ -227,11 +227,6 @@ struct pac1934_features {
 	const char	*name;
 };
 
-struct samp_rate_mapping {
-	u16 samp_rate;
-	u8 shift2value;
-};
-
 static const unsigned int samp_rate_map_tbl[] = {
 	[PAC1934_SAMP_1024SPS] = 1024,
 	[PAC1934_SAMP_256SPS] = 256,
@@ -1576,7 +1571,7 @@ static const struct i2c_device_id pac1934_id[] = {
 	{ .name = "pac1932", .driver_data = (kernel_ulong_t)&pac1934_chip_config[PAC1932] },
 	{ .name = "pac1933", .driver_data = (kernel_ulong_t)&pac1934_chip_config[PAC1933] },
 	{ .name = "pac1934", .driver_data = (kernel_ulong_t)&pac1934_chip_config[PAC1934] },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pac1934_id);
 
@@ -1597,7 +1592,7 @@ static const struct of_device_id pac1934_of_match[] = {
 		.compatible = "microchip,pac1934",
 		.data = &pac1934_chip_config[PAC1934]
 	},
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, pac1934_of_match);
 
@@ -1607,7 +1602,7 @@ MODULE_DEVICE_TABLE(of, pac1934_of_match);
  */
 static const struct acpi_device_id pac1934_acpi_match[] = {
 	{ "MCHP1930", .driver_data = (kernel_ulong_t)&pac1934_chip_config[PAC1934] },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, pac1934_acpi_match);
 

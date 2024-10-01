@@ -70,7 +70,11 @@ applicable everywhere (see syntax).
 
   Every menu entry can have at most one prompt, which is used to display
   to the user. Optionally dependencies only for this prompt can be added
-  with "if".
+  with "if". If a prompt is not present, the config option is a non-visible
+  symbol, meaning its value cannot be directly changed by the user (such as
+  altering the value in ``.config``) and the option will not appear in any
+  config menus. Its value can only be set via "default" and "select" (see
+  below).
 
 - default value: "default" <expr> ["if" <expr>]
 
@@ -409,16 +413,9 @@ choices::
 	"endchoice"
 
 This defines a choice group and accepts any of the above attributes as
-options. A choice can only be of type bool or tristate.  If no type is
-specified for a choice, its type will be determined by the type of
-the first choice element in the group or remain unknown if none of the
-choice elements have a type specified, as well.
+options.
 
-While a boolean choice only allows a single config entry to be
-selected, a tristate choice also allows any number of config entries
-to be set to 'm'. This can be used if multiple drivers for a single
-hardware exists and only a single driver can be compiled/loaded into
-the kernel, but all drivers can be compiled as modules.
+A choice only allows a single config entry to be selected.
 
 comment::
 

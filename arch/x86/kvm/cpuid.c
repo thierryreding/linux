@@ -335,6 +335,18 @@ static bool kvm_cpuid_has_hyperv(struct kvm_cpuid_entry2 *entries, int nent)
 #endif
 }
 
+static bool guest_cpuid_is_amd_or_hygon(struct kvm_vcpu *vcpu)
+{
+	struct kvm_cpuid_entry2 *entry;
+
+	entry = kvm_find_cpuid_entry(vcpu, 0);
+	if (!entry)
+		return false;
+
+	return is_guest_vendor_amd(entry->ebx, entry->ecx, entry->edx) ||
+	       is_guest_vendor_hygon(entry->ebx, entry->ecx, entry->edx);
+}
+
 static void kvm_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
 {
 	struct kvm_lapic *apic = vcpu->arch.apic;
@@ -388,7 +400,7 @@ static void kvm_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
 						    vcpu->arch.cpuid_nent));
 
 	/* Invoke the vendor callback only after the above state is updated. */
-	static_call(kvm_x86_vcpu_after_set_cpuid)(vcpu);
+	kvm_x86_call(vcpu_after_set_cpuid)(vcpu);
 
 	/*
 	 * Except for the MMU, which needs to do its thing any vendor specific
@@ -693,7 +705,7 @@ void kvm_set_cpu_caps(void)
 
 	kvm_cpu_cap_init_kvm_defined(CPUID_7_1_EDX,
 		F(AVX_VNNI_INT8) | F(AVX_NE_CONVERT) | F(PREFETCHITI) |
-		F(AMX_COMPLEX)
+		F(AMX_COMPLEX) | F(AVX10)
 	);
 
 	kvm_cpu_cap_init_kvm_defined(CPUID_7_2_EDX,
@@ -707,6 +719,10 @@ void kvm_set_cpu_caps(void)
 
 	kvm_cpu_cap_init_kvm_defined(CPUID_12_EAX,
 		SF(SGX1) | SF(SGX2) | SF(SGX_EDECCSSA)
+	);
+
+	kvm_cpu_cap_init_kvm_defined(CPUID_24_0_EBX,
+		F(AVX10_128) | F(AVX10_256) | F(AVX10_512)
 	);
 
 	kvm_cpu_cap_mask(CPUID_8000_0001_ECX,
@@ -937,7 +953,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 	switch (function) {
 	case 0:
 		/* Limited to the highest leaf implemented in KVM. */
-		entry->eax = min(entry->eax, 0x1fU);
+		entry->eax = min(entry->eax, 0x24U);
 		break;
 	case 1:
 		cpuid_entry_override(entry, CPUID_1_EDX);
@@ -1162,6 +1178,28 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 			break;
 		}
 		break;
+	case 0x24: {
+		u8 avx10_version;
+
+		if (!kvm_cpu_cap_has(X86_FEATURE_AVX10)) {
+			entry->eax = entry->ebx = entry->ecx = entry->edx = 0;
+			break;
+		}
+
+		/*
+		 * The AVX10 version is encoded in EBX[7:0].  Note, the version
+		 * is guaranteed to be >=1 if AVX10 is supported.  Note #2, the
+		 * version needs to be captured before overriding EBX features!
+		 */
+		avx10_version = min_t(u8, entry->ebx & 0xff, 1);
+		cpuid_entry_override(entry, CPUID_24_0_EBX);
+		entry->ebx |= avx10_version;
+
+		entry->eax = 0;
+		entry->ecx = 0;
+		entry->edx = 0;
+		break;
+	}
 	case KVM_CPUID_SIGNATURE: {
 		const u32 *sigptr = (const u32 *)KVM_SIGNATURE;
 		entry->eax = KVM_CPUID_FEATURES;

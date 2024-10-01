@@ -667,7 +667,6 @@ static ssize_t __iio_format_value(char *buf, size_t offset, unsigned int type,
 					     vals[1]);
 	case IIO_VAL_FRACTIONAL:
 		tmp2 = div_s64((s64)vals[0] * 1000000000LL, vals[1]);
-		tmp1 = vals[1];
 		tmp0 = (int)div_s64_rem(tmp2, 1000000000, &tmp1);
 		if ((tmp2 < 0) && (tmp0 == 0))
 			return sysfs_emit_at(buf, offset, "-0.%09u", abs(tmp1));
@@ -727,20 +726,25 @@ ssize_t iio_format_value(char *buf, unsigned int type, int size, int *vals)
 }
 EXPORT_SYMBOL_GPL(iio_format_value);
 
+ssize_t do_iio_read_channel_label(struct iio_dev *indio_dev,
+				  const struct iio_chan_spec *c,
+				  char *buf)
+{
+	if (indio_dev->info->read_label)
+		return indio_dev->info->read_label(indio_dev, c, buf);
+
+	if (c->extend_name)
+		return sysfs_emit(buf, "%s\n", c->extend_name);
+
+	return -EINVAL;
+}
+
 static ssize_t iio_read_channel_label(struct device *dev,
 				      struct device_attribute *attr,
 				      char *buf)
 {
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
-
-	if (indio_dev->info->read_label)
-		return indio_dev->info->read_label(indio_dev, this_attr->c, buf);
-
-	if (this_attr->c->extend_name)
-		return sysfs_emit(buf, "%s\n", this_attr->c->extend_name);
-
-	return -EINVAL;
+	return do_iio_read_channel_label(dev_to_iio_dev(dev),
+					 to_iio_dev_attr(attr)->c, buf);
 }
 
 static ssize_t iio_read_channel_info(struct device *dev,
@@ -758,9 +762,11 @@ static ssize_t iio_read_channel_info(struct device *dev,
 							INDIO_MAX_RAW_ELEMENTS,
 							vals, &val_len,
 							this_attr->address);
-	else
+	else if (indio_dev->info->read_raw)
 		ret = indio_dev->info->read_raw(indio_dev, this_attr->c,
 				    &vals[0], &vals[1], this_attr->address);
+	else
+		return -EINVAL;
 
 	if (ret < 0)
 		return ret;
@@ -841,6 +847,9 @@ static ssize_t iio_read_channel_info_avail(struct device *dev,
 	int ret;
 	int length;
 	int type;
+
+	if (!indio_dev->info->read_avail)
+		return -EINVAL;
 
 	ret = indio_dev->info->read_avail(indio_dev, this_attr->c,
 					  &vals, &type, &length,
@@ -1902,7 +1911,7 @@ static void iio_sanity_check_avail_scan_masks(struct iio_dev *indio_dev)
 	int i;
 
 	av_masks = indio_dev->available_scan_masks;
-	masklength = indio_dev->masklength;
+	masklength = iio_get_masklength(indio_dev);
 	longs_per_mask = BITS_TO_LONGS(masklength);
 
 	/*
@@ -1954,6 +1963,49 @@ static void iio_sanity_check_avail_scan_masks(struct iio_dev *indio_dev)
 		}
 	}
 }
+
+/**
+ * iio_active_scan_mask_index - Get index of the active scan mask inside the
+ * available scan masks array
+ * @indio_dev: the IIO device containing the active and available scan masks
+ *
+ * Returns: the index or -EINVAL if  active_scan_mask is not set
+ */
+int iio_active_scan_mask_index(struct iio_dev *indio_dev)
+
+{
+	const unsigned long *av_masks;
+	unsigned int masklength = iio_get_masklength(indio_dev);
+	int i = 0;
+
+	if (!indio_dev->active_scan_mask)
+		return -EINVAL;
+
+	/*
+	 * As in iio_scan_mask_match and iio_sanity_check_avail_scan_masks,
+	 * the condition here do not handle multi-long masks correctly.
+	 * It only checks the first long to be zero, and will use such mask
+	 * as a terminator even if there was bits set after the first long.
+	 *
+	 * This should be fine since the available_scan_mask has already been
+	 * sanity tested using iio_sanity_check_avail_scan_masks.
+	 *
+	 * See iio_scan_mask_match and iio_sanity_check_avail_scan_masks for
+	 * more details
+	 */
+	av_masks = indio_dev->available_scan_masks;
+	while (*av_masks) {
+		if (indio_dev->active_scan_mask == av_masks)
+			return i;
+		av_masks += BITS_TO_LONGS(masklength);
+		i++;
+	}
+
+	dev_warn(indio_dev->dev.parent,
+		 "active scan mask is not part of the available scan masks\n");
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(iio_active_scan_mask_index);
 
 int __iio_device_register(struct iio_dev *indio_dev, struct module *this_mod)
 {

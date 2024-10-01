@@ -230,7 +230,8 @@ static int omap_mbox_startup(struct omap_mbox *mbox)
 	int ret = 0;
 
 	ret = request_threaded_irq(mbox->irq, NULL, mbox_interrupt,
-				   IRQF_ONESHOT, mbox->name, mbox);
+				   IRQF_SHARED | IRQF_ONESHOT, mbox->name,
+				   mbox);
 	if (unlikely(ret)) {
 		pr_err("failed to register mailbox interrupt:%d\n", ret);
 		return ret;
@@ -602,7 +603,7 @@ static struct platform_driver omap_mbox_driver = {
 	.driver	= {
 		.name = "omap-mailbox",
 		.pm = &omap_mbox_pm_ops,
-		.of_match_table = of_match_ptr(omap_mailbox_of_match),
+		.of_match_table = omap_mailbox_of_match,
 	},
 };
 module_platform_driver(omap_mbox_driver);
