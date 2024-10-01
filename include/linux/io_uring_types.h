@@ -68,11 +68,13 @@ struct io_file_table {
 
 struct io_hash_bucket {
 	struct hlist_head	list;
+	int			nr_entries;
 } ____cacheline_aligned_in_smp;
 
 struct io_hash_table {
 	struct io_hash_bucket	*hbs;
 	unsigned		hash_bits;
+	unsigned long		last_resize;
 };
 
 /*

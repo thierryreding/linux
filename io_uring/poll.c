@@ -118,14 +118,20 @@ static struct io_poll *io_poll_get_single(struct io_kiocb *req)
 	return &req->apoll->poll;
 }
 
+#define MAX_HASH_ENTRIES	64
+
 static void io_poll_req_insert(struct io_kiocb *req)
 {
 	struct io_hash_table *table = &req->ctx->cancel_table;
 	u32 index = hash_long(req->cqe.user_data, table->hash_bits);
+	struct io_hash_bucket *hb = &table->hbs[index];
 
 	lockdep_assert_held(&req->ctx->uring_lock);
 
-	hlist_add_head(&req->hash_node, &table->hbs[index].list);
+	hlist_add_head(&req->hash_node, &hb->list);
+	hb->nr_entries++;
+	if (hb->nr_entries > MAX_HASH_ENTRIES)
+		io_resize_hash_table(req->ctx);
 }
 
 static void io_init_poll_iocb(struct io_poll *poll, __poll_t events)
@@ -310,6 +316,19 @@ static int io_poll_check_events(struct io_kiocb *req, struct io_tw_state *ts)
 	return IOU_POLL_NO_ACTION;
 }
 
+static void io_hash_del(struct io_kiocb *req)
+{
+	struct io_ring_ctx *ctx = req->ctx;
+	int bucket;
+
+	if (!hash_hashed(&req->hash_node))
+		return;
+
+	hash_del(&req->hash_node);
+	bucket = hash_long(req->cqe.user_data, ctx->cancel_table.hash_bits);
+	ctx->cancel_table.hbs[bucket].nr_entries--;
+}
+
 void io_poll_task_func(struct io_kiocb *req, struct io_tw_state *ts)
 {
 	int ret;
@@ -323,7 +342,7 @@ void io_poll_task_func(struct io_kiocb *req, struct io_tw_state *ts)
 	}
 	io_poll_remove_entries(req);
 	/* task_work always has ->uring_lock held */
-	hash_del(&req->hash_node);
+	io_hash_del(req);
 
 	if (req->opcode == IORING_OP_POLL_ADD) {
 		if (ret == IOU_POLL_DONE) {
@@ -785,7 +804,7 @@ static int io_poll_disarm(struct io_kiocb *req)
 	if (!io_poll_get_ownership(req))
 		return -EALREADY;
 	io_poll_remove_entries(req);
-	hash_del(&req->hash_node);
+	io_hash_del(req);
 	return 0;
 }
 

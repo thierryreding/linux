@@ -276,9 +276,68 @@ static int io_alloc_hash_table(struct io_hash_table *table, unsigned bits)
 	} while (1);
 
 	table->hash_bits = bits;
-	for (i = 0; i < hash_buckets; i++)
+	for (i = 0; i < hash_buckets; i++) {
 		INIT_HLIST_HEAD(&table->hbs[i].list);
+		table->hbs[i].nr_entries = 0;
+	}
+	table->last_resize = jiffies;
 	return 0;
+}
+
+/*
+ * Re-hash entries on 'cur_table' into 'new_table', and free the buckets
+ * from the current table when done.
+ */
+static void io_swap_hash_tables(struct io_hash_table *cur_table,
+				struct io_hash_table *new_table)
+{
+	int i;
+
+	for (i = 0; i < (1U << cur_table->hash_bits); i++) {
+		struct io_hash_bucket *hb = &cur_table->hbs[i];
+
+		while (!hlist_empty(&hb->list)) {
+			struct io_kiocb *req;
+			struct io_hash_bucket *new_hb;
+			u32 new_index;
+
+			req = hlist_entry(hb->list.first, struct io_kiocb,
+						hash_node);
+			new_index = hash_long(req->cqe.user_data,
+						new_table->hash_bits);
+			new_hb = &new_table->hbs[new_index];
+			hlist_del(&req->hash_node);
+			hlist_add_head(&req->hash_node, &new_hb->list);
+			new_hb->nr_entries++;
+		}
+	}
+
+	kvfree(cur_table->hbs);
+	cur_table->hbs = new_table->hbs;
+	cur_table->hash_bits = new_table->hash_bits;
+	cur_table->last_resize = jiffies;
+
+}
+
+void io_resize_hash_table(struct io_ring_ctx *ctx)
+{
+	struct io_hash_table new_table = { };
+	int ret, new_bits;
+
+	/* Increase resize rate if we just resized */
+	new_bits = ctx->cancel_table.hash_bits + 1;
+	if (jiffies - ctx->cancel_table.last_resize <= 1)
+		new_bits++;
+
+	/* cap upper limit */
+	if (new_bits > 16)
+		return;
+
+	ret = io_alloc_hash_table(&new_table, new_bits);
+	if (ret)
+		return;
+
+	io_swap_hash_tables(&ctx->cancel_table, &new_table);
 }
 
 static __cold struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
