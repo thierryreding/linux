@@ -54,6 +54,13 @@ properties:
           - const: armsom,sige7
           - const: rockchip,rk3588
 
+      - description: ArmSoM LM7 SoM
+        items:
+          - enum:
+              - armsom,w3
+          - const: armsom,lm7
+          - const: rockchip,rk3588
+
       - description: Asus Tinker board
         items:
           - const: asus,rk3288-tinker
@@ -760,6 +767,7 @@ properties:
         items:
           - enum:
               - powkiddy,rgb10max3
+              - powkiddy,rgb20sx
               - powkiddy,rgb30
               - powkiddy,rk2023
               - powkiddy,x55
@@ -977,6 +985,11 @@ properties:
         items:
           - const: rockchip,rk3588-evb1-v10
           - const: rockchip,rk3588
+
+      - description: Rockchip RK3588S Evaluation board
+        items:
+          - const: rockchip,rk3588s-evb1-v10
+          - const: rockchip,rk3588s
 
       - description: Rockchip RV1108 Evaluation board
         items:
