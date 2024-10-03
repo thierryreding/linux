@@ -993,13 +993,38 @@ static inline void blk_account_io_done(struct request *req, u64 now)
 	}
 }
 
+static inline bool blk_rq_passthrough_stats(struct request *req)
+{
+	struct bio *bio = req->bio;
+
+	if (!blk_queue_passthrough_stat(req->q))
+		return false;
+
+	/*
+	 * Stats are accumulated in the bdev part, so must have one attached to
+	 * a bio to do this
+	 */
+	if (!bio)
+		return false;
+	if (!bio->bi_bdev)
+		return false;
+
+	/*
+	 * Ensuring the size is aligned to the block size prevents observing an
+	 * invalid sectors stat.
+	 */
+	if (blk_rq_bytes(req) & (bdev_logical_block_size(bio->bi_bdev) - 1))
+		return false;
+	return true;
+}
+
 static inline void blk_account_io_start(struct request *req)
 {
 	trace_block_io_start(req);
 
 	if (!blk_queue_io_stat(req->q))
 		return;
-	if (blk_rq_is_passthrough(req))
+	if (blk_rq_is_passthrough(req) && !blk_rq_passthrough_stats(req))
 		return;
 
 	req->rq_flags |= RQF_IO_STAT;
