@@ -629,10 +629,16 @@ cifs_sfu_type(struct cifs_fattr *fattr, const char *path,
 									       &symlink_len_utf16,
 									       &symlink_buf_utf16,
 									       &buf_type);
+					/*
+					 * Check that read buffer has valid length and does not
+					 * contain UTF-16 null codepoint (via UniStrnlen() call)
+					 * because Linux cannot process symlink with null byte.
+					 */
 					if ((rc == 0) &&
 					    (symlink_len_utf16 > 0) &&
 					    (symlink_len_utf16 < fattr->cf_eof-8 + 1) &&
-					    (symlink_len_utf16 % 2 == 0)) {
+					    (symlink_len_utf16 % 2 == 0) &&
+					    (UniStrnlen((wchar_t *)symlink_buf_utf16, symlink_len_utf16/2) == symlink_len_utf16/2)) {
 						fattr->cf_symlink_target =
 							cifs_strndup_from_utf16(symlink_buf_utf16,
 										symlink_len_utf16,
@@ -1109,6 +1115,7 @@ static int reparse_info_to_fattr(struct cifs_open_info_data *data,
 			rc = 0;
 		} else if (iov && server->ops->parse_reparse_point) {
 			rc = server->ops->parse_reparse_point(cifs_sb,
+							      full_path,
 							      iov, data);
 		}
 		break;

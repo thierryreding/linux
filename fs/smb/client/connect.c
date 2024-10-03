@@ -3386,6 +3386,9 @@ int cifs_mount_get_session(struct cifs_mount_ctx *mnt_ctx)
 	ses = cifs_get_smb_ses(server, ctx);
 	if (IS_ERR(ses)) {
 		rc = PTR_ERR(ses);
+		if (rc == -ENOKEY && ctx->sectype == Kerberos &&
+		    !ctx->automount)
+			cifs_dbg(VFS, "Verify user has a krb5 ticket and keyutils is installed\n");
 		ses = NULL;
 		goto out;
 	}
@@ -4004,7 +4007,7 @@ cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,
 		rc = server->ops->sess_setup(xid, ses, server, nls_info);
 
 	if (rc) {
-		cifs_server_dbg(VFS, "Send error in SessSetup = %d\n", rc);
+		cifs_server_dbg(FYI, "Send error in SessSetup = %d\n", rc);
 		spin_lock(&ses->ses_lock);
 		if (ses->ses_status == SES_IN_SETUP)
 			ses->ses_status = SES_NEED_RECON;
