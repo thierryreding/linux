@@ -30,10 +30,12 @@ pub mod alloc;
 #[cfg(CONFIG_BLOCK)]
 pub mod block;
 mod build_assert;
+pub mod cred;
 pub mod device;
 pub mod error;
 #[cfg(CONFIG_RUST_FW_LOADER_ABSTRACTIONS)]
 pub mod firmware;
+pub mod fs;
 pub mod init;
 pub mod ioctl;
 #[cfg(CONFIG_KUNIT)]
@@ -46,6 +48,7 @@ pub mod prelude;
 pub mod print;
 pub mod sizes;
 pub mod rbtree;
+pub mod security;
 mod static_assert;
 #[doc(hidden)]
 pub mod std_vendor;
