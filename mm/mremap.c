@@ -136,17 +136,17 @@ static pte_t move_soft_dirty_pte(pte_t pte)
 static int move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
 		unsigned long old_addr, unsigned long old_end,
 		struct vm_area_struct *new_vma, pmd_t *new_pmd,
-		unsigned long new_addr, bool need_rmap_locks)
+		unsigned long new_addr)
 {
 	struct mm_struct *mm = vma->vm_mm;
 	pte_t *old_pte, *new_pte, pte;
 	spinlock_t *old_ptl, *new_ptl;
 	bool force_flush = false;
 	unsigned long len = old_end - old_addr;
-	int err = 0;
 
 	/*
-	 * When need_rmap_locks is true, we take the i_mmap_rwsem and anon_vma
+	 * When need_rmap_locks is true in the caller, we are holding the
+	 * i_mmap_rwsem and anon_vma
 	 * locks to ensure that rmap will always observe either the old or the
 	 * new ptes. This is the easiest way to avoid races with
 	 * truncate_pagecache(), page migration, etc...
@@ -163,23 +163,18 @@ static int move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
 	 *   serialize access to individual ptes, but only rmap traversal
 	 *   order guarantees that we won't miss both the old and new ptes).
 	 */
-	if (need_rmap_locks)
-		take_rmap_locks(vma);
 
 	/*
 	 * We don't have to worry about the ordering of src and dst
 	 * pte locks because exclusive mmap_lock prevents deadlock.
 	 */
 	old_pte = pte_offset_map_lock(mm, old_pmd, old_addr, &old_ptl);
-	if (!old_pte) {
-		err = -EAGAIN;
-		goto out;
-	}
+	if (!old_pte)
+		return -EAGAIN;
 	new_pte = pte_offset_map_nolock(mm, new_pmd, new_addr, &new_ptl);
 	if (!new_pte) {
 		pte_unmap_unlock(old_pte, old_ptl);
-		err = -EAGAIN;
-		goto out;
+		return -EAGAIN;
 	}
 	if (new_ptl != old_ptl)
 		spin_lock_nested(new_ptl, SINGLE_DEPTH_NESTING);
@@ -217,10 +212,7 @@ static int move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
 		spin_unlock(new_ptl);
 	pte_unmap(new_pte - 1);
 	pte_unmap_unlock(old_pte - 1, old_ptl);
-out:
-	if (need_rmap_locks)
-		drop_rmap_locks(vma);
-	return err;
+	return 0;
 }
 
 #ifndef arch_supports_page_table_move
@@ -447,16 +439,13 @@ static __always_inline unsigned long get_extent(enum pgt_entry entry,
 /*
  * Attempts to speedup the move by moving entry at the level corresponding to
  * pgt_entry. Returns true if the move was successful, else false.
+ * rmap locks are held by the caller.
  */
 static bool move_pgt_entry(enum pgt_entry entry, struct vm_area_struct *vma,
 			unsigned long old_addr, unsigned long new_addr,
-			void *old_entry, void *new_entry, bool need_rmap_locks)
+			void *old_entry, void *new_entry)
 {
 	bool moved = false;
-
-	/* See comment in move_ptes() */
-	if (need_rmap_locks)
-		take_rmap_locks(vma);
 
 	switch (entry) {
 	case NORMAL_PMD:
@@ -482,9 +471,6 @@ static bool move_pgt_entry(enum pgt_entry entry, struct vm_area_struct *vma,
 		WARN_ON_ONCE(1);
 		break;
 	}
-
-	if (need_rmap_locks)
-		drop_rmap_locks(vma);
 
 	return moved;
 }
@@ -550,6 +536,7 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
 	struct mmu_notifier_range range;
 	pmd_t *old_pmd, *new_pmd;
 	pud_t *old_pud, *new_pud;
+	int move_res;
 
 	if (!len)
 		return 0;
@@ -573,6 +560,12 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
 				old_addr, old_end);
 	mmu_notifier_invalidate_range_start(&range);
 
+	/*
+	 * Hold rmap locks to ensure the type of the old PUD/PMD entry doesn't
+	 * change under us due to khugepaged or folio splitting.
+	 */
+	take_rmap_locks(vma);
+
 	for (; old_addr < old_end; old_addr += extent, new_addr += extent) {
 		cond_resched();
 		/*
@@ -590,14 +583,14 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
 		if (pud_trans_huge(*old_pud) || pud_devmap(*old_pud)) {
 			if (extent == HPAGE_PUD_SIZE) {
 				move_pgt_entry(HPAGE_PUD, vma, old_addr, new_addr,
-					       old_pud, new_pud, need_rmap_locks);
+					       old_pud, new_pud);
 				/* We ignore and continue on error? */
 				continue;
 			}
 		} else if (IS_ENABLED(CONFIG_HAVE_MOVE_PUD) && extent == PUD_SIZE) {
 
 			if (move_pgt_entry(NORMAL_PUD, vma, old_addr, new_addr,
-					   old_pud, new_pud, true))
+					   old_pud, new_pud))
 				continue;
 		}
 
@@ -613,7 +606,7 @@ again:
 		    pmd_devmap(*old_pmd)) {
 			if (extent == HPAGE_PMD_SIZE &&
 			    move_pgt_entry(HPAGE_PMD, vma, old_addr, new_addr,
-					   old_pmd, new_pmd, need_rmap_locks))
+					   old_pmd, new_pmd))
 				continue;
 			split_huge_pmd(vma, old_pmd, old_addr);
 		} else if (IS_ENABLED(CONFIG_HAVE_MOVE_PMD) &&
@@ -623,17 +616,32 @@ again:
 			 * moving at the PMD level if possible.
 			 */
 			if (move_pgt_entry(NORMAL_PMD, vma, old_addr, new_addr,
-					   old_pmd, new_pmd, true))
+					   old_pmd, new_pmd))
 				continue;
 		}
 		if (pmd_none(*old_pmd))
 			continue;
-		if (pte_alloc(new_vma->vm_mm, new_pmd))
+
+		/*
+		 * Temporarily drop the rmap locks while we do a potentially
+		 * slow move_ptes() operation, unless move_ptes() wants them
+		 * held (see comment inside there).
+		 */
+		if (!need_rmap_locks)
+			drop_rmap_locks(vma);
+		if (pte_alloc(new_vma->vm_mm, new_pmd)) {
+			if (!need_rmap_locks)
+				take_rmap_locks(vma);
 			break;
-		if (move_ptes(vma, old_pmd, old_addr, old_addr + extent,
-			      new_vma, new_pmd, new_addr, need_rmap_locks) < 0)
+		}
+		move_res = move_ptes(vma, old_pmd, old_addr, old_addr + extent,
+				     new_vma, new_pmd, new_addr);
+		if (!need_rmap_locks)
+			take_rmap_locks(vma);
+		if (move_res < 0)
 			goto again;
 	}
+	drop_rmap_locks(vma);
 
 	mmu_notifier_invalidate_range_end(&range);
 
