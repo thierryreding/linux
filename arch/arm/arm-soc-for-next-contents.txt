@@ -1,0 +1,241 @@
+soc/arm
+	versatile/drivers
+		https://git.kernel.org/pub/scm/linux/kernel/git/linusw/linux-integrator tags/integrator-v6.12
+	integrator/soc
+		https://git.kernel.org/pub/scm/linux/kernel/git/khilman/linux-omap tags/omap-for-v6.12/soc-signed
+	davinci/soc
+		https://git.kernel.org/pub/scm/linux/kernel/git/brgl/linux tags/davinci-updates-for-v6.12-rc1
+	imx/soc
+		https://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/imx-soc-6.12
+	samsung/soc
+		https://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-soc-6.12
+	mvebu/soc
+		https://git.kernel.org/pub/scm/linux/kernel/git/gclement/mvebu tags/mvebu-arm-6.12-1
+	broadcom/soc
+		https://github.com/Broadcom/stblinux tags/arm-soc/for-6.12/soc
+
+soc/dt
+	thead/dt
+		https://github.com/pdp7/linux tags/thead-dt-for-v6.12
+	renesas/dt-binding
+		https://git.kernel.org/pub/scm/linux/kernel/git/geert/renesas-devel tags/renesas-dt-bindings-for-v6.12-tag1
+	renesas/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/geert/renesas-devel tags/renesas-dts-for-v6.12-tag1
+	samsung/dt64
+		https://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-dt64-6.12
+	juno/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/sudeep.holla/linux tags/juno-update-6.12
+	tegra/dt-bindings
+		https://git.kernel.org/pub/scm/linux/kernel/git/tegra/linux tags/tegra-for-6.12-dt-bindings
+	tegra/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/tegra/linux tags/tegra-for-6.12-arm-dt
+	tegra/dt64
+		https://git.kernel.org/pub/scm/linux/kernel/git/tegra/linux tags/tegra-for-6.12-arm64-dt
+	at91/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/at91/linux tags/at91-dt-6.12
+	rockchip/dt64
+		https://git.kernel.org/pub/scm/linux/kernel/git/mmind/linux-rockchip tags/v6.12-rockchip-dts64-1
+	rockchip/dt32
+		https://git.kernel.org/pub/scm/linux/kernel/git/mmind/linux-rockchip tags/v6.12-rockchip-dts32-1
+	renesas/dt-2
+		https://git.kernel.org/pub/scm/linux/kernel/git/geert/renesas-devel tags/renesas-dts-for-v6.12-tag2
+	ti/k3-dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/ti/linux tags/ti-k3-dt-for-v6.12
+	sophgo/dt
+		https://github.com/sophgo/linux tags/riscv-sophgo-dt-for-6.12
+	imx/dt-bindings
+		https://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/imx-bindings-6.12
+	imx/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/imx-dt-6.12
+	imx/dt64
+		https://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/imx-dt64-6.12
+	omap/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/khilman/linux-omap tags/omap-for-v6.12/dt-signed
+	stm32/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/atorgue/stm32 tags/stm32-dt-for-v6.12-1
+	qcom/dt32
+		https://git.kernel.org/pub/scm/linux/kernel/git/qcom/linux tags/qcom-arm32-for-6.12
+	qcom/dt64
+		https://git.kernel.org/pub/scm/linux/kernel/git/qcom/linux tags/qcom-arm64-for-6.12
+	patch
+		arm64: dts: toshiba: Fix pl011 and pl022 clocks
+	amlogic/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/amlogic/linux tags/amlogic-arm-dt-for-v6.11
+	amlogic/dt64
+		https://git.kernel.org/pub/scm/linux/kernel/git/amlogic/linux tags/amlogic-arm64-dt-for-v6.12
+	patch
+		ARM: dts: Fix undocumented LM75 compatible nodes
+		arm64: dts: nuvoton: Add syscon to the system-management node
+		arm64: dts: nuvoton: ma35d1: Add pinctrl and gpio nodes
+		arm64: dts: nuvoton: ma35d1: Add uart pinctrl settings
+	sunxi/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/sunxi/linux tags/sunxi-dt-for-6.12
+	dt-cleanup/arm64
+		https://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux-dt tags/dt64-cleanup-6.12
+	dt-cleanup/arm32
+		https://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux-dt tags/dt-cleanup-6.12
+	broadcom/dt
+		https://github.com/Broadcom/stblinux tags/arm-soc/for-6.12/devicetree
+	rockchip/dt64-2
+		https://git.kernel.org/pub/scm/linux/kernel/git/mmind/linux-rockchip tags/v6.12-rockchip-dts64-2
+	rockchip/dt32-2
+		https://git.kernel.org/pub/scm/linux/kernel/git/mmind/linux-rockchip tags/v6.12-rockchip-dts32-2
+	aspeed/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/joel/bmc tags/aspeed-6.12-devicetree
+	mediatek/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/mediatek/linux tags/v6.11-next-dts64
+	broadcom/dt64
+		https://github.com/Broadcom/stblinux tags/arm-soc/for-6.12/devicetree-arm64
+	<no branch> (605f56405a6719dfdc9f91464c082856cd929d6c)
+		https://git.kernel.org/pub/scm/linux/kernel/git/sunxi/linux tags/sunxi-dt-for-6.12-2
+
+soc/drivers
+	patch
+		firmware: turris-mox-rwtm: Use macro constant instead of hardcoded 4096
+		firmware: turris-mox-rwtm: Use ETH_ALEN instead of hardcoded 6
+		firmware: turris-mox-rwtm: Use the boolean type where appropriate
+		firmware: turris-mox-rwtm: Hide signature related constants behind macros
+		firmware: turris-mox-rwtm: Fix driver includes
+		firmware: turris-mox-rwtm: Use sysfs_emit() instead of sprintf()
+		firmware: turris-mox-rwtm: Don't create own kobject type
+		firmware: turris-mox-rwtm: Simplify debugfs code
+		firmware: turris-mox-rwtm: Convert rest to devm_* and get rid of driver .remove()
+		firmware: turris-mox-rwtm: Use dev_err_probe() where possible
+		firmware: turris-mox-rwtm: Drop redundant device pointer
+		firmware: turris-mox-rwtm: Use devm_mutex_init() instead of mutex_init()
+		firmware: turris-mox-rwtm: Use container_of() instead of hwrng .priv member
+		firmware: turris-mox-rwtm: Use EOPNOTSUPP instead of ENOSYS
+		firmware: turris-mox-rwtm: Use ALIGN() instead of hardcoding
+		firmware: turris-mox-rwtm: Deduplicate command execution code
+	samsung/drivers
+		https://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-drivers-6.12
+	drivers/memory
+		https://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux-mem-ctrl tags/memory-controller-drv-6.12
+	rockchip/drivers
+		https://git.kernel.org/pub/scm/linux/kernel/git/mmind/linux-rockchip tags/v6.12-rockchip-drivers-1
+	versatile/soc
+		https://git.kernel.org/pub/scm/linux/kernel/git/linusw/linux-integrator tags/versatile-soc-for-v6.12
+	firmware/ffa
+		https://git.kernel.org/pub/scm/linux/kernel/git/sudeep.holla/linux tags/ffa-updates-6.12
+	firmware/scmi
+		https://git.kernel.org/pub/scm/linux/kernel/git/sudeep.holla/linux tags/scmi-updates-6.12
+	tegra/soc
+		https://git.kernel.org/pub/scm/linux/kernel/git/tegra/linux tags/tegra-for-6.12-soc
+	tegra/firmware
+		https://git.kernel.org/pub/scm/linux/kernel/git/tegra/linux tags/tegra-for-6.12-firmware
+	fsl/drivers
+		https://github.com/chleroy/linux tags/soc_fsl-6.12-2
+	patch
+		soc: fsl: cpm1: qmc: Fix dependency on fsl_soc.h
+	ti/drivers
+		https://git.kernel.org/pub/scm/linux/kernel/git/ti/linux tags/ti-driver-soc-for-v6.12
+	versatile/drivers
+		https://git.kernel.org/pub/scm/linux/kernel/git/linusw/linux-integrator tags/integrator-v6.12
+	drivers/reset
+		git://git.pengutronix.de/pza/linux tags/reset-for-v6.12
+	imx/drivers
+		https://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/imx-drivers-6.12
+	omap/drivers
+		https://git.kernel.org/pub/scm/linux/kernel/git/khilman/linux-omap tags/omap-for-v6.12/drivers-signed
+	patch
+		soc: fsl: qe: ucc: Export ucc_mux_set_grant_tsa_bkpt
+	at91/soc
+		https://git.kernel.org/pub/scm/linux/kernel/git/at91/linux tags/at91-soc-6.12
+	qcom/drivers
+		https://git.kernel.org/pub/scm/linux/kernel/git/qcom/linux tags/qcom-drivers-for-6.12
+	amlogic/drivers
+		https://git.kernel.org/pub/scm/linux/kernel/git/amlogic/linux tags/amlogic-drivers-for-v6.12
+	patch
+		platform: cznic: turris-omnia-mcu: Fix error check in omnia_mcu_register_trng()
+	sunxi/drivers
+		https://git.kernel.org/pub/scm/linux/kernel/git/sunxi/linux tags/sunxi-drivers-for-6.12
+	patch
+		firmware: imx: remove duplicate scmi_imx_misc_ctrl_get()
+	mediatek/drivers
+		https://git.kernel.org/pub/scm/linux/kernel/git/mediatek/linux tags/v6.11-next-soc
+	rockchips/drivers-2
+		https://git.kernel.org/pub/scm/linux/kernel/git/mmind/linux-rockchip tags/v6.12-rockchip-drivers-2
+	broadcom/drivers
+		https://github.com/Broadcom/stblinux tags/arm-soc/for-6.12/drivers
+	drivers/memory-2
+		https://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux-mem-ctrl tags/memory-controller-drv-6.12-2
+
+soc/defconfig
+	at91/defconfig
+		https://git.kernel.org/pub/scm/linux/kernel/git/at91/linux tags/at91-defconfig-6.12
+	renesas/defconfig
+		https://git.kernel.org/pub/scm/linux/kernel/git/geert/renesas-devel tags/renesas-arm-defconfig-for-v6.12-tag1
+	tegra/defconfig
+		https://git.kernel.org/pub/scm/linux/kernel/git/tegra/linux tags/tegra-for-6.12-arm64-defconfig
+	ti/defconfig
+		https://git.kernel.org/pub/scm/linux/kernel/git/ti/linux tags/ti-k3-config-for-v6.12
+	imx/defconfig
+		https://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/imx-defconfig-6.12
+	qcom/defconfig
+		https://git.kernel.org/pub/scm/linux/kernel/git/qcom/linux tags/qcom-arm64-defconfig-for-6.12
+	riscv/defconfig
+		https://git.kernel.org/pub/scm/linux/kernel/git/conor/linux tags/riscv-config-for-v6.12
+	mediatek/defconfig
+		https://git.kernel.org/pub/scm/linux/kernel/git/mediatek/linux tags/v6.11-next-defconfig
+
+soc/late
+
+arm/fixes
+	qcom/fixes
+		https://git.kernel.org/pub/scm/linux/kernel/git/qcom/linux tags/qcom-drivers-fixes-for-6.11-2
+	rockchip/fixes
+		https://git.kernel.org/pub/scm/linux/kernel/git/mmind/linux-rockchip tags/v6.11-rockchip-dtsfixes
+	patch
+		platform: cznic: turris-omnia-mcu: fix HW_RANDOM dependency
+	<no branch> (61f2e8a3a94175dbbaad6a54f381b2a505324610)
+		https://git.kernel.org/pub/scm/linux/kernel/git/conor/linux tags/riscv-soc-fixes-for-v6.11-final
+
+ep93xx/dt-conversion
+	patch
+		ep93xx: clock: Fix off by one in ep93xx_div_recalc_rate()
+	ep93xx/clk-dependency
+		Merge branch 'ep93xx/clk-dependency' into ep93xx/dt-conversion
+	patch
+		gpio: ep93xx: split device in multiple
+		ARM: ep93xx: add regmap aux_dev
+		clk: ep93xx: add DT support for Cirrus EP93xx
+		pinctrl: add a Cirrus ep93xx SoC pin controller
+		power: reset: Add a driver for the ep93xx reset
+		dt-bindings: soc: Add Cirrus EP93xx
+		soc: Add SoC driver for Cirrus ep93xx
+		dt-bindings: dma: Add Cirrus EP93xx
+		dmaengine: cirrus: Convert to DT for Cirrus EP93xx
+		dt-bindings: pwm: Add Cirrus EP93xx
+		pwm: ep93xx: add DT support for Cirrus EP93xx
+		dt-bindings: spi: Add Cirrus EP93xx
+		spi: ep93xx: add DT support for Cirrus EP93xx
+		dt-bindings: net: Add Cirrus EP93xx
+		net: cirrus: add DT support for Cirrus EP93xx
+		dt-bindings: mtd: Add ts7200 nand-controller
+		mtd: rawnand: add support for ts72xx
+		dt-bindings: ata: Add Cirrus EP93xx
+		ata: pata_ep93xx: add device tree support
+		dt-bindings: input: Add Cirrus EP93xx keypad
+		input: keypad: ep93xx: add DT support for Cirrus EP93xx
+		wdt: ts72xx: add DT support for ts72xx
+		gpio: ep93xx: add DT support for gpio-ep93xx
+		ASoC: dt-bindings: ep93xx: Document DMA support
+		ASoC: dt-bindings: ep93xx: Document Audio Port support
+		ASoC: ep93xx: Drop legacy DMA support
+		ARM: dts: add Cirrus EP93XX SoC .dtsi
+		ARM: dts: ep93xx: add ts7250 board
+		ARM: dts: ep93xx: Add EDB9302 DT
+		ARM: ep93xx: DT for the Cirrus ep93xx SoC platforms
+		pwm: ep93xx: drop legacy pinctrl
+		ata: pata_ep93xx: remove legacy pinctrl use
+		ARM: ep93xx: delete all boardfiles
+		ARM: ep93xx: soc: drop defines
+		ASoC: cirrus: edb93xx: Delete driver
+		dmaengine: cirrus: remove platform code
+		clk: ep93xx: add module license
+		clk: ep93xx: Fix off by one in ep93xx_div_recalc_rate()
+		spi: ep93xx: update kerneldoc comments for ep93xx_spi
+		pinctrl: ep93xx: Fix raster pins typo
+		dmaengine: ep93xx: Fix a NULL vs IS_ERR() check in probe()
+		dmaengine: cirrus: use snprintf() to calm down gcc 13.3.0
+
