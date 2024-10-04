@@ -98,9 +98,9 @@ enum {
 	ACP_TILE_DSP2,
 };
 
-static int acp_sw_init(void *handle)
+static int acp_sw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	adev->acp.parent = adev->dev;
 
@@ -112,9 +112,9 @@ static int acp_sw_init(void *handle)
 	return 0;
 }
 
-static int acp_sw_fini(void *handle)
+static int acp_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (adev->acp.cgs_device)
 		amdgpu_cgs_destroy_device(adev->acp.cgs_device);
@@ -585,11 +585,6 @@ static int acp_resume(void *handle)
 	return 0;
 }
 
-static int acp_early_init(void *handle)
-{
-	return 0;
-}
-
 static bool acp_is_idle(void *handle)
 {
 	return true;
@@ -600,7 +595,7 @@ static int acp_wait_for_idle(void *handle)
 	return 0;
 }
 
-static int acp_soft_reset(void *handle)
+static int acp_soft_reset(struct amdgpu_ip_block *ip_block)
 {
 	return 0;
 }
@@ -624,7 +619,7 @@ static int acp_set_powergating_state(void *handle,
 
 static const struct amd_ip_funcs acp_ip_funcs = {
 	.name = "acp_ip",
-	.early_init = acp_early_init,
+	.early_init = NULL,
 	.late_init = NULL,
 	.sw_init = acp_sw_init,
 	.sw_fini = acp_sw_fini,

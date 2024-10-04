@@ -407,9 +407,9 @@ static int vce_v4_0_stop(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int vce_v4_0_early_init(void *handle)
+static int vce_v4_0_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (amdgpu_sriov_vf(adev)) /* currently only VCN0 support SRIOV */
 		adev->vce.num_rings = 1;
@@ -422,9 +422,9 @@ static int vce_v4_0_early_init(void *handle)
 	return 0;
 }
 
-static int vce_v4_0_sw_init(void *handle)
+static int vce_v4_0_sw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_ring *ring;
 
 	unsigned size;
@@ -493,10 +493,10 @@ static int vce_v4_0_sw_init(void *handle)
 	return r;
 }
 
-static int vce_v4_0_sw_fini(void *handle)
+static int vce_v4_0_sw_fini(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	/* free MM table */
 	amdgpu_virt_free_mm_table(adev);
@@ -721,9 +721,9 @@ static int vce_v4_0_wait_for_idle(void *handle)
 #define  AMDGPU_VCE_STATUS_BUSY_MASK (VCE_STATUS_VCPU_REPORT_AUTO_BUSY_MASK | \
 				      VCE_STATUS_VCPU_REPORT_RB0_BUSY_MASK)
 
-static bool vce_v4_0_check_soft_reset(void *handle)
+static bool vce_v4_0_check_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	u32 srbm_soft_reset = 0;
 
 	/* According to VCE team , we should use VCE_STATUS instead
@@ -762,9 +762,9 @@ static bool vce_v4_0_check_soft_reset(void *handle)
 	}
 }
 
-static int vce_v4_0_soft_reset(void *handle)
+static int vce_v4_0_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	u32 srbm_soft_reset;
 
 	if (!adev->vce.srbm_soft_reset)
@@ -793,9 +793,9 @@ static int vce_v4_0_soft_reset(void *handle)
 	return 0;
 }
 
-static int vce_v4_0_pre_soft_reset(void *handle)
+static int vce_v4_0_pre_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (!adev->vce.srbm_soft_reset)
 		return 0;
@@ -806,9 +806,9 @@ static int vce_v4_0_pre_soft_reset(void *handle)
 }
 
 
-static int vce_v4_0_post_soft_reset(void *handle)
+static int vce_v4_0_post_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (!adev->vce.srbm_soft_reset)
 		return 0;

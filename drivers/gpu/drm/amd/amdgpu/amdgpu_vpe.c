@@ -295,9 +295,9 @@ int amdgpu_vpe_ring_fini(struct amdgpu_vpe *vpe)
 	return 0;
 }
 
-static int vpe_early_init(void *handle)
+static int vpe_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_vpe *vpe = &adev->vpe;
 
 	switch (amdgpu_ip_version(adev, VPE_HWIP, 0)) {
@@ -356,9 +356,9 @@ static int vpe_common_init(struct amdgpu_vpe *vpe)
 	return 0;
 }
 
-static int vpe_sw_init(void *handle)
+static int vpe_sw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_vpe *vpe = &adev->vpe;
 	int ret;
 
@@ -381,9 +381,9 @@ out:
 	return ret;
 }
 
-static int vpe_sw_fini(void *handle)
+static int vpe_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_vpe *vpe = &adev->vpe;
 
 	release_firmware(vpe->fw);

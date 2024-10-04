@@ -457,9 +457,9 @@ static void si_dma_ring_emit_wreg(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, val);
 }
 
-static int si_dma_early_init(void *handle)
+static int si_dma_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	adev->sdma.num_instances = 2;
 
@@ -471,11 +471,11 @@ static int si_dma_early_init(void *handle)
 	return 0;
 }
 
-static int si_dma_sw_init(void *handle)
+static int si_dma_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_ring *ring;
 	int r, i;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	/* DMA0 trap event */
 	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, 224,
@@ -506,9 +506,9 @@ static int si_dma_sw_init(void *handle)
 	return r;
 }
 
-static int si_dma_sw_fini(void *handle)
+static int si_dma_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int i;
 
 	for (i = 0; i < adev->sdma.num_instances; i++)
@@ -571,7 +571,7 @@ static int si_dma_wait_for_idle(void *handle)
 	return -ETIMEDOUT;
 }
 
-static int si_dma_soft_reset(void *handle)
+static int si_dma_soft_reset(struct amdgpu_ip_block *ip_block)
 {
 	DRM_INFO("si_dma_soft_reset --- not implemented !!!!!!!\n");
 	return 0;

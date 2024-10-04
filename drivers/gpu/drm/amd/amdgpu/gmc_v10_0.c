@@ -630,9 +630,9 @@ static void gmc_v10_0_set_gfxhub_funcs(struct amdgpu_device *adev)
 }
 
 
-static int gmc_v10_0_early_init(void *handle)
+static int gmc_v10_0_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	gmc_v10_0_set_mmhub_funcs(adev);
 	gmc_v10_0_set_gfxhub_funcs(adev);
@@ -651,9 +651,9 @@ static int gmc_v10_0_early_init(void *handle)
 	return 0;
 }
 
-static int gmc_v10_0_late_init(void *handle)
+static int gmc_v10_0_late_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int r;
 
 	r = amdgpu_gmc_allocate_vm_inv_eng(adev);
@@ -769,10 +769,10 @@ static int gmc_v10_0_gart_init(struct amdgpu_device *adev)
 	return amdgpu_gart_table_vram_alloc(adev);
 }
 
-static int gmc_v10_0_sw_init(void *handle)
+static int gmc_v10_0_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	int r, vram_width = 0, vram_type = 0, vram_vendor = 0;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	adev->gfxhub.funcs->init(adev);
 
@@ -920,9 +920,9 @@ static void gmc_v10_0_gart_fini(struct amdgpu_device *adev)
 	amdgpu_gart_table_vram_free(adev);
 }
 
-static int gmc_v10_0_sw_fini(void *handle)
+static int gmc_v10_0_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	amdgpu_vm_manager_fini(adev);
 	gmc_v10_0_gart_fini(adev);
@@ -1088,7 +1088,7 @@ static int gmc_v10_0_wait_for_idle(void *handle)
 	return 0;
 }
 
-static int gmc_v10_0_soft_reset(void *handle)
+static int gmc_v10_0_soft_reset(struct amdgpu_ip_block *ip_block)
 {
 	return 0;
 }

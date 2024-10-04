@@ -2954,9 +2954,9 @@ static int kv_dpm_get_temp(void *handle)
 	return actual_temp;
 }
 
-static int kv_dpm_early_init(void *handle)
+static int kv_dpm_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	adev->powerplay.pp_funcs = &kv_dpm_funcs;
 	adev->powerplay.pp_handle = adev;
@@ -2965,10 +2965,10 @@ static int kv_dpm_early_init(void *handle)
 	return 0;
 }
 
-static int kv_dpm_late_init(void *handle)
+static int kv_dpm_late_init(struct amdgpu_ip_block *ip_block)
 {
 	/* powerdown unused blocks for now */
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (!adev->pm.dpm_enabled)
 		return 0;
@@ -2979,11 +2979,10 @@ static int kv_dpm_late_init(void *handle)
 	return 0;
 }
 
-static int kv_dpm_sw_init(void *handle)
+static int kv_dpm_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	int ret;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
+	struct amdgpu_device *adev = ip_block->adev;
 	ret = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, 230,
 				&adev->pm.dpm.thermal.irq);
 	if (ret)
@@ -3024,9 +3023,9 @@ dpm_failed:
 	return ret;
 }
 
-static int kv_dpm_sw_fini(void *handle)
+static int kv_dpm_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	flush_work(&adev->pm.dpm.thermal.work);
 
@@ -3106,7 +3105,7 @@ static int kv_dpm_wait_for_idle(void *handle)
 }
 
 
-static int kv_dpm_soft_reset(void *handle)
+static int kv_dpm_soft_reset(struct amdgpu_ip_block *ip_block)
 {
 	return 0;
 }

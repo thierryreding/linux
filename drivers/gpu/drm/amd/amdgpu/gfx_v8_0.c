@@ -1894,12 +1894,12 @@ static int gfx_v8_0_compute_ring_init(struct amdgpu_device *adev, int ring_id,
 
 static void gfx_v8_0_sq_irq_work_func(struct work_struct *work);
 
-static int gfx_v8_0_sw_init(void *handle)
+static int gfx_v8_0_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	int i, j, k, r, ring_id;
 	int xcc_id = 0;
 	struct amdgpu_ring *ring;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	switch (adev->asic_type) {
 	case CHIP_TONGA:
@@ -2037,9 +2037,9 @@ static int gfx_v8_0_sw_init(void *handle)
 	return 0;
 }
 
-static int gfx_v8_0_sw_fini(void *handle)
+static int gfx_v8_0_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int i;
 
 	for (i = 0; i < adev->gfx.num_gfx_rings; i++)
@@ -4921,9 +4921,9 @@ static int gfx_v8_0_resume(void *handle)
 	return gfx_v8_0_hw_init(handle);
 }
 
-static bool gfx_v8_0_check_soft_reset(void *handle)
+static bool gfx_v8_0_check_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	u32 grbm_soft_reset = 0, srbm_soft_reset = 0;
 	u32 tmp;
 
@@ -4983,9 +4983,9 @@ static bool gfx_v8_0_check_soft_reset(void *handle)
 	}
 }
 
-static int gfx_v8_0_pre_soft_reset(void *handle)
+static int gfx_v8_0_pre_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	u32 grbm_soft_reset = 0;
 
 	if ((!adev->gfx.grbm_soft_reset) &&
@@ -5024,9 +5024,9 @@ static int gfx_v8_0_pre_soft_reset(void *handle)
 	return 0;
 }
 
-static int gfx_v8_0_soft_reset(void *handle)
+static int gfx_v8_0_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	u32 grbm_soft_reset = 0, srbm_soft_reset = 0;
 	u32 tmp;
 
@@ -5086,9 +5086,9 @@ static int gfx_v8_0_soft_reset(void *handle)
 	return 0;
 }
 
-static int gfx_v8_0_post_soft_reset(void *handle)
+static int gfx_v8_0_post_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	u32 grbm_soft_reset = 0;
 
 	if ((!adev->gfx.grbm_soft_reset) &&
@@ -5254,9 +5254,9 @@ static const struct amdgpu_gfx_funcs gfx_v8_0_gfx_funcs = {
 	.select_me_pipe_q = &gfx_v8_0_select_me_pipe_q
 };
 
-static int gfx_v8_0_early_init(void *handle)
+static int gfx_v8_0_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	adev->gfx.xcc_mask = 1;
 	adev->gfx.num_gfx_rings = GFX8_NUM_GFX_RINGS;
@@ -5271,9 +5271,9 @@ static int gfx_v8_0_early_init(void *handle)
 	return 0;
 }
 
-static int gfx_v8_0_late_init(void *handle)
+static int gfx_v8_0_late_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int r;
 
 	r = amdgpu_irq_get(adev, &adev->gfx.priv_reg_irq, 0);

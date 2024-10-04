@@ -105,9 +105,9 @@ static int vcn_v2_0_start_sriov(struct amdgpu_device *adev);
  * Set ring and irq function pointers
  * Load microcode from filesystem
  */
-static int vcn_v2_0_early_init(void *handle)
+static int vcn_v2_0_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (amdgpu_sriov_vf(adev))
 		adev->vcn.num_enc_rings = 1;
@@ -128,13 +128,13 @@ static int vcn_v2_0_early_init(void *handle)
  *
  * Load firmware and sw initialization
  */
-static int vcn_v2_0_sw_init(void *handle)
+static int vcn_v2_0_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_ring *ring;
 	int i, r;
 	uint32_t reg_count = ARRAY_SIZE(vcn_reg_list_2_0);
 	uint32_t *ptr;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	volatile struct amdgpu_fw_shared *fw_shared;
 
 	/* VCN DEC TRAP */
@@ -241,10 +241,10 @@ static int vcn_v2_0_sw_init(void *handle)
  *
  * VCN suspend and free up sw allocation
  */
-static int vcn_v2_0_sw_fini(void *handle)
+static int vcn_v2_0_sw_fini(struct amdgpu_ip_block *ip_block)
 {
 	int r, idx;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	volatile struct amdgpu_fw_shared *fw_shared = adev->vcn.inst->fw_shared.cpu_addr;
 
 	if (drm_dev_enter(adev_to_drm(adev), &idx)) {
@@ -2034,9 +2034,9 @@ static int vcn_v2_0_start_sriov(struct amdgpu_device *adev)
 	return vcn_v2_0_start_mmsch(adev, &adev->virt.mm_table);
 }
 
-static void vcn_v2_0_print_ip_state(void *handle, struct drm_printer *p)
+static void vcn_v2_0_print_ip_state(struct amdgpu_ip_block *ip_block, struct drm_printer *p)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int i, j;
 	uint32_t reg_count = ARRAY_SIZE(vcn_reg_list_2_0);
 	uint32_t inst_off, is_powered;
@@ -2066,9 +2066,9 @@ static void vcn_v2_0_print_ip_state(void *handle, struct drm_printer *p)
 	}
 }
 
-static void vcn_v2_0_dump_ip_state(void *handle)
+static void vcn_v2_0_dump_ip_state(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int i, j;
 	bool is_powered;
 	uint32_t inst_off;

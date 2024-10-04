@@ -921,9 +921,9 @@ static int gmc_v7_0_convert_vram_type(int mc_seq_vram_type)
 	}
 }
 
-static int gmc_v7_0_early_init(void *handle)
+static int gmc_v7_0_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	gmc_v7_0_set_gmc_funcs(adev);
 	gmc_v7_0_set_irq_funcs(adev);
@@ -940,9 +940,9 @@ static int gmc_v7_0_early_init(void *handle)
 	return 0;
 }
 
-static int gmc_v7_0_late_init(void *handle)
+static int gmc_v7_0_late_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (amdgpu_vm_fault_stop != AMDGPU_VM_FAULT_STOP_ALWAYS)
 		return amdgpu_irq_get(adev, &adev->gmc.vm_fault, 0);
@@ -968,10 +968,10 @@ static unsigned int gmc_v7_0_get_vbios_fb_size(struct amdgpu_device *adev)
 	return size;
 }
 
-static int gmc_v7_0_sw_init(void *handle)
+static int gmc_v7_0_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	set_bit(AMDGPU_GFXHUB(0), adev->vmhubs_mask);
 
@@ -1060,9 +1060,9 @@ static int gmc_v7_0_sw_init(void *handle)
 	return 0;
 }
 
-static int gmc_v7_0_sw_fini(void *handle)
+static int gmc_v7_0_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	amdgpu_gem_force_release(adev);
 	amdgpu_vm_manager_fini(adev);
@@ -1167,9 +1167,9 @@ static int gmc_v7_0_wait_for_idle(void *handle)
 
 }
 
-static int gmc_v7_0_soft_reset(void *handle)
+static int gmc_v7_0_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	u32 srbm_soft_reset = 0;
 	u32 tmp = RREG32(mmSRBM_STATUS);
 

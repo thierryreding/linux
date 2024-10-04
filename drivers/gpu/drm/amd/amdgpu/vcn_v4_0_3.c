@@ -102,9 +102,9 @@ static void vcn_v4_0_3_enable_ras(struct amdgpu_device *adev,
  *
  * Set ring and irq function pointers
  */
-static int vcn_v4_0_3_early_init(void *handle)
+static int vcn_v4_0_3_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	/* re-use enc ring as unified ring */
 	adev->vcn.num_enc_rings = 1;
@@ -123,9 +123,9 @@ static int vcn_v4_0_3_early_init(void *handle)
  *
  * Load firmware and sw initialization
  */
-static int vcn_v4_0_3_sw_init(void *handle)
+static int vcn_v4_0_3_sw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_ring *ring;
 	int i, r, vcn_inst;
 	uint32_t reg_count = ARRAY_SIZE(vcn_reg_list_4_0_3);
@@ -216,9 +216,9 @@ static int vcn_v4_0_3_sw_init(void *handle)
  *
  * VCN suspend and free up sw allocation
  */
-static int vcn_v4_0_3_sw_fini(void *handle)
+static int vcn_v4_0_3_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int i, r, idx;
 
 	if (drm_dev_enter(&adev->ddev, &idx)) {
@@ -1733,9 +1733,9 @@ static void vcn_v4_0_3_set_irq_funcs(struct amdgpu_device *adev)
 	adev->vcn.inst->irq.funcs = &vcn_v4_0_3_irq_funcs;
 }
 
-static void vcn_v4_0_3_print_ip_state(void *handle, struct drm_printer *p)
+static void vcn_v4_0_3_print_ip_state(struct amdgpu_ip_block *ip_block, struct drm_printer *p)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int i, j;
 	uint32_t reg_count = ARRAY_SIZE(vcn_reg_list_4_0_3);
 	uint32_t inst_off, is_powered;
@@ -1765,9 +1765,9 @@ static void vcn_v4_0_3_print_ip_state(void *handle, struct drm_printer *p)
 	}
 }
 
-static void vcn_v4_0_3_dump_ip_state(void *handle)
+static void vcn_v4_0_3_dump_ip_state(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int i, j;
 	bool is_powered;
 	uint32_t inst_off, inst_id;

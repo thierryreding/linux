@@ -4755,13 +4755,15 @@ static int si_populate_memory_timing_parameters(struct amdgpu_device *adev,
 	u32 dram_timing;
 	u32 dram_timing2;
 	u32 burst_time;
+	int ret;
 
 	arb_regs->mc_arb_rfsh_rate =
 		(u8)si_calculate_memory_refresh_rate(adev, pl->sclk);
 
-	amdgpu_atombios_set_engine_dram_timings(adev,
-					    pl->sclk,
-		                            pl->mclk);
+	ret = amdgpu_atombios_set_engine_dram_timings(adev, pl->sclk,
+						      pl->mclk);
+	if (ret)
+		return ret;
 
 	dram_timing  = RREG32(MC_ARB_DRAM_TIMING);
 	dram_timing2 = RREG32(MC_ARB_DRAM_TIMING2);
@@ -7619,10 +7621,10 @@ static int si_dpm_process_interrupt(struct amdgpu_device *adev,
 	return 0;
 }
 
-static int si_dpm_late_init(void *handle)
+static int si_dpm_late_init(struct amdgpu_ip_block *ip_block)
 {
 	int ret;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (!adev->pm.dpm_enabled)
 		return 0;
@@ -7716,10 +7718,10 @@ static int si_dpm_init_microcode(struct amdgpu_device *adev)
 	return err;
 }
 
-static int si_dpm_sw_init(void *handle)
+static int si_dpm_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	int ret;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	ret = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, 230, &adev->pm.dpm.thermal.irq);
 	if (ret)
@@ -7763,9 +7765,9 @@ dpm_failed:
 	return ret;
 }
 
-static int si_dpm_sw_fini(void *handle)
+static int si_dpm_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	flush_work(&adev->pm.dpm.thermal.work);
 
@@ -7847,7 +7849,7 @@ static int si_dpm_wait_for_idle(void *handle)
 	return 0;
 }
 
-static int si_dpm_soft_reset(void *handle)
+static int si_dpm_soft_reset(struct amdgpu_ip_block *ip_block)
 {
 	return 0;
 }
@@ -7928,10 +7930,10 @@ static void si_dpm_print_power_state(void *handle,
 	amdgpu_dpm_print_ps_status(adev, rps);
 }
 
-static int si_dpm_early_init(void *handle)
+static int si_dpm_early_init(struct amdgpu_ip_block *ip_block)
 {
 
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	adev->powerplay.pp_funcs = &si_dpm_funcs;
 	adev->powerplay.pp_handle = adev;

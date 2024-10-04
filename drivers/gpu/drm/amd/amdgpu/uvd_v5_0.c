@@ -88,9 +88,9 @@ static void uvd_v5_0_ring_set_wptr(struct amdgpu_ring *ring)
 	WREG32(mmUVD_RBC_RB_WPTR, lower_32_bits(ring->wptr));
 }
 
-static int uvd_v5_0_early_init(void *handle)
+static int uvd_v5_0_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	adev->uvd.num_uvd_inst = 1;
 
 	uvd_v5_0_set_ring_funcs(adev);
@@ -99,10 +99,10 @@ static int uvd_v5_0_early_init(void *handle)
 	return 0;
 }
 
-static int uvd_v5_0_sw_init(void *handle)
+static int uvd_v5_0_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_ring *ring;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int r;
 
 	/* UVD TRAP */
@@ -128,10 +128,10 @@ static int uvd_v5_0_sw_init(void *handle)
 	return r;
 }
 
-static int uvd_v5_0_sw_fini(void *handle)
+static int uvd_v5_0_sw_fini(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	r = amdgpu_uvd_suspend(adev);
 	if (r)
@@ -216,9 +216,9 @@ static int uvd_v5_0_hw_fini(void *handle)
 	return 0;
 }
 
-static int uvd_v5_0_prepare_suspend(void *handle)
+static int uvd_v5_0_prepare_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	return amdgpu_uvd_prepare_suspend(adev);
 }
@@ -600,9 +600,9 @@ static int uvd_v5_0_wait_for_idle(void *handle)
 	return -ETIMEDOUT;
 }
 
-static int uvd_v5_0_soft_reset(void *handle)
+static int uvd_v5_0_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	uvd_v5_0_stop(adev);
 

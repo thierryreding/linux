@@ -54,9 +54,9 @@ static int amdgpu_ih_clientid_jpeg[] = {
  *
  * Set ring and irq function pointers
  */
-static int jpeg_v2_5_early_init(void *handle)
+static int jpeg_v2_5_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	u32 harvest;
 	int i;
 
@@ -85,11 +85,11 @@ static int jpeg_v2_5_early_init(void *handle)
  *
  * Load firmware and sw initialization
  */
-static int jpeg_v2_5_sw_init(void *handle)
+static int jpeg_v2_5_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_ring *ring;
 	int i, r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	for (i = 0; i < adev->jpeg.num_jpeg_inst; ++i) {
 		if (adev->jpeg.harvest_config & (1 << i))
@@ -157,10 +157,10 @@ static int jpeg_v2_5_sw_init(void *handle)
  *
  * JPEG suspend and free up sw allocation
  */
-static int jpeg_v2_5_sw_fini(void *handle)
+static int jpeg_v2_5_sw_fini(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	r = amdgpu_jpeg_suspend(adev);
 	if (r)

@@ -4134,9 +4134,9 @@ static const struct amdgpu_rlc_funcs gfx_v7_0_rlc_funcs = {
 	.update_spm_vmid = gfx_v7_0_update_spm_vmid
 };
 
-static int gfx_v7_0_early_init(void *handle)
+static int gfx_v7_0_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	adev->gfx.xcc_mask = 1;
 	adev->gfx.num_gfx_rings = GFX7_NUM_GFX_RINGS;
@@ -4151,9 +4151,9 @@ static int gfx_v7_0_early_init(void *handle)
 	return 0;
 }
 
-static int gfx_v7_0_late_init(void *handle)
+static int gfx_v7_0_late_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int r;
 
 	r = amdgpu_irq_get(adev, &adev->gfx.priv_reg_irq, 0);
@@ -4343,10 +4343,10 @@ static int gfx_v7_0_compute_ring_init(struct amdgpu_device *adev, int ring_id,
 	return 0;
 }
 
-static int gfx_v7_0_sw_init(void *handle)
+static int gfx_v7_0_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_ring *ring;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int i, j, k, r, ring_id;
 
 	switch (adev->asic_type) {
@@ -4439,9 +4439,9 @@ static int gfx_v7_0_sw_init(void *handle)
 	return r;
 }
 
-static int gfx_v7_0_sw_fini(void *handle)
+static int gfx_v7_0_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int i;
 
 	for (i = 0; i < adev->gfx.num_gfx_rings; i++)
@@ -4540,11 +4540,11 @@ static int gfx_v7_0_wait_for_idle(void *handle)
 	return -ETIMEDOUT;
 }
 
-static int gfx_v7_0_soft_reset(void *handle)
+static int gfx_v7_0_soft_reset(struct amdgpu_ip_block *ip_block)
 {
 	u32 grbm_soft_reset = 0, srbm_soft_reset = 0;
 	u32 tmp;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	/* GRBM_STATUS */
 	tmp = RREG32(mmGRBM_STATUS);

@@ -528,19 +528,19 @@ static void ih_v7_0_set_self_irq_funcs(struct amdgpu_device *adev)
 	adev->irq.self_irq.funcs = &ih_v7_0_self_irq_funcs;
 }
 
-static int ih_v7_0_early_init(void *handle)
+static int ih_v7_0_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	ih_v7_0_set_interrupt_funcs(adev);
 	ih_v7_0_set_self_irq_funcs(adev);
 	return 0;
 }
 
-static int ih_v7_0_sw_init(void *handle)
+static int ih_v7_0_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	bool use_bus_addr;
 
 	r = amdgpu_irq_add_id(adev, SOC21_IH_CLIENTID_IH, 0,
@@ -583,9 +583,9 @@ static int ih_v7_0_sw_init(void *handle)
 	return r;
 }
 
-static int ih_v7_0_sw_fini(void *handle)
+static int ih_v7_0_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	amdgpu_irq_fini_sw(adev);
 
@@ -639,7 +639,7 @@ static int ih_v7_0_wait_for_idle(void *handle)
 	return -ETIMEDOUT;
 }
 
-static int ih_v7_0_soft_reset(void *handle)
+static int ih_v7_0_soft_reset(struct amdgpu_ip_block *ip_block)
 {
 	/* todo */
 	return 0;

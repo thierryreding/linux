@@ -1455,9 +1455,9 @@ static const struct amdgpu_asic_funcs vi_asic_funcs =
 #define CZ_REV_BRISTOL(rev)	 \
 	((rev >= 0xC8 && rev <= 0xCE) || (rev >= 0xE1 && rev <= 0xE6))
 
-static int vi_common_early_init(void *handle)
+static int vi_common_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (adev->flags & AMD_IS_APU) {
 		adev->smc_rreg = &cz_smc_rreg;
@@ -1679,9 +1679,9 @@ static int vi_common_early_init(void *handle)
 	return 0;
 }
 
-static int vi_common_late_init(void *handle)
+static int vi_common_late_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (amdgpu_sriov_vf(adev))
 		xgpu_vi_mailbox_get_irq(adev);
@@ -1689,9 +1689,9 @@ static int vi_common_late_init(void *handle)
 	return 0;
 }
 
-static int vi_common_sw_init(void *handle)
+static int vi_common_sw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (amdgpu_sriov_vf(adev))
 		xgpu_vi_mailbox_add_irq_id(adev);
@@ -1699,7 +1699,7 @@ static int vi_common_sw_init(void *handle)
 	return 0;
 }
 
-static int vi_common_sw_fini(void *handle)
+static int vi_common_sw_fini(struct amdgpu_ip_block *ip_block)
 {
 	return 0;
 }
@@ -1755,7 +1755,7 @@ static int vi_common_wait_for_idle(void *handle)
 	return 0;
 }
 
-static int vi_common_soft_reset(void *handle)
+static int vi_common_soft_reset(struct amdgpu_ip_block *ip_block)
 {
 	return 0;
 }

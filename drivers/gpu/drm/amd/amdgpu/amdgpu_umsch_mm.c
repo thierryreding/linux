@@ -765,9 +765,9 @@ static int umsch_mm_init(struct amdgpu_device *adev)
 }
 
 
-static int umsch_mm_early_init(void *handle)
+static int umsch_mm_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	switch (amdgpu_ip_version(adev, VCN_HWIP, 0)) {
 	case IP_VERSION(4, 0, 5):
@@ -784,9 +784,9 @@ static int umsch_mm_early_init(void *handle)
 	return 0;
 }
 
-static int umsch_mm_late_init(void *handle)
+static int umsch_mm_late_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (amdgpu_in_reset(adev) || adev->in_s0ix || adev->in_suspend)
 		return 0;
@@ -794,9 +794,9 @@ static int umsch_mm_late_init(void *handle)
 	return umsch_mm_test(adev);
 }
 
-static int umsch_mm_sw_init(void *handle)
+static int umsch_mm_sw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int r;
 
 	r = umsch_mm_init(adev);
@@ -815,9 +815,9 @@ static int umsch_mm_sw_init(void *handle)
 	return 0;
 }
 
-static int umsch_mm_sw_fini(void *handle)
+static int umsch_mm_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	release_firmware(adev->umsch_mm.fw);
 	adev->umsch_mm.fw = NULL;

@@ -807,9 +807,9 @@ static void sdma_v2_4_ring_emit_wreg(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, val);
 }
 
-static int sdma_v2_4_early_init(void *handle)
+static int sdma_v2_4_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int r;
 
 	adev->sdma.num_instances = SDMA_MAX_INSTANCE;
@@ -826,11 +826,11 @@ static int sdma_v2_4_early_init(void *handle)
 	return 0;
 }
 
-static int sdma_v2_4_sw_init(void *handle)
+static int sdma_v2_4_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_ring *ring;
 	int r, i;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	/* SDMA trap event */
 	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, VISLANDS30_IV_SRCID_SDMA_TRAP,
@@ -866,9 +866,9 @@ static int sdma_v2_4_sw_init(void *handle)
 	return r;
 }
 
-static int sdma_v2_4_sw_fini(void *handle)
+static int sdma_v2_4_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int i;
 
 	for (i = 0; i < adev->sdma.num_instances; i++)
@@ -944,10 +944,10 @@ static int sdma_v2_4_wait_for_idle(void *handle)
 	return -ETIMEDOUT;
 }
 
-static int sdma_v2_4_soft_reset(void *handle)
+static int sdma_v2_4_soft_reset(struct amdgpu_ip_block *ip_block)
 {
 	u32 srbm_soft_reset = 0;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	u32 tmp = RREG32(mmSRBM_STATUS2);
 
 	if (tmp & SRBM_STATUS2__SDMA_BUSY_MASK) {

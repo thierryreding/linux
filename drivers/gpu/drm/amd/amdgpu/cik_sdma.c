@@ -54,7 +54,7 @@ static void cik_sdma_set_ring_funcs(struct amdgpu_device *adev);
 static void cik_sdma_set_irq_funcs(struct amdgpu_device *adev);
 static void cik_sdma_set_buffer_funcs(struct amdgpu_device *adev);
 static void cik_sdma_set_vm_pte_funcs(struct amdgpu_device *adev);
-static int cik_sdma_soft_reset(void *handle);
+static int cik_sdma_soft_reset(struct amdgpu_ip_block *ip_block);
 
 MODULE_FIRMWARE("amdgpu/bonaire_sdma.bin");
 MODULE_FIRMWARE("amdgpu/bonaire_sdma1.bin");
@@ -918,9 +918,9 @@ static void cik_enable_sdma_mgls(struct amdgpu_device *adev,
 	}
 }
 
-static int cik_sdma_early_init(void *handle)
+static int cik_sdma_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int r;
 
 	adev->sdma.num_instances = SDMA_MAX_INSTANCE;
@@ -937,10 +937,10 @@ static int cik_sdma_early_init(void *handle)
 	return 0;
 }
 
-static int cik_sdma_sw_init(void *handle)
+static int cik_sdma_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_ring *ring;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int r, i;
 
 	/* SDMA trap event */
@@ -977,9 +977,9 @@ static int cik_sdma_sw_init(void *handle)
 	return r;
 }
 
-static int cik_sdma_sw_fini(void *handle)
+static int cik_sdma_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int i;
 
 	for (i = 0; i < adev->sdma.num_instances; i++)
@@ -1056,10 +1056,10 @@ static int cik_sdma_wait_for_idle(void *handle)
 	return -ETIMEDOUT;
 }
 
-static int cik_sdma_soft_reset(void *handle)
+static int cik_sdma_soft_reset(struct amdgpu_ip_block *ip_block)
 {
 	u32 srbm_soft_reset = 0;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	u32 tmp;
 
 	/* sdma0 */

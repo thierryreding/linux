@@ -52,9 +52,9 @@ static void jpeg_v4_0_dec_ring_set_wptr(struct amdgpu_ring *ring);
  *
  * Set ring and irq function pointers
  */
-static int jpeg_v4_0_early_init(void *handle)
+static int jpeg_v4_0_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 
 	adev->jpeg.num_jpeg_inst = 1;
@@ -74,9 +74,9 @@ static int jpeg_v4_0_early_init(void *handle)
  *
  * Load firmware and sw initialization
  */
-static int jpeg_v4_0_sw_init(void *handle)
+static int jpeg_v4_0_sw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_ring *ring;
 	int r;
 
@@ -134,9 +134,9 @@ static int jpeg_v4_0_sw_init(void *handle)
  *
  * JPEG suspend and free up sw allocation
  */
-static int jpeg_v4_0_sw_fini(void *handle)
+static int jpeg_v4_0_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int r;
 
 	r = amdgpu_jpeg_suspend(adev);

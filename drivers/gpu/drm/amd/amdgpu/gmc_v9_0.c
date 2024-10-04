@@ -1545,9 +1545,9 @@ static void gmc_v9_0_set_xgmi_ras_funcs(struct amdgpu_device *adev)
 		adev->gmc.xgmi.ras = &xgmi_ras;
 }
 
-static int gmc_v9_0_early_init(void *handle)
+static int gmc_v9_0_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	/*
 	 * 9.4.0, 9.4.1 and 9.4.3 don't have XGMI defined
@@ -1601,9 +1601,9 @@ static int gmc_v9_0_early_init(void *handle)
 	return 0;
 }
 
-static int gmc_v9_0_late_init(void *handle)
+static int gmc_v9_0_late_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int r;
 
 	r = amdgpu_gmc_allocate_vm_inv_eng(adev);
@@ -1987,10 +1987,10 @@ static void gmc_v9_4_3_init_vram_info(struct amdgpu_device *adev)
 	adev->gmc.vram_width = 128 * 64;
 }
 
-static int gmc_v9_0_sw_init(void *handle)
+static int gmc_v9_0_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	int r, vram_width = 0, vram_type = 0, vram_vendor = 0, dma_addr_bits;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	unsigned long inst_mask = adev->aid_mask;
 
 	adev->gfxhub.funcs->init(adev);
@@ -2198,9 +2198,9 @@ static int gmc_v9_0_sw_init(void *handle)
 	return 0;
 }
 
-static int gmc_v9_0_sw_fini(void *handle)
+static int gmc_v9_0_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 3) ||
 	    amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 4))
@@ -2413,11 +2413,17 @@ static int gmc_v9_0_hw_fini(void *handle)
 	if (adev->mmhub.funcs->update_power_gating)
 		adev->mmhub.funcs->update_power_gating(adev, false);
 
-	amdgpu_irq_put(adev, &adev->gmc.vm_fault, 0);
+	/*
+	 * For minimal init, late_init is not called, hence VM fault/RAS irqs
+	 * are not enabled.
+	 */
+	if (adev->init_lvl->level != AMDGPU_INIT_LEVEL_MINIMAL_XGMI) {
+		amdgpu_irq_put(adev, &adev->gmc.vm_fault, 0);
 
-	if (adev->gmc.ecc_irq.funcs &&
-		amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__UMC))
-		amdgpu_irq_put(adev, &adev->gmc.ecc_irq, 0);
+		if (adev->gmc.ecc_irq.funcs &&
+		    amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__UMC))
+			amdgpu_irq_put(adev, &adev->gmc.ecc_irq, 0);
+	}
 
 	return 0;
 }
@@ -2455,7 +2461,7 @@ static int gmc_v9_0_wait_for_idle(void *handle)
 	return 0;
 }
 
-static int gmc_v9_0_soft_reset(void *handle)
+static int gmc_v9_0_soft_reset(struct amdgpu_ip_block *ip_block)
 {
 	/* XXX for emulation.*/
 	return 0;

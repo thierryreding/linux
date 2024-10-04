@@ -354,9 +354,9 @@ error:
 	return r;
 }
 
-static int uvd_v6_0_early_init(void *handle)
+static int uvd_v6_0_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	adev->uvd.num_uvd_inst = 1;
 
 	if (!(adev->flags & AMD_IS_APU) &&
@@ -375,11 +375,11 @@ static int uvd_v6_0_early_init(void *handle)
 	return 0;
 }
 
-static int uvd_v6_0_sw_init(void *handle)
+static int uvd_v6_0_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_ring *ring;
 	int i, r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	/* UVD TRAP */
 	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, VISLANDS30_IV_SRCID_UVD_SYSTEM_MESSAGE, &adev->uvd.inst->irq);
@@ -435,10 +435,10 @@ static int uvd_v6_0_sw_init(void *handle)
 	return r;
 }
 
-static int uvd_v6_0_sw_fini(void *handle)
+static int uvd_v6_0_sw_fini(struct amdgpu_ip_block *ip_block)
 {
 	int i, r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	r = amdgpu_uvd_suspend(adev);
 	if (r)
@@ -540,9 +540,9 @@ static int uvd_v6_0_hw_fini(void *handle)
 	return 0;
 }
 
-static int uvd_v6_0_prepare_suspend(void *handle)
+static int uvd_v6_0_prepare_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	return amdgpu_uvd_prepare_suspend(adev);
 }
@@ -1164,9 +1164,9 @@ static int uvd_v6_0_wait_for_idle(void *handle)
 }
 
 #define AMDGPU_UVD_STATUS_BUSY_MASK    0xfd
-static bool uvd_v6_0_check_soft_reset(void *handle)
+static bool uvd_v6_0_check_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	u32 srbm_soft_reset = 0;
 	u32 tmp = RREG32(mmSRBM_STATUS);
 
@@ -1184,9 +1184,9 @@ static bool uvd_v6_0_check_soft_reset(void *handle)
 	}
 }
 
-static int uvd_v6_0_pre_soft_reset(void *handle)
+static int uvd_v6_0_pre_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (!adev->uvd.inst->srbm_soft_reset)
 		return 0;
@@ -1195,9 +1195,9 @@ static int uvd_v6_0_pre_soft_reset(void *handle)
 	return 0;
 }
 
-static int uvd_v6_0_soft_reset(void *handle)
+static int uvd_v6_0_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	u32 srbm_soft_reset;
 
 	if (!adev->uvd.inst->srbm_soft_reset)
@@ -1226,9 +1226,9 @@ static int uvd_v6_0_soft_reset(void *handle)
 	return 0;
 }
 
-static int uvd_v6_0_post_soft_reset(void *handle)
+static int uvd_v6_0_post_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (!adev->uvd.inst->srbm_soft_reset)
 		return 0;

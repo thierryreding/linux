@@ -398,9 +398,9 @@ static void vce_v2_0_enable_mgcg(struct amdgpu_device *adev, bool enable,
 	}
 }
 
-static int vce_v2_0_early_init(void *handle)
+static int vce_v2_0_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	adev->vce.num_rings = 2;
 
@@ -410,11 +410,11 @@ static int vce_v2_0_early_init(void *handle)
 	return 0;
 }
 
-static int vce_v2_0_sw_init(void *handle)
+static int vce_v2_0_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_ring *ring;
 	int r, i;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	/* VCE */
 	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, 167, &adev->vce.irq);
@@ -444,10 +444,10 @@ static int vce_v2_0_sw_init(void *handle)
 	return r;
 }
 
-static int vce_v2_0_sw_fini(void *handle)
+static int vce_v2_0_sw_fini(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	r = amdgpu_vce_suspend(adev);
 	if (r)
@@ -532,9 +532,9 @@ static int vce_v2_0_resume(void *handle)
 	return vce_v2_0_hw_init(adev);
 }
 
-static int vce_v2_0_soft_reset(void *handle)
+static int vce_v2_0_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	WREG32_FIELD(SRBM_SOFT_RESET, SOFT_RESET_VCE, 1);
 	mdelay(5);

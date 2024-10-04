@@ -304,7 +304,7 @@ static int aldebaran_mode2_restore_ip(struct amdgpu_device *adev)
 
 		if (adev->ip_blocks[i].version->funcs->late_init) {
 			r = adev->ip_blocks[i].version->funcs->late_init(
-				(void *)adev);
+				&adev->ip_blocks[i]);
 			if (r) {
 				dev_err(adev->dev,
 					"late_init of IP block <%s> failed %d after reset\n",
@@ -417,6 +417,7 @@ static struct amdgpu_reset_handler aldebaran_mode2_handler = {
 static struct amdgpu_reset_handler
 	*aldebaran_rst_handlers[AMDGPU_RESET_MAX_HANDLERS] = {
 		&aldebaran_mode2_handler,
+		&xgmi_reset_on_init_handler,
 	};
 
 int aldebaran_reset_init(struct amdgpu_device *adev)

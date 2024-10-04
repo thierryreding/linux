@@ -363,9 +363,9 @@ static const struct amdgpu_asic_funcs soc24_asic_funcs = {
 	.update_umd_stable_pstate = &soc24_update_umd_stable_pstate,
 };
 
-static int soc24_common_early_init(void *handle)
+static int soc24_common_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	adev->nbio.funcs->set_reg_remap(adev);
 	adev->smc_rreg = NULL;
@@ -440,9 +440,9 @@ static int soc24_common_early_init(void *handle)
 	return 0;
 }
 
-static int soc24_common_late_init(void *handle)
+static int soc24_common_late_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (amdgpu_sriov_vf(adev))
 		xgpu_nv_mailbox_get_irq(adev);
@@ -455,9 +455,9 @@ static int soc24_common_late_init(void *handle)
 	return 0;
 }
 
-static int soc24_common_sw_init(void *handle)
+static int soc24_common_sw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (amdgpu_sriov_vf(adev))
 		xgpu_nv_mailbox_add_irq_id(adev);
@@ -465,7 +465,7 @@ static int soc24_common_sw_init(void *handle)
 	return 0;
 }
 
-static int soc24_common_sw_fini(void *handle)
+static int soc24_common_sw_fini(struct amdgpu_ip_block *ip_block)
 {
 	return 0;
 }
@@ -536,7 +536,7 @@ static int soc24_common_wait_for_idle(void *handle)
 	return 0;
 }
 
-static int soc24_common_soft_reset(void *handle)
+static int soc24_common_soft_reset(struct amdgpu_ip_block *ip_block)
 {
 	return 0;
 }

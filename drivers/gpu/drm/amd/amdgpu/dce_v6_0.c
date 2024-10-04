@@ -2633,9 +2633,9 @@ static int dce_v6_0_crtc_init(struct amdgpu_device *adev, int index)
 	return 0;
 }
 
-static int dce_v6_0_early_init(void *handle)
+static int dce_v6_0_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	adev->audio_endpt_rreg = &dce_v6_0_audio_endpt_rreg;
 	adev->audio_endpt_wreg = &dce_v6_0_audio_endpt_wreg;
@@ -2664,11 +2664,11 @@ static int dce_v6_0_early_init(void *handle)
 	return 0;
 }
 
-static int dce_v6_0_sw_init(void *handle)
+static int dce_v6_0_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	int r, i;
 	bool ret;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	for (i = 0; i < adev->mode_info.num_crtc; i++) {
 		r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, i + 1, &adev->crtc_irq);
@@ -2743,9 +2743,9 @@ static int dce_v6_0_sw_init(void *handle)
 	return r;
 }
 
-static int dce_v6_0_sw_fini(void *handle)
+static int dce_v6_0_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	drm_edid_free(adev->mode_info.bios_hardcoded_edid);
 
@@ -2848,7 +2848,7 @@ static int dce_v6_0_wait_for_idle(void *handle)
 	return 0;
 }
 
-static int dce_v6_0_soft_reset(void *handle)
+static int dce_v6_0_soft_reset(struct amdgpu_ip_block *ip_block)
 {
 	DRM_INFO("xxxx: dce_v6_0_soft_reset --- no impl!!\n");
 	return 0;

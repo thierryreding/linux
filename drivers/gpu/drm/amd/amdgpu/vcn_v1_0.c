@@ -100,9 +100,9 @@ static void vcn_v1_0_ring_begin_use(struct amdgpu_ring *ring);
  * Set ring and irq function pointers
  * Load microcode from filesystem
  */
-static int vcn_v1_0_early_init(void *handle)
+static int vcn_v1_0_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	adev->vcn.num_enc_rings = 2;
 
@@ -110,7 +110,7 @@ static int vcn_v1_0_early_init(void *handle)
 	vcn_v1_0_set_enc_ring_funcs(adev);
 	vcn_v1_0_set_irq_funcs(adev);
 
-	jpeg_v1_0_early_init(handle);
+	jpeg_v1_0_early_init(ip_block);
 
 	return amdgpu_vcn_early_init(adev);
 }
@@ -122,13 +122,13 @@ static int vcn_v1_0_early_init(void *handle)
  *
  * Load firmware and sw initialization
  */
-static int vcn_v1_0_sw_init(void *handle)
+static int vcn_v1_0_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_ring *ring;
 	int i, r;
 	uint32_t reg_count = ARRAY_SIZE(vcn_reg_list_1_0);
 	uint32_t *ptr;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	/* VCN DEC TRAP */
 	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_VCN,
@@ -197,7 +197,7 @@ static int vcn_v1_0_sw_init(void *handle)
 		amdgpu_vcn_fwlog_init(adev->vcn.inst);
 	}
 
-	r = jpeg_v1_0_sw_init(handle);
+	r = jpeg_v1_0_sw_init(ip_block);
 
 	/* Allocate memory for VCN IP Dump buffer */
 	ptr = kcalloc(adev->vcn.num_vcn_inst * reg_count, sizeof(uint32_t), GFP_KERNEL);
@@ -217,16 +217,16 @@ static int vcn_v1_0_sw_init(void *handle)
  *
  * VCN suspend and free up sw allocation
  */
-static int vcn_v1_0_sw_fini(void *handle)
+static int vcn_v1_0_sw_fini(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	r = amdgpu_vcn_suspend(adev);
 	if (r)
 		return r;
 
-	jpeg_v1_0_sw_fini(handle);
+	jpeg_v1_0_sw_fini(ip_block);
 
 	r = amdgpu_vcn_sw_fini(adev);
 
@@ -1925,9 +1925,9 @@ void vcn_v1_0_ring_end_use(struct amdgpu_ring *ring)
 	mutex_unlock(&ring->adev->vcn.vcn1_jpeg1_workaround);
 }
 
-static void vcn_v1_0_print_ip_state(void *handle, struct drm_printer *p)
+static void vcn_v1_0_print_ip_state(struct amdgpu_ip_block *ip_block, struct drm_printer *p)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int i, j;
 	uint32_t reg_count = ARRAY_SIZE(vcn_reg_list_1_0);
 	uint32_t inst_off, is_powered;
@@ -1957,9 +1957,9 @@ static void vcn_v1_0_print_ip_state(void *handle, struct drm_printer *p)
 	}
 }
 
-static void vcn_v1_0_dump_ip_state(void *handle)
+static void vcn_v1_0_dump_ip_state(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int i, j;
 	bool is_powered;
 	uint32_t inst_off;

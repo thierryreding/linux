@@ -72,9 +72,9 @@ static inline bool jpeg_v4_0_3_normalizn_reqd(struct amdgpu_device *adev)
  *
  * Set ring and irq function pointers
  */
-static int jpeg_v4_0_3_early_init(void *handle)
+static int jpeg_v4_0_3_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	adev->jpeg.num_jpeg_rings = AMDGPU_MAX_JPEG_RINGS;
 
@@ -92,9 +92,9 @@ static int jpeg_v4_0_3_early_init(void *handle)
  *
  * Load firmware and sw initialization
  */
-static int jpeg_v4_0_3_sw_init(void *handle)
+static int jpeg_v4_0_3_sw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_ring *ring;
 	int i, j, r, jpeg_inst;
 
@@ -169,9 +169,9 @@ static int jpeg_v4_0_3_sw_init(void *handle)
  *
  * JPEG suspend and free up sw allocation
  */
-static int jpeg_v4_0_3_sw_fini(void *handle)
+static int jpeg_v4_0_3_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int r;
 
 	r = amdgpu_jpeg_suspend(adev);
@@ -674,11 +674,12 @@ void jpeg_v4_0_3_dec_ring_insert_start(struct amdgpu_ring *ring)
 		amdgpu_ring_write(ring, PACKETJ(regUVD_JRBC_EXTERNAL_REG_INTERNAL_OFFSET,
 			0, 0, PACKETJ_TYPE0));
 		amdgpu_ring_write(ring, 0x62a04); /* PCTL0_MMHUB_DEEPSLEEP_IB */
-	}
 
-	amdgpu_ring_write(ring, PACKETJ(JRBC_DEC_EXTERNAL_REG_WRITE_ADDR,
-		0, 0, PACKETJ_TYPE0));
-	amdgpu_ring_write(ring, 0x80004000);
+		amdgpu_ring_write(ring,
+				  PACKETJ(JRBC_DEC_EXTERNAL_REG_WRITE_ADDR, 0,
+					  0, PACKETJ_TYPE0));
+		amdgpu_ring_write(ring, 0x80004000);
+	}
 }
 
 /**
@@ -694,11 +695,12 @@ void jpeg_v4_0_3_dec_ring_insert_end(struct amdgpu_ring *ring)
 		amdgpu_ring_write(ring, PACKETJ(regUVD_JRBC_EXTERNAL_REG_INTERNAL_OFFSET,
 			0, 0, PACKETJ_TYPE0));
 		amdgpu_ring_write(ring, 0x62a04);
-	}
 
-	amdgpu_ring_write(ring, PACKETJ(JRBC_DEC_EXTERNAL_REG_WRITE_ADDR,
-		0, 0, PACKETJ_TYPE0));
-	amdgpu_ring_write(ring, 0x00004000);
+		amdgpu_ring_write(ring,
+				  PACKETJ(JRBC_DEC_EXTERNAL_REG_WRITE_ADDR, 0,
+					  0, PACKETJ_TYPE0));
+		amdgpu_ring_write(ring, 0x00004000);
+	}
 }
 
 /**
@@ -742,14 +744,6 @@ void jpeg_v4_0_3_dec_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64 seq
 
 	amdgpu_ring_write(ring, PACKETJ(0, 0, 0, PACKETJ_TYPE6));
 	amdgpu_ring_write(ring, 0);
-
-	amdgpu_ring_write(ring,	PACKETJ(regUVD_JRBC_EXTERNAL_REG_INTERNAL_OFFSET,
-		0, 0, PACKETJ_TYPE0));
-	amdgpu_ring_write(ring, 0x3fbc);
-
-	amdgpu_ring_write(ring, PACKETJ(JRBC_DEC_EXTERNAL_REG_WRITE_ADDR,
-		0, 0, PACKETJ_TYPE0));
-	amdgpu_ring_write(ring, 0x1);
 
 	amdgpu_ring_write(ring, PACKETJ(0, 0, 0, PACKETJ_TYPE6));
 	amdgpu_ring_write(ring, 0);
@@ -1088,7 +1082,7 @@ static const struct amdgpu_ring_funcs jpeg_v4_0_3_dec_ring_vm_funcs = {
 		SOC15_FLUSH_GPU_TLB_NUM_WREG * 6 +
 		SOC15_FLUSH_GPU_TLB_NUM_REG_WAIT * 8 +
 		8 + /* jpeg_v4_0_3_dec_ring_emit_vm_flush */
-		22 + 22 + /* jpeg_v4_0_3_dec_ring_emit_fence x2 vm fence */
+		18 + 18 + /* jpeg_v4_0_3_dec_ring_emit_fence x2 vm fence */
 		8 + 16,
 	.emit_ib_size = 22, /* jpeg_v4_0_3_dec_ring_emit_ib */
 	.emit_ib = jpeg_v4_0_3_dec_ring_emit_ib,

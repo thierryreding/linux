@@ -326,12 +326,12 @@ static int dm_wait_for_idle(void *handle)
 	return 0;
 }
 
-static bool dm_check_soft_reset(void *handle)
+static bool dm_check_soft_reset(struct amdgpu_ip_block *ip_block)
 {
 	return false;
 }
 
-static int dm_soft_reset(void *handle)
+static int dm_soft_reset(struct amdgpu_ip_block *ip_block)
 {
 	/* XXX todo */
 	return 0;
@@ -968,7 +968,7 @@ static int dm_set_powergating_state(void *handle,
 }
 
 /* Prototypes of private functions */
-static int dm_early_init(void *handle);
+static int dm_early_init(struct amdgpu_ip_block *ip_block);
 
 /* Allocate memory for FBC compressed data  */
 static void amdgpu_dm_fbc_init(struct drm_connector *connector)
@@ -2115,9 +2115,9 @@ error:
 	return -EINVAL;
 }
 
-static int amdgpu_dm_early_fini(void *handle)
+static int amdgpu_dm_early_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	amdgpu_dm_audio_fini(adev);
 
@@ -2509,9 +2509,9 @@ static int dm_dmub_sw_init(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int dm_sw_init(void *handle)
+static int dm_sw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int r;
 
 	adev->dm.cgs_device = amdgpu_cgs_create_device(adev);
@@ -2531,9 +2531,9 @@ static int dm_sw_init(void *handle)
 	return load_dmcu_fw(adev);
 }
 
-static int dm_sw_fini(void *handle)
+static int dm_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct dal_allocation *da;
 
 	list_for_each_entry(da, &adev->dm.da_list, list) {
@@ -2598,9 +2598,9 @@ static int detect_mst_link_for_all_connectors(struct drm_device *dev)
 	return ret;
 }
 
-static int dm_late_init(void *handle)
+static int dm_late_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	struct dmcu_iram_parameters params;
 	unsigned int linear_lut[16];
@@ -5256,9 +5256,9 @@ static int dm_init_microcode(struct amdgpu_device *adev)
 	return r;
 }
 
-static int dm_early_init(void *handle)
+static int dm_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_mode_info *mode_info = &adev->mode_info;
 	struct atom_context *ctx = mode_info->atom_context;
 	int index = GetIndexIntoMasterTable(DATA, Object_Header);
@@ -12245,9 +12245,6 @@ void amdgpu_dm_update_freesync_caps(struct drm_connector *connector,
 	} else if (edid && sink->sink_signal == SIGNAL_TYPE_HDMI_TYPE_A) {
 		i = parse_hdmi_amd_vsdb(amdgpu_dm_connector, edid, &vsdb_info);
 		if (i >= 0 && vsdb_info.freesync_supported) {
-			timing  = &edid->detailed_timings[i];
-			data    = &timing->data.other_data;
-
 			amdgpu_dm_connector->min_vfreq = vsdb_info.min_refresh_rate_hz;
 			amdgpu_dm_connector->max_vfreq = vsdb_info.max_refresh_rate_hz;
 			if (amdgpu_dm_connector->max_vfreq - amdgpu_dm_connector->min_vfreq > 10)

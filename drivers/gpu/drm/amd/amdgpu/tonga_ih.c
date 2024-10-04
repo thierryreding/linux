@@ -283,9 +283,9 @@ static void tonga_ih_set_rptr(struct amdgpu_device *adev,
 	}
 }
 
-static int tonga_ih_early_init(void *handle)
+static int tonga_ih_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int ret;
 
 	ret = amdgpu_irq_add_domain(adev);
@@ -297,10 +297,10 @@ static int tonga_ih_early_init(void *handle)
 	return 0;
 }
 
-static int tonga_ih_sw_init(void *handle)
+static int tonga_ih_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	r = amdgpu_ih_ring_init(adev, &adev->irq.ih, 64 * 1024, true);
 	if (r)
@@ -314,9 +314,9 @@ static int tonga_ih_sw_init(void *handle)
 	return r;
 }
 
-static int tonga_ih_sw_fini(void *handle)
+static int tonga_ih_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	amdgpu_irq_fini_sw(adev);
 	amdgpu_irq_remove_domain(adev);
@@ -386,9 +386,9 @@ static int tonga_ih_wait_for_idle(void *handle)
 	return -ETIMEDOUT;
 }
 
-static bool tonga_ih_check_soft_reset(void *handle)
+static bool tonga_ih_check_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	u32 srbm_soft_reset = 0;
 	u32 tmp = RREG32(mmSRBM_STATUS);
 
@@ -405,9 +405,9 @@ static bool tonga_ih_check_soft_reset(void *handle)
 	}
 }
 
-static int tonga_ih_pre_soft_reset(void *handle)
+static int tonga_ih_pre_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (!adev->irq.srbm_soft_reset)
 		return 0;
@@ -415,9 +415,9 @@ static int tonga_ih_pre_soft_reset(void *handle)
 	return tonga_ih_hw_fini(adev);
 }
 
-static int tonga_ih_post_soft_reset(void *handle)
+static int tonga_ih_post_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (!adev->irq.srbm_soft_reset)
 		return 0;
@@ -425,9 +425,9 @@ static int tonga_ih_post_soft_reset(void *handle)
 	return tonga_ih_hw_init(adev);
 }
 
-static int tonga_ih_soft_reset(void *handle)
+static int tonga_ih_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	u32 srbm_soft_reset;
 
 	if (!adev->irq.srbm_soft_reset)

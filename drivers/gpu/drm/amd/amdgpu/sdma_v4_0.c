@@ -1751,9 +1751,9 @@ static bool sdma_v4_0_fw_support_paging_queue(struct amdgpu_device *adev)
 	}
 }
 
-static int sdma_v4_0_early_init(void *handle)
+static int sdma_v4_0_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int r;
 
 	r = sdma_v4_0_init_microcode(adev);
@@ -1780,9 +1780,9 @@ static int sdma_v4_0_process_ras_data_cb(struct amdgpu_device *adev,
 		void *err_data,
 		struct amdgpu_iv_entry *entry);
 
-static int sdma_v4_0_late_init(void *handle)
+static int sdma_v4_0_late_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	sdma_v4_0_setup_ulv(adev);
 
@@ -1792,11 +1792,11 @@ static int sdma_v4_0_late_init(void *handle)
 	return 0;
 }
 
-static int sdma_v4_0_sw_init(void *handle)
+static int sdma_v4_0_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_ring *ring;
 	int r, i;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	uint32_t reg_count = ARRAY_SIZE(sdma_reg_list_4_0);
 	uint32_t *ptr;
 
@@ -1929,9 +1929,9 @@ static int sdma_v4_0_sw_init(void *handle)
 	return r;
 }
 
-static int sdma_v4_0_sw_fini(void *handle)
+static int sdma_v4_0_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int i;
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
@@ -2049,7 +2049,7 @@ static int sdma_v4_0_wait_for_idle(void *handle)
 	return -ETIMEDOUT;
 }
 
-static int sdma_v4_0_soft_reset(void *handle)
+static int sdma_v4_0_soft_reset(struct amdgpu_ip_block *ip_block)
 {
 	/* todo */
 
@@ -2350,9 +2350,9 @@ static void sdma_v4_0_get_clockgating_state(void *handle, u64 *flags)
 		*flags |= AMD_CG_SUPPORT_SDMA_LS;
 }
 
-static void sdma_v4_0_print_ip_state(void *handle, struct drm_printer *p)
+static void sdma_v4_0_print_ip_state(struct amdgpu_ip_block *ip_block, struct drm_printer *p)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int i, j;
 	uint32_t reg_count = ARRAY_SIZE(sdma_reg_list_4_0);
 	uint32_t instance_offset;
@@ -2371,9 +2371,9 @@ static void sdma_v4_0_print_ip_state(void *handle, struct drm_printer *p)
 	}
 }
 
-static void sdma_v4_0_dump_ip_state(void *handle)
+static void sdma_v4_0_dump_ip_state(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int i, j;
 	uint32_t instance_offset;
 	uint32_t reg_count = ARRAY_SIZE(sdma_reg_list_4_0);

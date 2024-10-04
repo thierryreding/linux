@@ -1326,9 +1326,9 @@ static int mes_v12_0_mqd_sw_init(struct amdgpu_device *adev,
 	return 0;
 }
 
-static int mes_v12_0_sw_init(void *handle)
+static int mes_v12_0_sw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int pipe, r;
 
 	adev->mes.funcs = &mes_v12_0_funcs;
@@ -1362,9 +1362,9 @@ static int mes_v12_0_sw_init(void *handle)
 	return 0;
 }
 
-static int mes_v12_0_sw_fini(void *handle)
+static int mes_v12_0_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int pipe;
 
 	for (pipe = 0; pipe < AMDGPU_MAX_MES_PIPES; pipe++) {
@@ -1617,9 +1617,9 @@ static int mes_v12_0_resume(void *handle)
 	return amdgpu_mes_resume(adev);
 }
 
-static int mes_v12_0_early_init(void *handle)
+static int mes_v12_0_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int pipe, r;
 
 	for (pipe = 0; pipe < AMDGPU_MAX_MES_PIPES; pipe++) {
@@ -1631,9 +1631,9 @@ static int mes_v12_0_early_init(void *handle)
 	return 0;
 }
 
-static int mes_v12_0_late_init(void *handle)
+static int mes_v12_0_late_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	/* it's only intended for use in mes_self_test case, not for s0ix and reset */
 	if (!amdgpu_in_reset(adev) && !adev->in_s0ix && !adev->in_suspend)
