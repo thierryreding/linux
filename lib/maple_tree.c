@@ -120,7 +120,6 @@ static const unsigned char mt_min_slots[] = {
 #define MAPLE_BIG_NODE_GAPS	(MAPLE_ARANGE64_SLOTS * 2 + 1)
 
 struct maple_big_node {
-	struct maple_pnode *parent;
 	unsigned long pivot[MAPLE_BIG_NODE_SLOTS - 1];
 	union {
 		struct maple_enode *slot[MAPLE_BIG_NODE_SLOTS];
@@ -1943,14 +1942,13 @@ static inline void mas_mab_cp(struct ma_state *mas, unsigned char mas_start,
 	for (; i < piv_end; i++, j++) {
 		b_node->pivot[j] = pivots[i];
 		if (unlikely(!b_node->pivot[j]))
-			break;
+			goto complete;
 
 		if (unlikely(mas->max == b_node->pivot[j]))
 			goto complete;
 	}
 
-	if (likely(i <= mas_end))
-		b_node->pivot[j] = mas_safe_pivot(mas, pivots, i, mt);
+	b_node->pivot[j] = mas_safe_pivot(mas, pivots, i, mt);
 
 complete:
 	b_node->b_end = ++j;
@@ -3157,10 +3155,7 @@ static inline void mast_fill_bnode(struct maple_subtree_state *mast,
 	bool cp = true;
 	unsigned char split;
 
-	memset(mast->bn->gap, 0, sizeof(unsigned long) * ARRAY_SIZE(mast->bn->gap));
-	memset(mast->bn->slot, 0, sizeof(unsigned long) * ARRAY_SIZE(mast->bn->slot));
-	memset(mast->bn->pivot, 0, sizeof(unsigned long) * ARRAY_SIZE(mast->bn->pivot));
-	mast->bn->b_end = 0;
+	memset(mast->bn, 0, sizeof(struct maple_big_node));
 
 	if (mte_is_root(mas->node)) {
 		cp = false;
