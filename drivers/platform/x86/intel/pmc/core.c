@@ -1546,7 +1546,8 @@ static int pmc_core_probe(struct platform_device *pdev)
 			       pmc_core_adjust_slp_s0_step(primary_pmc, 1));
 
 	map = primary_pmc->map;
-	if (map->acpi_pm_tmr_ctl_offset)
+	if (IS_ENABLED(CONFIG_CONFIG_X86_PM_TIMER) &&
+	    map->acpi_pm_tmr_ctl_offset)
 		acpi_pmtmr_register_suspend_resume_callback(pmc_core_acpi_pm_timer_suspend_resume,
 							 pmcdev);
 
@@ -1562,7 +1563,8 @@ static void pmc_core_remove(struct platform_device *pdev)
 	const struct pmc *pmc = pmcdev->pmcs[PMC_IDX_MAIN];
 	const struct pmc_reg_map *map = pmc->map;
 
-	if (map->acpi_pm_tmr_ctl_offset)
+	if (IS_ENABLED(CONFIG_CONFIG_X86_PM_TIMER) &&
+	    map->acpi_pm_tmr_ctl_offset)
 		acpi_pmtmr_unregister_suspend_resume_callback();
 
 	pmc_core_dbgfs_unregister(pmcdev);
