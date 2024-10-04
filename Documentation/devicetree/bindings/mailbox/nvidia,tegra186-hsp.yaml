@@ -66,10 +66,10 @@ properties:
     oneOf:
       - const: nvidia,tegra186-hsp
       - const: nvidia,tegra194-hsp
-      - const: nvidia,tegra264-hsp
       - items:
           - const: nvidia,tegra234-hsp
           - const: nvidia,tegra194-hsp
+      - const: nvidia,tegra264-hsp
 
   reg:
     maxItems: 1
