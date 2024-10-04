@@ -5311,7 +5311,7 @@ F:	Documentation/dev-tools/checkpatch.rst
 
 CHINESE DOCUMENTATION
 M:	Alex Shi <alexs@kernel.org>
-M:	Yanteng Si <siyanteng@loongson.cn>
+M:	Yanteng Si <si.yanteng@linux.dev>
 S:	Maintained
 F:	Documentation/translations/zh_CN/
 
@@ -8680,7 +8680,7 @@ F:	drivers/net/wan/farsync.*
 FAULT INJECTION SUPPORT
 M:	Akinobu Mita <akinobu.mita@gmail.com>
 S:	Supported
-F:	Documentation/fault-injection/
+F:	Documentation/dev-tools/fault-injection/
 F:	lib/fault-inject.c
 F:	tools/testing/fault-injection/
 
