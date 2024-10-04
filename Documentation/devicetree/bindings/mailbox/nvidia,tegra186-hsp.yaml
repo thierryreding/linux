@@ -76,13 +76,32 @@ properties:
 
   interrupts:
     minItems: 1
-    maxItems: 9
+    maxItems: 17
 
   interrupt-names:
     oneOf:
       # shared interrupts are optional
       - items:
           - const: doorbell
+
+      - items:
+          - const: doorbell
+          - pattern: "^shared[1]?[0-9]$"
+          - pattern: "^shared[1]?[0-9]$"
+          - pattern: "^shared[1]?[0-9]$"
+          - pattern: "^shared[1]?[0-9]$"
+          - pattern: "^shared[1]?[0-9]$"
+          - pattern: "^shared[1]?[0-9]$"
+          - pattern: "^shared[1]?[0-9]$"
+          - pattern: "^shared[1]?[0-9]$"
+          - pattern: "^shared[1]?[0-9]$"
+          - pattern: "^shared[1]?[0-9]$"
+          - pattern: "^shared[1]?[0-9]$"
+          - pattern: "^shared[1]?[0-9]$"
+          - pattern: "^shared[1]?[0-9]$"
+          - pattern: "^shared[1]?[0-9]$"
+          - pattern: "^shared[1]?[0-9]$"
+          - pattern: "^shared[1]?[0-9]$"
 
       - items:
           - const: doorbell
