@@ -8,6 +8,7 @@
 #include <drm/drm_managed.h>
 #include <kunit/visibility.h>
 #include <linux/compiler_types.h>
+#include <linux/fault-inject.h>
 
 #include <generated/xe_wa_oob.h>
 
@@ -850,6 +851,7 @@ int xe_wa_init(struct xe_gt *gt)
 
 	return 0;
 }
+ALLOW_ERROR_INJECTION(xe_wa_init, ERRNO); /* See xe_pci_probe() */
 
 void xe_wa_dump(struct xe_gt *gt, struct drm_printer *p)
 {
@@ -887,11 +889,11 @@ void xe_wa_dump(struct xe_gt *gt, struct drm_printer *p)
  */
 void xe_wa_apply_tile_workarounds(struct xe_tile *tile)
 {
-	struct xe_gt *mmio = tile->primary_gt;
+	struct xe_mmio *mmio = &tile->mmio;
 
 	if (IS_SRIOV_VF(tile->xe))
 		return;
 
-	if (XE_WA(mmio, 22010954014))
+	if (XE_WA(tile->primary_gt, 22010954014))
 		xe_mmio_rmw32(mmio, XEHP_CLOCK_GATE_DIS, 0, SGSI_SIDECLK_DIS);
 }

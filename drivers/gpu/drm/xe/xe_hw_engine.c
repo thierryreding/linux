@@ -12,6 +12,7 @@
 
 #include "regs/xe_engine_regs.h"
 #include "regs/xe_gt_regs.h"
+#include "regs/xe_irq_regs.h"
 #include "xe_assert.h"
 #include "xe_bo.h"
 #include "xe_device.h"
@@ -295,7 +296,7 @@ void xe_hw_engine_mmio_write32(struct xe_hw_engine *hwe,
 
 	reg.addr += hwe->mmio_base;
 
-	xe_mmio_write32(hwe->gt, reg, val);
+	xe_mmio_write32(&hwe->gt->mmio, reg, val);
 }
 
 /**
@@ -315,7 +316,7 @@ u32 xe_hw_engine_mmio_read32(struct xe_hw_engine *hwe, struct xe_reg reg)
 
 	reg.addr += hwe->mmio_base;
 
-	return xe_mmio_read32(hwe->gt, reg);
+	return xe_mmio_read32(&hwe->gt->mmio, reg);
 }
 
 void xe_hw_engine_enable_ring(struct xe_hw_engine *hwe)
@@ -324,7 +325,7 @@ void xe_hw_engine_enable_ring(struct xe_hw_engine *hwe)
 		xe_hw_engine_mask_per_class(hwe->gt, XE_ENGINE_CLASS_COMPUTE);
 
 	if (hwe->class == XE_ENGINE_CLASS_COMPUTE && ccs_mask)
-		xe_mmio_write32(hwe->gt, RCU_MODE,
+		xe_mmio_write32(&hwe->gt->mmio, RCU_MODE,
 				_MASKED_BIT_ENABLE(RCU_MODE_CCS_ENABLE));
 
 	xe_hw_engine_mmio_write32(hwe, RING_HWSTAM(0), ~0x0);
@@ -354,7 +355,7 @@ static bool xe_rtp_cfeg_wmtp_disabled(const struct xe_gt *gt,
 	    hwe->class != XE_ENGINE_CLASS_RENDER)
 		return false;
 
-	return xe_mmio_read32(hwe->gt, XEHP_FUSE4) & CFEG_WMTP_DISABLE;
+	return xe_mmio_read32(&hwe->gt->mmio, XEHP_FUSE4) & CFEG_WMTP_DISABLE;
 }
 
 void
@@ -460,6 +461,30 @@ hw_engine_setup_default_state(struct xe_hw_engine *hwe)
 	xe_rtp_process_to_sr(&ctx, engine_entries, &hwe->reg_sr);
 }
 
+static const struct engine_info *find_engine_info(enum xe_engine_class class, int instance)
+{
+	const struct engine_info *info;
+	enum xe_hw_engine_id id;
+
+	for (id = 0; id < XE_NUM_HW_ENGINES; ++id) {
+		info = &engine_infos[id];
+		if (info->class == class && info->instance == instance)
+			return info;
+	}
+
+	return NULL;
+}
+
+static u16 get_msix_irq_offset(struct xe_gt *gt, enum xe_engine_class class)
+{
+	/* For MSI-X, hw engines report to offset of engine instance zero */
+	const struct engine_info *info = find_engine_info(class, 0);
+
+	xe_gt_assert(gt, info);
+
+	return info ? info->irq_offset : 0;
+}
+
 static void hw_engine_init_early(struct xe_gt *gt, struct xe_hw_engine *hwe,
 				 enum xe_hw_engine_id id)
 {
@@ -479,7 +504,9 @@ static void hw_engine_init_early(struct xe_gt *gt, struct xe_hw_engine *hwe,
 	hwe->class = info->class;
 	hwe->instance = info->instance;
 	hwe->mmio_base = info->mmio_base;
-	hwe->irq_offset = info->irq_offset;
+	hwe->irq_offset = xe_device_has_msix(gt_to_xe(gt)) ?
+		get_msix_irq_offset(gt, info->class) :
+		info->irq_offset;
 	hwe->domain = info->domain;
 	hwe->name = info->name;
 	hwe->fence_irq = &gt->fence_irq[info->class];
@@ -612,7 +639,7 @@ static void read_media_fuses(struct xe_gt *gt)
 
 	xe_force_wake_assert_held(gt_to_fw(gt), XE_FW_GT);
 
-	media_fuse = xe_mmio_read32(gt, GT_VEBOX_VDBOX_DISABLE);
+	media_fuse = xe_mmio_read32(&gt->mmio, GT_VEBOX_VDBOX_DISABLE);
 
 	/*
 	 * Pre-Xe_HP platforms had register bits representing absent engines,
@@ -657,7 +684,7 @@ static void read_copy_fuses(struct xe_gt *gt)
 
 	xe_force_wake_assert_held(gt_to_fw(gt), XE_FW_GT);
 
-	bcs_mask = xe_mmio_read32(gt, MIRROR_FUSE3);
+	bcs_mask = xe_mmio_read32(&gt->mmio, MIRROR_FUSE3);
 	bcs_mask = REG_FIELD_GET(MEML3_EN_MASK, bcs_mask);
 
 	/* BCS0 is always present; only BCS1-BCS8 may be fused off */
@@ -704,7 +731,7 @@ static void read_compute_fuses_from_reg(struct xe_gt *gt)
 	struct xe_device *xe = gt_to_xe(gt);
 	u32 ccs_mask;
 
-	ccs_mask = xe_mmio_read32(gt, XEHP_FUSE4);
+	ccs_mask = xe_mmio_read32(&gt->mmio, XEHP_FUSE4);
 	ccs_mask = REG_FIELD_GET(CCS_EN_MASK, ccs_mask);
 
 	for (int i = XE_HW_ENGINE_CCS0, j = 0; i <= XE_HW_ENGINE_CCS3; ++i, ++j) {
@@ -742,8 +769,8 @@ static void check_gsc_availability(struct xe_gt *gt)
 		gt->info.engine_mask &= ~BIT(XE_HW_ENGINE_GSCCS0);
 
 		/* interrupts where previously enabled, so turn them off */
-		xe_mmio_write32(gt, GUNIT_GSC_INTR_ENABLE, 0);
-		xe_mmio_write32(gt, GUNIT_GSC_INTR_MASK, ~0);
+		xe_mmio_write32(&gt->mmio, GUNIT_GSC_INTR_ENABLE, 0);
+		xe_mmio_write32(&gt->mmio, GUNIT_GSC_INTR_MASK, ~0);
 
 		drm_info(&xe->drm, "gsccs disabled due to lack of FW\n");
 	}
@@ -809,6 +836,7 @@ xe_hw_engine_snapshot_instdone_capture(struct xe_hw_engine *hwe,
 				       struct xe_hw_engine_snapshot *snapshot)
 {
 	struct xe_gt *gt = hwe->gt;
+	struct xe_mmio *mmio = &gt->mmio;
 	struct xe_device *xe = gt_to_xe(gt);
 	unsigned int dss;
 	u16 group, instance;
@@ -820,11 +848,11 @@ xe_hw_engine_snapshot_instdone_capture(struct xe_hw_engine *hwe,
 
 	if (is_slice_common_per_gslice(xe) == false) {
 		snapshot->reg.instdone.slice_common[0] =
-			xe_mmio_read32(gt, SC_INSTDONE);
+			xe_mmio_read32(mmio, SC_INSTDONE);
 		snapshot->reg.instdone.slice_common_extra[0] =
-			xe_mmio_read32(gt, SC_INSTDONE_EXTRA);
+			xe_mmio_read32(mmio, SC_INSTDONE_EXTRA);
 		snapshot->reg.instdone.slice_common_extra2[0] =
-			xe_mmio_read32(gt, SC_INSTDONE_EXTRA2);
+			xe_mmio_read32(mmio, SC_INSTDONE_EXTRA2);
 	} else {
 		for_each_geometry_dss(dss, gt, group, instance) {
 			snapshot->reg.instdone.slice_common[dss] =
@@ -903,6 +931,7 @@ xe_hw_engine_snapshot_capture(struct xe_hw_engine *hwe)
 	snapshot->forcewake.ref = xe_force_wake_ref(gt_to_fw(hwe->gt),
 						    hwe->domain);
 	snapshot->mmio_base = hwe->mmio_base;
+	snapshot->kernel_reserved = xe_hw_engine_is_reserved(hwe);
 
 	/* no more VF accessible data below this point */
 	if (IS_SRIOV_VF(gt_to_xe(hwe->gt)))
@@ -959,7 +988,7 @@ xe_hw_engine_snapshot_capture(struct xe_hw_engine *hwe)
 	xe_hw_engine_snapshot_instdone_capture(hwe, snapshot);
 
 	if (snapshot->hwe->class == XE_ENGINE_CLASS_COMPUTE)
-		snapshot->reg.rcu_mode = xe_mmio_read32(hwe->gt, RCU_MODE);
+		snapshot->reg.rcu_mode = xe_mmio_read32(&hwe->gt->mmio, RCU_MODE);
 
 	return snapshot;
 }
@@ -1025,6 +1054,8 @@ void xe_hw_engine_snapshot_print(struct xe_hw_engine_snapshot *snapshot,
 		   snapshot->logical_instance);
 	drm_printf(p, "\tForcewake: domain 0x%x, ref %d\n",
 		   snapshot->forcewake.domain, snapshot->forcewake.ref);
+	drm_printf(p, "\tReserved: %s\n",
+		   str_yes_no(snapshot->kernel_reserved));
 	drm_printf(p, "\tHWSTAM: 0x%08x\n", snapshot->reg.ring_hwstam);
 	drm_printf(p, "\tRING_HWS_PGA: 0x%08x\n", snapshot->reg.ring_hws_pga);
 	drm_printf(p, "\tRING_EXECLIST_STATUS: 0x%016llx\n",
@@ -1150,7 +1181,7 @@ const char *xe_hw_engine_class_to_str(enum xe_engine_class class)
 
 u64 xe_hw_engine_read_timestamp(struct xe_hw_engine *hwe)
 {
-	return xe_mmio_read64_2x32(hwe->gt, RING_TIMESTAMP(hwe->mmio_base));
+	return xe_mmio_read64_2x32(&hwe->gt->mmio, RING_TIMESTAMP(hwe->mmio_base));
 }
 
 enum xe_force_wake_domains xe_hw_engine_to_fw_domain(struct xe_hw_engine *hwe)
