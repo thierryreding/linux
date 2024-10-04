@@ -220,6 +220,7 @@ static struct vfsmount *cifs_do_automount(struct path *path)
 	tmp.leaf_fullpath = NULL;
 	tmp.UNC = tmp.prepath = NULL;
 	tmp.dfs_root_ses = NULL;
+	tmp.automount = true;
 	fs_context_set_ids(&tmp);
 
 	rc = smb3_fs_context_dup(ctx, &tmp);
@@ -240,9 +241,9 @@ static struct vfsmount *cifs_do_automount(struct path *path)
 		ctx->source = NULL;
 		goto out;
 	}
-	ctx->dfs_automount = ctx->dfs_conn = is_dfs_mount(mntpt);
+	ctx->dfs_conn = is_dfs_mount(mntpt);
 	cifs_dbg(FYI, "%s: ctx: source=%s UNC=%s prepath=%s dfs_automount=%d\n",
-		 __func__, ctx->source, ctx->UNC, ctx->prepath, ctx->dfs_automount);
+		 __func__, ctx->source, ctx->UNC, ctx->prepath, ctx->dfs_conn);
 
 	mnt = fc_mount(fc);
 out:
