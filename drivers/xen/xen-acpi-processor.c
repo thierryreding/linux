@@ -495,7 +495,7 @@ static void xen_acpi_processor_resume_worker(struct work_struct *dummy)
 		pr_info("ACPI data upload failed, error = %d\n", rc);
 }
 
-static void xen_acpi_processor_resume(void)
+static void xen_acpi_processor_resume(struct syscore_ops *ops)
 {
 	static DECLARE_WORK(wq, xen_acpi_processor_resume_worker);
 

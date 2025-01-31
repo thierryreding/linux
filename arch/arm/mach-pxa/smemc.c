@@ -18,7 +18,7 @@ static unsigned long msc[2];
 static unsigned long sxcnfg, memclkcfg;
 static unsigned long csadrcfg[4];
 
-static int pxa3xx_smemc_suspend(void)
+static int pxa3xx_smemc_suspend(struct syscore_ops *ops)
 {
 	msc[0] = __raw_readl(MSC0);
 	msc[1] = __raw_readl(MSC1);
@@ -32,7 +32,7 @@ static int pxa3xx_smemc_suspend(void)
 	return 0;
 }
 
-static void pxa3xx_smemc_resume(void)
+static void pxa3xx_smemc_resume(struct syscore_ops *ops)
 {
 	__raw_writel(msc[0], MSC0);
 	__raw_writel(msc[1], MSC1);

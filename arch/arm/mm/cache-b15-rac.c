@@ -256,7 +256,7 @@ static int b15_rac_dead_cpu(unsigned int cpu)
 	return 0;
 }
 
-static int b15_rac_suspend(void)
+static int b15_rac_suspend(struct syscore_ops *ops)
 {
 	/* Suspend the read-ahead cache oeprations, forcing our cache
 	 * implementation to fallback to the regular ARMv7 calls.
@@ -271,7 +271,7 @@ static int b15_rac_suspend(void)
 	return 0;
 }
 
-static void b15_rac_resume(void)
+static void b15_rac_resume(struct syscore_ops *ops)
 {
 	/* Coming out of a S3 suspend/resume cycle, the read-ahead cache
 	 * register RAC_CONFIG0_REG will be restored to its default value, make

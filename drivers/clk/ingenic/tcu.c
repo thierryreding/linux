@@ -455,7 +455,7 @@ err_free_tcu:
 	return ret;
 }
 
-static int __maybe_unused tcu_pm_suspend(void)
+static int __maybe_unused tcu_pm_suspend(struct syscore_ops *ops)
 {
 	struct ingenic_tcu *tcu = ingenic_tcu;
 
@@ -465,7 +465,7 @@ static int __maybe_unused tcu_pm_suspend(void)
 	return 0;
 }
 
-static void __maybe_unused tcu_pm_resume(void)
+static void __maybe_unused tcu_pm_resume(struct syscore_ops *ops)
 {
 	struct ingenic_tcu *tcu = ingenic_tcu;
 

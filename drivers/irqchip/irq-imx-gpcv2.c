@@ -33,7 +33,7 @@ static void __iomem *gpcv2_idx_to_reg(struct gpcv2_irqchip_data *cd, int i)
 	return cd->gpc_base + cd->cpu2wakeup + i * 4;
 }
 
-static int gpcv2_wakeup_source_save(void)
+static int gpcv2_wakeup_source_save(struct syscore_ops *ops)
 {
 	struct gpcv2_irqchip_data *cd;
 	void __iomem *reg;
@@ -52,7 +52,7 @@ static int gpcv2_wakeup_source_save(void)
 	return 0;
 }
 
-static void gpcv2_wakeup_source_restore(void)
+static void gpcv2_wakeup_source_restore(struct syscore_ops *ops)
 {
 	struct gpcv2_irqchip_data *cd;
 	int i;

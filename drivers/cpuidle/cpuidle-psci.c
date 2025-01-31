@@ -151,13 +151,13 @@ static void psci_idle_syscore_switch(bool suspend)
 	}
 }
 
-static int psci_idle_syscore_suspend(void)
+static int psci_idle_syscore_suspend(struct syscore_ops *ops)
 {
 	psci_idle_syscore_switch(true);
 	return 0;
 }
 
-static void psci_idle_syscore_resume(void)
+static void psci_idle_syscore_resume(struct syscore_ops *ops)
 {
 	psci_idle_syscore_switch(false);
 }

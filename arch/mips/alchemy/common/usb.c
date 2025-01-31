@@ -580,13 +580,13 @@ static void alchemy_usb_pm(int susp)
 	}
 }
 
-static int alchemy_usb_suspend(void)
+static int alchemy_usb_suspend(struct syscore_ops *ops)
 {
 	alchemy_usb_pm(1);
 	return 0;
 }
 
-static void alchemy_usb_resume(void)
+static void alchemy_usb_resume(struct syscore_ops *ops)
 {
 	alchemy_usb_pm(0);
 }

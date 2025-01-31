@@ -58,7 +58,7 @@ static struct irq_grp_save {
 
 static u32 irq_uart_mask[SERIAL_SAMSUNG_UARTS];
 
-static int s3c64xx_irq_pm_suspend(void)
+static int s3c64xx_irq_pm_suspend(struct syscore_ops *ops)
 {
 	struct irq_grp_save *grp = eint_grp_save;
 	int i;
@@ -79,7 +79,7 @@ static int s3c64xx_irq_pm_suspend(void)
 	return 0;
 }
 
-static void s3c64xx_irq_pm_resume(void)
+static void s3c64xx_irq_pm_resume(struct syscore_ops *ops)
 {
 	struct irq_grp_save *grp = eint_grp_save;
 	int i;

@@ -173,7 +173,7 @@ int cpu_cluster_pm_exit(void)
 EXPORT_SYMBOL_GPL(cpu_cluster_pm_exit);
 
 #ifdef CONFIG_PM
-static int cpu_pm_suspend(void)
+static int cpu_pm_suspend(struct syscore_ops *ops)
 {
 	int ret;
 
@@ -185,7 +185,7 @@ static int cpu_pm_suspend(void)
 	return ret;
 }
 
-static void cpu_pm_resume(void)
+static void cpu_pm_resume(struct syscore_ops *ops)
 {
 	cpu_cluster_pm_exit();
 	cpu_pm_exit();

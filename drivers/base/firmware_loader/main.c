@@ -1620,7 +1620,7 @@ static int fw_pm_notify(struct notifier_block *notify_block,
 }
 
 /* stop caching firmware once syscore_suspend is reached */
-static int fw_suspend(void)
+static int fw_suspend(struct syscore_ops *ops)
 {
 	fw_cache.state = FW_LOADER_NO_CACHE;
 	return 0;

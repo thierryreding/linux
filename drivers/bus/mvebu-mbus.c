@@ -1006,7 +1006,7 @@ static __init int mvebu_mbus_debugfs_init(void)
 }
 fs_initcall(mvebu_mbus_debugfs_init);
 
-static int mvebu_mbus_suspend(void)
+static int mvebu_mbus_suspend(struct syscore_ops *ops)
 {
 	struct mvebu_mbus_state *s = &mbus_state;
 	int win;
@@ -1040,7 +1040,7 @@ static int mvebu_mbus_suspend(void)
 	return 0;
 }
 
-static void mvebu_mbus_resume(void)
+static void mvebu_mbus_resume(struct syscore_ops *ops)
 {
 	struct mvebu_mbus_state *s = &mbus_state;
 	int win;

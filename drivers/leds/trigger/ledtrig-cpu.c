@@ -94,18 +94,18 @@ void ledtrig_cpu(enum cpu_led_event ledevt)
 }
 EXPORT_SYMBOL(ledtrig_cpu);
 
-static int ledtrig_cpu_syscore_suspend(void)
+static int ledtrig_cpu_syscore_suspend(struct syscore_ops *ops)
 {
 	ledtrig_cpu(CPU_LED_STOP);
 	return 0;
 }
 
-static void ledtrig_cpu_syscore_resume(void)
+static void ledtrig_cpu_syscore_resume(struct syscore_ops *ops)
 {
 	ledtrig_cpu(CPU_LED_START);
 }
 
-static void ledtrig_cpu_syscore_shutdown(void)
+static void ledtrig_cpu_syscore_shutdown(struct syscore_ops *ops)
 {
 	ledtrig_cpu(CPU_LED_HALTED);
 }

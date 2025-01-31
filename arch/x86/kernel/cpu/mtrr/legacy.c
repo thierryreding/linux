@@ -41,7 +41,7 @@ struct mtrr_value {
 
 static struct mtrr_value *mtrr_value;
 
-static int mtrr_save(void)
+static int mtrr_save(struct syscore_ops *ops)
 {
 	int i;
 
@@ -56,7 +56,7 @@ static int mtrr_save(void)
 	return 0;
 }
 
-static void mtrr_restore(void)
+static void mtrr_restore(struct syscore_ops *ops)
 {
 	int i;
 

@@ -19,7 +19,7 @@
  * in asm/dma.h.
  */
 
-static void i8237A_resume(void)
+static void i8237A_resume(struct syscore_ops *ops)
 {
 	unsigned long flags;
 	int i;

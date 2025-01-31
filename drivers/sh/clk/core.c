@@ -569,7 +569,7 @@ long clk_round_rate(struct clk *clk, unsigned long rate)
 EXPORT_SYMBOL_GPL(clk_round_rate);
 
 #ifdef CONFIG_PM
-static void clks_core_resume(void)
+static void clks_core_resume(struct syscore_ops *ops)
 {
 	struct clk *clkp;
 

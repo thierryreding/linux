@@ -762,8 +762,13 @@ void microcode_bsp_resume(void)
 		reload_early_microcode(cpu);
 }
 
+static void microcode_bsp_syscore_resume(struct syscore_ops *ops)
+{
+	microcode_bsp_resume();
+}
+
 static struct syscore_ops mc_syscore_ops = {
-	.resume	= microcode_bsp_resume,
+	.resume	= microcode_bsp_syscore_resume,
 };
 
 static int mc_cpu_online(unsigned int cpu)

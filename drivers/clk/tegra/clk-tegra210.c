@@ -3444,7 +3444,7 @@ static void tegra210_disable_cpu_clock(u32 cpu)
 static u32 spare_reg_ctx, misc_clk_enb_ctx, clk_msk_arm_ctx;
 static u32 cpu_softrst_ctx[3];
 
-static int tegra210_clk_suspend(void)
+static int tegra210_clk_suspend(struct syscore_ops *ops)
 {
 	unsigned int i;
 
@@ -3465,7 +3465,7 @@ static int tegra210_clk_suspend(void)
 	return 0;
 }
 
-static void tegra210_clk_resume(void)
+static void tegra210_clk_resume(struct syscore_ops *ops)
 {
 	unsigned int i;
 

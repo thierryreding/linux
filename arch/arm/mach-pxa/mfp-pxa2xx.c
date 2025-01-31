@@ -346,7 +346,7 @@ static unsigned long saved_gpdr[4];
 static unsigned long saved_gplr[4];
 static unsigned long saved_pgsr[4];
 
-static int pxa2xx_mfp_suspend(void)
+static int pxa2xx_mfp_suspend(struct syscore_ops *ops)
 {
 	int i;
 
@@ -385,7 +385,7 @@ static int pxa2xx_mfp_suspend(void)
 	return 0;
 }
 
-static void pxa2xx_mfp_resume(void)
+static void pxa2xx_mfp_resume(struct syscore_ops *ops)
 {
 	int i;
 

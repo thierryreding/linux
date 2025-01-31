@@ -659,7 +659,7 @@ static const struct dev_pm_ops mxc_gpio_dev_pm_ops = {
 	RUNTIME_PM_OPS(mxc_gpio_runtime_suspend, mxc_gpio_runtime_resume, NULL)
 };
 
-static int mxc_gpio_syscore_suspend(void)
+static int mxc_gpio_syscore_suspend(struct syscore_ops *ops)
 {
 	struct mxc_gpio_port *port;
 	int ret;
@@ -676,7 +676,7 @@ static int mxc_gpio_syscore_suspend(void)
 	return 0;
 }
 
-static void mxc_gpio_syscore_resume(void)
+static void mxc_gpio_syscore_resume(struct syscore_ops *ops)
 {
 	struct mxc_gpio_port *port;
 	int ret;

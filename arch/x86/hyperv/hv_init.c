@@ -315,7 +315,7 @@ static int __init hv_pci_init(void)
 	return 1;
 }
 
-static int hv_suspend(void)
+static int hv_suspend(struct syscore_ops *ops)
 {
 	union hv_x64_msr_hypercall_contents hypercall_msr;
 	int ret;
@@ -342,7 +342,7 @@ static int hv_suspend(void)
 	return ret;
 }
 
-static void hv_resume(void)
+static void hv_resume(struct syscore_ops *ops)
 {
 	union hv_x64_msr_hypercall_contents hypercall_msr;
 	int ret;

@@ -1943,7 +1943,7 @@ static void mpic_suspend_one(struct mpic *mpic)
 	}
 }
 
-static int mpic_suspend(void)
+static int mpic_suspend(struct syscore_ops *ops)
 {
 	struct mpic *mpic = mpics;
 
@@ -1985,7 +1985,7 @@ static void mpic_resume_one(struct mpic *mpic)
 	} /* end for loop */
 }
 
-static void mpic_resume(void)
+static void mpic_resume(struct syscore_ops *ops)
 {
 	struct mpic *mpic = mpics;
 

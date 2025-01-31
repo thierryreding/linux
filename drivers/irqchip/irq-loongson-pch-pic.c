@@ -278,7 +278,7 @@ static void pch_pic_reset(struct pch_pic *priv)
 	}
 }
 
-static int pch_pic_suspend(void)
+static int pch_pic_suspend(struct syscore_ops *ops)
 {
 	int i, j;
 
@@ -296,7 +296,7 @@ static int pch_pic_suspend(void)
 	return 0;
 }
 
-static void pch_pic_resume(void)
+static void pch_pic_resume(struct syscore_ops *ops)
 {
 	int i, j;
 

@@ -132,7 +132,7 @@ static int tegra_set_wake(struct irq_data *d, unsigned int enable)
 	return 0;
 }
 
-static int tegra_ictlr_suspend(void)
+static int tegra_ictlr_suspend(struct syscore_ops *ops)
 {
 	unsigned long flags;
 	unsigned int i;
@@ -161,7 +161,7 @@ static int tegra_ictlr_suspend(void)
 	return 0;
 }
 
-static void tegra_ictlr_resume(void)
+static void tegra_ictlr_resume(struct syscore_ops *ops)
 {
 	unsigned long flags;
 	unsigned int i;

@@ -12,9 +12,9 @@
 
 struct syscore_ops {
 	struct list_head node;
-	int (*suspend)(void);
-	void (*resume)(void);
-	void (*shutdown)(void);
+	int (*suspend)(struct syscore_ops *ops);
+	void (*resume)(struct syscore_ops *ops);
+	void (*shutdown)(struct syscore_ops *ops);
 };
 
 extern void register_syscore_ops(struct syscore_ops *ops);

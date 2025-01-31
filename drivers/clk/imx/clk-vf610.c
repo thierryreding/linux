@@ -139,7 +139,7 @@ static struct clk * __init vf610_get_fixed_clock(
 	return clk;
 };
 
-static int vf610_clk_suspend(void)
+static int vf610_clk_suspend(struct syscore_ops *ops)
 {
 	int i;
 
@@ -156,7 +156,7 @@ static int vf610_clk_suspend(void)
 	return 0;
 }
 
-static void vf610_clk_resume(void)
+static void vf610_clk_resume(struct syscore_ops *ops)
 {
 	int i;
 

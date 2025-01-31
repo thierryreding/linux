@@ -1545,13 +1545,13 @@ static int x86_pmu_amd_ibs_starting_cpu(unsigned int cpu)
 
 #ifdef CONFIG_PM
 
-static int perf_ibs_suspend(void)
+static int perf_ibs_suspend(struct syscore_ops *ops)
 {
 	clear_APIC_ibs();
 	return 0;
 }
 
-static void perf_ibs_resume(void)
+static void perf_ibs_resume(struct syscore_ops *ops)
 {
 	ibs_eilvt_setup();
 	setup_APIC_ibs();

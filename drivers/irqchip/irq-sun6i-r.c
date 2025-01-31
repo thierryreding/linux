@@ -268,7 +268,7 @@ static const struct irq_domain_ops sun6i_r_intc_domain_ops = {
 	.free		= irq_domain_free_irqs_common,
 };
 
-static int sun6i_r_intc_suspend(void)
+static int sun6i_r_intc_suspend(struct syscore_ops *ops)
 {
 	u32 buf[BITS_TO_U32(MAX(SUN6I_NR_TOP_LEVEL_IRQS, SUN6I_NR_MUX_BITS))];
 	int i;
@@ -284,7 +284,7 @@ static int sun6i_r_intc_suspend(void)
 	return 0;
 }
 
-static void sun6i_r_intc_resume(void)
+static void sun6i_r_intc_resume(struct syscore_ops *ops)
 {
 	int i;
 
@@ -294,9 +294,9 @@ static void sun6i_r_intc_resume(void)
 		writel_relaxed(0, base + SUN6I_IRQ_ENABLE(i));
 }
 
-static void sun6i_r_intc_shutdown(void)
+static void sun6i_r_intc_shutdown(struct syscore_ops *ops)
 {
-	sun6i_r_intc_suspend();
+	sun6i_r_intc_suspend(ops);
 }
 
 static struct syscore_ops sun6i_r_intc_syscore_ops = {
@@ -349,7 +349,7 @@ static int __init sun6i_r_intc_init(struct device_node *node,
 	register_syscore_ops(&sun6i_r_intc_syscore_ops);
 
 	sun6i_r_intc_ack_nmi();
-	sun6i_r_intc_resume();
+	sun6i_r_intc_resume(NULL);
 
 	return 0;
 }

@@ -36,7 +36,7 @@ static DEFINE_PER_CPU_SHARED_ALIGNED(struct aperfmperf, cpu_samples) = {
 	.seq = SEQCNT_ZERO(cpu_samples.seq)
 };
 
-static void init_counter_refs(void)
+static void init_counter_refs(struct syscore_ops *ops)
 {
 	u64 aperf, mperf;
 
@@ -534,7 +534,7 @@ static int __init bp_init_aperfmperf(void)
 	if (!cpu_feature_enabled(X86_FEATURE_APERFMPERF))
 		return 0;
 
-	init_counter_refs();
+	init_counter_refs(NULL);
 	bp_init_freq_invariance();
 	return 0;
 }
@@ -543,5 +543,5 @@ early_initcall(bp_init_aperfmperf);
 void ap_init_aperfmperf(void)
 {
 	if (cpu_feature_enabled(X86_FEATURE_APERFMPERF))
-		init_counter_refs();
+		init_counter_refs(NULL);
 }

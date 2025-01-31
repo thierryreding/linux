@@ -3645,7 +3645,7 @@ static bool legacy_kthread_create(void)
  * to transition back to atomic printing, thus providing a robust mechanism
  * for the final shutdown/reboot messages to be output.
  */
-static void printk_kthreads_shutdown(void)
+static void printk_kthreads_shutdown(struct syscore_ops *ops)
 {
 	struct console *con;
 

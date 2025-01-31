@@ -115,7 +115,7 @@ struct pmc_data *pmc_data_allocate(unsigned int ncore, unsigned int nsystem,
 /* Address in SECURAM that say if we suspend to backup mode. */
 static void __iomem *at91_pmc_backup_suspend;
 
-static int at91_pmc_suspend(void)
+static int at91_pmc_suspend(struct syscore_ops *ops)
 {
 	unsigned int backup;
 
@@ -129,7 +129,7 @@ static int at91_pmc_suspend(void)
 	return clk_save_context();
 }
 
-static void at91_pmc_resume(void)
+static void at91_pmc_resume(struct syscore_ops *ops)
 {
 	unsigned int backup;
 

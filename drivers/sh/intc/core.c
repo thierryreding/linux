@@ -394,7 +394,7 @@ err0:
 	return -ENOMEM;
 }
 
-static int intc_suspend(void)
+static int intc_suspend(struct syscore_ops *ops)
 {
 	struct intc_desc_int *d;
 
@@ -420,7 +420,7 @@ static int intc_suspend(void)
 	return 0;
 }
 
-static void intc_resume(void)
+static void intc_resume(struct syscore_ops *ops)
 {
 	struct intc_desc_int *d;
 

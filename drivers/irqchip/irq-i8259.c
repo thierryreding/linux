@@ -202,13 +202,13 @@ spurious_8259A_irq:
 	}
 }
 
-static void i8259A_resume(void)
+static void i8259A_resume(struct syscore_ops *ops)
 {
 	if (i8259A_auto_eoi >= 0)
 		init_8259A(i8259A_auto_eoi);
 }
 
-static void i8259A_shutdown(void)
+static void i8259A_shutdown(struct syscore_ops *ops)
 {
 	/* Put the i8259A into a quiescent state that
 	 * the kernel initialization code can get it

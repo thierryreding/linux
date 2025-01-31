@@ -271,7 +271,7 @@ void __init samsung_clk_of_register_fixed_ext(struct samsung_clk_provider *ctx,
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int samsung_clk_suspend(void)
+static int samsung_clk_suspend(struct syscore_ops *ops)
 {
 	struct samsung_clock_reg_cache *reg_cache;
 
@@ -284,7 +284,7 @@ static int samsung_clk_suspend(void)
 	return 0;
 }
 
-static void samsung_clk_resume(void)
+static void samsung_clk_resume(struct syscore_ops *ops)
 {
 	struct samsung_clock_reg_cache *reg_cache;
 

@@ -298,7 +298,7 @@ out:
 #ifdef CONFIG_PM_SLEEP
 static u32 cpubiuctrl_reg_save[NUM_CPU_BIUCTRL_REGS];
 
-static int brcmstb_cpu_credit_reg_suspend(void)
+static int brcmstb_cpu_credit_reg_suspend(struct syscore_ops *ops)
 {
 	unsigned int i;
 
@@ -311,7 +311,7 @@ static int brcmstb_cpu_credit_reg_suspend(void)
 	return 0;
 }
 
-static void brcmstb_cpu_credit_reg_resume(void)
+static void brcmstb_cpu_credit_reg_resume(struct syscore_ops *ops)
 {
 	unsigned int i;
 

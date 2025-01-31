@@ -179,7 +179,7 @@ void __init pxa_init_irq(int irq_nr, int (*fn)(struct irq_data *, unsigned int))
 static unsigned long saved_icmr[MAX_INTERNAL_IRQS/32];
 static unsigned long saved_ipr[MAX_INTERNAL_IRQS];
 
-static int pxa_irq_suspend(void)
+static int pxa_irq_suspend(struct syscore_ops *ops)
 {
 	int i;
 
@@ -198,7 +198,7 @@ static int pxa_irq_suspend(void)
 	return 0;
 }
 
-static void pxa_irq_resume(void)
+static void pxa_irq_resume(struct syscore_ops *ops)
 {
 	int i;
 

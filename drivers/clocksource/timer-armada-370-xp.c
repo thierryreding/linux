@@ -207,14 +207,14 @@ static int armada_370_xp_timer_dying_cpu(unsigned int cpu)
 
 static u32 timer0_ctrl_reg, timer0_local_ctrl_reg;
 
-static int armada_370_xp_timer_suspend(void)
+static int armada_370_xp_timer_suspend(struct syscore_ops *ops)
 {
 	timer0_ctrl_reg = readl(timer_base + TIMER_CTRL_OFF);
 	timer0_local_ctrl_reg = readl(local_base + TIMER_CTRL_OFF);
 	return 0;
 }
 
-static void armada_370_xp_timer_resume(void)
+static void armada_370_xp_timer_resume(struct syscore_ops *ops)
 {
 	writel(0xffffffff, timer_base + TIMER0_VAL_OFF);
 	writel(0xffffffff, timer_base + TIMER0_RELOAD_OFF);

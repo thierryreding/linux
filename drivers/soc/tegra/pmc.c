@@ -3141,7 +3141,7 @@ static void tegra186_pmc_process_wake_events(struct tegra_pmc *pmc, unsigned int
 	}
 }
 
-static void tegra186_pmc_wake_syscore_resume(void)
+static void tegra186_pmc_wake_syscore_resume(struct syscore_ops *ops)
 {
 	u32 status, mask;
 	unsigned int i;
@@ -3154,7 +3154,7 @@ static void tegra186_pmc_wake_syscore_resume(void)
 	}
 }
 
-static int tegra186_pmc_wake_syscore_suspend(void)
+static int tegra186_pmc_wake_syscore_suspend(struct syscore_ops *ops)
 {
 	wke_read_sw_wake_status(pmc);
 

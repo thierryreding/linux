@@ -2308,7 +2308,12 @@ static void resume_ioapic_id(int ioapic_idx)
 	}
 }
 
-static void ioapic_resume(void)
+static int ioapic_suspend(struct syscore_ops *ops)
+{
+	return save_ioapic_entries();
+}
+
+static void ioapic_resume(struct syscore_ops *ops)
 {
 	int ioapic_idx;
 
@@ -2319,7 +2324,7 @@ static void ioapic_resume(void)
 }
 
 static struct syscore_ops ioapic_syscore_ops = {
-	.suspend	= save_ioapic_entries,
+	.suspend	= ioapic_suspend,
 	.resume		= ioapic_resume,
 };
 

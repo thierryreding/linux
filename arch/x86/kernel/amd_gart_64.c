@@ -591,7 +591,7 @@ static void gart_fixup_northbridges(void)
 	}
 }
 
-static void gart_resume(void)
+static void gart_resume(struct syscore_ops *ops)
 {
 	pr_info("PCI-DMA: Resuming GART IOMMU\n");
 

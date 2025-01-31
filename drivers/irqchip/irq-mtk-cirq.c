@@ -199,7 +199,7 @@ static const struct irq_domain_ops cirq_domain_ops = {
 };
 
 #ifdef CONFIG_PM_SLEEP
-static int mtk_cirq_suspend(void)
+static int mtk_cirq_suspend(struct syscore_ops *ops)
 {
 	void __iomem *reg;
 	u32 value, mask;
@@ -257,7 +257,7 @@ static int mtk_cirq_suspend(void)
 	return 0;
 }
 
-static void mtk_cirq_resume(void)
+static void mtk_cirq_resume(struct syscore_ops *ops)
 {
 	void __iomem *reg = mtk_cirq_reg(cirq_data, CIRQ_CONTROL);
 	u32 value;

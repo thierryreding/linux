@@ -246,19 +246,19 @@ static void save_ELCR(char *trigger)
 	trigger[1] = inb(PIC_ELCR2) & 0xDE;
 }
 
-static void i8259A_resume(void)
+static void i8259A_resume(struct syscore_ops *ops)
 {
 	init_8259A(i8259A_auto_eoi);
 	restore_ELCR(irq_trigger);
 }
 
-static int i8259A_suspend(void)
+static int i8259A_suspend(struct syscore_ops *ops)
 {
 	save_ELCR(irq_trigger);
 	return 0;
 }
 
-static void i8259A_shutdown(void)
+static void i8259A_shutdown(struct syscore_ops *ops)
 {
 	/* Put the i8259A into a quiescent state that
 	 * the kernel initialization code can get it

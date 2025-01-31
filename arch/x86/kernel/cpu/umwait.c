@@ -86,7 +86,7 @@ static int umwait_cpu_offline(unsigned int cpu)
  * trust the firmware nor does it matter if the same value is written
  * again.
  */
-static void umwait_syscore_resume(void)
+static void umwait_syscore_resume(struct syscore_ops *ops)
 {
 	umwait_update_control_msr(NULL);
 }

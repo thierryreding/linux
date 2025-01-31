@@ -720,7 +720,7 @@ static int kvm_cpu_down_prepare(unsigned int cpu)
 
 #endif
 
-static int kvm_suspend(void)
+static int kvm_suspend(struct syscore_ops *ops)
 {
 	u64 val = 0;
 
@@ -734,7 +734,7 @@ static int kvm_suspend(void)
 	return 0;
 }
 
-static void kvm_resume(void)
+static void kvm_resume(struct syscore_ops *ops)
 {
 	kvm_cpu_online(raw_smp_processor_id());
 

@@ -2595,7 +2595,7 @@ static void hv_crash_handler(struct pt_regs *regs)
 	hv_synic_disable_regs(cpu);
 };
 
-static int hv_synic_suspend(void)
+static int hv_synic_suspend(struct syscore_ops *ops)
 {
 	/*
 	 * When we reach here, all the non-boot CPUs have been offlined.
@@ -2622,7 +2622,7 @@ static int hv_synic_suspend(void)
 	return 0;
 }
 
-static void hv_synic_resume(void)
+static void hv_synic_resume(struct syscore_ops *ops)
 {
 	hv_synic_enable_regs(0);
 

@@ -665,7 +665,7 @@ static struct irq_data *irq_gc_get_irq_data(struct irq_chip_generic *gc)
 }
 
 #ifdef CONFIG_PM
-static int irq_gc_suspend(void)
+static int irq_gc_suspend(struct syscore_ops *ops)
 {
 	struct irq_chip_generic *gc;
 
@@ -685,7 +685,7 @@ static int irq_gc_suspend(void)
 	return 0;
 }
 
-static void irq_gc_resume(void)
+static void irq_gc_resume(struct syscore_ops *ops)
 {
 	struct irq_chip_generic *gc;
 
@@ -708,7 +708,7 @@ static void irq_gc_resume(void)
 #define irq_gc_resume NULL
 #endif
 
-static void irq_gc_shutdown(void)
+static void irq_gc_shutdown(struct syscore_ops *ops)
 {
 	struct irq_chip_generic *gc;
 

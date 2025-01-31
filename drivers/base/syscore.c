@@ -62,7 +62,7 @@ int syscore_suspend(void)
 	list_for_each_entry_reverse(ops, &syscore_ops_list, node)
 		if (ops->suspend) {
 			pm_pr_dbg("Calling %pS\n", ops->suspend);
-			ret = ops->suspend();
+			ret = ops->suspend(ops);
 			if (ret)
 				goto err_out;
 			WARN_ONCE(!irqs_disabled(),
@@ -77,7 +77,7 @@ int syscore_suspend(void)
 
 	list_for_each_entry_continue(ops, &syscore_ops_list, node)
 		if (ops->resume)
-			ops->resume();
+			ops->resume(ops);
 
 	return ret;
 }
@@ -99,7 +99,7 @@ void syscore_resume(void)
 	list_for_each_entry(ops, &syscore_ops_list, node)
 		if (ops->resume) {
 			pm_pr_dbg("Calling %pS\n", ops->resume);
-			ops->resume();
+			ops->resume(ops);
 			WARN_ONCE(!irqs_disabled(),
 				"Interrupts enabled after %pS\n", ops->resume);
 		}
@@ -121,7 +121,7 @@ void syscore_shutdown(void)
 		if (ops->shutdown) {
 			if (initcall_debug)
 				pr_info("PM: Calling %pS\n", ops->shutdown);
-			ops->shutdown();
+			ops->shutdown(ops);
 		}
 
 	mutex_unlock(&syscore_ops_lock);

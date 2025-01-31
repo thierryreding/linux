@@ -243,7 +243,7 @@ static int plic_irq_set_type(struct irq_data *d, unsigned int type)
 	return IRQ_SET_MASK_OK;
 }
 
-static int plic_irq_suspend(void)
+static int plic_irq_suspend(struct syscore_ops *ops)
 {
 	unsigned int i, cpu;
 	unsigned long flags;
@@ -274,7 +274,7 @@ static int plic_irq_suspend(void)
 	return 0;
 }
 
-static void plic_irq_resume(void)
+static void plic_irq_resume(struct syscore_ops *ops)
 {
 	unsigned int i, index, cpu;
 	unsigned long flags;

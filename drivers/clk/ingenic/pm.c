@@ -15,7 +15,7 @@
 
 static void __iomem * __maybe_unused ingenic_cgu_base;
 
-static int __maybe_unused ingenic_cgu_pm_suspend(void)
+static int __maybe_unused ingenic_cgu_pm_suspend(struct syscore_ops *ops)
 {
 	u32 val = readl(ingenic_cgu_base + CGU_REG_LCR);
 
@@ -24,7 +24,7 @@ static int __maybe_unused ingenic_cgu_pm_suspend(void)
 	return 0;
 }
 
-static void __maybe_unused ingenic_cgu_pm_resume(void)
+static void __maybe_unused ingenic_cgu_pm_resume(struct syscore_ops *ops)
 {
 	u32 val = readl(ingenic_cgu_base + CGU_REG_LCR);
 

@@ -358,12 +358,12 @@ static struct irq_domain *acpi_get_vec_parent(int node, struct acpi_vector_group
 	return NULL;
 }
 
-static int eiointc_suspend(void)
+static int eiointc_suspend(struct syscore_ops *ops)
 {
 	return 0;
 }
 
-static void eiointc_resume(void)
+static void eiointc_resume(struct syscore_ops *ops)
 {
 	eiointc_router_init(0);
 }

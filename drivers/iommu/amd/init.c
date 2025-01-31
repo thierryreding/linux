@@ -2906,7 +2906,7 @@ static void disable_iommus(void)
  * disable suspend until real resume implemented
  */
 
-static void amd_iommu_resume(void)
+static void amd_iommu_resume(struct syscore_ops *ops)
 {
 	struct amd_iommu *iommu;
 
@@ -2920,7 +2920,7 @@ static void amd_iommu_resume(void)
 	amd_iommu_enable_interrupts();
 }
 
-static int amd_iommu_suspend(void)
+static int amd_iommu_suspend(struct syscore_ops *ops)
 {
 	/* disable IOMMUs to go out of the way for BIOS */
 	disable_iommus();

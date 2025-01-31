@@ -292,7 +292,7 @@ static int __init bcm7038_l1_init_one(struct device_node *dn,
 static LIST_HEAD(bcm7038_l1_intcs_list);
 static DEFINE_RAW_SPINLOCK(bcm7038_l1_intcs_lock);
 
-static int bcm7038_l1_suspend(void)
+static int bcm7038_l1_suspend(struct syscore_ops *ops)
 {
 	struct bcm7038_l1_chip *intc;
 	int boot_cpu, word;
@@ -318,7 +318,7 @@ static int bcm7038_l1_suspend(void)
 	return 0;
 }
 
-static void bcm7038_l1_resume(void)
+static void bcm7038_l1_resume(struct syscore_ops *ops)
 {
 	struct bcm7038_l1_chip *intc;
 	int boot_cpu, word;

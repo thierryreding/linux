@@ -599,7 +599,7 @@ not_found:
 	return viaint;
 }
 
-static int pmacpic_suspend(void)
+static int pmacpic_suspend(struct syscore_ops *ops)
 {
 	int viaint = pmacpic_find_viaint();
 
@@ -620,7 +620,7 @@ static int pmacpic_suspend(void)
         return 0;
 }
 
-static void pmacpic_resume(void)
+static void pmacpic_resume(struct syscore_ops *ops)
 {
 	int i;
 

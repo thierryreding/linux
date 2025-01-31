@@ -71,7 +71,7 @@ static void htpic_reg_init(void)
 	writel(0xffff, htpic->base + HTINT_EN_OFF);
 }
 
-static void htpic_resume(void)
+static void htpic_resume(struct syscore_ops *ops)
 {
 	htpic_reg_init();
 }

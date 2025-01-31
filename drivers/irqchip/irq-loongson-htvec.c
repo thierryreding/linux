@@ -159,7 +159,7 @@ static void htvec_reset(struct htvec *priv)
 	}
 }
 
-static int htvec_suspend(void)
+static int htvec_suspend(struct syscore_ops *ops)
 {
 	int i;
 
@@ -169,7 +169,7 @@ static int htvec_suspend(void)
 	return 0;
 }
 
-static void htvec_resume(void)
+static void htvec_resume(struct syscore_ops *ops)
 {
 	int i;
 

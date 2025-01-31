@@ -109,7 +109,7 @@ static int mchp_eic_irq_set_wake(struct irq_data *d, unsigned int on)
 	return 0;
 }
 
-static int mchp_eic_irq_suspend(void)
+static int mchp_eic_irq_suspend(struct syscore_ops *ops)
 {
 	unsigned int hwirq;
 
@@ -123,7 +123,7 @@ static int mchp_eic_irq_suspend(void)
 	return 0;
 }
 
-static void mchp_eic_irq_resume(void)
+static void mchp_eic_irq_resume(struct syscore_ops *ops)
 {
 	unsigned int hwirq;
 

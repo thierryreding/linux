@@ -982,7 +982,7 @@ u32 au1xxx_dbdma_put_dscr(u32 chanid, au1x_ddma_desc_t *dscr)
 
 static unsigned long alchemy_dbdma_pm_data[NUM_DBDMA_CHANS + 1][6];
 
-static int alchemy_dbdma_suspend(void)
+static int alchemy_dbdma_suspend(struct syscore_ops *ops)
 {
 	int i;
 	void __iomem *addr;
@@ -1019,7 +1019,7 @@ static int alchemy_dbdma_suspend(void)
 	return 0;
 }
 
-static void alchemy_dbdma_resume(void)
+static void alchemy_dbdma_resume(struct syscore_ops *ops)
 {
 	int i;
 	void __iomem *addr;

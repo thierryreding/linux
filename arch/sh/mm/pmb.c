@@ -857,7 +857,7 @@ static int __init pmb_debugfs_init(void)
 subsys_initcall(pmb_debugfs_init);
 
 #ifdef CONFIG_PM
-static void pmb_syscore_resume(void)
+static void pmb_syscore_resume(struct syscore_ops *ops)
 {
 	struct pmb_entry *pmbe;
 	int i;

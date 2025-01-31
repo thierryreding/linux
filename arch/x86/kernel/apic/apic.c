@@ -2378,7 +2378,7 @@ static struct {
 	unsigned int apic_cmci;
 } apic_pm_state;
 
-static int lapic_suspend(void)
+static int lapic_suspend(struct syscore_ops *ops)
 {
 	unsigned long flags;
 	int maxlvt;
@@ -2426,7 +2426,7 @@ static int lapic_suspend(void)
 	return 0;
 }
 
-static void lapic_resume(void)
+static void lapic_resume(struct syscore_ops *ops)
 {
 	unsigned int l, h;
 	unsigned long flags;

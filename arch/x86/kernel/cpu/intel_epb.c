@@ -75,7 +75,7 @@ static u8 energ_perf_values[] = {
 	[EPB_INDEX_POWERSAVE] = ENERGY_PERF_BIAS_POWERSAVE,
 };
 
-static int intel_epb_save(void)
+static int intel_epb_save(struct syscore_ops *ops)
 {
 	u64 epb;
 
@@ -89,7 +89,7 @@ static int intel_epb_save(void)
 	return 0;
 }
 
-static void intel_epb_restore(void)
+static void intel_epb_restore(struct syscore_ops *ops)
 {
 	u64 val = this_cpu_read(saved_epb);
 	u64 epb;
@@ -185,7 +185,7 @@ static int intel_epb_online(unsigned int cpu)
 {
 	struct device *cpu_dev = get_cpu_device(cpu);
 
-	intel_epb_restore();
+	intel_epb_restore(NULL);
 	if (!cpuhp_tasks_frozen)
 		sysfs_merge_group(&cpu_dev->kobj, &intel_epb_attr_group);
 
@@ -199,7 +199,7 @@ static int intel_epb_offline(unsigned int cpu)
 	if (!cpuhp_tasks_frozen)
 		sysfs_unmerge_group(&cpu_dev->kobj, &intel_epb_attr_group);
 
-	intel_epb_save();
+	intel_epb_save(NULL);
 	return 0;
 }
 

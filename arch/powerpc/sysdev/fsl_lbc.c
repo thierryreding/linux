@@ -350,7 +350,7 @@ err:
 #ifdef CONFIG_SUSPEND
 
 /* save lbc registers */
-static int fsl_lbc_syscore_suspend(void)
+static int fsl_lbc_syscore_suspend(struct syscore_ops *ops)
 {
 	struct fsl_lbc_ctrl *ctrl;
 	struct fsl_lbc_regs __iomem *lbc;
@@ -374,7 +374,7 @@ out:
 }
 
 /* restore lbc registers */
-static void fsl_lbc_syscore_resume(void)
+static void fsl_lbc_syscore_resume(struct syscore_ops *ops)
 {
 	struct fsl_lbc_ctrl *ctrl;
 	struct fsl_lbc_regs __iomem *lbc;

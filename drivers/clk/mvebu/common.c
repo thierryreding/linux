@@ -215,13 +215,13 @@ static struct clk *clk_gating_get_src(
 	return ERR_PTR(-ENODEV);
 }
 
-static int mvebu_clk_gating_suspend(void)
+static int mvebu_clk_gating_suspend(struct syscore_ops *ops)
 {
 	ctrl->saved_reg = readl(ctrl->base);
 	return 0;
 }
 
-static void mvebu_clk_gating_resume(void)
+static void mvebu_clk_gating_resume(struct syscore_ops *ops)
 {
 	writel(ctrl->saved_reg, ctrl->base);
 }

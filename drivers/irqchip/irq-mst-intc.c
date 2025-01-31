@@ -143,7 +143,7 @@ static void mst_intc_polarity_restore(struct mst_intc_chip_data *cd)
 		writew_relaxed(cd->saved_polarity_conf[i], addr + i * 4);
 }
 
-static void mst_irq_resume(void)
+static void mst_irq_resume(struct syscore_ops *ops)
 {
 	struct mst_intc_chip_data *cd;
 
@@ -151,7 +151,7 @@ static void mst_irq_resume(void)
 		mst_intc_polarity_restore(cd);
 }
 
-static int mst_irq_suspend(void)
+static int mst_irq_suspend(struct syscore_ops *ops)
 {
 	struct mst_intc_chip_data *cd;
 

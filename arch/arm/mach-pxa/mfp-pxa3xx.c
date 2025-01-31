@@ -27,13 +27,13 @@
  * a pull-down mode if they're an active low chip select, and we're
  * just entering standby.
  */
-static int pxa3xx_mfp_suspend(void)
+static int pxa3xx_mfp_suspend(struct syscore_ops *ops)
 {
 	mfp_config_lpm();
 	return 0;
 }
 
-static void pxa3xx_mfp_resume(void)
+static void pxa3xx_mfp_resume(struct syscore_ops *ops)
 {
 	mfp_config_run();
 

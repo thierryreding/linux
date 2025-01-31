@@ -215,7 +215,7 @@ static const struct of_device_id exynos_dt_mcpm_match[] = {
 	{},
 };
 
-static void exynos_mcpm_setup_entry_point(void)
+static void exynos_mcpm_setup_entry_point(struct syscore_ops *ops)
 {
 	/*
 	 * U-Boot SPL is hardcoded to jump to the start of ns_sram_base_addr
@@ -300,7 +300,7 @@ static int __init exynos_mcpm_init(void)
 		pmu_raw_writel(value, EXYNOS_COMMON_OPTION(i));
 	}
 
-	exynos_mcpm_setup_entry_point();
+	exynos_mcpm_setup_entry_point(NULL);
 
 	register_syscore_ops(&exynos_mcpm_syscore_ops);
 

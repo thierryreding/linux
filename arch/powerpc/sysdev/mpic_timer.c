@@ -519,7 +519,7 @@ out:
 	kfree(priv);
 }
 
-static void mpic_timer_resume(void)
+static void mpic_timer_resume(struct syscore_ops *ops)
 {
 	struct timer_group_priv *priv;
 
