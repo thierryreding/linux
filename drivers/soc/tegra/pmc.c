@@ -1374,6 +1374,8 @@ static int
 tegra_pmc_core_pd_set_performance_state(struct generic_pm_domain *genpd,
 					unsigned int level)
 {
+	struct tegra_powergate *pg = to_powergate(genpd);
+	struct tegra_pmc *pmc = pg->pmc;
 	struct dev_pm_opp *opp;
 	int err;
 
@@ -1497,7 +1499,7 @@ static void tegra_powergate_remove(struct generic_pm_domain *genpd)
 
 	kfree(pg->clks);
 
-	set_bit(pg->id, pmc->powergates_available);
+	set_bit(pg->id, pg->pmc->powergates_available);
 
 	kfree(pg);
 }
