@@ -469,6 +469,8 @@ struct tegra_pmc {
 	unsigned long *wake_type_dual_edge_map;
 	unsigned long *wake_sw_status_map;
 	unsigned long *wake_cntrl_level_map;
+
+	struct notifier_block reboot_notifier;
 	struct syscore_ops syscore;
 };
 
@@ -1098,7 +1100,8 @@ int tegra_pmc_cpu_remove_clamping(unsigned int cpuid)
 	return tegra_powergate_remove_clamping(id);
 }
 
-static void tegra_pmc_program_reboot_reason(const char *cmd)
+static void tegra_pmc_program_reboot_reason(struct tegra_pmc *pmc,
+					    const char *cmd)
 {
 	u32 value;
 
@@ -1122,15 +1125,13 @@ static void tegra_pmc_program_reboot_reason(const char *cmd)
 static int tegra_pmc_reboot_notify(struct notifier_block *this,
 				   unsigned long action, void *data)
 {
+	struct tegra_pmc *pmc = container_of(this, struct tegra_pmc,
+					     reboot_notifier);
 	if (action == SYS_RESTART)
-		tegra_pmc_program_reboot_reason(data);
+		tegra_pmc_program_reboot_reason(pmc, data);
 
 	return NOTIFY_DONE;
 }
-
-static struct notifier_block tegra_pmc_reboot_notifier = {
-	.notifier_call = tegra_pmc_reboot_notify,
-};
 
 static void tegra_pmc_restart(void)
 {
@@ -2919,8 +2920,10 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 	 * CPU without resetting everything else.
 	 */
 	if (pmc->scratch) {
+		pmc->reboot_notifier.notifier_call = tegra_pmc_reboot_notify;
+
 		err = devm_register_reboot_notifier(&pdev->dev,
-						    &tegra_pmc_reboot_notifier);
+						    &pmc->reboot_notifier);
 		if (err) {
 			dev_err(&pdev->dev,
 				"unable to register reboot notifier, %d\n",
