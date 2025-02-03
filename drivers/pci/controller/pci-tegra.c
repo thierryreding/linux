@@ -338,6 +338,8 @@ struct tegra_pcie {
 	struct reset_control *afi_rst;
 	struct reset_control *pcie_xrst;
 
+	struct tegra_pmc *pmc;
+
 	bool legacy_phy;
 	struct phy *phy;
 
@@ -1163,7 +1165,7 @@ static void tegra_pcie_power_off(struct tegra_pcie *pcie)
 	clk_disable_unprepare(pcie->afi_clk);
 
 	if (!dev->pm_domain)
-		tegra_powergate_power_off(TEGRA_POWERGATE_PCIE);
+		tegra_pmc_powergate_power_off(pcie->pmc, TEGRA_POWERGATE_PCIE);
 
 	err = regulator_bulk_disable(pcie->num_supplies, pcie->supplies);
 	if (err < 0)
@@ -1181,7 +1183,7 @@ static int tegra_pcie_power_on(struct tegra_pcie *pcie)
 	reset_control_assert(pcie->pex_rst);
 
 	if (!dev->pm_domain)
-		tegra_powergate_power_off(TEGRA_POWERGATE_PCIE);
+		tegra_pmc_powergate_power_off(pcie->pmc, TEGRA_POWERGATE_PCIE);
 
 	/* enable regulators */
 	err = regulator_bulk_enable(pcie->num_supplies, pcie->supplies);
@@ -1189,12 +1191,14 @@ static int tegra_pcie_power_on(struct tegra_pcie *pcie)
 		dev_err(dev, "failed to enable regulators: %d\n", err);
 
 	if (!dev->pm_domain) {
-		err = tegra_powergate_power_on(TEGRA_POWERGATE_PCIE);
+		err = tegra_pmc_powergate_power_on(pcie->pmc,
+						   TEGRA_POWERGATE_PCIE);
 		if (err) {
 			dev_err(dev, "failed to power ungate: %d\n", err);
 			goto regulator_disable;
 		}
-		err = tegra_powergate_remove_clamping(TEGRA_POWERGATE_PCIE);
+		err = tegra_pmc_powergate_remove_clamping(pcie->pmc,
+							  TEGRA_POWERGATE_PCIE);
 		if (err) {
 			dev_err(dev, "failed to remove clamp: %d\n", err);
 			goto powergate;
@@ -1232,7 +1236,7 @@ disable_afi_clk:
 	clk_disable_unprepare(pcie->afi_clk);
 powergate:
 	if (!dev->pm_domain)
-		tegra_powergate_power_off(TEGRA_POWERGATE_PCIE);
+		tegra_pmc_powergate_power_off(pcie->pmc, TEGRA_POWERGATE_PCIE);
 regulator_disable:
 	regulator_bulk_disable(pcie->num_supplies, pcie->supplies);
 
@@ -1427,6 +1431,12 @@ static int tegra_pcie_get_resources(struct tegra_pcie *pcie)
 	err = tegra_pcie_resets_get(pcie);
 	if (err) {
 		dev_err(dev, "failed to get resets: %d\n", err);
+		return err;
+	}
+
+	pcie->pmc = devm_tegra_pmc_get(dev);
+	if (IS_ERR(pcie->pmc)) {
+		dev_err_probe(dev, PTR_ERR(pcie->pmc), "failed to get PMC\n");
 		return err;
 	}
 
