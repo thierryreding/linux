@@ -960,12 +960,17 @@ static struct tegra_pmc *tegra_pmc_get(struct device *dev)
 
 	np = of_parse_phandle(dev->of_node, "nvidia,pmc", 0);
 	if (!np) {
+		dev_info(dev, "looking up PMC...\n");
 		struct device_node *parent = of_node_get(dev->of_node);
 
 		while ((parent = of_get_next_parent(parent)) != NULL) {
+			dev_info(dev, "  parent: %pOF\n", parent);
+
 			np = of_find_matching_node(parent, tegra_pmc_match);
-			if (np)
+			if (np) {
+				dev_info(dev, "  found: %pOF\n", np);
 				break;
+			}
 		}
 
 		of_node_put(parent);
