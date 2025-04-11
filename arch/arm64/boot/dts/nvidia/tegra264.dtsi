@@ -41,6 +41,13 @@
 			      <0x0 0x0c140000 0x0 0x10000>;
 		};
 
+		fuse@1000000 {
+			compatible = "nvidia,tegra264-efuse";
+			reg = <0x0 0x1000000 0x0 0x10000>;
+			clocks = <&bpmp TEGRA264_CLK_FUSE>;
+			clock-names = "fuse";
+		};
+
 		timer@8000000 {
 			compatible = "nvidia,tegra234-timer";
 			reg = <0x0 0x08000000 0x0 0x140000>;
