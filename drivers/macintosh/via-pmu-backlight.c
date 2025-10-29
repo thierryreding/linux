@@ -13,6 +13,7 @@
 #include <linux/backlight.h>
 #include <linux/pmu.h>
 #include <asm/backlight.h>
+#include <uapi/linux/fb.h>
 
 #define MAX_PMU_LEVEL 0xFF
 
