@@ -10,6 +10,7 @@
 #define __IPIC_H__
 
 #include <asm/ipic.h>
+#include <linux/syscore_ops.h>
 
 #define NR_IPIC_INTS 128
 
@@ -40,6 +41,10 @@ struct ipic {
 
 	/* The remapper for this IPIC */
 	struct irq_domain		*irqhost;
+
+#ifdef CONFIG_SUSPEND
+	struct syscore syscore;
+#endif
 };
 
 struct ipic_info {
