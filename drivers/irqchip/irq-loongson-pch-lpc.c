@@ -32,12 +32,12 @@ struct pch_lpc {
 	void __iomem		*base;
 	struct irq_domain	*lpc_domain;
 	raw_spinlock_t		lpc_lock;
+	struct syscore		syscore;
 	u32			saved_reg_ctl;
 	u32			saved_reg_ena;
 	u32			saved_reg_pol;
 };
 
-static struct pch_lpc *pch_lpc_priv;
 struct fwnode_handle *pch_lpc_handle;
 
 static void lpc_irq_ack(struct irq_data *d)
@@ -153,6 +153,7 @@ static int pch_lpc_disabled(struct pch_lpc *priv)
 
 static int pch_lpc_suspend(void *data)
 {
+	struct pch_lpc *pch_lpc_priv = data;
 	pch_lpc_priv->saved_reg_ctl = readl(pch_lpc_priv->base + LPC_INT_CTL);
 	pch_lpc_priv->saved_reg_ena = readl(pch_lpc_priv->base + LPC_INT_ENA);
 	pch_lpc_priv->saved_reg_pol = readl(pch_lpc_priv->base + LPC_INT_POL);
@@ -161,6 +162,7 @@ static int pch_lpc_suspend(void *data)
 
 static void pch_lpc_resume(void *data)
 {
+	struct pch_lpc *pch_lpc_priv = data;
 	writel(pch_lpc_priv->saved_reg_ctl, pch_lpc_priv->base + LPC_INT_CTL);
 	writel(pch_lpc_priv->saved_reg_ena, pch_lpc_priv->base + LPC_INT_ENA);
 	writel(pch_lpc_priv->saved_reg_pol, pch_lpc_priv->base + LPC_INT_POL);
@@ -169,10 +171,6 @@ static void pch_lpc_resume(void *data)
 static const struct syscore_ops pch_lpc_syscore_ops = {
 	.suspend = pch_lpc_suspend,
 	.resume = pch_lpc_resume,
-};
-
-static struct syscore pch_lpc_syscore = {
-	.ops = &pch_lpc_syscore_ops,
 };
 
 int __init pch_lpc_acpi_init(struct irq_domain *parent,
@@ -224,9 +222,10 @@ int __init pch_lpc_acpi_init(struct irq_domain *parent,
 	parent_irq = irq_create_fwspec_mapping(&fwspec);
 	irq_set_chained_handler_and_data(parent_irq, lpc_irq_dispatch, priv);
 
-	pch_lpc_priv = priv;
 	pch_lpc_handle = irq_handle;
-	register_syscore(&pch_lpc_syscore);
+	priv->syscore.ops = &pch_lpc_syscore_ops;
+	priv->syscore.data = priv;
+	register_syscore(&priv->syscore);
 
 	return 0;
 
