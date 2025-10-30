@@ -13,6 +13,7 @@
 #include <linux/clk-provider.h>
 #include <linux/of.h>
 #include <linux/spinlock.h>
+#include <linux/syscore_ops.h>
 
 /**
  * struct ingenic_cgu_pll_info - information about a PLL
@@ -203,6 +204,8 @@ struct ingenic_cgu {
 	struct clk_onecell_data clocks;
 
 	spinlock_t lock;
+
+	struct syscore syscore;
 };
 
 /**
