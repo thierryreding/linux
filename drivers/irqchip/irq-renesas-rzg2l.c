@@ -82,7 +82,8 @@ static struct rzg2l_irqc_priv {
 	struct irq_fwspec		fwspec[IRQC_NUM_IRQ];
 	raw_spinlock_t			lock;
 	struct rzg2l_irqc_reg_cache	cache;
-} *rzg2l_irqc_data;
+	struct syscore			syscore;
+};
 
 static struct rzg2l_irqc_priv *irq_data_to_priv(struct irq_data *data)
 {
@@ -400,6 +401,7 @@ static int rzg2l_irqc_set_type(struct irq_data *d, unsigned int type)
 
 static int rzg2l_irqc_irq_suspend(void *data)
 {
+	struct rzg2l_irqc_priv *rzg2l_irqc_data = data;
 	struct rzg2l_irqc_reg_cache *cache = &rzg2l_irqc_data->cache;
 	void __iomem *base = rzg2l_irqc_data->base;
 
@@ -412,6 +414,7 @@ static int rzg2l_irqc_irq_suspend(void *data)
 
 static void rzg2l_irqc_irq_resume(void *data)
 {
+	struct rzg2l_irqc_priv *rzg2l_irqc_data = data;
 	struct rzg2l_irqc_reg_cache *cache = &rzg2l_irqc_data->cache;
 	void __iomem *base = rzg2l_irqc_data->base;
 
@@ -536,6 +539,7 @@ static int rzg2l_irqc_common_probe(struct platform_device *pdev, struct device_n
 {
 	struct irq_domain *irq_domain, *parent_domain;
 	struct device_node *node = pdev->dev.of_node;
+	struct rzg2l_irqc_priv *rzg2l_irqc_data;
 	struct device *dev = &pdev->dev;
 	struct reset_control *resetn;
 	int ret;
@@ -581,7 +585,9 @@ static int rzg2l_irqc_common_probe(struct platform_device *pdev, struct device_n
 		return -ENOMEM;
 	}
 
-	register_syscore(&rzg2l_irqc_syscore);
+	rzg2l_irqc_data->syscore.ops = &rzg2l_irqc_syscore_ops;
+	rzg2l_irqc_data->syscore.data = rzg2l_irqc_data;
+	register_syscore(&rzg2l_irqc_data->syscore);
 
 	return 0;
 }
