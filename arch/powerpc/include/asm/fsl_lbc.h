@@ -16,6 +16,7 @@
 #include <linux/io.h>
 #include <linux/device.h>
 #include <linux/spinlock.h>
+#include <linux/syscore_ops.h>
 
 struct fsl_lbc_bank {
 	__be32 br;             /**< Base Register  */
@@ -286,6 +287,7 @@ struct fsl_lbc_ctrl {
 #ifdef CONFIG_SUSPEND
 	/* save regs when system go to deep-sleep */
 	struct fsl_lbc_regs		*saved_regs;
+	struct syscore			syscore;
 #endif
 };
 

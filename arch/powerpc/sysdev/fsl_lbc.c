@@ -25,7 +25,6 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/mod_devicetable.h>
-#include <linux/syscore_ops.h>
 #include <asm/fsl_lbc.h>
 
 static DEFINE_SPINLOCK(fsl_lbc_lock);
@@ -264,6 +263,55 @@ static irqreturn_t fsl_lbc_ctrl_irq(int irqno, void *data)
 	return IRQ_HANDLED;
 }
 
+#ifdef CONFIG_SUSPEND
+
+/* save lbc registers */
+static int fsl_lbc_syscore_suspend(void *data)
+{
+	struct fsl_lbc_ctrl *ctrl = data;
+	struct fsl_lbc_regs __iomem *lbc;
+
+	lbc = ctrl->regs;
+	if (!lbc)
+		goto out;
+
+	ctrl->saved_regs = kmalloc(sizeof(struct fsl_lbc_regs), GFP_KERNEL);
+	if (!ctrl->saved_regs)
+		return -ENOMEM;
+
+	_memcpy_fromio(ctrl->saved_regs, lbc, sizeof(struct fsl_lbc_regs));
+
+out:
+	return 0;
+}
+
+/* restore lbc registers */
+static void fsl_lbc_syscore_resume(void *data)
+{
+	struct fsl_lbc_ctrl *ctrl = data;
+	struct fsl_lbc_regs __iomem *lbc;
+
+	lbc = ctrl->regs;
+	if (!lbc)
+		goto out;
+
+	if (ctrl->saved_regs) {
+		_memcpy_toio(lbc, ctrl->saved_regs,
+				sizeof(struct fsl_lbc_regs));
+		kfree(ctrl->saved_regs);
+		ctrl->saved_regs = NULL;
+	}
+
+out:
+	return;
+}
+
+static const struct syscore_ops lbc_syscore_pm_ops = {
+	.suspend = fsl_lbc_syscore_suspend,
+	.resume = fsl_lbc_syscore_resume,
+};
+#endif /* CONFIG_SUSPEND */
+
 /*
  * fsl_lbc_ctrl_probe
  *
@@ -333,6 +381,12 @@ static int fsl_lbc_ctrl_probe(struct platform_device *dev)
 		}
 	}
 
+#ifdef CONFIG_SUSPEND
+	fsl_lbc_ctrl_dev->syscore.ops = &lbc_syscore_pm_ops;
+	fsl_lbc_ctrl_dev->syscore.data = fsl_lbc_ctrl_dev;
+	register_syscore(&fsl_lbc_ctrl_dev->syscore);
+#endif
+
 	/* Enable interrupts for any detected events */
 	out_be32(&fsl_lbc_ctrl_dev->regs->lteir, LTEIR_ENABLE);
 
@@ -347,58 +401,6 @@ err:
 	return ret;
 }
 
-#ifdef CONFIG_SUSPEND
-
-/* save lbc registers */
-static int fsl_lbc_syscore_suspend(void *data)
-{
-	struct fsl_lbc_ctrl *ctrl;
-	struct fsl_lbc_regs __iomem *lbc;
-
-	ctrl = fsl_lbc_ctrl_dev;
-	if (!ctrl)
-		goto out;
-
-	lbc = ctrl->regs;
-	if (!lbc)
-		goto out;
-
-	ctrl->saved_regs = kmalloc(sizeof(struct fsl_lbc_regs), GFP_KERNEL);
-	if (!ctrl->saved_regs)
-		return -ENOMEM;
-
-	_memcpy_fromio(ctrl->saved_regs, lbc, sizeof(struct fsl_lbc_regs));
-
-out:
-	return 0;
-}
-
-/* restore lbc registers */
-static void fsl_lbc_syscore_resume(void *data)
-{
-	struct fsl_lbc_ctrl *ctrl;
-	struct fsl_lbc_regs __iomem *lbc;
-
-	ctrl = fsl_lbc_ctrl_dev;
-	if (!ctrl)
-		goto out;
-
-	lbc = ctrl->regs;
-	if (!lbc)
-		goto out;
-
-	if (ctrl->saved_regs) {
-		_memcpy_toio(lbc, ctrl->saved_regs,
-				sizeof(struct fsl_lbc_regs));
-		kfree(ctrl->saved_regs);
-		ctrl->saved_regs = NULL;
-	}
-
-out:
-	return;
-}
-#endif /* CONFIG_SUSPEND */
-
 static const struct of_device_id fsl_lbc_match[] = {
 	{ .compatible = "fsl,elbc", },
 	{ .compatible = "fsl,pq3-localbus", },
@@ -406,17 +408,6 @@ static const struct of_device_id fsl_lbc_match[] = {
 	{ .compatible = "fsl,pq2pro-localbus", },
 	{},
 };
-
-#ifdef CONFIG_SUSPEND
-static const struct syscore_ops lbc_syscore_pm_ops = {
-	.suspend = fsl_lbc_syscore_suspend,
-	.resume = fsl_lbc_syscore_resume,
-};
-
-static struct syscore lbc_syscore_pm = {
-	.ops = &lbc_syscore_pm_ops,
-};
-#endif
 
 static struct platform_driver fsl_lbc_ctrl_driver = {
 	.driver = {
@@ -428,9 +419,6 @@ static struct platform_driver fsl_lbc_ctrl_driver = {
 
 static int __init fsl_lbc_init(void)
 {
-#ifdef CONFIG_SUSPEND
-	register_syscore(&lbc_syscore_pm);
-#endif
 	return platform_driver_register(&fsl_lbc_ctrl_driver);
 }
 subsys_initcall(fsl_lbc_init);
