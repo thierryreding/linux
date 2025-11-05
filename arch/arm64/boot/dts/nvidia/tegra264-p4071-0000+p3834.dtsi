@@ -16,6 +16,23 @@
 		};
 	};
 
+	bus@a800000000 {
+		/* PCIe C1 for M.2 Key E (J505) */
+		pci@8400000 {
+			status = "okay";
+		};
+
+		/* PCIe C2 for onboard Ethernet */
+		pci@8420000 {
+			status = "okay";
+		};
+
+		/* PCIe C5 for NVME */
+		pci@8480000 {
+			status = "okay";
+		};
+	};
+
 	fan: pwm-fan {
 		compatible = "pwm-fan";
 		cooling-levels = <77 102 140 192 255>;
