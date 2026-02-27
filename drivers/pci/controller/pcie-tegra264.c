@@ -34,6 +34,27 @@
 #define PCIE_LINK_UP_DELAY	10000	/* 10 msec */
 #define PCIE_LINK_UP_TIMEOUT	1000000	/* 1 s */
 
+/* XAL registers */
+#define XAL_RC_ECAM_BASE_HI			0x00
+#define XAL_RC_ECAM_BASE_LO			0x04
+#define XAL_RC_ECAM_BUSMASK			0x08
+#define XAL_RC_IO_BASE_HI			0x0c
+#define XAL_RC_IO_BASE_LO			0x10
+#define XAL_RC_IO_LIMIT_HI			0x14
+#define XAL_RC_IO_LIMIT_LO			0x18
+#define XAL_RC_MEM_32BIT_BASE_HI		0x1c
+#define XAL_RC_MEM_32BIT_BASE_LO		0x20
+#define XAL_RC_MEM_32BIT_LIMIT_HI		0x24
+#define XAL_RC_MEM_32BIT_LIMIT_LO		0x28
+#define XAL_RC_MEM_64BIT_BASE_HI		0x2c
+#define XAL_RC_MEM_64BIT_BASE_LO		0x30
+#define XAL_RC_MEM_64BIT_LIMIT_HI		0x34
+#define XAL_RC_MEM_64BIT_LIMIT_LO		0x38
+#define XAL_RC_BAR_CNTL_STANDARD		0x40
+#define XAL_RC_BAR_CNTL_STANDARD_IOBAR_EN	BIT(0)
+#define XAL_RC_BAR_CNTL_STANDARD_32B_BAR_EN	BIT(1)
+#define XAL_RC_BAR_CNTL_STANDARD_64B_BAR_EN	BIT(2)
+
 /* XTL registers */
 #define XTL_RC_PCIE_CFG_LINK_CONTROL_STATUS		0x58
 #define XTL_RC_PCIE_CFG_LINK_CONTROL_STATUS_DLL_ACTIVE	BIT(29)
@@ -51,6 +72,7 @@ struct tegra264_pcie {
 	bool link_state;
 
 	/* I/O memory */
+	void __iomem *xal;
 	void __iomem *xtl;
 	void __iomem *ecam;
 
@@ -139,7 +161,52 @@ static void tegra264_pcie_icc_set(struct tegra264_pcie *pcie)
 
 static void tegra264_pcie_init(struct tegra264_pcie *pcie)
 {
-	u32 value;
+	u32 value, hi, lo;
+	phys_addr_t phys;
+
+	dev_info(pcie->dev, "> %s()\n", __func__);
+
+	hi = readl(pcie->xal + XAL_RC_ECAM_BASE_HI);
+	lo = readl(pcie->xal + XAL_RC_ECAM_BASE_LO);
+	phys = (phys_addr_t)hi << 32 | lo;
+	dev_info(pcie->dev, "  ECAM:      %pap\n", &phys);
+	msleep(100);
+
+	hi = readl(pcie->xal + XAL_RC_IO_BASE_HI);
+	lo = readl(pcie->xal + XAL_RC_IO_BASE_LO);
+	phys = (phys_addr_t)hi << 32 | lo;
+	dev_info(pcie->dev, "  IO:        %pap\n", &phys);
+	msleep(100);
+
+	hi = readl(pcie->xal + XAL_RC_IO_LIMIT_HI);
+	lo = readl(pcie->xal + XAL_RC_IO_LIMIT_LO);
+	phys = (phys_addr_t)hi << 32 | lo;
+	dev_info(pcie->dev, "    limit:   %pap\n", &phys);
+	msleep(100);
+
+	hi = readl(pcie->xal + XAL_RC_MEM_32BIT_BASE_HI);
+	lo = readl(pcie->xal + XAL_RC_MEM_32BIT_BASE_LO);
+	phys = (phys_addr_t)hi << 32 | lo;
+	dev_info(pcie->dev, "  MEM32:     %pap\n", &phys);
+	msleep(100);
+
+	hi = readl(pcie->xal + XAL_RC_MEM_32BIT_LIMIT_HI);
+	lo = readl(pcie->xal + XAL_RC_MEM_32BIT_LIMIT_LO);
+	phys = (phys_addr_t)hi << 32 | lo;
+	dev_info(pcie->dev, "    limit:   %pap\n", &phys);
+	msleep(100);
+
+	hi = readl(pcie->xal + XAL_RC_MEM_64BIT_BASE_HI);
+	lo = readl(pcie->xal + XAL_RC_MEM_64BIT_BASE_LO);
+	phys = (phys_addr_t)hi << 32 | lo;
+	dev_info(pcie->dev, "  MEM64:     %pap\n", &phys);
+	msleep(100);
+
+	hi = readl(pcie->xal + XAL_RC_MEM_64BIT_LIMIT_HI);
+	lo = readl(pcie->xal + XAL_RC_MEM_64BIT_LIMIT_LO);
+	phys = (phys_addr_t)hi << 32 | lo;
+	dev_info(pcie->dev, "    limit:   %pap\n", &phys);
+	msleep(100);
 
 	if (!tegra_is_silicon()) {
 		dev_info(pcie->dev,
@@ -177,6 +244,8 @@ static void tegra264_pcie_init(struct tegra264_pcie *pcie)
 			pcie->link_state = true;
 		}
 	}
+
+	dev_info(pcie->dev, "< %s()\n", __func__);
 }
 
 static int tegra264_pcie_probe(struct platform_device *pdev)
@@ -208,6 +277,13 @@ static int tegra264_pcie_probe(struct platform_device *pdev)
 	ret = tegra264_pcie_parse_dt(pcie);
 	if (ret < 0)
 		return dev_err_probe(dev, ret, "failed to parse device tree");
+
+	pcie->xal = devm_platform_ioremap_resource_byname(pdev, "xal");
+	if (IS_ERR(pcie->xal)) {
+		ret = PTR_ERR(pcie->xal);
+		dev_err(dev, "failed to map xal memory: %d\n", ret);
+		return ret;
+	}
 
 	pcie->xtl = devm_platform_ioremap_resource_byname(pdev, "xtl-pri");
 	if (IS_ERR(pcie->xtl)) {
